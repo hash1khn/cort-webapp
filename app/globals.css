@@ -1,8 +1,20 @@
 @import "tailwindcss";
 
 :root {
+  /* Cort Design System (design.md) */
+  --cort-navy: #0c225e;
+  --cort-orange: #f47f00;
+  --cort-purple: #670e4c;
+  --cort-blue: #09347d;
+  --cort-teal: #6db9ca;
+  --cort-red: #d32f2f;
+  --cort-green: #388e3c;
+
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
+  --surface: #f5f5f5;
+  --border: rgba(17, 24, 39, 0.10);
+  --muted: rgba(17, 24, 39, 0.65);
 }
 
 @theme inline {
@@ -10,17 +22,29 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* App tokens */
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-ink: var(--foreground);
+  --color-muted: var(--muted);
+
+  /* Brand tokens */
+  --color-navy: var(--cort-navy);
+  --color-orange: var(--cort-orange);
+  --color-purple: var(--cort-purple);
+  --color-blue: var(--cort-blue);
+  --color-teal: var(--cort-teal);
+  --color-danger: var(--cort-red);
+  --color-success: var(--cort-green);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* A few sensible defaults for form controls in Tailwind v4 */
+input, select, textarea, button {
+  font: inherit;
 }
