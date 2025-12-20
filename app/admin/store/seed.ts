@@ -77,6 +77,8 @@ export function seedDb(): AdminDb {
         plate_no: "KHI-121",
         status: "available",
         last_seen_at: now,
+        lat: 24.8607, // Karachi - Clifton area
+        lng: 67.0011,
       },
       {
         id: "car_2",
@@ -85,6 +87,28 @@ export function seedDb(): AdminDb {
         plate_no: "LHR-777",
         status: "in_trip",
         last_seen_at: now,
+        lat: 24.9000, // Karachi - DHA area
+        lng: 67.0500,
+      },
+      {
+        id: "car_3",
+        driver_name: "Ahmed Ali",
+        model: "Fortuner",
+        plate_no: "KHI-999",
+        status: "available",
+        last_seen_at: now,
+        lat: 24.9200, // Karachi - Gulshan area
+        lng: 67.0800,
+      },
+      {
+        id: "car_4",
+        driver_name: "Hassan Raza",
+        model: "Corolla",
+        plate_no: "KHI-456",
+        status: "offline",
+        last_seen_at: now,
+        lat: 24.8400, // Karachi - Saddar area
+        lng: 66.9800,
       },
     ],
     chauffeur_bookings: [],

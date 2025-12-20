@@ -105,6 +105,8 @@ export type ShuttleStop = {
   id: Id;
   name: string;
   eta_minutes_from_start: number;
+  lat?: number; // Latitude for map
+  lng?: number; // Longitude for map
 };
 
 export type ShuttleRoute = {
@@ -126,6 +128,8 @@ export type ChauffeurCar = {
   plate_no: string;
   status: "available" | "in_trip" | "offline";
   last_seen_at: string;
+  lat?: number; // Current latitude for map
+  lng?: number; // Current longitude for map
 };
 
 export type ChauffeurBooking = {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { makeNewShuttleRoute, makeNewStop, useAdminStore } from "../../store/AdminStore";
 import type { ShuttleRoute } from "../../store/types";
+import Map, { type MapMarker, type MapPolyline } from "../../ui/Map";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -174,11 +175,50 @@ export default function OpsShuttlePage() {
               </div>
 
               <div className="rounded-xl border border-border bg-white p-6">
+                <div className="mb-4">
+                  <div className="text-xs font-semibold tracking-wider text-muted">ROUTE MAP</div>
+                  <div className="mt-1 text-sm text-muted">
+                    Click on the map to add stops. Stops will appear as markers connected by a route line.
+                  </div>
+                </div>
+                <Map
+                  height="500px"
+                  markers={selected.stops
+                    .filter((s) => s.lat !== undefined && s.lng !== undefined)
+                    .map((s) => ({
+                      id: s.id,
+                      position: [s.lat!, s.lng!],
+                      label: s.name || "Unnamed Stop",
+                    }))}
+                  polylines={
+                    selected.stops.filter((s) => s.lat !== undefined && s.lng !== undefined).length > 1
+                      ? [
+                          {
+                            positions: selected.stops
+                              .filter((s) => s.lat !== undefined && s.lng !== undefined)
+                              .map((s) => [s.lat!, s.lng!]) as [number, number][],
+                            color: "#f47f00",
+                          },
+                        ]
+                      : []
+                  }
+                  onMapClick={(lat, lng) => {
+                    const newStop = makeNewStop();
+                    newStop.name = `Stop ${selected.stops.length + 1}`;
+                    newStop.lat = lat;
+                    newStop.lng = lng;
+                    newStop.eta_minutes_from_start = selected.stops.length * 15; // Default 15 min intervals
+                    save({ ...selected, stops: [...selected.stops, newStop] });
+                  }}
+                />
+              </div>
+
+              <div className="rounded-xl border border-border bg-white p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="text-xs font-semibold tracking-wider text-muted">STOPS</div>
                     <div className="mt-1 text-sm text-muted">
-                      Add stops and define ETA (minutes from route start).
+                      Add stops and define ETA (minutes from route start). Click map above to add stops.
                     </div>
                   </div>
                   <button

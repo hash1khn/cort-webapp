@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { makeNewChauffeurBooking, useAdminStore } from "../../store/AdminStore";
 import type { ChauffeurBooking, ChauffeurCar } from "../../store/types";
+import Map, { type MapMarker } from "../../ui/Map";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -64,25 +65,46 @@ export default function OpsChauffeurPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-white p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold tracking-wider text-muted">GOD-VIEW (MOCK)</div>
+        <div className="flex flex-col gap-6">
+          <div className="rounded-xl border border-border bg-white p-6">
+            <div className="mb-4">
+              <div className="text-xs font-semibold tracking-wider text-muted">GOD-VIEW MAP</div>
               <div className="mt-1 text-sm text-muted">
-                Real-time map later. For now: live car list + status toggle.
+                Real-time view of all active Chauffeur cars. Filter by status below.
               </div>
             </div>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as typeof filter)}
-              className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-            >
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="in_trip">In-Trip</option>
-              <option value="offline">Offline</option>
-            </select>
+            <Map
+              height="400px"
+              markers={cars
+                .filter((c) => c.lat !== undefined && c.lng !== undefined)
+                .map((c) => ({
+                  id: c.id,
+                  position: [c.lat!, c.lng!],
+                  label: `${c.driver_name} - ${c.model} (${c.plate_no}) - ${c.status}`,
+                  color: c.status === "available" ? "#388e3c" : c.status === "in_trip" ? "#f47f00" : "#666",
+                }))}
+            />
           </div>
+
+          <div className="rounded-xl border border-border bg-white p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold tracking-wider text-muted">CAR LIST</div>
+                <div className="mt-1 text-sm text-muted">
+                  Live car list + status toggle. Cars with coordinates appear on map above.
+                </div>
+              </div>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as typeof filter)}
+                className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+              >
+                <option value="all">All</option>
+                <option value="available">Available</option>
+                <option value="in_trip">In-Trip</option>
+                <option value="offline">Offline</option>
+              </select>
+            </div>
 
           <div className="mt-4 overflow-x-auto rounded-lg border border-border">
             <table className="min-w-full text-sm">
@@ -134,6 +156,7 @@ export default function OpsChauffeurPage() {
                 ) : null}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
 
