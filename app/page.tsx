@@ -8,7 +8,7 @@ export default function Home() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
               <img
-                src="/3D%20Logo-1.svg"
+                src="/cort-main.svg"
                 alt="Cort"
                 className="h-9 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]"
               />

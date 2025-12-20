@@ -46,7 +46,7 @@ export default function AdminLoginPage() {
             </div>
             <div className="px-0 py-0">
               <img
-                src="/3D%20Logo-1.svg"
+                src="/cort-main.svg"
                 alt="Cort"
                 className="h-8 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.18)]"
               />
