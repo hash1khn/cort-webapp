@@ -8,9 +8,9 @@ export default function Home() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
               <img
-                src="/cort-main.svg"
+                src="/cort-with-at-your.svg"
                 alt="Cort"
-                className="h-9 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]"
+                className="h-12 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]"
               />
               <div className="text-sm font-medium tracking-wide text-muted">Cort Operations</div>
             </div>

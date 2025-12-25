@@ -51,9 +51,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <div className="mt-3 flex items-center gap-3">
               <div className="px-0 py-0">
                 <img
-                  src="/cort-main.svg"
+                  src="/Asset-1@2x (1).png"
                   alt="Cort"
-                  className="h-7 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  className="h-8 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
                 />
               </div>
               <div className="flex flex-col leading-tight">
