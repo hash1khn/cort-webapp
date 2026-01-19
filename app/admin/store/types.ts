@@ -140,7 +140,19 @@ export type ChauffeurBooking = {
   trip_type: "in_city" | "out_station";
   package: "5hr" | "10hr" | "24hr" | "monthly_10hr" | "monthly_24hr";
   scheduled_at: string;
-  status: "searching" | "driver_assigned" | "arrived" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "searching" | "driver_assigned" | "arrived" | "in_progress" | "completed" | "cancelled";
+  driver_car_id?: Id; // ChauffeurCar id when assigned
+  driver_name?: string; // Driver name for display
+  driver_phone?: string; // Driver phone for contact
+  plate_no?: string; // Vehicle plate number
+  approved_at?: string; // When superadmin approved
+  approved_by?: string; // Superadmin identifier
+  pickup_address?: string; // Pickup location address
+  pickup_lat?: number; // Pickup latitude
+  pickup_lng?: number; // Pickup longitude
+  dropoff_address?: string; // Dropoff location address
+  dropoff_lat?: number; // Dropoff latitude
+  dropoff_lng?: number; // Dropoff longitude
   created_at: string;
   updated_at: string;
 };

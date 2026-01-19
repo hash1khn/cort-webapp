@@ -17,6 +17,7 @@ export default function AdminDashboardPage() {
 
   const activeVehicles = db.vehicles.filter((v) => v.is_active).length;
   const totalEmployees = db.companies.reduce((acc, c) => acc + c.employees.length, 0);
+  const pendingBookings = db.chauffeur_bookings.filter((b) => b.status === "pending").length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +49,12 @@ export default function AdminDashboardPage() {
         <StatCard label="Companies" value={`${db.companies.length}`} />
         <StatCard label="Employees" value={`${totalEmployees}`} />
         <StatCard label="Active Vehicles" value={`${activeVehicles}`} />
-        <StatCard label="Fuel Price (PKR)" value={db.fuel_price_pkr.toFixed(2)} />
+        <Link href="/admin/bookings/pending" className="block">
+          <StatCard
+            label="Pending Bookings"
+            value={pendingBookings > 0 ? `${pendingBookings} ⚠️` : "0"}
+          />
+        </Link>
       </div>
 
       <div className="rounded-xl border border-border bg-white p-6">
@@ -73,6 +79,19 @@ export default function AdminDashboardPage() {
             <div className="text-sm font-semibold text-ink">Contracts & Pricing</div>
             <div className="mt-1 text-xs text-muted">Global fuel + rate cards</div>
           </Link>
+          {pendingBookings > 0 && (
+            <Link
+              className="rounded-lg border border-yellow/30 bg-yellow/5 p-4 hover:bg-yellow/10"
+              href="/admin/bookings/pending"
+            >
+              <div className="text-sm font-semibold text-ink">
+                Pending Bookings ({pendingBookings})
+              </div>
+              <div className="mt-1 text-xs text-muted">
+                Review and approve company booking requests
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </div>

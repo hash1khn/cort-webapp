@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useMap } from "react-leaflet";
+import L from "leaflet";
 import dynamic from "next/dynamic";
 
 // Dynamically import to avoid SSR issues
@@ -20,6 +21,34 @@ const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
 const Polyline = dynamic(() => import("react-leaflet").then((mod) => mod.Polyline), {
   ssr: false,
 });
+
+// Fix for default marker icons in Next.js
+if (typeof window !== "undefined") {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+  });
+}
+
+// Create custom marker icons
+function createCustomIcon(color: string, icon: string = "📍") {
+  const size = 32;
+  const svgIcon = `
+    <svg width="${size}" height="${size}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2" opacity="0.9"/>
+      <text x="16" y="22" font-size="16" text-anchor="middle" fill="white">${icon}</text>
+    </svg>
+  `;
+  return L.divIcon({
+    html: svgIcon,
+    className: "custom-marker",
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
+  });
+}
 
 export type MapMarker = {
   id: string;
@@ -86,28 +115,86 @@ export default function Map({
   onMapClick,
   className = "",
 }: MapProps) {
+  // Inject custom styles for map
+  useEffect(() => {
+    const styleId = "leaflet-custom-styles";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .custom-marker {
+        background: transparent !important;
+        border: none !important;
+      }
+      .custom-popup .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      .leaflet-container {
+        font-family: inherit;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) existingStyle.remove();
+    };
+  }, []);
+
+  // Create custom icons for different marker types
+  const getMarkerIcon = (marker: MapMarker) => {
+    if (marker.id === "pickup") {
+      return createCustomIcon("#22c55e", "📍"); // Green for pickup
+    } else if (marker.id === "dropoff") {
+      return createCustomIcon("#ef4444", "📍"); // Red for dropoff
+    } else if (marker.id === "driver") {
+      return createCustomIcon("#f47f00", "🚗"); // Orange for driver
+    } else if (marker.color) {
+      return createCustomIcon(marker.color, "📍");
+    }
+    return undefined; // Use default
+  };
+
   return (
-    <div className={`rounded-lg overflow-hidden border border-border ${className}`} style={{ height }}>
-      <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }}>
+    <div className={`rounded-lg overflow-hidden border border-border shadow-lg ${className}`} style={{ height }}>
+      <MapContainer 
+        center={center} 
+        zoom={zoom} 
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={true}
+      >
+        {/* Use CartoDB Positron for a cleaner, more modern look */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={19}
         />
         <MapResizeHandler />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
-        {markers.map((marker) => (
-          <Marker key={marker.id} position={marker.position}>
-            {marker.label && <Popup>{marker.label}</Popup>}
-          </Marker>
-        ))}
+        {markers.map((marker) => {
+          const icon = getMarkerIcon(marker);
+          return (
+            <Marker 
+              key={marker.id} 
+              position={marker.position}
+              icon={icon}
+            >
+              {marker.label && <Popup className="custom-popup">{marker.label}</Popup>}
+            </Marker>
+          );
+        })}
         {polylines.map((polyline, idx) => (
           <Polyline
             key={idx}
             positions={polyline.positions}
             pathOptions={{
               color: polyline.color || "#f47f00", // Cort orange
-              weight: 4,
-              opacity: 0.7,
+              weight: 5,
+              opacity: 0.8,
+              dashArray: "10, 5",
             }}
           />
         ))}
