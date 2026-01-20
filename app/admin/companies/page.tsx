@@ -1,572 +1,336 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { makeNewCompany, makeNewEmployee, useAdminStore } from "../store/AdminStore";
-import type { Company, Employee } from "../store/types";
+import { useState } from "react";
+import { makeNewCompany, useAdminStore } from "../store/AdminStore";
+import type { Company } from "../store/types";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function Field({
-  label,
+// -- Components --
+
+function Badge({ children, color = "blue" }: { children: React.ReactNode; color?: "blue" | "green" | "red" | "orange" | "purple" }) {
+  const colors = {
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-green-100 text-green-700",
+    red: "bg-red-100 text-red-700",
+    orange: "bg-orange-100 text-orange-800",
+    purple: "bg-purple-100 text-purple-700",
+  };
+  return (
+    <span className={cx("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", colors[color])}>
+      {children}
+    </span>
+  );
+}
+
+function Modal({
+  isOpen,
+  onClose,
+  title,
   children,
 }: {
-  label: string;
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
   children: React.ReactNode;
 }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-semibold tracking-wider text-muted">{label}</span>
-      {children}
-    </label>
-  );
-}
+  if (!isOpen) return null;
 
-function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input
-      {...props}
-      className={cx(
-        "h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40",
-        props.className,
-      )}
-    />
-  );
-}
-
-function Toggle({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface p-3">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-ink">{label}</div>
-        {description ? <div className="mt-0.5 text-xs text-muted">{description}</div> : null}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h3 className="text-lg font-bold text-[#0c225e]">{title}</h3>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 text-gray-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={cx(
-          "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border border-border transition-colors",
-          checked ? "bg-success/20" : "bg-white",
-        )}
-        aria-pressed={checked}
-      >
-        <span
-          className={cx(
-            "inline-block h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
-            checked ? "translate-x-5" : "translate-x-0.5",
-          )}
-        />
-      </button>
     </div>
   );
 }
 
-function parseCsv(text: string) {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  if (lines.length === 0) return [];
-
-  const header = lines[0]!.split(",").map((h) => h.trim().toLowerCase());
-  const rows = lines.slice(1);
-
-  function idx(name: string) {
-    return header.indexOf(name);
-  }
-
-  const iName = idx("full name");
-  const iPhone = idx("phone");
-  const iEmail = idx("email");
-  const iEmp = idx("employee_id");
-
-  return rows.map((row) => {
-    const cols = row.split(",").map((c) => c.trim());
-    return {
-      full_name: cols[iName] ?? "",
-      phone: cols[iPhone] ?? "",
-      email: cols[iEmail] ?? "",
-      employee_id: cols[iEmp] ?? "",
-    };
-  });
-}
-
-function downloadText(filename: string, content: string) {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function CompanyListItem({
+function CompanyForm({
   company,
-  active,
-  onSelect,
+  onSave,
+  onCancel
 }: {
-  company: Company;
-  active: boolean;
-  onSelect: () => void;
+  company: Company | null;
+  onSave: (c: Company) => void;
+  onCancel: () => void;
 }) {
-  const badge = company.services_enabled.shuttle_enabled && company.services_enabled.chauffeur_enabled
-    ? "Shuttle + Chauffeur"
-    : company.services_enabled.shuttle_enabled
-      ? "Shuttle"
-      : company.services_enabled.chauffeur_enabled
-        ? "Chauffeur"
-        : "No services";
+  // If company is null, we are creating a new one (but we usually pass a fresh object)
+  // We'll manage local state to avoid updating the store directly until save
+  const [formData, setFormData] = useState<Company>(company || makeNewCompany());
+
+  const handleChange = (field: keyof Company, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleServiceToggle = (service: 'shuttle_enabled' | 'chauffeur_enabled') => {
+    setFormData(prev => ({
+      ...prev,
+      services_enabled: {
+        ...prev.services_enabled,
+        [service]: !prev.services_enabled[service]
+      }
+    }));
+  };
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cx(
-        "flex w-full flex-col gap-1 rounded-lg border px-3 py-3 text-left transition-colors",
-        active ? "border-blue bg-blue/5" : "border-border bg-white hover:bg-surface",
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="truncate text-sm font-semibold text-ink">{company.name || "Untitled Company"}</div>
-        <div className="shrink-0 rounded-full bg-navy/10 px-2 py-0.5 text-[11px] font-semibold text-navy">
-          {badge}
+    <div className="flex flex-col gap-4">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Name</label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => handleChange("name", e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+            placeholder="e.g. Acme Corp"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleChange("email", e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+            placeholder="admin@acmecorp.com"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Contact Person</label>
+            <input
+              type="text"
+              value={formData.contact_person}
+              onChange={(e) => handleChange("contact_person", e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+              placeholder="John Doe"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">NTN</label>
+            <input
+              type="text"
+              value={formData.ntn}
+              onChange={(e) => handleChange("ntn", e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+              placeholder="1234567-8"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Address</label>
+          <input
+            type="text"
+            value={formData.address}
+            onChange={(e) => handleChange("address", e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+            placeholder="123 Business Rd, City"
+          />
+        </div>
+
+        <div className="pt-2 border-t border-gray-100">
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-2">Services</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
+              <input
+                type="checkbox"
+                checked={formData.services_enabled.shuttle_enabled}
+                onChange={() => handleServiceToggle('shuttle_enabled')}
+                className="accent-[#f47f00] w-4 h-4"
+              />
+              <span className="text-sm font-medium text-slate-700">Shuttle</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
+              <input
+                type="checkbox"
+                checked={formData.services_enabled.chauffeur_enabled}
+                onChange={() => handleServiceToggle('chauffeur_enabled')}
+                className="accent-[#f47f00] w-4 h-4"
+              />
+              <span className="text-sm font-medium text-slate-700">Chauffeur</span>
+            </label>
+          </div>
         </div>
       </div>
-      <div className="truncate text-xs text-muted">{company.email || "—"}</div>
-      <div className="text-[11px] text-muted">{company.employees.length} employees</div>
-    </button>
+
+      <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(formData)}
+          className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10"
+        >
+          Save Company
+        </button>
+      </div>
+    </div>
   );
 }
 
+// -- Main Page Definition --
+
 export default function CompaniesPage() {
-  const { db, upsertCompany, deleteCompany, vehicleModels, upsertEmployee } = useAdminStore();
-  const [selectedId, setSelectedId] = useState<string>(db.companies[0]?.id ?? "");
-  const [csvPreview, setCsvPreview] = useState<Array<Partial<Employee>>>([]);
+  const { db, upsertCompany, deleteCompany } = useAdminStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
-  const selected = useMemo(
-    () => db.companies.find((c) => c.id === selectedId) ?? null,
-    [db.companies, selectedId],
-  );
+  const handleCreateNew = () => {
+    setEditingCompany(makeNewCompany());
+    setIsModalOpen(true);
+  };
 
-  function saveCompany(next: Company) {
-    upsertCompany(next);
-    setSelectedId(next.id);
-  }
+  const handleEdit = (company: Company) => {
+    setEditingCompany(company);
+    setIsModalOpen(true);
+  };
 
-  function addCompany() {
-    const c = makeNewCompany();
-    c.services_enabled = { shuttle_enabled: false, chauffeur_enabled: true };
-    saveCompany(c);
-  }
+  const handleDelete = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
+      deleteCompany(id);
+    }
+  };
 
-  function onUploadCsv(file: File, company: Company) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? "");
-      const parsed = parseCsv(text);
-      const employees = parsed.map((row) => {
-        const e = makeNewEmployee(row.full_name || "Employee");
-        e.full_name = row.full_name || e.full_name;
-        e.phone = row.phone || "";
-        e.email = row.email || "";
-        e.employee_id = row.employee_id || "";
-        return e;
-      });
-      setCsvPreview(employees);
+  const handleSave = (company: Company) => {
+    upsertCompany(company);
+    setIsModalOpen(false);
+    setEditingCompany(null);
+  };
 
-      // Auto-create accounts immediately (mock).
-      const updated: Company = {
-        ...company,
-        employees: [...employees, ...company.employees],
-      };
-      saveCompany(updated);
-    };
-    reader.readAsText(file);
-  }
-
-  function exportCredentials(company: Company) {
-    const lines = [
-      `Company: ${company.name}`,
-      `Generated: ${new Date().toLocaleString()}`,
-      "",
-      "employee_id,full_name,username,password,email,phone,route_id,stop_id,status",
-      ...company.employees.map((e) =>
-        [
-          e.employee_id,
-          e.full_name,
-          e.username,
-          e.password,
-          e.email,
-          e.phone,
-          e.route_id ?? "",
-          e.stop_id ?? "",
-          e.status,
-        ].join(","),
-      ),
-    ];
-    downloadText(`cort-${company.name || "company"}-credentials.csv`, lines.join("\n"));
-  }
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingCompany(null);
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
+      {/* Page Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-sm font-medium text-muted">Company (Client) Management</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Companies</h1>
+          <div className="text-sm font-medium text-slate-500">Administration</div>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#0c225e]">Companies</h1>
         </div>
         <button
           type="button"
-          onClick={addCompany}
-          className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+          onClick={handleCreateNew}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5"
         >
+          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
           Create Company
         </button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <section className="flex flex-col gap-3">
-          <div className="rounded-xl border border-border bg-white p-4">
-            <div className="text-sm font-semibold text-navy">Company List</div>
-            <div className="mt-3 flex flex-col gap-2">
-              {db.companies.map((c) => (
-                <CompanyListItem
-                  key={c.id}
-                  company={c}
-                  active={c.id === selectedId}
-                  onSelect={() => setSelectedId(c.id)}
-                />
-              ))}
-              {db.companies.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-surface p-4 text-sm text-muted">
-                  No companies yet. Click “Create Company”.
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="min-w-0">
-          {!selected ? (
-            <div className="rounded-xl border border-border bg-white p-6 text-sm text-muted">
-              Select a company to edit.
-            </div>
-          ) : (
-            <div className="flex min-w-0 flex-col gap-6">
-              <div className="rounded-xl border border-border bg-white p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">
-                      ONBOARDING
+      {/* Companies Table */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#f8fafc] text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="px-6 py-4">Company Name</th>
+                <th className="px-6 py-4">Contact</th>
+                <th className="px-6 py-4">Services</th>
+                <th className="px-6 py-4">Employees</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {db.companies.map((company) => (
+                <tr key={company.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-[#0c225e]">{company.name || "Untitled"}</div>
+                    <div className="text-xs text-slate-500">{company.address || "No address provided"}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-slate-900">{company.contact_person || "—"}</div>
+                    <div className="text-xs text-slate-500">{company.email}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-wrap gap-2">
+                      {company.services_enabled.shuttle_enabled && <Badge color="blue">Shuttle</Badge>}
+                      {company.services_enabled.chauffeur_enabled && <Badge color="purple">Chauffeur</Badge>}
+                      {!company.services_enabled.shuttle_enabled && !company.services_enabled.chauffeur_enabled && (
+                        <Badge color="red">None</Badge>
+                      )}
                     </div>
-                    <div className="mt-1 text-lg font-semibold text-navy">
-                      {selected.name || "Untitled Company"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => exportCredentials(selected)}
-                      className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-semibold text-ink hover:bg-surface"
-                    >
-                      Export Credentials
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Delete this company? (mock)")) {
-                          deleteCompany(selected.id);
-                          setSelectedId(db.companies[0]?.id ?? "");
-                        }
-                      }}
-                      className="inline-flex h-10 items-center justify-center rounded-md border border-danger/30 bg-white px-4 text-sm font-semibold text-danger hover:bg-danger/5"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <Field label="Company Name">
-                    <TextInput
-                      value={selected.name}
-                      onChange={(e) => saveCompany({ ...selected, name: e.target.value })}
-                      placeholder="Company Name"
-                    />
-                  </Field>
-                  <Field label="Company Email">
-                    <TextInput
-                      value={selected.email}
-                      onChange={(e) => saveCompany({ ...selected, email: e.target.value })}
-                      placeholder="company@example.com"
-                    />
-                  </Field>
-                  <Field label="Address">
-                    <TextInput
-                      value={selected.address}
-                      onChange={(e) => saveCompany({ ...selected, address: e.target.value })}
-                      placeholder="Address"
-                    />
-                  </Field>
-                  <Field label="NTN">
-                    <TextInput
-                      value={selected.ntn}
-                      onChange={(e) => saveCompany({ ...selected, ntn: e.target.value })}
-                      placeholder="NTN"
-                    />
-                  </Field>
-                  <Field label="Contact Person">
-                    <TextInput
-                      value={selected.contact_person}
-                      onChange={(e) => saveCompany({ ...selected, contact_person: e.target.value })}
-                      placeholder="Contact Person"
-                    />
-                  </Field>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-white p-6">
-                <div className="text-xs font-semibold tracking-wider text-muted">
-                  SERVICE SUBSCRIPTION (TOGGLES)
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Toggle
-                    checked={selected.services_enabled.shuttle_enabled}
-                    onChange={(v) =>
-                      saveCompany({
-                        ...selected,
-                        services_enabled: { ...selected.services_enabled, shuttle_enabled: v },
-                      })
-                    }
-                    label="Enable Shuttle Service"
-                    description="If off, shuttle features are hidden for this company in the client portal."
-                  />
-                  <Toggle
-                    checked={selected.services_enabled.chauffeur_enabled}
-                    onChange={(v) =>
-                      saveCompany({
-                        ...selected,
-                        services_enabled: { ...selected.services_enabled, chauffeur_enabled: v },
-                        allowed_vehicle_models: v ? selected.allowed_vehicle_models : [],
-                      })
-                    }
-                    label="Enable Chauffeur Service"
-                    description="Controls booking + chauffeur reports for this company."
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-white p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">
-                      VEHICLE WHITELISTING (CHAUFFEUR ONLY)
-                    </div>
-                    <div className="mt-1 text-sm text-muted">
-                      Allowed models appear in the Company Admin booking dropdown.
-                    </div>
-                  </div>
-                  {!selected.services_enabled.chauffeur_enabled ? (
-                    <div className="rounded-full bg-danger/10 px-3 py-1 text-xs font-semibold text-danger">
-                      Disabled (chauffeur is off)
-                    </div>
-                  ) : null}
-                </div>
-
-                <div
-                  className={cx(
-                    "mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3",
-                    !selected.services_enabled.chauffeur_enabled && "opacity-50 pointer-events-none",
-                  )}
-                >
-                  {vehicleModels.map((model) => {
-                    const checked = selected.allowed_vehicle_models.includes(model);
-                    return (
-                      <button
-                        key={model}
-                        type="button"
-                        onClick={() => {
-                          const allowed = checked
-                            ? selected.allowed_vehicle_models.filter((m) => m !== model)
-                            : [...selected.allowed_vehicle_models, model].sort((a, b) =>
-                                a.localeCompare(b),
-                              );
-                          saveCompany({ ...selected, allowed_vehicle_models: allowed });
-                        }}
-                        className={cx(
-                          "flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-medium",
-                          checked ? "border-purple bg-purple/5 text-purple" : "border-border bg-white text-ink",
-                        )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="font-mono text-slate-600">{company.employees.length}</span>
+                    <span className="text-xs text-slate-400 ml-1">users</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <a
+                        href={`/admin/companies/${company.id}`}
+                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors"
+                        title="Manage Employees & Settings"
                       >
-                        <span>{model}</span>
-                        <span className={cx("text-xs", checked ? "text-purple" : "text-muted")}>
-                          {checked ? "Allowed" : "—"}
-                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                      </a>
+                      <button
+                        onClick={() => handleEdit(company)}
+                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors"
+                        title="Edit Details"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-white p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">
-                      MANAGE EMPLOYEES (BULK ROSTER)
+                      <button
+                        onClick={() => handleDelete(company.id)}
+                        className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        title="Delete Company"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      </button>
                     </div>
-                    <div className="mt-1 text-sm text-muted">
-                      Upload CSV: Full Name, Phone, Email, Employee_ID
+                  </td>
+                </tr>
+              ))}
+              {db.companies.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span className="font-medium">No companies found</span>
+                      <button onClick={handleCreateNew} className="text-sm text-[#f47f00] hover:underline">
+                        Create your first company
+                      </button>
                     </div>
-                  </div>
-                  <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95">
-                    Upload CSV
-                    <input
-                      type="file"
-                      accept=".csv,text/csv"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) onUploadCsv(file, selected);
-                        e.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
-                </div>
-
-                {csvPreview.length ? (
-                  <div className="mt-4 rounded-lg border border-border bg-surface p-3">
-                    <div className="text-xs font-semibold tracking-wider text-muted">
-                      LAST IMPORT (PREVIEW)
-                    </div>
-                    <div className="mt-2 text-xs text-muted">
-                      Created {csvPreview.length} accounts (mock). Use “Export Credentials” to download.
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Employee_ID</th>
-                        <th className="px-3 py-2 text-left">Name</th>
-                        <th className="px-3 py-2 text-left">Phone</th>
-                        <th className="px-3 py-2 text-left">Email</th>
-                        <th className="px-3 py-2 text-left">Route / Stop</th>
-                        <th className="px-3 py-2 text-left">Status</th>
-                        <th className="px-3 py-2 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-white">
-                      {selected.employees.map((e) => (
-                        <tr key={e.id}>
-                          <td className="px-3 py-2 font-mono text-xs">{e.employee_id || "—"}</td>
-                          <td className="px-3 py-2">{e.full_name}</td>
-                          <td className="px-3 py-2 text-muted">{e.phone || "—"}</td>
-                          <td className="px-3 py-2 text-muted">{e.email || "—"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-wrap gap-2">
-                              <select
-                                value={e.route_id ?? ""}
-                                onChange={(ev) => {
-                                  const routeId = ev.target.value || undefined;
-                                  const updated: Employee = { ...e, route_id: routeId, stop_id: undefined };
-                                  upsertEmployee(selected.id, updated);
-                                }}
-                                className="h-8 rounded-md border border-border bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-blue/40"
-                              >
-                                <option value="">Unassigned</option>
-                                {db.shuttle_routes
-                                  .filter((r) => r.company_id === selected.id)
-                                  .map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                      {r.name}
-                                    </option>
-                                  ))}
-                              </select>
-
-                              <select
-                                value={e.stop_id ?? ""}
-                                onChange={(ev) => {
-                                  const stopId = ev.target.value || undefined;
-                                  const updated: Employee = { ...e, stop_id: stopId };
-                                  upsertEmployee(selected.id, updated);
-                                }}
-                                disabled={!e.route_id}
-                                className="h-8 rounded-md border border-border bg-white px-2 text-xs outline-none focus:ring-2 focus:ring-blue/40 disabled:opacity-50"
-                              >
-                                <option value="">Stop</option>
-                                {(() => {
-                                  const route = db.shuttle_routes.find((r) => r.id === e.route_id);
-                                  return (route?.stops ?? []).map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.name}
-                                    </option>
-                                  ));
-                                })()}
-                              </select>
-                            </div>
-                            <div className="mt-1 text-[11px] text-muted">
-                              Cort Ops assigns routes/stops; CSV import does not set them.
-                            </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span
-                              className={cx(
-                                "rounded-full px-2 py-0.5 text-xs font-semibold",
-                                e.status === "active"
-                                  ? "bg-success/10 text-success"
-                                  : "bg-danger/10 text-danger",
-                              )}
-                            >
-                              {e.status}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated: Employee = {
-                                  ...e,
-                                  status: e.status === "active" ? "inactive" : "active",
-                                };
-                                upsertEmployee(selected.id, updated);
-                              }}
-                              className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-semibold text-ink hover:bg-surface"
-                            >
-                              {e.status === "active" ? "Deactivate" : "Activate"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {selected.employees.length === 0 ? (
-                        <tr>
-                          <td className="px-3 py-8 text-center text-sm text-muted" colSpan={7}>
-                            No employees yet. Upload a CSV to bulk create users.
-                          </td>
-                        </tr>
-                      ) : null}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title={editingCompany?.id === "" || !editingCompany?.created_at ? "Create New Company" : "Edit Company"}
+      >
+        <CompanyForm
+          company={editingCompany}
+          onSave={handleSave}
+          onCancel={handleCloseModal}
+        />
+      </Modal>
     </div>
   );
 }
-
-

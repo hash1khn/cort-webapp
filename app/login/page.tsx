@@ -67,14 +67,14 @@ export default function LoginPage() {
             <div className="absolute top-[40%] left-[60%] h-[300px] w-[300px] rounded-full bg-purple-500/10 blur-[100px]" />
 
             <div className="relative flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-                <div className="w-full max-w-md space-y-8">
+                <div className="w-full max-w-xl space-y-8">
                     {/* Header */}
                     <div className="flex flex-col items-center">
-                        <div className="mb-6 rounded-2xl bg-white/5 p-4 backdrop-blur-sm ring-1 ring-white/10">
+                        <div className="mb-6 rounded-2xl bg-white/5 p-6 backdrop-blur-sm ring-1 ring-white/10">
                             <img
                                 src="/Asset-1@2x (1).png"
                                 alt="Cort"
-                                className="h-10 w-auto"
+                                className="h-28 w-auto"
                             />
                         </div>
                         <h2 className="text-center text-3xl font-bold tracking-tight text-white">
@@ -86,7 +86,7 @@ export default function LoginPage() {
                     </div>
 
                     {/* Login Card */}
-                    <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
+                    <div className="relative overflow-hidden rounded-2xl bg-white/5 px-8 py-16 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
                         {/* Shine effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
 

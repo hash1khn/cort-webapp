@@ -46,6 +46,9 @@ body {
 }
 
 /* A few sensible defaults for form controls in Tailwind v4 */
-input, select, textarea, button {
+input,
+select,
+textarea,
+button {
   font: inherit;
 }
