@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
-import { getMockAuth, setMockAuth } from "../mockAuth";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
+import { useAuth } from "../../lib/contexts/auth-context";
 
 const nav = [
   { href: "/admin", label: "Dashboard" },
@@ -21,15 +21,10 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
+  const { logout, user } = useAuth();
 
   const isLogin = pathname === "/admin/login";
-
-  useEffect(() => {
-    if (isLogin) return;
-    if (!getMockAuth()) router.replace("/admin/login");
-  }, [isLogin, router]);
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/admin";
@@ -88,16 +83,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
               <div className="flex items-center gap-3">
                 <div className="text-sm font-semibold text-navy">Cort Ops</div>
-                <div className="text-xs text-muted">Mock Data</div>
+                {user && (
+                  <div className="text-xs text-muted">{user.email}</div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMockAuth(false);
-                    router.replace("/admin/login");
-                  }}
+                  onClick={() => logout()}
                   className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-medium text-ink hover:bg-surface"
                 >
                   Sign out

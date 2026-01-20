@@ -3,23 +3,23 @@
 import type { ReactNode } from "react";
 import { CompanyShell } from "./ui/CompanyShell";
 import { CompanyStoreProvider } from "./store/CompanyStore";
-import { getCompanyAuth } from "./mockAuth";
-import { AdminStoreProvider } from "../admin/store/AdminStore";
-import { useEffect, useState } from "react";
+import { ProtectedRoute } from "../lib/components/protected-route";
+import { UserRole } from "../lib/types/auth-types";
+import { useAuth } from "../lib/contexts/auth-context";
 
 export default function CompanyLayout({ children }: { children: ReactNode }) {
-  const [companyId, setCompanyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCompanyId(getCompanyAuth());
-  }, []);
+  const { user } = useAuth();
+  const companyId = user?.company_id?.toString() || null;
 
   return (
-    <AdminStoreProvider>
+    <ProtectedRoute
+      allowedRoles={[UserRole.COMPANY_ADMIN, UserRole.EMPLOYEE]}
+      requireCompanyId={true}
+      redirectTo="/login"
+    >
       <CompanyStoreProvider companyId={companyId}>
         <CompanyShell>{children}</CompanyShell>
       </CompanyStoreProvider>
-    </AdminStoreProvider>
+    </ProtectedRoute>
   );
 }
-

@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useCompanyStore } from "../../store/CompanyStore";
-import { useAdminStore, makeNewChauffeurBooking } from "../../../admin/store/AdminStore";
 import Map, { type MapMarker } from "../../../admin/ui/Map";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -56,8 +55,8 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 export default function NewBookingPage() {
   const router = useRouter();
-  const { company, employees, allowedVehicleModels } = useCompanyStore();
-  const { db, upsertChauffeurBooking } = useAdminStore();
+  const { company, employees, allowedVehicleModels, createBooking } = useCompanyStore();
+  // removed usage of useAdminStore
 
   const [passengerId, setPassengerId] = useState<string>("");
   const [vehicleModel, setVehicleModel] = useState<string>("");
@@ -71,7 +70,7 @@ export default function NewBookingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const activeEmployees = useMemo(() => {
-    return employees.filter((e) => e.status === "active");
+    return employees.filter((e) => e.status === "ACTIVE");
   }, [employees]);
 
   const canSubmit = useMemo(() => {
@@ -104,7 +103,7 @@ export default function NewBookingPage() {
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -118,7 +117,7 @@ export default function NewBookingPage() {
       return;
     }
 
-    const passenger = employees.find((e) => e.id === passengerId);
+    const passenger = employees.find((e) => e.id === Number(passengerId));
     if (!passenger) {
       setError("Selected passenger not found");
       return;
@@ -130,33 +129,37 @@ export default function NewBookingPage() {
         ? new Date().toISOString()
         : new Date(scheduledDateTime).toISOString();
 
-    const booking = makeNewChauffeurBooking(company.id, passengerId);
-    booking.passenger_employee_id = passengerId;
-    booking.vehicle_model = vehicleModel;
-    booking.package = packageType;
-    booking.trip_type = tripType;
-    booking.scheduled_at = scheduledAt;
-    booking.status = "pending"; // Start as pending for superadmin approval
-    booking.pickup_address = pickupAddress;
-    booking.pickup_lat = pickupLat;
-    booking.pickup_lng = pickupLng;
+    try {
+      await createBooking({
+        company_id: company.id,
+        passenger_employee_id: Number(passengerId),
+        vehicle_model: vehicleModel,
+        package: packageType,
+        trip_type: tripType,
+        scheduled_at: scheduledAt,
+        status: "pending",
+        pickup_address: pickupAddress,
+        pickup_lat: pickupLat,
+        pickup_lng: pickupLng,
+      });
 
-    upsertChauffeurBooking(booking);
+      // Reset form
+      setPassengerId("");
+      setVehicleModel("");
+      setPackageType("10hr");
+      setTripType("in_city");
+      setTimeType("now");
+      setScheduledDateTime("");
+      setPickupAddress("");
+      setPickupLat(undefined);
+      setPickupLng(undefined);
 
-    // Reset form
-    setPassengerId("");
-    setVehicleModel("");
-    setPackageType("10hr");
-    setTripType("in_city");
-    setTimeType("now");
-    setScheduledDateTime("");
-    setPickupAddress("");
-    setPickupLat(undefined);
-    setPickupLng(undefined);
-
-    // Show success and redirect
-    alert("Booking created successfully! It is now pending approval from Super Admin.");
-    router.push("/company/bookings");
+      // Show success and redirect
+      alert("Booking created successfully! It is now pending approval from Super Admin.");
+      router.push("/company/bookings");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create booking");
+    }
   }
 
   // Get min datetime for scheduled bookings (now)
@@ -183,7 +186,7 @@ export default function NewBookingPage() {
                 <option value="">Select employee</option>
                 {activeEmployees.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.full_name} ({e.employee_id})
+                    {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''}
                   </option>
                 ))}
               </Select>
@@ -292,13 +295,13 @@ export default function NewBookingPage() {
               markers={
                 pickupLat && pickupLng
                   ? [
-                      {
-                        id: "pickup",
-                        position: [pickupLat, pickupLng] as [number, number],
-                        label: `Pickup: ${pickupAddress || "Selected"}`,
-                        color: "#22c55e",
-                      },
-                    ]
+                    {
+                      id: "pickup",
+                      position: [pickupLat, pickupLng] as [number, number],
+                      label: `Pickup: ${pickupAddress || "Selected"}`,
+                      color: "#22c55e",
+                    },
+                  ]
                   : []
               }
               onMapClick={(lat, lng) => {

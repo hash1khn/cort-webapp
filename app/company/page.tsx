@@ -13,17 +13,38 @@ function StatCard({ label, value }: { label: string; value: string }) {
 }
 
 export default function CompanyDashboardPage() {
-  const { company, employees, bookings } = useCompanyStore();
+  const { company, employees, bookings, loading, error } = useCompanyStore();
 
-  if (!company) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-muted">No company selected</div>
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent"></div>
+          <p className="mt-4 text-sm text-muted">Loading company data...</p>
+        </div>
       </div>
     );
   }
 
-  const activeEmployees = employees.filter((e) => e.status === "active").length;
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="rounded-md border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
+          Error loading company: {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!company) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-muted">No company data available</div>
+      </div>
+    );
+  }
+
+  const activeEmployees = employees.filter((e) => e.status === "ACTIVE").length;
   const pendingBookings = bookings.filter((b) => b.status === "pending").length;
   const activeBookings = bookings.filter(
     (b) => b.status === "searching" || b.status === "driver_assigned" || b.status === "in_progress",
@@ -64,19 +85,29 @@ export default function CompanyDashboardPage() {
           >
             <div className="text-sm font-semibold text-ink">Manage Employees</div>
             <div className="mt-1 text-xs text-muted">
-              View, edit contact info, and deactivate employees
+              View, edit contact info, and manage employees
             </div>
           </Link>
-          <Link
-            className="rounded-lg border border-border bg-surface p-4 hover:bg-white"
-            href="/company/bookings"
-          >
-            <div className="text-sm font-semibold text-ink">View Bookings</div>
-            <div className="mt-1 text-xs text-muted">See all bookings and their status</div>
-          </Link>
+          {company.services_enabled.chauffeur_enabled && (
+            <Link
+              className="rounded-lg border border-border bg-surface p-4 hover:bg-white"
+              href="/company/bookings"
+            >
+              <div className="text-sm font-semibold text-ink">View Bookings</div>
+              <div className="mt-1 text-xs text-muted">See all bookings and their status</div>
+            </Link>
+          )}
+          {company.services_enabled.shuttle_enabled && (
+            <Link
+              className="rounded-lg border border-border bg-surface p-4 hover:bg-white"
+              href="/company/routes"
+            >
+              <div className="text-sm font-semibold text-ink">Route Roster</div>
+              <div className="mt-1 text-xs text-muted">View shuttle routes and schedules</div>
+            </Link>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

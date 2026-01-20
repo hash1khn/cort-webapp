@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useCompanyStore } from "../store/CompanyStore";
-import { useAdminStore } from "../../admin/store/AdminStore";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -21,9 +20,8 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export default function EmployeesPage() {
-  const { company, employees } = useCompanyStore();
-  const { upsertEmployee, deactivateEmployee } = useAdminStore();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const { company, employees, updateEmployee, deactivateEmployee } = useCompanyStore();
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");
 
@@ -37,7 +35,7 @@ export default function EmployeesPage() {
 
   function startEdit(employee: typeof employees[0]) {
     setEditingId(employee.id);
-    setEditPhone(employee.phone);
+    setEditPhone(employee.phone || "");
     setEditEmail(employee.email);
   }
 
@@ -47,20 +45,19 @@ export default function EmployeesPage() {
     setEditEmail("");
   }
 
-  function saveEdit(employee: typeof employees[0]) {
+  async function saveEdit(employee: typeof employees[0]) {
     if (!editingId) return;
-    const updated = {
-      ...employee,
+    await updateEmployee(employee.id, {
       phone: editPhone,
       email: editEmail,
-    };
-    upsertEmployee(company.id, updated);
+    });
     cancelEdit();
   }
 
-  function handleDeactivate(employee: typeof employees[0]) {
-    if (confirm(`Are you sure you want to ${employee.status === "active" ? "deactivate" : "activate"} ${employee.full_name}?`)) {
-      deactivateEmployee(company.id, employee.id, employee.status === "active");
+  async function handleDeactivate(employee: typeof employees[0]) {
+    const isActive = employee.status.toLowerCase() === "active";
+    if (confirm(`Are you sure you want to ${isActive ? "deactivate" : "activate"} ${employee.full_name}?`)) {
+      await deactivateEmployee(employee.id, !isActive);
     }
   }
 

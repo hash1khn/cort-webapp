@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
-import { getCompanyAuth, setCompanyAuth } from "../mockAuth";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import { useCompanyStore } from "../store/CompanyStore";
+import { useAuth } from "../../lib/contexts/auth-context";
 
 const getNavItems = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
   const items = [
@@ -37,19 +37,11 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const pathname = usePathname();
   const { company } = useCompanyStore();
+  const { logout, user } = useAuth();
 
   const isLogin = pathname === "/company/login";
-
-  useEffect(() => {
-    if (isLogin) return;
-    const companyId = getCompanyAuth();
-    if (!companyId || !company) {
-      router.replace("/company/login");
-    }
-  }, [isLogin, router, company]);
 
   const activeHref = useMemo(() => {
     if (!pathname || !company) return "/company";
@@ -117,16 +109,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
               <div className="flex items-center gap-3">
                 <div className="text-sm font-semibold text-navy">{company.name}</div>
-                <div className="text-xs text-muted">Company Dashboard</div>
+                {user && (
+                  <div className="text-xs text-muted">{user.email}</div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setCompanyAuth(null);
-                    router.replace("/company/login");
-                  }}
+                  onClick={() => logout()}
                   className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-medium text-ink hover:bg-surface"
                 >
                   Sign out

@@ -1,21 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+
 import { useCompanyStore } from "../store/CompanyStore";
-import { useAdminStore } from "../../admin/store/AdminStore";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
 export default function RoutesPage() {
-  const { company } = useCompanyStore();
-  const { db } = useAdminStore();
+  const { company, routes, shuttleDrivers, vehicles } = useCompanyStore();
 
-  const routes = useMemo(() => {
-    if (!company) return [];
-    return db.shuttle_routes.filter((r) => r.company_id === company.id);
-  }, [db.shuttle_routes, company]);
+  // No filtering needed as routes in store should already be filtered/mocked
+  // const routes = useMemo(() => ..., [company]);
 
   if (!company) {
     return (
@@ -62,10 +58,10 @@ export default function RoutesPage() {
           <div className="grid gap-4">
             {routes.map((route) => {
               const driver = route.driver_id
-                ? db.shuttle_drivers.find((d) => d.id === route.driver_id)
+                ? shuttleDrivers.find((d) => d.id === route.driver_id)
                 : null;
               const vehicle = route.vehicle_id
-                ? db.vehicles.find((v) => v.id === route.vehicle_id)
+                ? vehicles.find((v) => v.id === route.vehicle_id)
                 : null;
 
               return (
