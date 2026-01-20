@@ -18,7 +18,6 @@ const getNavItems = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enab
 
   if (servicesEnabled.chauffeur_enabled) {
     items.push({ href: "/company/bookings", label: "Bookings" });
-    items.push({ href: "/company/bookings/new", label: "New Booking" });
   }
 
   if (servicesEnabled.shuttle_enabled) {

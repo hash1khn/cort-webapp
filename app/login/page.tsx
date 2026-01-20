@@ -33,12 +33,9 @@ export default function LoginPage() {
 
         try {
             await login(email, password);
-
-            // Redirect will happen in useEffect above after user state updates
+            // Redirect happens in useEffect
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Login failed";
-
-            // Provide user-friendly error messages
             if (errorMessage.includes("Invalid credentials")) {
                 setError("Invalid email or password. Please try again.");
             } else if (errorMessage.includes("inactive")) {
@@ -51,94 +48,110 @@ export default function LoginPage() {
         }
     }
 
-    // Show loading state while checking auth
     if (loading) {
         return (
-            <div className="min-h-screen bg-surface flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent"></div>
-                    <p className="mt-4 text-sm text-muted">Loading...</p>
+            <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
+                <div className="flex flex-col items-center">
+                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-[#f47f00]"></div>
+                    <p className="mt-4 text-sm font-medium text-white/70">Authenticating...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-surface text-ink">
-            <div className="mx-auto flex max-w-md flex-col gap-6 px-6 py-16">
-                <div className="rounded-xl border border-border bg-white p-6">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-medium tracking-wide text-muted">Cort Operations</div>
-                            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
-                                Sign In
-                            </h1>
-                        </div>
-                        <div className="px-0 py-0">
+        <div className="relative min-h-screen w-full overflow-hidden bg-[#0f172a] font-sans selection:bg-[#f47f00]/30">
+            {/* Background Effects */}
+            <div className="absolute top-[-20%] left-[-10%] h-[600px] w-[600px] rounded-full bg-blue-600/20 blur-[120px]" />
+            <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-[#f47f00]/10 blur-[120px]" />
+            <div className="absolute top-[40%] left-[60%] h-[300px] w-[300px] rounded-full bg-purple-500/10 blur-[100px]" />
+
+            <div className="relative flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+                <div className="w-full max-w-md space-y-8">
+                    {/* Header */}
+                    <div className="flex flex-col items-center">
+                        <div className="mb-6 rounded-2xl bg-white/5 p-4 backdrop-blur-sm ring-1 ring-white/10">
                             <img
-                                src="/cort-with-at-your.svg"
+                                src="/Asset-1@2x (1).png"
                                 alt="Cort"
-                                className="h-10 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.18)]"
+                                className="h-10 w-auto"
                             />
                         </div>
+                        <h2 className="text-center text-3xl font-bold tracking-tight text-white">
+                            Welcome Back
+                        </h2>
+                        <p className="mt-2 text-center text-sm text-slate-400">
+                            Sign in to access your premium mobility dashboard
+                        </p>
                     </div>
-                    <p className="mt-2 text-sm text-muted">
-                        Sign in with your credentials to access your dashboard.
-                    </p>
 
-                    <form className="mt-6 flex flex-col gap-4" onSubmit={onSubmit}>
-                        <label className="flex flex-col gap-1">
-                            <span className="text-sm font-medium text-ink">Email</span>
-                            <input
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="h-11 rounded-md border border-border px-3 outline-none focus:ring-2 focus:ring-blue/40"
-                                placeholder="you@example.com"
-                                type="email"
-                                autoComplete="username"
-                                required
-                            />
-                        </label>
+                    {/* Login Card */}
+                    <div className="relative overflow-hidden rounded-2xl bg-white/5 p-8 shadow-2xl backdrop-blur-xl ring-1 ring-white/10">
+                        {/* Shine effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
 
-                        <label className="flex flex-col gap-1">
-                            <span className="text-sm font-medium text-ink">Password</span>
-                            <input
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                type="password"
-                                className="h-11 rounded-md border border-border px-3 outline-none focus:ring-2 focus:ring-blue/40"
-                                placeholder="••••••••"
-                                autoComplete="current-password"
-                                required
-                            />
-                        </label>
-
-                        {(error || authError) && (
-                            <div className="rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">
-                                {error || authError}
+                        <form className="relative flex flex-col gap-5" onSubmit={onSubmit}>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    Email Address
+                                </label>
+                                <div className="group relative">
+                                    <input
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="block w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 transition-all focus:border-[#f47f00]/50 focus:bg-white/10 focus:outline-none focus:ring-1 focus:ring-[#f47f00]/50"
+                                        placeholder="name@company.com"
+                                        type="email"
+                                        autoComplete="username"
+                                        required
+                                    />
+                                </div>
                             </div>
-                        )}
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !email || !password}
-                            className="mt-1 inline-flex h-11 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-95"
-                        >
-                            {isSubmitting ? "Signing in..." : "Sign in"}
-                        </button>
-                    </form>
-                </div>
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    Password
+                                </label>
+                                <div className="group relative">
+                                    <input
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        type="password"
+                                        className="block w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 transition-all focus:border-[#f47f00]/50 focus:bg-white/10 focus:outline-none focus:ring-1 focus:ring-[#f47f00]/50"
+                                        placeholder="••••••••"
+                                        autoComplete="current-password"
+                                        required
+                                    />
+                                </div>
+                            </div>
 
-                <div className="text-xs text-muted">
-                    <div className="rounded-md border border-border bg-white px-3 py-2">
-                        <p className="font-semibold">Access Levels:</p>
-                        <ul className="mt-2 space-y-1">
-                            <li>• <span className="font-medium">Super Admin</span> - Full system access</li>
-                            <li>• <span className="font-medium">Company Admin</span> - Company management</li>
-                            <li>• <span className="font-medium">Employee</span> - Company portal access</li>
-                        </ul>
-                        <p className="mt-2 text-muted">
-                            You'll be automatically redirected to the appropriate dashboard based on your role.
+                            {(error || authError) && (
+                                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 backdrop-blur-sm">
+                                    <div className="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                        {error || authError}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={isSubmitting || !email || !password}
+                                className="mt-2 flex w-full transform items-center justify-center rounded-lg bg-gradient-to-r from-[#f47f00] to-[#d97000] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-all hover:scale-[1.02] hover:shadow-orange-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                            >
+                                {isSubmitting ? (
+                                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white"></div>
+                                ) : (
+                                    "Sign In"
+                                )}
+                            </button>
+                        </form>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="text-center">
+                        <p className="text-xs text-slate-500">
+                            &copy; {new Date().getFullYear()} Cort Operations. All rights reserved.
                         </p>
                     </div>
                 </div>

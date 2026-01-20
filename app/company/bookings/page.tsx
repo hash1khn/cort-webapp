@@ -1,10 +1,13 @@
 "use client";
 
 import { useCompanyStore } from "../store/CompanyStore";
-import Link from "next/link";
+import { useState } from "react";
+import Modal from "./components/Modal";
+import CreateBookingForm from "./components/CreateBookingForm";
 
 export default function BookingsPage() {
-  const { company } = useCompanyStore();
+  const { company, bookings, employees } = useCompanyStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!company) {
     return (
@@ -14,6 +17,17 @@ export default function BookingsPage() {
     );
   }
 
+  const getPassengerName = (id: number) => {
+    const emp = employees.find((e) => e.id === id);
+    return emp ? emp.full_name : "Unknown";
+  };
+
+  const handleBookingCreated = () => {
+    setIsModalOpen(false);
+    // Refresh the page to fetch new bookings since store doesn't support live updates yet
+    window.location.reload();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -22,12 +36,12 @@ export default function BookingsPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Bookings</h1>
         </div>
         {company.services_enabled.chauffeur_enabled && (
-          <Link
-            href="/company/bookings/new"
+          <button
+            onClick={() => setIsModalOpen(true)}
             className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
           >
             New Booking
-          </Link>
+          </button>
         )}
       </div>
 
@@ -43,20 +57,63 @@ export default function BookingsPage() {
                 <th className="px-3 py-2 text-left">Trip Type</th>
                 <th className="px-3 py-2 text-left">Scheduled</th>
                 <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-left">Driver</th>
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-white">
-              <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-muted">
-                  No bookings information available.
-                </td>
-              </tr>
+              {bookings.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-3 py-8 text-center text-muted">
+                    No bookings found.
+                  </td>
+                </tr>
+              ) : (
+                bookings.map((booking) => (
+                  <tr key={booking.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-3 font-medium">#{booking.id}</td>
+                    <td className="px-3 py-3">
+                      {getPassengerName(booking.passenger_employee_id)}
+                    </td>
+                    <td className="px-3 py-3">{booking.vehicle_model}</td>
+                    <td className="px-3 py-3 capitalize">{booking.package.replace(/_/g, " ")}</td>
+                    <td className="px-3 py-3 capitalize">{booking.trip_type.replace(/_/g, " ")}</td>
+                    <td className="px-3 py-3">
+                      {new Date(booking.scheduled_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${booking.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : booking.status === "cancelled" || booking.status === "rejected"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                      >
+                        {booking.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      {/* Actions placeholder - can add View Details or Cancel later */}
+                      <span className="text-muted text-xs">-</span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create New Booking"
+      >
+        <CreateBookingForm
+          onSuccess={handleBookingCreated}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
     </div>
   );
 }
