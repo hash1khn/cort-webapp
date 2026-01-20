@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { makeNewCompany, useAdminStore } from "../store/AdminStore";
-import type { Company } from "../store/types";
+import { useEffect, useState } from "react";
+import { apiClient, Company, CreateCompanyRequest, UpdateCompanyRequest } from "../../lib/services/api-client";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -55,31 +54,125 @@ function Modal({
   );
 }
 
+function CredentialsModal({
+  isOpen,
+  onClose,
+  email,
+  password,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  email: string;
+  password?: string;
+}) {
+  if (!isOpen) return null;
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Could add toast here
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Company Credentials">
+      <div className="space-y-4">
+        <div className="rounded-lg bg-green-50 p-4 text-sm text-green-700">
+          Company created successfully! Please share these credentials with the company administrator.
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900">{email}</code>
+              <button
+                onClick={() => handleCopy(email)}
+                className="p-2 text-slate-400 hover:text-[#0c225e]"
+                title="Copy Email"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900 font-mono">
+                {password || "• • • • • • • •"}
+              </code>
+              {password && (
+                <button
+                  onClick={() => handleCopy(password)}
+                  className="p-2 text-slate-400 hover:text-[#0c225e]"
+                  title="Copy Password"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+              )}
+            </div>
+            {!password && <p className="text-xs text-slate-500 mt-1">Password was not returned from server.</p>}
+          </div>
+        </div>
+        <div className="flex justify-end pt-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-[#0c225e] px-4 py-2 text-sm font-bold text-white hover:bg-[#0a1b4d]"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+type CompanyFormData = CreateCompanyRequest;
+
+const initialFormData: CompanyFormData = {
+  name: "",
+  email: "",
+  password: "", // Added password
+  contact_person: "",
+  ntn_number: "",
+  address: "",
+  is_shuttle_enabled: false,
+  is_chauffeur_enabled: false,
+};
+
 function CompanyForm({
   company,
   onSave,
-  onCancel
+  onCancel,
+  isSaving
 }: {
   company: Company | null;
-  onSave: (c: Company) => void;
+  onSave: (data: CompanyFormData) => void;
   onCancel: () => void;
+  isSaving: boolean;
 }) {
-  // If company is null, we are creating a new one (but we usually pass a fresh object)
-  // We'll manage local state to avoid updating the store directly until save
-  const [formData, setFormData] = useState<Company>(company || makeNewCompany());
+  const [formData, setFormData] = useState<CompanyFormData>(
+    company
+      ? {
+        name: company.name,
+        email: company.email,
+        contact_person: company.contact_person || "",
+        ntn_number: company.ntn_number || "",
+        address: company.address || "",
+        is_shuttle_enabled: company.is_shuttle_enabled,
+        is_chauffeur_enabled: company.is_chauffeur_enabled,
+      }
+      : initialFormData
+  );
 
-  const handleChange = (field: keyof Company, value: any) => {
+  const handleChange = (field: keyof CompanyFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleServiceToggle = (service: 'shuttle_enabled' | 'chauffeur_enabled') => {
-    setFormData(prev => ({
-      ...prev,
-      services_enabled: {
-        ...prev.services_enabled,
-        [service]: !prev.services_enabled[service]
-      }
-    }));
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 12; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    handleChange("password", pass);
   };
 
   return (
@@ -93,6 +186,7 @@ function CompanyForm({
             onChange={(e) => handleChange("name", e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
             placeholder="e.g. Acme Corp"
+            disabled={isSaving}
           />
         </div>
         <div>
@@ -103,8 +197,37 @@ function CompanyForm({
             onChange={(e) => handleChange("email", e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
             placeholder="admin@acmecorp.com"
+            disabled={isSaving}
           />
         </div>
+
+        {/* Password Field - Only show when creating new company */}
+        {!company && (
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+              Password <span className="text-slate-400 font-normal">(Optional, auto-generated if empty)</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={formData.password || ""}
+                onChange={(e) => handleChange("password", e.target.value)}
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none font-mono"
+                placeholder="Leave empty to auto-generate"
+                disabled={isSaving}
+              />
+              <button
+                type="button"
+                onClick={generatePassword}
+                className="px-3 py-2 text-xs font-bold text-[#f47f00] border border-[#f47f00] rounded-lg hover:bg-orange-50 disabled:opacity-50"
+                disabled={isSaving}
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Contact Person</label>
@@ -114,16 +237,18 @@ function CompanyForm({
               onChange={(e) => handleChange("contact_person", e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
               placeholder="John Doe"
+              disabled={isSaving}
             />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">NTN</label>
             <input
               type="text"
-              value={formData.ntn}
-              onChange={(e) => handleChange("ntn", e.target.value)}
+              value={formData.ntn_number}
+              onChange={(e) => handleChange("ntn_number", e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
               placeholder="1234567-8"
+              disabled={isSaving}
             />
           </div>
         </div>
@@ -135,6 +260,7 @@ function CompanyForm({
             onChange={(e) => handleChange("address", e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
             placeholder="123 Business Rd, City"
+            disabled={isSaving}
           />
         </div>
 
@@ -144,18 +270,20 @@ function CompanyForm({
             <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
               <input
                 type="checkbox"
-                checked={formData.services_enabled.shuttle_enabled}
-                onChange={() => handleServiceToggle('shuttle_enabled')}
+                checked={formData.is_shuttle_enabled}
+                onChange={(e) => handleChange('is_shuttle_enabled', e.target.checked)}
                 className="accent-[#f47f00] w-4 h-4"
+                disabled={isSaving}
               />
               <span className="text-sm font-medium text-slate-700">Shuttle</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
               <input
                 type="checkbox"
-                checked={formData.services_enabled.chauffeur_enabled}
-                onChange={() => handleServiceToggle('chauffeur_enabled')}
+                checked={formData.is_chauffeur_enabled}
+                onChange={(e) => handleChange('is_chauffeur_enabled', e.target.checked)}
                 className="accent-[#f47f00] w-4 h-4"
+                disabled={isSaving}
               />
               <span className="text-sm font-medium text-slate-700">Chauffeur</span>
             </label>
@@ -167,14 +295,16 @@ function CompanyForm({
         <button
           onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+          disabled={isSaving}
         >
           Cancel
         </button>
         <button
           onClick={() => onSave(formData)}
-          className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10"
+          className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
+          disabled={isSaving}
         >
-          Save Company
+          {isSaving ? "Saving..." : "Save Company"}
         </button>
       </div>
     </div>
@@ -184,12 +314,39 @@ function CompanyForm({
 // -- Main Page Definition --
 
 export default function CompaniesPage() {
-  const { db, upsertCompany, deleteCompany } = useAdminStore();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Credentials Modal State
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password?: string } | null>(null);
+
+  const fetchCompanies = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiClient.getCompanies({ limit: 100 });
+      setCompanies(response.data.data);
+      setError(null);
+    } catch (err: any) {
+      console.error("Failed to fetch companies:", err);
+      setError("Failed to load companies. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounced Search and Filter Effect
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
 
   const handleCreateNew = () => {
-    setEditingCompany(makeNewCompany());
+    setEditingCompany(null);
     setIsModalOpen(true);
   };
 
@@ -198,16 +355,40 @@ export default function CompaniesPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
-      deleteCompany(id);
+      try {
+        await apiClient.deleteCompany(id);
+        await fetchCompanies();
+      } catch (err: any) {
+        console.error("Failed to delete company:", err);
+        alert(err.message || "Failed to delete company");
+      }
     }
   };
 
-  const handleSave = (company: Company) => {
-    upsertCompany(company);
-    setIsModalOpen(false);
-    setEditingCompany(null);
+  const handleSave = async (data: CompanyFormData) => {
+    try {
+      setIsSaving(true);
+      if (editingCompany) {
+        await apiClient.updateCompany(editingCompany.id, data);
+      } else {
+        const response = await apiClient.createCompany(data);
+        // Show credentials modal with returned password or formatted one
+        setCreatedCredentials({
+          email: data.email,
+          password: response.data.generatedPassword || data.password
+        });
+      }
+      await fetchCompanies();
+      setIsModalOpen(false);
+      setEditingCompany(null);
+    } catch (err: any) {
+      console.error("Failed to save company:", err);
+      alert(err.message || "Failed to save company");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -235,6 +416,7 @@ export default function CompaniesPage() {
         </button>
       </div>
 
+
       {/* Companies Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -249,7 +431,15 @@ export default function CompaniesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {db.companies.map((company) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading companies...</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-red-500">{error}</td>
+                </tr>
+              ) : companies.map((company) => (
                 <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-[#0c225e]">{company.name || "Untitled"}</div>
@@ -261,15 +451,15 @@ export default function CompaniesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
-                      {company.services_enabled.shuttle_enabled && <Badge color="blue">Shuttle</Badge>}
-                      {company.services_enabled.chauffeur_enabled && <Badge color="purple">Chauffeur</Badge>}
-                      {!company.services_enabled.shuttle_enabled && !company.services_enabled.chauffeur_enabled && (
+                      {company.is_shuttle_enabled && <Badge color="blue">Shuttle</Badge>}
+                      {company.is_chauffeur_enabled && <Badge color="purple">Chauffeur</Badge>}
+                      {!company.is_shuttle_enabled && !company.is_chauffeur_enabled && (
                         <Badge color="red">None</Badge>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="font-mono text-slate-600">{company.employees.length}</span>
+                    <span className="font-mono text-slate-600">{company._count?.users ?? 0}</span>
                     <span className="text-xs text-slate-400 ml-1">users</span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -299,7 +489,7 @@ export default function CompaniesPage() {
                   </td>
                 </tr>
               ))}
-              {db.companies.length === 0 && (
+              {!isLoading && companies.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-2">
@@ -323,14 +513,25 @@ export default function CompaniesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingCompany?.id === "" || !editingCompany?.created_at ? "Create New Company" : "Edit Company"}
+        title={!editingCompany ? "Create New Company" : "Edit Company"}
       >
         <CompanyForm
           company={editingCompany}
           onSave={handleSave}
           onCancel={handleCloseModal}
+          isSaving={isSaving}
         />
       </Modal>
+
+      {/* Credentials Display Modal */}
+      {createdCredentials && (
+        <CredentialsModal
+          isOpen={!!createdCredentials}
+          onClose={() => setCreatedCredentials(null)}
+          email={createdCredentials.email}
+          password={createdCredentials.password}
+        />
+      )}
     </div>
   );
 }
