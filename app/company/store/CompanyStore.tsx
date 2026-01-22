@@ -172,12 +172,12 @@ export function CompanyStoreProvider({
         };
         setCompany(companyObj);
 
-        // 2. Fetch Employees
+        // 2. Fetch Employees using the new endpoint
         try {
           const empRes = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
           if (empRes.ok) {
             const empData = await empRes.json();
-            setEmployees(empData.data || []);
+            setEmployees(empData.data?.data || []);
           } else {
             console.warn('Could not fetch employees');
             setEmployees([]);
@@ -187,62 +187,10 @@ export function CompanyStoreProvider({
           setEmployees([]);
         }
 
-        // 3. Fetch Bookings (if chauffeur enabled)
-        if (companyObj.services_enabled.chauffeur_enabled) {
-          try {
-            const bookingsRes = await fetch(`${API_URL}/bookings/company/${companyId}`, { headers });
-            if (bookingsRes.ok) {
-              const bookingsData = await bookingsRes.json();
-              setBookings(bookingsData.data || []);
-            } else {
-              console.warn('Could not fetch bookings');
-              setBookings([]);
-            }
-          } catch (e) {
-            console.warn('Failed to fetch bookings', e);
-            setBookings([]);
-          }
-        } else {
-          setBookings([]);
-        }
-
-        // 4. Fetch Contract (if chauffeur enabled) - endpoint might change structure
-        if (companyObj.services_enabled.chauffeur_enabled) {
-          try {
-            const contractRes = await fetch(`${API_URL}/contracts/chauffeur?companyId=${companyId}`, { headers });
-            if (contractRes.ok) {
-              const contractData = await contractRes.json();
-              // Assuming API returns a list, define logic to pick one or null
-              const list = contractData.data || [];
-              setContract(list.length > 0 ? list[0] : null);
-            } else {
-              console.warn('Could not fetch contracts');
-              setContract(null);
-            }
-          } catch (e) {
-            console.warn('Failed to fetch contracts', e);
-            setContract(null);
-          }
-        } else {
-          setContract(null);
-        }
-
-        // 5. Fetch Vehicles
-        try {
-          // Assuming there's an endpoint to filter vehicles by company or just get all
-          const vehRes = await fetch(`${API_URL}/vehicles/list`, { headers });
-          if (vehRes.ok) {
-            const vehData = await vehRes.json();
-            // Client-side filter or API filter? Assuming all for now or mock filter
-            setVehicles(vehData.data || []);
-          } else {
-            console.warn('Could not fetch vehicles');
-            setVehicles([]);
-          }
-        } catch (e) {
-          console.warn('Failed to fetch vehicles', e);
-          setVehicles([]);
-        }
+        // Clear other data - these endpoints don't exist or aren't needed in company portal
+        setBookings([]);
+        setContract(null);
+        setVehicles([]);
 
       } catch (err) {
         console.error('Error fetching company data:', err);
