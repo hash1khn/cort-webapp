@@ -64,68 +64,68 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-ink">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-border bg-navy text-white md:block">
-          <div className="px-6 py-5">
-            <div className="text-xs font-semibold tracking-wider text-white/70">
-              COMPANY PORTAL
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="px-0 py-0">
-                <img
-                  src="/Asset-1@2x (1).png"
-                  alt="Cort"
-                  className="h-8 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
-                />
+        <aside className="hidden w-72 shrink-0 border-r border-border bg-navy text-white md:flex md:flex-col">
+          <div className="flex-1">
+            <div className="px-6 py-5">
+              <div className="text-xs font-semibold tracking-wider text-white/70">
+                COMPANY PORTAL
               </div>
-              <div className="flex flex-col leading-tight">
-                <div className="text-sm font-semibold">{company.name || "Company"}</div>
-                <div className="text-xs text-white/70">Admin Portal</div>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="px-0 py-0">
+                  <img
+                    src="/Asset-1@2x (1).png"
+                    alt="Cort"
+                    className="h-8 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  />
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <div className="text-sm font-semibold">{company.name || "Company"}</div>
+                  <div className="text-xs text-white/70">Admin Portal</div>
+                </div>
               </div>
             </div>
+
+            <nav className="px-3 pb-6">
+              {getNavItems(company.services_enabled).map((item) => {
+                const active = item.href === activeHref;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cx(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10",
+                      active && "bg-white/15 text-white",
+                    )}
+                  >
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
-          <nav className="px-3 pb-6">
-            {getNavItems(company.services_enabled).map((item) => {
-              const active = item.href === activeHref;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cx(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10",
-                    active && "bg-white/15 text-white",
-                  )}
-                >
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+          <div className="border-t border-white/10 p-4">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-3">
+              <div className="flex flex-col overflow-hidden">
+                <span className="truncate text-xs font-medium text-white">
+                  {user?.email}
+                </span>
+                <span className="text-[10px] text-white/50">Signed in</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="shrink-0 rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+                title="Sign out"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              </button>
+            </div>
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 border-b border-border bg-white">
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
-              <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold text-navy">{company.name}</div>
-                {user && (
-                  <div className="text-xs text-muted">{user.email}</div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-medium text-ink hover:bg-surface"
-                >
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </header>
-
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-6">
+          <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-6">
             {children}
           </main>
         </div>

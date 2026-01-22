@@ -108,6 +108,237 @@ export interface EmployeeResponse {
     message: string;
 }
 
+export enum VehicleCategory {
+    SEDAN = 'SEDAN',
+    SUV = 'SUV',
+    VAN = 'VAN',
+    BUS = 'BUS',
+    COASTER = 'COASTER',
+    HIACE = 'HIACE',
+}
+
+export enum OwnershipType {
+    OWNED = 'OWNED',
+    PARTNER = 'PARTNER',
+}
+
+export interface CreateVehicleRequest {
+    plate_number: string;
+    make: string;
+    model: string;
+    year: number;
+    color?: string;
+    category: VehicleCategory;
+    ownership: OwnershipType;
+    fuel_avg_city: number;
+    fuel_avg_highway: number;
+    owner_company_id?: number;
+    is_available_for_pooling?: boolean;
+}
+
+export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
+
+export interface QueryVehicleParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: VehicleCategory;
+    ownership?: OwnershipType;
+    show_all?: boolean;
+}
+
+export interface Vehicle {
+    id: number;
+    plate_number: string;
+    make: string;
+    model: string;
+    year: number;
+    color: string | null;
+    category: VehicleCategory;
+    ownership: OwnershipType;
+    fuel_avg_city: number;
+    fuel_avg_highway: number;
+    owner_company_id: number | null;
+    is_available_for_pooling: boolean;
+    created_at?: string;
+    updated_at?: string;
+    companies?: {
+        id: number;
+        name: string;
+    };
+}
+
+export interface VehicleResponse {
+    data: Vehicle;
+    statusCode: number;
+    message: string;
+}
+
+export enum DriverType {
+    SHUTTLE = 'SHUTTLE',
+    CHAUFFEUR = 'CHAUFFEUR',
+}
+
+export enum DriverStatus {
+    ACTIVE = 'ACTIVE',
+    INACTIVE = 'INACTIVE',
+    SUSPENDED = 'SUSPENDED',
+    DELETED = 'DELETED',
+    PENDING = 'PENDING',
+    REJECTED = 'REJECTED',
+}
+
+export enum DriverStatusAction {
+    APPROVE = 'APPROVE',
+    REJECT = 'REJECT',
+}
+
+export interface CreateDriverRequest {
+    email: string;
+    password?: string;
+    full_name: string;
+    phone?: string;
+    company_id?: number;
+    driver_type: DriverType;
+    cnic_number?: string;
+    license_number?: string;
+    status?: DriverStatus;
+}
+
+export interface UpdateDriverRequest extends Partial<CreateDriverRequest> { }
+
+export interface UpdateDriverStatusRequest {
+    action: DriverStatusAction;
+    reason?: string;
+}
+
+export interface QueryDriverParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+    company_id?: number;
+    driver_type?: DriverType;
+    status?: string;
+}
+
+export interface Driver {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+    status: DriverStatus;
+    company_id: number | null;
+    drivers_profile?: {
+        driver_type: DriverType;
+        cnic_number: string | null;
+        license_number: string | null;
+        rejection_reason?: string | null;
+    };
+    created_at: string;
+    companies?: {
+        id: number;
+        name: string;
+    };
+}
+
+export interface DriverResponse {
+    data: Driver;
+    statusCode: number;
+    message: string;
+}
+
+export interface ChauffeurContractRate {
+    id: number;
+    contract_id: number;
+    vehicle_model: string;
+    rate_spot_5hr: string;
+    rate_spot_10hr: string;
+    rate_spot_24hr: string;
+    rate_monthly_10hr: string;
+    rate_monthly_24hr: string;
+    rate_overtime_per_hr: string;
+    allowance_outstation: string;
+    allowance_accommodation: string;
+    agreed_fuel_avg_city: string;
+    agreed_fuel_avg_highway: string;
+}
+
+export interface ChauffeurContract {
+    id: number;
+    company_id: number;
+    fuel_base_price: string;
+    revision_percentage: string;
+    companies?: {
+        name: string;
+    };
+    chauffeur_contract_rates?: ChauffeurContractRate[];
+}
+
+export interface CreateChauffeurContractRequest {
+    companyId: number;
+    // Settings
+    fuelBasePrice?: number;
+    revisionPercentage?: number;
+
+    // Optional Rate Entry
+    vehicleModel?: string;
+    rateSpot5hr?: number;
+    rateSpot10hr?: number;
+    rateSpot24hr?: number;
+    rateMonthly10hr?: number;
+    rateMonthly24hr?: number;
+    rateOvertimePerHr?: number;
+    allowanceOutstation?: number;
+    allowanceAccommodation?: number;
+    agreedFuelAvgCity?: number;
+    agreedFuelAvgHighway?: number;
+}
+
+export interface UpdateChauffeurContractRequest {
+    // For GLOBAL updates
+    fuelBasePrice?: number;
+    revisionPercentage?: number;
+
+    // For RATE updates
+    vehicleModel?: string;
+    rateSpot5hr?: number;
+    rateSpot10hr?: number;
+    rateSpot24hr?: number;
+    rateMonthly10hr?: number;
+    rateMonthly24hr?: number;
+    rateOvertimePerHr?: number;
+    allowanceOutstation?: number;
+    allowanceAccommodation?: number;
+    agreedFuelAvgCity?: number;
+    agreedFuelAvgHighway?: number;
+}
+
+export interface ChauffeurContractResponse {
+    data: ChauffeurContract[];
+    statusCode: number;
+    message: string;
+}
+
+export interface SingleChauffeurContractResponse {
+    data: ChauffeurContract;
+    statusCode: number;
+    message: string;
+}
+
+export interface SystemSetting {
+    id: number;
+    key: string;
+    value: string;
+    description: string | null;
+    updated_at: string;
+}
+
+export interface SystemSettingResponse {
+    data: SystemSetting;
+    statusCode: number;
+    message: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 class ApiClient {
@@ -231,7 +462,13 @@ class ApiClient {
      * Logout user (client-side only, clears token)
      */
     async logout(): Promise<void> {
-        this.removeToken();
+        try {
+            await this.request<void>('/auth/logout', { method: 'POST' });
+        } catch (err) {
+            console.error('Logout API failed', err);
+        } finally {
+            this.removeToken();
+        }
     }
 
     /**
@@ -342,6 +579,217 @@ class ApiClient {
         return this.request<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }>('/employees/bulk-create', {
             method: 'POST',
             body: JSON.stringify({ employees }),
+        });
+    }
+
+    /**
+     * Get vehicles
+     */
+    async getVehicles(params: QueryVehicleParams = {}): Promise<PaginatedResponse<Vehicle>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+        if (params.category) query.append('category', params.category);
+        if (params.ownership) query.append('ownership', params.ownership);
+        if (params.show_all !== undefined) query.append('show_all', params.show_all.toString());
+
+        const queryString = query.toString();
+        const endpoint = `/vehicles/list${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Vehicle>>(endpoint);
+    }
+
+    /**
+     * Get single vehicle
+     */
+    async getVehicle(id: number): Promise<VehicleResponse> {
+        return this.request<VehicleResponse>(`/vehicles/${id}`);
+    }
+
+    /**
+     * Create vehicle
+     */
+    async createVehicle(data: CreateVehicleRequest): Promise<VehicleResponse> {
+        return this.request<VehicleResponse>('/vehicles/create', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update vehicle
+     */
+    async updateVehicle(id: number, data: UpdateVehicleRequest): Promise<VehicleResponse> {
+        return this.request<VehicleResponse>(`/vehicles/update/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete vehicle
+     */
+    async deleteVehicle(id: number): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/vehicles/delete/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    /**
+     * Get drivers
+     */
+    async getDrivers(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+        if (params.company_id) query.append('company_id', params.company_id.toString());
+        if (params.driver_type) query.append('driver_type', params.driver_type);
+        if (params.status) query.append('status', params.status);
+
+        const queryString = query.toString();
+        const endpoint = `/drivers${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Driver>>(endpoint);
+    }
+
+    /**
+     * Get pending chauffeur drivers
+     */
+    async getPendingChauffeurs(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+        // Note: status=PENDING and driver_type=CHAUFFEUR are handled by the backend endpoint logic or default logic if passed
+        // The backend endpoint /drivers/pending-chauffeurs might override these internally, but passing them is fine.
+
+        const queryString = query.toString();
+        const endpoint = `/drivers/pending-chauffeurs${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Driver>>(endpoint);
+    }
+
+    /**
+     * Get single driver
+     */
+    async getDriver(id: string): Promise<DriverResponse> {
+        return this.request<DriverResponse>(`/drivers/${id}`);
+    }
+
+    /**
+     * Create driver
+     */
+    async createDriver(data: CreateDriverRequest): Promise<DriverResponse> {
+        return this.request<DriverResponse>('/drivers', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update driver
+     */
+    async updateDriver(id: string, data: UpdateDriverRequest): Promise<DriverResponse> {
+        return this.request<DriverResponse>(`/drivers/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update driver status (Approve/Reject)
+     */
+    async updateDriverStatus(id: string, data: UpdateDriverStatusRequest): Promise<DriverResponse> {
+        return this.request<DriverResponse>(`/drivers/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete driver
+     */
+    async deleteDriver(id: string): Promise<void> {
+        await this.request<void>(`/drivers/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // -- Chauffeur Contracts --
+
+    /**
+     * Get chauffeur contracts for a company
+     */
+    async getChauffeurContracts(companyId: number): Promise<ChauffeurContractResponse> {
+        return this.request<ChauffeurContractResponse>(`/contracts/chauffeur?companyId=${companyId}`);
+    }
+
+    /**
+     * Create chauffeur contract
+     */
+    async createChauffeurContract(data: CreateChauffeurContractRequest): Promise<SingleChauffeurContractResponse> {
+        return this.request<SingleChauffeurContractResponse>('/contracts/chauffeur', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update chauffeur contract
+     */
+    async updateChauffeurContract(id: number, data: UpdateChauffeurContractRequest): Promise<SingleChauffeurContractResponse> {
+        return this.request<SingleChauffeurContractResponse>(`/contracts/chauffeur/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete chauffeur contract
+     */
+    async deleteChauffeurContract(id: number): Promise<void> {
+        await this.request<void>(`/contracts/chauffeur/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    /**
+     * Update specific rate entry
+     */
+    async updateChauffeurRate(id: number, data: UpdateChauffeurContractRequest): Promise<void> {
+        await this.request<void>(`/contracts/chauffeur/rate/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete specific rate entry
+     */
+    async deleteChauffeurRate(id: number): Promise<void> {
+        await this.request<void>(`/contracts/chauffeur/rate/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // -- System Settings --
+
+    /**
+     * Get system setting by key
+     */
+    async getSystemSetting(key: string): Promise<SystemSettingResponse> {
+        return this.request<SystemSettingResponse>(`/system-settings/${key}`);
+    }
+
+    /**
+     * Update system setting
+     */
+    async updateSystemSetting(key: string, value: string): Promise<SystemSettingResponse> {
+        return this.request<SystemSettingResponse>(`/system-settings/${key}`, {
+            method: 'PUT',
+            body: JSON.stringify({ value }),
         });
     }
 }

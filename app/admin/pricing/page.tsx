@@ -1,417 +1,417 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  makeNewChauffeurContract,
-  makeNewShuttleAssetPricing,
-  useAdminStore,
-} from "../store/AdminStore";
-import type { ChauffeurBaseRate, ChauffeurContract, ShuttleAssetPricing } from "../store/types";
+  apiClient,
+  Company,
+  ChauffeurContract,
+  ChauffeurContractRate,
+  CreateChauffeurContractRequest,
+  UpdateChauffeurContractRequest
+} from "../../lib/services/api-client";
+
+const Input = ({ label, value, onChange, placeholder = "0", type = "number" }: any) => (
+  <label className="flex flex-col gap-1.5">
+    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
+    />
+  </label>
+);
 
 export default function PricingPage() {
-  const { db, setFuelPrice, upsertChauffeurContract, upsertShuttleAssetPricing, deleteShuttleAssetPricing } =
-    useAdminStore();
-  const [fuel, setFuel] = useState(String(db.fuel_price_pkr.toFixed(2)));
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(db.companies[0]?.id ?? "");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
+  const [contract, setContract] = useState<ChauffeurContract | null>(null);
 
-  const company = useMemo(
-    () => db.companies.find((c) => c.id === selectedCompanyId) ?? null,
-    [db.companies, selectedCompanyId],
-  );
+  // Global settings state
+  const [globalSettings, setGlobalSettings] = useState({
+    fuelBasePrice: "0",
+    revisionPercentage: "0.2"
+  });
 
-  const chauffeurContract = useMemo(() => {
-    if (!company) return null;
-    return db.chauffeur_contracts.find((c) => c.company_id === company.id) ?? null;
-  }, [db.chauffeur_contracts, company]);
+  // Rates State
+  // We include a temporary 'tempId' for new rows to track them before saving
+  type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
+  const [rateRows, setRateRows] = useState<RateRow[]>([]);
 
-  const shuttlePricing = useMemo(() => {
-    if (!company) return [];
-    return db.shuttle_asset_pricing.filter((p) => p.company_id === company.id);
-  }, [db.shuttle_asset_pricing, company]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const whitelistedModels = company?.allowed_vehicle_models ?? [];
-  const activeFleet = db.vehicles.filter((v) => v.is_active);
+  // System Setting
+  const [systemFuelPrice, setSystemFuelPrice] = useState("0");
 
-  function parseMoney(input: string) {
-    const v = Number(input.replace(/,/g, "").trim());
-    return Number.isFinite(v) ? v : null;
-  }
+  // Initial load: Fetch companies & System Settings
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const comps = await apiClient.getCompanies({ limit: 100 });
+        setCompanies(comps.data.data);
+        if (comps.data.data.length > 0) {
+          setSelectedCompanyId(String(comps.data.data[0].id));
+        }
 
-  function fuelRevisionPreview(c: ChauffeurContract) {
-    if (!c.is_auto_revision_enabled) return null;
-    const delta = db.fuel_price_pkr - c.base_fuel_price_pkr;
-    const adjustment = delta * c.contract_pct;
-    return { delta, adjustment };
-  }
+        const sys = await apiClient.getSystemSetting('fuel_price');
+        setSystemFuelPrice(sys.data.value);
+      } catch (err) {
+        console.error("Init failed", err);
+      }
+    };
+    init();
+  }, []);
 
-  function upsertRate(contract: ChauffeurContract, model: string, patch: Partial<ChauffeurBaseRate>) {
-    const idx = contract.base_rates.findIndex((r) => r.model === model);
-    const base: ChauffeurBaseRate =
-      idx >= 0
-        ? contract.base_rates[idx]!
-        : { model, rate_5hr: 0, rate_10hr: 0, rate_24hr: 0, monthly_10hr: 0, monthly_24hr: 0 };
-    const next = { ...base, ...patch };
-    const nextRates = [...contract.base_rates];
-    if (idx >= 0) nextRates[idx] = next;
-    else nextRates.push(next);
-    nextRates.sort((a, b) => a.model.localeCompare(b.model));
-    upsertChauffeurContract({ ...contract, base_rates: nextRates });
-  }
+  // Load Contract Details
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+
+    const loadDetails = async () => {
+      setIsLoading(true);
+      try {
+        const [compRes, contractsRes] = await Promise.all([
+          apiClient.getCompany(selectedCompanyId),
+          apiClient.getChauffeurContracts(Number(selectedCompanyId))
+        ]);
+
+        setCurrentCompany(compRes.data);
+
+        // Chauffeur Contract logic
+        const contracts = contractsRes.data;
+        if (contracts && contracts.length > 0) {
+          const mainContract = contracts[0];
+          setContract(mainContract);
+          setGlobalSettings({
+            fuelBasePrice: mainContract.fuel_base_price,
+            revisionPercentage: mainContract.revision_percentage
+          });
+          setRateRows(mainContract.chauffeur_contract_rates || []);
+        } else {
+          setContract(null);
+          setGlobalSettings({
+            fuelBasePrice: "300",
+            revisionPercentage: "0.2"
+          });
+          setRateRows([]);
+        }
+
+      } catch (err) {
+        console.error("Failed to load details", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadDetails();
+  }, [selectedCompanyId]);
+
+  const [isUpdatingFuel, setIsUpdatingFuel] = useState(false);
+
+  const handleUpdateGlobalFuel = async () => {
+    setIsUpdatingFuel(true);
+    try {
+      await apiClient.updateSystemSetting('fuel_price', systemFuelPrice);
+      alert("Global Fuel Price updated. This has triggered auto-revisions for eligible contracts.");
+
+      // Reload contracts to show updated rates
+      if (selectedCompanyId) {
+        const contractsRes = await apiClient.getChauffeurContracts(Number(selectedCompanyId));
+        if (contractsRes.data && contractsRes.data.length > 0) {
+          setContract(contractsRes.data[0]);
+          setGlobalSettings({
+            fuelBasePrice: contractsRes.data[0].fuel_base_price,
+            revisionPercentage: contractsRes.data[0].revision_percentage
+          });
+          setRateRows(contractsRes.data[0].chauffeur_contract_rates || []);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update global fuel price", err);
+      alert("Failed to update global fuel price");
+    } finally {
+      setIsUpdatingFuel(false);
+    }
+  };
+
+  const handleAddRateRow = () => {
+    setRateRows([...rateRows, {
+      tempId: Date.now().toString(),
+      isNew: true,
+      vehicle_model: "",
+      rate_spot_5hr: "0",
+      rate_spot_10hr: "0",
+      rate_spot_24hr: "0",
+      rate_monthly_10hr: "0",
+      rate_monthly_24hr: "0"
+    }]);
+  };
+
+  const updateRateRow = (index: number, field: keyof ChauffeurContractRate, value: string) => {
+    const newRows = [...rateRows];
+    newRows[index] = { ...newRows[index], [field]: value };
+    setRateRows(newRows);
+  };
+
+  const handleDeleteRateRow = async (index: number) => {
+    const row = rateRows[index];
+    if (row.isNew) {
+      // Just remove from state
+      setRateRows(rateRows.filter((_, i) => i !== index));
+    } else if (row.id) {
+      if (!confirm("Are you sure you want to delete this rate card?")) return;
+      try {
+        await apiClient.deleteChauffeurRate(row.id);
+        // Remove from state
+        setRateRows(rateRows.filter((_, i) => i !== index));
+      } catch (err: any) {
+        alert("Failed to delete rate: " + err.message);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    // ... (rest of handleSave implementation) stays same
+    setIsSaving(true);
+    try {
+      // 1. Save Parent Contract (Global Settings)
+      let currentContractId = contract?.id;
+
+      if (currentContractId) {
+        await apiClient.updateChauffeurContract(currentContractId, {
+          fuelBasePrice: Number(globalSettings.fuelBasePrice),
+          revisionPercentage: Number(globalSettings.revisionPercentage)
+        });
+      } else {
+        // Create NEW Parent Contract
+        const res = await apiClient.createChauffeurContract({
+          companyId: Number(selectedCompanyId),
+          fuelBasePrice: Number(globalSettings.fuelBasePrice),
+          revisionPercentage: Number(globalSettings.revisionPercentage),
+          vehicleModel: ""
+        });
+        currentContractId = res.data.id;
+      }
+
+      // 2. Save Rates
+      const promises = rateRows.map(async (row) => {
+        if (!row.vehicle_model) return;
+
+        const commonData = {
+          vehicleModel: row.vehicle_model,
+          rateSpot5hr: Number(row.rate_spot_5hr),
+          rateSpot10hr: Number(row.rate_spot_10hr),
+          rateSpot24hr: Number(row.rate_spot_24hr),
+          rateMonthly10hr: Number(row.rate_monthly_10hr),
+          rateMonthly24hr: Number(row.rate_monthly_24hr),
+          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
+          allowanceOutstation: Number(row.allowance_outstation || 0),
+          allowanceAccommodation: Number(row.allowance_accommodation || 0),
+          agreedFuelAvgCity: Number(row.agreed_fuel_avg_city || 10),
+          agreedFuelAvgHighway: Number(row.agreed_fuel_avg_highway || 12),
+        };
+
+        if (row.isNew) {
+          await apiClient.createChauffeurContract({
+            companyId: Number(selectedCompanyId),
+            fuelBasePrice: Number(globalSettings.fuelBasePrice),
+            revisionPercentage: Number(globalSettings.revisionPercentage),
+            ...commonData
+          });
+        } else if (row.id) {
+          await apiClient.updateChauffeurRate(row.id, commonData);
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Refresh
+      const contractsRes = await apiClient.getChauffeurContracts(Number(selectedCompanyId));
+      if (contractsRes.data && contractsRes.data.length > 0) {
+        setContract(contractsRes.data[0]);
+        setRateRows(contractsRes.data[0].chauffeur_contract_rates || []);
+      }
+      alert("Saved successfully!");
+
+    } catch (err: any) {
+      console.error(err);
+      alert("Save failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <div className="text-sm font-medium text-muted">Client Contract Configuration</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Contracts & Pricing</h1>
-      </div>
-
-      <div className="rounded-xl border border-border bg-white p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs font-semibold tracking-wider text-muted">SCOPE</div>
-            <div className="mt-1 text-sm text-muted">
-              Create Chauffeur + Shuttle pricing per company. Fuel price updates can trigger “auto revision” previews.
-            </div>
-          </div>
-
-          <label className="flex min-w-[260px] flex-col gap-1">
-            <span className="text-sm font-medium text-ink">Company</span>
-            <select
-              value={selectedCompanyId}
-              onChange={(e) => setSelectedCompanyId(e.target.value)}
-              className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-            >
-              {db.companies.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+    <div className="flex flex-col gap-8 mx-auto p-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[#0c225e]">Contracts & Pricing</h1>
+          <p className="mt-2 text-slate-500">Manage client-specific rates and contract terms.</p>
         </div>
+        <label className="flex flex-col gap-1.5 min-w-[300px]">
+          <span className="text-sm font-medium text-slate-700">Select Company</span>
+          <select
+            value={selectedCompanyId}
+            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
+          >
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      <div className="rounded-xl border border-border bg-white p-6">
-        <div className="text-xs font-semibold tracking-wider text-muted">GLOBAL FUEL CONFIGURATION</div>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-ink">Current Fuel Price (PKR)</span>
+      {/* Global Fuel System Setting */}
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div>
+          <h3 className="text-base font-bold text-[#0c225e]">Global Fuel Configuration</h3>
+          <p className="text-sm text-slate-600 mt-1">Updates here trigger auto-revision for all contracts.</p>
+        </div>
+        <div className="flex items-end gap-3 w-full sm:w-auto">
+          <label className="flex-1 sm:w-48">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Current Fuel Price (PKR)</span>
             <input
-              value={fuel}
-              onChange={(e) => setFuel(e.target.value)}
-              className="h-10 w-56 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+              type="number"
+              value={systemFuelPrice}
+              onChange={(e) => setSystemFuelPrice(e.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
             />
           </label>
           <button
-            type="button"
-            onClick={() => {
-              const v = parseMoney(fuel);
-              if (v === null) return alert("Enter a valid number.");
-              setFuelPrice(v);
-              setFuel(String(v.toFixed(2)));
-            }}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+            onClick={handleUpdateGlobalFuel}
+            className="h-10 px-4 rounded-lg bg-[#0c225e] text-white text-sm font-bold hover:bg-[#0a1a4a] transition-colors disabled:opacity-70"
+            disabled={isUpdatingFuel}
           >
-            Update Price
+            {isUpdatingFuel ? "Updating..." : "Update"}
           </button>
         </div>
-        <p className="mt-3 text-sm text-muted">Stored in mock DB and used for revision previews + invoicing later.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-white p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold tracking-wider text-muted">CHAUFFEUR CONTRACT</div>
-              <div className="mt-1 text-sm text-muted">
-                Prerequisite: company must have Chauffeur enabled. Base rates are per whitelisted vehicle.
-              </div>
-            </div>
-            {company && !company.services_enabled.chauffeur_enabled ? (
-              <div className="rounded-full bg-danger/10 px-3 py-1 text-xs font-semibold text-danger">
-                Disabled for this company
-              </div>
-            ) : null}
-          </div>
+      {isLoading && <div className="p-12 text-center text-slate-500">Loading...</div>}
 
-          {!company ? null : !company.services_enabled.chauffeur_enabled ? (
-            <div className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-muted">
-              Enable Chauffeur Service in Companies → this section will unlock.
-            </div>
-          ) : (
-            <>
-              {!chauffeurContract ? (
-                <button
-                  type="button"
-                  onClick={() => upsertChauffeurContract(makeNewChauffeurContract(company.id, db.fuel_price_pkr))}
-                  className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
-                >
-                  Create Chauffeur Contract
-                </button>
-              ) : (
-                <div className="mt-4 flex flex-col gap-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold tracking-wider text-muted">Base Fuel Price (PKR)</span>
-                      <input
-                        value={String(chauffeurContract.base_fuel_price_pkr)}
-                        onChange={(e) => {
-                          const v = parseMoney(e.target.value);
-                          if (v === null) return;
-                          upsertChauffeurContract({ ...chauffeurContract, base_fuel_price_pkr: v });
-                        }}
-                        className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold tracking-wider text-muted">Contract % (e.g. 0.2)</span>
-                      <input
-                        value={String(chauffeurContract.contract_pct)}
-                        onChange={(e) => {
-                          const v = Number(e.target.value.trim());
-                          if (!Number.isFinite(v)) return;
-                          upsertChauffeurContract({ ...chauffeurContract, contract_pct: v });
-                        }}
-                        className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold tracking-wider text-muted">Overtime (Per Hour)</span>
-                      <input
-                        value={String(chauffeurContract.overtime_rate_per_hour)}
-                        onChange={(e) => {
-                          const v = parseMoney(e.target.value);
-                          if (v === null) return;
-                          upsertChauffeurContract({ ...chauffeurContract, overtime_rate_per_hour: v });
-                        }}
-                        className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold tracking-wider text-muted">Outstation Allowance (Per Day)</span>
-                      <input
-                        value={String(chauffeurContract.outstation_allowance_per_day)}
-                        onChange={(e) => {
-                          const v = parseMoney(e.target.value);
-                          if (v === null) return;
-                          upsertChauffeurContract({ ...chauffeurContract, outstation_allowance_per_day: v });
-                        }}
-                        className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs font-semibold tracking-wider text-muted">Driver Accommodation (Per Night)</span>
-                      <input
-                        value={String(chauffeurContract.driver_accommodation_per_night)}
-                        onChange={(e) => {
-                          const v = parseMoney(e.target.value);
-                          if (v === null) return;
-                          upsertChauffeurContract({ ...chauffeurContract, driver_accommodation_per_night: v });
-                        }}
-                        className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      />
-                    </label>
-                    <label className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2">
-                      <span className="text-sm font-semibold text-ink">Auto Revision</span>
-                      <input
-                        type="checkbox"
-                        checked={chauffeurContract.is_auto_revision_enabled}
-                        onChange={(e) =>
-                          upsertChauffeurContract({
-                            ...chauffeurContract,
-                            is_auto_revision_enabled: e.target.checked,
-                          })
-                        }
-                        className="h-5 w-5 accent-purple"
-                      />
-                    </label>
+      {!isLoading && currentCompany && (
+        <>
+          {/* Chauffeur Section */}
+          {currentCompany.is_chauffeur_enabled ? (
+            <div className="flex flex-col gap-6">
+              {/* Contract Settings */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-6 border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#0c225e]">Chauffeur Contract Terms</h2>
+                  <p className="text-sm text-slate-500">Global settings for this company.</p>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Input
+                    label="Base Fuel Price (PKR)"
+                    value={globalSettings.fuelBasePrice}
+                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, fuelBasePrice: v }))}
+                  />
+                  <Input
+                    label="Revision Threshold (%)"
+                    value={globalSettings.revisionPercentage}
+                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, revisionPercentage: v }))}
+                    placeholder="0.2"
+                  />
+                </div>
+              </div>
+
+              {/* Rates Table */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+                  <div>
+                    <h2 className="text-base font-bold text-[#0c225e]">Vehicle Rates</h2>
+                    <p className="text-xs text-slate-500 mt-1">Manage vehicle-specific rates manually.</p>
                   </div>
-
-                  {(() => {
-                    const prev = fuelRevisionPreview(chauffeurContract);
-                    if (!prev) return null;
-                    return (
-                      <div className="rounded-lg border border-border bg-surface p-3">
-                        <div className="text-xs font-semibold tracking-wider text-muted">
-                          FUEL REVISION PREVIEW (MOCK)
-                        </div>
-                        <div className="mt-2 text-sm text-ink">
-                          Current fuel − base fuel ={" "}
-                          <span className="font-mono">{prev.delta.toFixed(2)}</span> PKR → adjustment{" "}
-                          <span className="font-mono">{prev.adjustment.toFixed(2)}</span> PKR (delta × contract%).
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div className="rounded-lg border border-border">
-                    <div className="border-b border-border bg-surface px-3 py-2">
-                      <div className="text-xs font-semibold tracking-wider text-muted">
-                        BASE RATES (WHITELISTED VEHICLES)
-                      </div>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-[720px] w-full text-sm">
-                        <thead className="bg-white text-xs font-semibold tracking-wider text-muted">
-                          <tr>
-                            <th className="px-3 py-2 text-left">Vehicle Type</th>
-                            <th className="px-3 py-2 text-left">5Hr</th>
-                            <th className="px-3 py-2 text-left">10Hr</th>
-                            <th className="px-3 py-2 text-left">24Hr</th>
-                            <th className="px-3 py-2 text-left">Monthly (10hr)</th>
-                            <th className="px-3 py-2 text-left">Monthly (24hr)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-white">
-                          {whitelistedModels.length === 0 ? (
-                            <tr>
-                              <td className="px-3 py-6 text-sm text-muted" colSpan={6}>
-                                No whitelisted vehicles. Add models in Companies → Vehicle Whitelisting.
-                              </td>
-                            </tr>
-                          ) : (
-                            whitelistedModels.map((model) => {
-                              const r =
-                                chauffeurContract.base_rates.find((x) => x.model === model) ??
-                                ({ model, rate_5hr: 0, rate_10hr: 0, rate_24hr: 0, monthly_10hr: 0, monthly_24hr: 0 } as ChauffeurBaseRate);
-                              return (
-                                <tr key={model}>
-                                  <td className="px-3 py-2 font-semibold text-ink">{model}</td>
-                                  {(["rate_5hr", "rate_10hr", "rate_24hr", "monthly_10hr", "monthly_24hr"] as const).map(
-                                    (key) => (
-                                      <td key={key} className="px-3 py-2">
-                                        <input
-                                          value={String(r[key])}
-                                          onChange={(e) => {
-                                            const v = parseMoney(e.target.value);
-                                            if (v === null) return;
-                                            upsertRate(chauffeurContract, model, { [key]: v } as Partial<ChauffeurBaseRate>);
-                                          }}
-                                          className="h-9 w-28 rounded-md border border-border px-2 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                                        />
-                                      </td>
-                                    ),
-                                  )}
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleAddRateRow}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3"
+                    >
+                      + Add Vehicle
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#d97000] disabled:opacity-70 transition-all"
+                    >
+                      {isSaving ? "Saving..." : "Save All Changes"}
+                    </button>
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
 
-        <div className="rounded-xl border border-border bg-white p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold tracking-wider text-muted">SHUTTLE CONTRACT</div>
-              <div className="mt-1 text-sm text-muted">
-                Fixed asset pricing per vehicle (attached to Vehicle_ID, not passenger).
-              </div>
-            </div>
-            {company && !company.services_enabled.shuttle_enabled ? (
-              <div className="rounded-full bg-danger/10 px-3 py-1 text-xs font-semibold text-danger">
-                Disabled for this company
-              </div>
-            ) : null}
-          </div>
-
-          {!company ? null : !company.services_enabled.shuttle_enabled ? (
-            <div className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-muted">
-              Enable Shuttle Service in Companies → this section will unlock.
-            </div>
-          ) : (
-            <div className="mt-4 flex flex-col gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const draft = makeNewShuttleAssetPricing(company.id);
-                  // best-effort default vehicle
-                  draft.vehicle_id = activeFleet[0]?.id ?? "";
-                  upsertShuttleAssetPricing(draft);
-                }}
-                className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
-              >
-                Add Vehicle Pricing
-              </button>
-
-              <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Vehicle</th>
-                      <th className="px-3 py-2 text-left">Fixed Monthly (PKR)</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-white">
-                    {shuttlePricing.map((p: ShuttleAssetPricing) => {
-                      const v = db.vehicles.find((x) => x.id === p.vehicle_id);
-                      return (
-                        <tr key={p.id}>
-                          <td className="px-3 py-2">
-                            <select
-                              value={p.vehicle_id}
-                              onChange={(e) =>
-                                upsertShuttleAssetPricing({ ...p, vehicle_id: e.target.value })
-                              }
-                              className="h-9 rounded-md border border-border bg-white px-2 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                            >
-                              {activeFleet.map((veh) => (
-                                <option key={veh.id} value={veh.id}>
-                                  {veh.plate_no} — {veh.make} {veh.model}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="mt-0.5 text-xs text-muted">
-                              {v ? `Vehicle_ID: ${v.id}` : "Select a vehicle"}
-                            </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                      <tr>
+                        <th className="px-6 py-4 min-w-[200px]">Vehicle Model</th>
+                        <th className="px-4 py-4 min-w-[100px]">5Hr Spot</th>
+                        <th className="px-4 py-4 min-w-[100px]">10Hr Spot</th>
+                        <th className="px-4 py-4 min-w-[100px]">24Hr Spot</th>
+                        <th className="px-4 py-4 min-w-[100px]">Mth 10hr</th>
+                        <th className="px-4 py-4 min-w-[100px]">Mth 24hr</th>
+                        <th className="px-4 py-4 w-[50px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {rateRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                            No rates configured. Click "Add Vehicle" to start.
                           </td>
-                          <td className="px-3 py-2">
+                        </tr>
+                      ) : rateRows.map((row, idx) => (
+                        <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-3">
                             <input
-                              value={String(p.fixed_monthly_amount_pkr)}
-                              onChange={(e) => {
-                                const v2 = parseMoney(e.target.value);
-                                if (v2 === null) return;
-                                upsertShuttleAssetPricing({ ...p, fixed_monthly_amount_pkr: v2 });
-                              }}
-                              className="h-9 w-48 rounded-md border border-border px-2 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                              className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
+                              value={row.vehicle_model}
+                              onChange={e => updateRateRow(idx, 'vehicle_model', e.target.value)}
+                              placeholder="e.g. Honda City"
                             />
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => updateRateRow(idx, 'rate_spot_5hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => updateRateRow(idx, 'rate_spot_10hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => updateRateRow(idx, 'rate_spot_24hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => updateRateRow(idx, 'rate_monthly_10hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => updateRateRow(idx, 'rate_monthly_24hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3 text-center">
                             <button
-                              type="button"
-                              onClick={() => deleteShuttleAssetPricing(p.id)}
-                              className="inline-flex h-8 items-center justify-center rounded-md border border-danger/30 bg-white px-3 text-xs font-semibold text-danger hover:bg-danger/5"
+                              onClick={() => handleDeleteRateRow(idx)}
+                              className="text-red-400 hover:text-red-600 p-1"
                             >
-                              Remove
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                             </button>
                           </td>
                         </tr>
-                      );
-                    })}
-
-                    {shuttlePricing.length === 0 ? (
-                      <tr>
-                        <td className="px-3 py-8 text-center text-sm text-muted" colSpan={3}>
-                          No shuttle asset pricing rows yet. Click “Add Vehicle Pricing”.
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+          ) : null}
+
+          {currentCompany.is_shuttle_enabled && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center mt-6">
+              <h3 className="text-lg font-bold text-[#0c225e]">Shuttle Contracts</h3>
+              <p className="text-slate-500 mt-2">Shuttle management coming soon.</p>
+            </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
-
-

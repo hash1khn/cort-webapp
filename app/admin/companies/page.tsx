@@ -397,11 +397,10 @@ export default function CompaniesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 p-6 mx-auto">
       {/* Page Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-sm font-medium text-slate-500">Administration</div>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#0c225e]">Companies</h1>
         </div>
         <button
