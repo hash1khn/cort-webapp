@@ -64,28 +64,32 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-ink">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-border bg-navy text-white md:flex md:flex-col">
+        <aside
+          className="hidden w-72 shrink-0 border-r border-white/10 text-white md:flex md:flex-col"
+          style={{ background: "var(--premium-gradient)" }}
+        >
           <div className="flex-1">
-            <div className="px-6 py-5">
-              <div className="text-xs font-semibold tracking-wider text-white/70">
-                COMPANY PORTAL
+            <div className="px-6 py-6">
+              <div className="text-[10px] font-bold tracking-[0.2em] text-premium-gold/90 uppercase mb-4">
+                Company Portal
               </div>
-              <div className="mt-3 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <div className="px-0 py-0">
                   <img
                     src="/Asset-1@2x (1).png"
                     alt="Cort"
-                    className="h-8 w-auto drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                    className="h-8 w-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
                   />
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <div className="text-sm font-semibold">{company.name || "Company"}</div>
-                  <div className="text-xs text-white/70">Admin Portal</div>
+                  <div className="text-base font-medium font-serif tracking-wide text-white">
+                    {company.name || "Company"}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <nav className="px-3 pb-6">
+            <nav className="px-3 pb-6 mt-2 space-y-1">
               {getNavItems(company.services_enabled).map((item) => {
                 const active = item.href === activeHref;
                 return (
@@ -93,11 +97,16 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={cx(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10",
-                      active && "bg-white/15 text-white",
+                      "group flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-all duration-200",
+                      active
+                        ? "bg-white/10 text-premium-gold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]"
+                        : "text-white/70 hover:bg-white/5 hover:text-white"
                     )}
                   >
                     <span>{item.label}</span>
+                    {active && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-premium-gold shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
+                    )}
                   </Link>
                 );
               })}
@@ -105,27 +114,41 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="border-t border-white/10 p-4">
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-3 hover:bg-white/10 transition-colors">
               <div className="flex flex-col overflow-hidden">
-                <span className="truncate text-xs font-medium text-white">
+                <span className="truncate text-xs font-medium text-white/90">
                   {user?.email}
                 </span>
-                <span className="text-[10px] text-white/50">Signed in</span>
+                <span className="text-[10px] text-premium-gold/80">Premium Account</span>
               </div>
               <button
                 type="button"
                 onClick={() => logout()}
-                className="shrink-0 rounded-md p-1.5 text-white/70 hover:bg-white/10 hover:text-white"
+                className="shrink-0 rounded-md p-1.5 text-white/50 hover:text-white transition-colors"
                 title="Sign out"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
               </button>
             </div>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-6">
+          <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-8">
             {children}
           </main>
         </div>

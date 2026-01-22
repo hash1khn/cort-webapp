@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient, Company, CreateCompanyRequest, UpdateCompanyRequest } from "../../lib/services/api-client";
+import { uploadFile } from "../../lib/supabase";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -133,6 +134,7 @@ const initialFormData: CompanyFormData = {
   contact_person: "",
   ntn_number: "",
   address: "",
+  logo_url: "",
   is_shuttle_enabled: false,
   is_chauffeur_enabled: false,
 };
@@ -156,11 +158,16 @@ function CompanyForm({
         contact_person: company.contact_person || "",
         ntn_number: company.ntn_number || "",
         address: company.address || "",
+        logo_url: company.logo_url || "",
         is_shuttle_enabled: company.is_shuttle_enabled,
         is_chauffeur_enabled: company.is_chauffeur_enabled,
       }
       : initialFormData
   );
+
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(company?.logo_url || null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const handleChange = (field: keyof CompanyFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -173,6 +180,35 @@ function CompanyForm({
       pass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     handleChange("password", pass);
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size must be less than 2MB');
+        return;
+      }
+      setLogoFile(file);
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    handleChange("logo_url", "");
   };
 
   return (
@@ -264,6 +300,54 @@ function CompanyForm({
           />
         </div>
 
+        {/* Logo Upload */}
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Logo</label>
+          <div className="space-y-3">
+            {logoPreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={logoPreview}
+                  alt="Company logo preview"
+                  className="h-24 w-24 object-cover rounded-lg border-2 border-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  disabled={isSaving || isUploadingLogo}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="hidden"
+                    disabled={isSaving || isUploadingLogo}
+                  />
+                  <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#f47f00] border border-[#f47f00] rounded-lg hover:bg-orange-50 disabled:opacity-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Upload Logo
+                  </div>
+                </label>
+                <span className="text-xs text-slate-500">Max 2MB, PNG/JPG</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="pt-2 border-t border-gray-100">
           <label className="block text-xs font-semibold uppercase text-slate-500 mb-2">Services</label>
           <div className="flex gap-4">
@@ -295,16 +379,35 @@ function CompanyForm({
         <button
           onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
-          disabled={isSaving}
+          disabled={isSaving || isUploadingLogo}
         >
           Cancel
         </button>
         <button
-          onClick={() => onSave(formData)}
+          onClick={async () => {
+            try {
+              let finalData = { ...formData };
+
+              // Upload logo if a new file is selected
+              if (logoFile) {
+                setIsUploadingLogo(true);
+                const fileName = `${Date.now()}-${logoFile.name}`;
+                const logoUrl = await uploadFile('company-logos', fileName, logoFile);
+                finalData.logo_url = logoUrl;
+              }
+
+              onSave(finalData);
+            } catch (error: any) {
+              console.error('Failed to upload logo:', error);
+              alert(error.message || 'Failed to upload logo');
+            } finally {
+              setIsUploadingLogo(false);
+            }
+          }}
           className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
-          disabled={isSaving}
+          disabled={isSaving || isUploadingLogo}
         >
-          {isSaving ? "Saving..." : "Save Company"}
+          {isUploadingLogo ? "Uploading Logo..." : isSaving ? "Saving..." : "Save Company"}
         </button>
       </div>
     </div>

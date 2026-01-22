@@ -29,13 +29,6 @@ export default function AdminDashboardPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={reset}
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-4 text-sm font-semibold text-ink hover:bg-surface"
-          >
-            Reset mock data
-          </button>
           <Link
             href="/admin/companies"
             className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
