@@ -7,6 +7,7 @@ type Company = {
   id: number;
   name: string;
   email: string;
+  logo_url: string | null;
   services_enabled: {
     shuttle_enabled: boolean;
     chauffeur_enabled: boolean;
@@ -165,6 +166,7 @@ export function CompanyStoreProvider({
           id: rawCompany.id,
           name: rawCompany.name,
           email: rawCompany.email,
+          logo_url: rawCompany.logo_url || null,
           services_enabled: {
             shuttle_enabled: rawCompany.is_shuttle_enabled || false,
             chauffeur_enabled: rawCompany.is_chauffeur_enabled || false,

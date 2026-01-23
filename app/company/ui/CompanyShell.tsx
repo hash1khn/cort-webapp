@@ -65,24 +65,31 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-surface text-ink">
       <div className="flex min-h-screen">
         <aside
-          className="hidden w-72 shrink-0 border-r border-white/10 text-white md:flex md:flex-col"
+          className="sticky top-0 h-screen hidden w-72 shrink-0 border-r border-white/10 text-white md:flex md:flex-col"
           style={{ background: "var(--premium-gradient)" }}
         >
-          <div className="flex-1">
-            <div className="px-6 py-6">
-              <div className="text-[10px] font-bold tracking-[0.2em] text-premium-gold/90 uppercase mb-4">
-                Company Portal
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="px-0 py-0">
+          <div className="flex-1 overflow-y-auto">
+            <div className="px-6 py-8 flex flex-col items-center gap-8">
+              <img
+                src="/Asset-1@2x (1).png"
+                alt="Cort"
+                className="h-10 w-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+              />
+
+              <div className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 backdrop-blur-sm transition-colors hover:bg-white/10">
+                {company.logo_url ? (
                   <img
-                    src="/Asset-1@2x (1).png"
-                    alt="Cort"
-                    className="h-8 w-auto drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+                    src={company.logo_url}
+                    alt={company.name}
+                    className="h-10 w-10 rounded-full object-cover shrink-0 bg-white/5"
                   />
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <div className="text-base font-medium font-serif tracking-wide text-white">
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-premium-gold/20 flex items-center justify-center text-premium-gold font-bold shrink-0 font-serif">
+                    {company.name?.[0]?.toUpperCase() || "C"}
+                  </div>
+                )}
+                <div className="flex flex-col leading-tight min-w-0">
+                  <div className="text-sm font-medium font-serif tracking-wide text-white truncate">
                     {company.name || "Company"}
                   </div>
                 </div>
@@ -119,7 +126,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                 <span className="truncate text-xs font-medium text-white/90">
                   {user?.email}
                 </span>
-                <span className="text-[10px] text-premium-gold/80">Premium Account</span>
+                <span className="text-[10px] text-premium-gold/80">Company Account</span>
               </div>
               <button
                 type="button"

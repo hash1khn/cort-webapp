@@ -24,9 +24,6 @@ export default function Home() {
               alt="Cort"
               className="h-10 w-auto"
             />
-            <span className="hidden text-sm font-medium tracking-wide text-muted md:block">
-              Operations Portal
-            </span>
           </div>
           <div className="flex items-center gap-4">
             <Link

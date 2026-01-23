@@ -40,8 +40,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-ink">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-border bg-navy text-white md:flex md:flex-col">
-          <div className="flex-1">
+        <aside className="sticky top-0 h-screen hidden w-72 shrink-0 border-r border-border bg-navy text-white md:flex md:flex-col">
+          <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col items-center justify-center px-6 py-8">
               <img
                 src="/Asset-1@2x (1).png"
