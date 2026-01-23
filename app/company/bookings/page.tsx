@@ -17,8 +17,13 @@ export default function BookingsPage() {
     );
   }
 
-  const getPassengerName = (id: number) => {
-    const emp = employees.find((e) => e.id === id);
+  const getPassengerName = (booking: any) => {
+    // First try to get from included relation data
+    if (booking.users_chauffeur_bookings_passenger_idTousers) {
+      return booking.users_chauffeur_bookings_passenger_idTousers.full_name;
+    }
+    // Fallback to finding in employees array
+    const emp = employees.find((e) => e.id === booking.passenger_id);
     return emp ? emp.full_name : "Unknown";
   };
 
@@ -52,7 +57,6 @@ export default function BookingsPage() {
               <tr>
                 <th className="px-3 py-2 text-left">ID</th>
                 <th className="px-3 py-2 text-left">Passenger</th>
-                <th className="px-3 py-2 text-left">Vehicle</th>
                 <th className="px-3 py-2 text-left">Package</th>
                 <th className="px-3 py-2 text-left">Trip Type</th>
                 <th className="px-3 py-2 text-left">Scheduled</th>
@@ -63,7 +67,7 @@ export default function BookingsPage() {
             <tbody className="divide-y divide-border bg-white">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-3 py-8 text-center text-muted">
                     No bookings found.
                   </td>
                 </tr>
@@ -72,24 +76,30 @@ export default function BookingsPage() {
                   <tr key={booking.id} className="hover:bg-slate-50">
                     <td className="px-3 py-3 font-medium">#{booking.id}</td>
                     <td className="px-3 py-3">
-                      {getPassengerName(booking.passenger_employee_id)}
+                      {getPassengerName(booking)}
                     </td>
-                    <td className="px-3 py-3">{booking.vehicle_model}</td>
-                    <td className="px-3 py-3 capitalize">{booking.package.replace(/_/g, " ")}</td>
+                    <td className="px-3 py-3 capitalize">{booking.package_selected.replace(/_/g, " ")}</td>
                     <td className="px-3 py-3 capitalize">{booking.trip_type.replace(/_/g, " ")}</td>
                     <td className="px-3 py-3">
-                      {new Date(booking.scheduled_at).toLocaleString()}
+                      {new Date(booking.scheduled_for).toLocaleString('en-PK', {
+                        timeZone: 'Asia/Karachi',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </td>
                     <td className="px-3 py-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${booking.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : booking.status === "cancelled" || booking.status === "rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-blue-100 text-blue-700"
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${booking.status === "COMPLETED"
+                          ? "bg-green-100 text-green-700"
+                          : booking.status === "CANCELLED"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-blue-100 text-blue-700"
                           }`}
                       >
-                        {booking.status.toUpperCase()}
+                        {booking.status}
                       </span>
                     </td>
                     <td className="px-3 py-3">

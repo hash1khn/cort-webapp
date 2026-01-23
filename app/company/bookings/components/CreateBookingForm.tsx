@@ -123,7 +123,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             return;
         }
 
-        const passenger = employees.find((e) => e.id === Number(passengerId));
+        const passenger = employees.find((e) => e.id === passengerId);
         if (!passenger) {
             setError("Selected passenger not found");
             setIsSubmitting(false);
@@ -139,7 +139,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         try {
             await createBooking({
                 company_id: company.id,
-                passenger_employee_id: Number(passengerId),
+                passenger_id: passengerId, // The selected employee's UUID
                 vehicle_model: vehicleModel,
                 package: packageType,
                 trip_type: tripType,

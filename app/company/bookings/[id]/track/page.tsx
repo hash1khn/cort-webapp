@@ -42,7 +42,7 @@ export default function TrackBookingPage() {
 
   const bookingId = params.id as string;
   const booking = useMemo(() => {
-    return bookings.find((b) => b.id === bookingId);
+    return bookings.find((b) => b.id === Number(bookingId));
   }, [bookings, bookingId]);
 
   const passenger = useMemo(() => {

@@ -342,6 +342,95 @@ export interface SystemSettingResponse {
     message: string;
 }
 
+// -- Chauffeur Bookings --
+
+export enum BookingType {
+    SPOT = 'SPOT',
+    MONTHLY = 'MONTHLY',
+}
+
+export enum PackageType {
+    HOURS_5 = 'HOURS_5',
+    HOURS_10 = 'HOURS_10',
+    HOURS_24 = 'HOURS_24',
+}
+
+export enum TripType {
+    IN_CITY = 'IN_CITY',
+    OUT_STATION = 'OUT_STATION',
+}
+
+export enum TripStatus {
+    SEARCHING = 'SEARCHING',
+    ASSIGNED = 'ASSIGNED',
+    ARRIVED = 'ARRIVED',
+    IN_PROGRESS = 'IN_PROGRESS',
+    COMPLETED = 'COMPLETED',
+    CANCELLED = 'CANCELLED',
+}
+
+export interface PickupLocation {
+    latitude: number;
+    longitude: number;
+}
+
+export interface CreateChauffeurBookingRequest {
+    booking_type: BookingType;
+    package_selected: PackageType;
+    trip_type: TripType;
+    pickup_location: PickupLocation;
+    scheduled_for: string; // ISO 8601 datetime
+    internal_cost_center_code?: string;
+}
+
+export interface ChauffeurBooking {
+    id: number;
+    company_id: number;
+    passenger_id: string;
+    driver_id: string | null;
+    vehicle_id: number | null;
+    booking_type: BookingType;
+    package_selected: PackageType;
+    trip_type: TripType;
+    scheduled_for: string;
+    status: TripStatus;
+    fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
+    internal_cost_center_code: string | null;
+    created_at: string;
+    companies?: {
+        id: number;
+        name: string;
+    };
+    users_chauffeur_bookings_passenger_idTousers?: {
+        id: string;
+        full_name: string;
+        email: string;
+        phone: string | null;
+    };
+    users_chauffeur_bookings_driver_idTousers?: {
+        id: string;
+        full_name: string;
+        phone: string | null;
+    };
+    vehicles?: {
+        id: number;
+        model: string;
+        plate_number: string;
+    };
+}
+
+export interface QueryChauffeurBookingParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+}
+
+export interface ChauffeurBookingResponse {
+    data: ChauffeurBooking;
+    statusCode: number;
+    message: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 class ApiClient {
@@ -814,6 +903,40 @@ class ApiClient {
             method: 'PUT',
             body: JSON.stringify({ value }),
         });
+    }
+
+    // -- Company Chauffeur Bookings --
+
+    /**
+     * Create a chauffeur booking for a company
+     */
+    async createChauffeurBooking(companyId: number, data: CreateChauffeurBookingRequest): Promise<ChauffeurBookingResponse> {
+        return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Get all bookings for a company
+     */
+    async getCompanyChauffeurBookings(companyId: number, params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.status) query.append('status', params.status);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/${companyId}/chauffeur-bookings${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ChauffeurBooking>>(endpoint);
+    }
+
+    /**
+     * Get single booking for a company
+     */
+    async getCompanyChauffeurBooking(companyId: number, bookingId: number): Promise<ChauffeurBookingResponse> {
+        return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings/${bookingId}`);
     }
 }
 

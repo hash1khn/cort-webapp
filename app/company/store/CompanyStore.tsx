@@ -12,10 +12,15 @@ type Company = {
     shuttle_enabled: boolean;
     chauffeur_enabled: boolean;
   };
+  vehicle_whitelists?: Array<{
+    id: number;
+    company_id: number;
+    allowed_vehicle_model: string;
+  }>;
 };
 
 type Employee = {
-  id: number;
+  id: string; // UUID from backend
   full_name: string;
   email: string;
   phone: string | null;
@@ -27,13 +32,34 @@ type Employee = {
 type Booking = {
   id: number;
   company_id: number;
+  passenger_id: string; // UUID
+  driver_id: string | null;
+  vehicle_id: number | null;
+  booking_type: string; // 'SPOT' | 'MONTHLY'
+  package_selected: string; // 'HOURS_5' | 'HOURS_10' | 'HOURS_24'
+  trip_type: string; // 'IN_CITY' | 'OUT_STATION'
+  scheduled_for: string;
   status: string;
-  scheduled_at: string;
-  vehicle_model: string;
-  package: string;
-  trip_type: string;
-  passenger_employee_id: number;
-  // Add other booking fields as needed
+  fulfillment_type: string;
+  internal_cost_center_code: string | null;
+  created_at: string;
+  // Related data
+  users_chauffeur_bookings_passenger_idTousers?: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+  };
+  users_chauffeur_bookings_driver_idTousers?: {
+    id: string;
+    full_name: string;
+    phone: string | null;
+  };
+  vehicles?: {
+    id: number;
+    model: string;
+    plate_number: string;
+  };
 };
 
 // Contract types
@@ -102,8 +128,8 @@ type CompanyStore = {
   error: string | null;
 
   createBooking: (booking: Record<string, unknown>) => Promise<void>;
-  updateEmployee: (id: number, data: Partial<Employee>) => Promise<void>;
-  deactivateEmployee: (id: number, active: boolean) => Promise<void>;
+  updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
+  deactivateEmployee: (id: string, active: boolean) => Promise<void>;
 };
 
 const Ctx = createContext<CompanyStore | null>(null);
@@ -120,11 +146,11 @@ export function CompanyStoreProvider({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [contract, setContract] = useState<ChauffeurContract | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [allowedVehicleModels, setAllowedVehicleModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Mocks
-  const allowedVehicleModels = ["Sedan", "SUV", "Van", "Mini Bus"];
   const routes: ShuttleRoute[] = [];
   const shuttlePricing: ShuttlePricing[] = [];
   const shuttleDrivers: ShuttleDriver[] = [];
@@ -162,7 +188,7 @@ export function CompanyStoreProvider({
         const companyData = await companyRes.json();
         const rawCompany = companyData.data || companyData;
 
-        const companyObj = {
+        const companyObj: Company = {
           id: rawCompany.id,
           name: rawCompany.name,
           email: rawCompany.email,
@@ -171,8 +197,15 @@ export function CompanyStoreProvider({
             shuttle_enabled: rawCompany.is_shuttle_enabled || false,
             chauffeur_enabled: rawCompany.is_chauffeur_enabled || false,
           },
+          vehicle_whitelists: rawCompany.vehicle_whitelists || [],
         };
         setCompany(companyObj);
+
+        // Extract allowed vehicle models from whitelists
+        const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
+          (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
+        );
+        setAllowedVehicleModels(vehicleModels);
 
         // 2. Fetch Employees using the new endpoint
         try {
@@ -189,8 +222,22 @@ export function CompanyStoreProvider({
           setEmployees([]);
         }
 
+        // 3. Fetch Bookings for the company
+        try {
+          const bookingsRes = await fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers });
+          if (bookingsRes.ok) {
+            const bookingsData = await bookingsRes.json();
+            setBookings(bookingsData.data?.data || []);
+          } else {
+            console.warn('Could not fetch bookings');
+            setBookings([]);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch bookings', e);
+          setBookings([]);
+        }
+
         // Clear other data - these endpoints don't exist or aren't needed in company portal
-        setBookings([]);
         setContract(null);
         setVehicles([]);
 
@@ -212,18 +259,35 @@ export function CompanyStoreProvider({
 
   const createBooking = async (bookingData: Record<string, unknown>) => {
     try {
+      if (!company) throw new Error('No company found');
+
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      if (!token) throw new Error('No auth token found');
+      if (!token) throw new Error('No auth_token found');
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${API_URL}/bookings/create`, {
+
+      // Transform the booking data to match the new API structure
+      const apiData = {
+        booking_type: bookingData.package?.toString().includes('monthly') ? 'MONTHLY' : 'SPOT',
+        package_selected: transformPackageType(bookingData.package as string),
+        trip_type: transformTripType(bookingData.trip_type as string),
+        pickup_location: {
+          latitude: bookingData.pickup_lat as number,
+          longitude: bookingData.pickup_lng as number,
+        },
+        scheduled_for: bookingData.scheduled_at as string,
+        internal_cost_center_code: bookingData.internal_cost_center_code as string | undefined,
+        passenger_id: bookingData.passenger_id as string | undefined, // Add the selected employee ID
+      };
+
+      const response = await fetch(`${API_URL}/companies/${company.id}/chauffeur-bookings`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(bookingData),
+        body: JSON.stringify(apiData),
       });
 
       if (!response.ok) {
@@ -239,14 +303,31 @@ export function CompanyStoreProvider({
     }
   };
 
-  const updateEmployee = async (id: number, data: Partial<Employee>) => {
+  // Helper function to transform package type
+  const transformPackageType = (pkg: string): string => {
+    const pkgMap: Record<string, string> = {
+      '5hr': 'HOURS_5',
+      '10hr': 'HOURS_10',
+      '24hr': 'HOURS_24',
+      'monthly_10hr': 'HOURS_10',
+      'monthly_24hr': 'HOURS_24',
+    };
+    return pkgMap[pkg] || 'HOURS_10';
+  };
+
+  // Helper function to transform trip type
+  const transformTripType = (tripType: string): string => {
+    return tripType === 'in_city' ? 'IN_CITY' : 'OUT_STATION';
+  };
+
+  const updateEmployee = async (id: string, data: Partial<Employee>) => {
     // TODO: Implement API call
     console.log('Update employee', id, data);
     // Optimistic update
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e));
   };
 
-  const deactivateEmployee = async (id: number, active: boolean) => {
+  const deactivateEmployee = async (id: string, active: boolean) => {
     // TODO: Implement API call
     console.log('Deactivate employee', id, active);
     // Optimistic update
