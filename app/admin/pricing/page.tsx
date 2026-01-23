@@ -33,7 +33,9 @@ export default function PricingPage() {
   // Global settings state
   const [globalSettings, setGlobalSettings] = useState({
     fuelBasePrice: "0",
-    revisionPercentage: "" // Empty string means NULL (no threshold)
+    revisionPercentage: "", // Empty string means NULL (no threshold)
+    contractDuration: "",
+    contractDate: ""
   });
 
   // Rates State
@@ -92,14 +94,18 @@ export default function PricingPage() {
           setContract(mainContract);
           setGlobalSettings({
             fuelBasePrice: mainContract.fuel_base_price,
-            revisionPercentage: mainContract.revision_percentage || ""
+            revisionPercentage: mainContract.revision_percentage || "",
+            contractDuration: mainContract.contract_duration || "",
+            contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : ""
           });
           setRateRows(mainContract.chauffeur_contract_rates || []);
         } else {
           setContract(null);
           setGlobalSettings({
             fuelBasePrice: "300",
-            revisionPercentage: ""
+            revisionPercentage: "",
+            contractDuration: "",
+            contractDate: ""
           });
           setRateRows([]);
         }
@@ -189,13 +195,17 @@ export default function PricingPage() {
       if (currentContractId) {
         await apiClient.updateChauffeurContract(currentContractId, {
           fuelBasePrice: Number(globalSettings.fuelBasePrice),
-          revisionPercentage: revisionPct
+          revisionPercentage: revisionPct,
+          contractDuration: globalSettings.contractDuration,
+          contractDate: globalSettings.contractDate
         });
       } else {
         const res = await apiClient.createChauffeurContract({
           companyId: Number(selectedCompanyId),
           fuelBasePrice: Number(globalSettings.fuelBasePrice),
           revisionPercentage: revisionPct,
+          contractDuration: globalSettings.contractDuration,
+          contractDate: globalSettings.contractDate,
           vehicleModel: ""
         });
         currentContractId = res.data.id;
@@ -383,8 +393,28 @@ export default function PricingPage() {
                     label="Revision Threshold (%)"
                     value={globalSettings.revisionPercentage}
                     onChange={(v: string) => setGlobalSettings(s => ({ ...s, revisionPercentage: v }))}
-                    placeholder="Leave empty for no threshold"
                     helperText="Leave empty to always adjust rates with fuel price changes"
+                  />
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
+                    <select
+                      value={globalSettings.contractDuration}
+                      onChange={(e) => setGlobalSettings(s => ({ ...s, contractDuration: e.target.value }))}
+                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white"
+                    >
+                      <option value="">Select Duration</option>
+                      <option value="6 Months">6 Months</option>
+                      <option value="1 Year">1 Year</option>
+                      <option value="2 Years">2 Years</option>
+                      <option value="3 Years">3 Years</option>
+                      <option value="5 Years">5 Years</option>
+                    </select>
+                  </label>
+                  <Input
+                    label="Contract Date"
+                    value={globalSettings.contractDate}
+                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, contractDate: v }))}
+                    type="date"
                   />
                 </div>
               </div>

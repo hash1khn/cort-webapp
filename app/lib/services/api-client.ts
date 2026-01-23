@@ -267,6 +267,8 @@ export interface ChauffeurContract {
     company_id: number;
     fuel_base_price: string;
     revision_percentage: string | null;
+    contract_duration?: string | null;
+    created_at?: string | null;
     companies?: {
         name: string;
     };
@@ -278,6 +280,8 @@ export interface CreateChauffeurContractRequest {
     //  Settings
     fuelBasePrice?: number;
     revisionPercentage?: number | null;
+    contractDuration?: string;
+    contractDate?: string;
 
     // Optional Rate Entry
     vehicleModel?: string;
@@ -296,6 +300,8 @@ export interface UpdateChauffeurContractRequest {
     // For GLOBAL updates
     fuelBasePrice?: number;
     revisionPercentage?: number | null;
+    contractDuration?: string;
+    contractDate?: string;
 
     // For RATE updates
     vehicleModel?: string;
