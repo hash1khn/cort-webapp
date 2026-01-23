@@ -10,7 +10,7 @@ import {
   UpdateChauffeurContractRequest
 } from "../../lib/services/api-client";
 
-const Input = ({ label, value, onChange, placeholder = "0", type = "number" }: any) => (
+const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText }: any) => (
   <label className="flex flex-col gap-1.5">
     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
     <input
@@ -20,6 +20,7 @@ const Input = ({ label, value, onChange, placeholder = "0", type = "number" }: a
       placeholder={placeholder}
       className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
     />
+    {helperText && <span className="text-xs text-slate-500">{helperText}</span>}
   </label>
 );
 
@@ -32,11 +33,10 @@ export default function PricingPage() {
   // Global settings state
   const [globalSettings, setGlobalSettings] = useState({
     fuelBasePrice: "0",
-    revisionPercentage: "0.2"
+    revisionPercentage: "" // Empty string means NULL (no threshold)
   });
 
   // Rates State
-  // We include a temporary 'tempId' for new rows to track them before saving
   type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
   const [rateRows, setRateRows] = useState<RateRow[]>([]);
 
@@ -45,6 +45,12 @@ export default function PricingPage() {
 
   // System Setting
   const [systemFuelPrice, setSystemFuelPrice] = useState("0");
+  const [isUpdatingFuel, setIsUpdatingFuel] = useState(false);
+
+  // Preview state
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   // Initial load: Fetch companies & System Settings
   useEffect(() => {
@@ -86,14 +92,14 @@ export default function PricingPage() {
           setContract(mainContract);
           setGlobalSettings({
             fuelBasePrice: mainContract.fuel_base_price,
-            revisionPercentage: mainContract.revision_percentage
+            revisionPercentage: mainContract.revision_percentage || ""
           });
           setRateRows(mainContract.chauffeur_contract_rates || []);
         } else {
           setContract(null);
           setGlobalSettings({
             fuelBasePrice: "300",
-            revisionPercentage: "0.2"
+            revisionPercentage: ""
           });
           setRateRows([]);
         }
@@ -107,26 +113,11 @@ export default function PricingPage() {
     loadDetails();
   }, [selectedCompanyId]);
 
-  const [isUpdatingFuel, setIsUpdatingFuel] = useState(false);
-
   const handleUpdateGlobalFuel = async () => {
     setIsUpdatingFuel(true);
     try {
-      await apiClient.updateSystemSetting('fuel_price', systemFuelPrice);
-      alert("Global Fuel Price updated. This has triggered auto-revisions for eligible contracts.");
-
-      // Reload contracts to show updated rates
-      if (selectedCompanyId) {
-        const contractsRes = await apiClient.getChauffeurContracts(Number(selectedCompanyId));
-        if (contractsRes.data && contractsRes.data.length > 0) {
-          setContract(contractsRes.data[0]);
-          setGlobalSettings({
-            fuelBasePrice: contractsRes.data[0].fuel_base_price,
-            revisionPercentage: contractsRes.data[0].revision_percentage
-          });
-          setRateRows(contractsRes.data[0].chauffeur_contract_rates || []);
-        }
-      }
+      await apiClient.updateSystemSetting('current_fuel_price', systemFuelPrice);
+      alert("Global Fuel Price updated successfully. Use the Preview button to see how rates are affected.");
     } catch (err) {
       console.error("Failed to update global fuel price", err);
       alert("Failed to update global fuel price");
@@ -135,11 +126,29 @@ export default function PricingPage() {
     }
   };
 
+  const handlePreviewAdjustments = async () => {
+    setIsLoadingPreview(true);
+    setShowPreview(true);
+    try {
+      const preview = await apiClient.previewRateAdjustments(
+        Number(systemFuelPrice),
+        Number(selectedCompanyId)
+      );
+      setPreviewData(preview.data);
+    } catch (err) {
+      console.error("Failed to load preview", err);
+      alert("Failed to load preview");
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
   const handleAddRateRow = () => {
     setRateRows([...rateRows, {
       tempId: Date.now().toString(),
       isNew: true,
       vehicle_model: "",
+      cost_per_km: "0",
       rate_spot_5hr: "0",
       rate_spot_10hr: "0",
       rate_spot_24hr: "0",
@@ -157,13 +166,11 @@ export default function PricingPage() {
   const handleDeleteRateRow = async (index: number) => {
     const row = rateRows[index];
     if (row.isNew) {
-      // Just remove from state
       setRateRows(rateRows.filter((_, i) => i !== index));
     } else if (row.id) {
       if (!confirm("Are you sure you want to delete this rate card?")) return;
       try {
         await apiClient.deleteChauffeurRate(row.id);
-        // Remove from state
         setRateRows(rateRows.filter((_, i) => i !== index));
       } catch (err: any) {
         alert("Failed to delete rate: " + err.message);
@@ -172,34 +179,35 @@ export default function PricingPage() {
   };
 
   const handleSave = async () => {
-    // ... (rest of handleSave implementation) stays same
     setIsSaving(true);
     try {
-      // 1. Save Parent Contract (Global Settings)
       let currentContractId = contract?.id;
+
+      // Parse revision percentage - empty string becomes null
+      const revisionPct = globalSettings.revisionPercentage === "" ? null : Number(globalSettings.revisionPercentage);
 
       if (currentContractId) {
         await apiClient.updateChauffeurContract(currentContractId, {
           fuelBasePrice: Number(globalSettings.fuelBasePrice),
-          revisionPercentage: Number(globalSettings.revisionPercentage)
+          revisionPercentage: revisionPct
         });
       } else {
-        // Create NEW Parent Contract
         const res = await apiClient.createChauffeurContract({
           companyId: Number(selectedCompanyId),
           fuelBasePrice: Number(globalSettings.fuelBasePrice),
-          revisionPercentage: Number(globalSettings.revisionPercentage),
+          revisionPercentage: revisionPct,
           vehicleModel: ""
         });
         currentContractId = res.data.id;
       }
 
-      // 2. Save Rates
+      // Save Rates
       const promises = rateRows.map(async (row) => {
         if (!row.vehicle_model) return;
 
         const commonData = {
           vehicleModel: row.vehicle_model,
+          costPerKm: Number(row.cost_per_km || 0),
           rateSpot5hr: Number(row.rate_spot_5hr),
           rateSpot10hr: Number(row.rate_spot_10hr),
           rateSpot24hr: Number(row.rate_spot_24hr),
@@ -208,15 +216,13 @@ export default function PricingPage() {
           rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
           allowanceOutstation: Number(row.allowance_outstation || 0),
           allowanceAccommodation: Number(row.allowance_accommodation || 0),
-          agreedFuelAvgCity: Number(row.agreed_fuel_avg_city || 10),
-          agreedFuelAvgHighway: Number(row.agreed_fuel_avg_highway || 12),
         };
 
         if (row.isNew) {
           await apiClient.createChauffeurContract({
             companyId: Number(selectedCompanyId),
             fuelBasePrice: Number(globalSettings.fuelBasePrice),
-            revisionPercentage: Number(globalSettings.revisionPercentage),
+            revisionPercentage: revisionPct,
             ...commonData
           });
         } else if (row.id) {
@@ -248,7 +254,7 @@ export default function PricingPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#0c225e]">Contracts & Pricing</h1>
-          <p className="mt-2 text-slate-500">Manage client-specific rates and contract terms.</p>
+          <p className="mt-2 text-slate-500">Manage client-specific rates and contract terms with dynamic fuel price adjustments.</p>
         </div>
         <label className="flex flex-col gap-1.5 min-w-[300px]">
           <span className="text-sm font-medium text-slate-700">Select Company</span>
@@ -265,13 +271,13 @@ export default function PricingPage() {
       </div>
 
       {/* Global Fuel System Setting */}
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 flex flex-col gap-4">
         <div>
           <h3 className="text-base font-bold text-[#0c225e]">Global Fuel Configuration</h3>
-          <p className="text-sm text-slate-600 mt-1">Updates here trigger auto-revision for all contracts.</p>
+          <p className="text-sm text-slate-600 mt-1">Set the current fuel price. Rates are calculated dynamically during invoice generation.</p>
         </div>
-        <div className="flex items-end gap-3 w-full sm:w-auto">
-          <label className="flex-1 sm:w-48">
+        <div className="flex items-end gap-3 flex-wrap">
+          <label className="flex-1 min-w-[200px]">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Current Fuel Price (PKR)</span>
             <input
               type="number"
@@ -287,8 +293,72 @@ export default function PricingPage() {
           >
             {isUpdatingFuel ? "Updating..." : "Update"}
           </button>
+          <button
+            onClick={handlePreviewAdjustments}
+            className="h-10 px-4 rounded-lg border-2 border-[#f47f00] text-[#f47f00] text-sm font-bold hover:bg-[#f47f00] hover:text-white transition-all disabled:opacity-70"
+            disabled={isLoadingPreview}
+          >
+            {isLoadingPreview ? "Loading..." : "Preview Adjustments"}
+          </button>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#0c225e]">Rate Adjustment Preview</h3>
+              <p className="text-sm text-slate-600 mt-1">How rates will be adjusted at fuel price: PKR {systemFuelPrice}</p>
+            </div>
+            <button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          {previewData && previewData.length > 0 && (
+            <div className="space-y-4">
+              {previewData.map((item: any, idx: number) => (
+                <div key={idx} className="bg-white rounded-lg p-4 border border-slate-200">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-bold text-[#0c225e]">{item.company?.name || 'Company'}</h4>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.calculation.will_adjust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                      {item.calculation.will_adjust ? 'Will Adjust' : 'No Adjustment'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                    <div><span className="text-slate-500">Base Fuel Price:</span> <span className="font-semibold">PKR {item.contract.fuel_base_price}</span></div>
+                    <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
+                    <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-orange-600">{(Number(item.calculation.percent_change) * 100).toFixed(2)}%</span></div>
+                    <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.calculation.multiplier).toFixed(4)}x</span></div>
+                  </div>
+                  {item.rates.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left">Vehicle</th>
+                            <th className="px-2 py-2 text-right">Base Cost/KM</th>
+                            <th className="px-2 py-2 text-right">Adjusted Cost/KM</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.rates.map((rate: any, rIdx: number) => (
+                            <tr key={rIdx} className="border-t">
+                              <td className="px-2 py-2">{rate.vehicle_model}</td>
+                              <td className="px-2 py-2 text-right">PKR {Number(rate.base_cost_per_km).toFixed(2)}</td>
+                              <td className={`px-2 py-2 text-right font-semibold ${rate.base_cost_per_km !== rate.adjusted_cost_per_km ? 'text-orange-600' : 'text-green-600'}`}>
+                                PKR {Number(rate.adjusted_cost_per_km).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {isLoading && <div className="p-12 text-center text-slate-500">Loading...</div>}
 
@@ -313,7 +383,8 @@ export default function PricingPage() {
                     label="Revision Threshold (%)"
                     value={globalSettings.revisionPercentage}
                     onChange={(v: string) => setGlobalSettings(s => ({ ...s, revisionPercentage: v }))}
-                    placeholder="0.2"
+                    placeholder="Leave empty for no threshold"
+                    helperText="Leave empty to always adjust rates with fuel price changes"
                   />
                 </div>
               </div>
@@ -323,7 +394,7 @@ export default function PricingPage() {
                 <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
                   <div>
                     <h2 className="text-base font-bold text-[#0c225e]">Vehicle Rates</h2>
-                    <p className="text-xs text-slate-500 mt-1">Manage vehicle-specific rates manually.</p>
+                    <p className="text-xs text-slate-500 mt-1">Base rates - actual billing rates calculated dynamically.</p>
                   </div>
                   <div className="flex gap-3">
                     <button
@@ -347,6 +418,7 @@ export default function PricingPage() {
                     <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                       <tr>
                         <th className="px-6 py-4 min-w-[200px]">Vehicle Model</th>
+                        <th className="px-4 py-4 min-w-[120px]">Cost/KM (PKR)</th>
                         <th className="px-4 py-4 min-w-[100px]">5Hr Spot</th>
                         <th className="px-4 py-4 min-w-[100px]">10Hr Spot</th>
                         <th className="px-4 py-4 min-w-[100px]">24Hr Spot</th>
@@ -358,7 +430,7 @@ export default function PricingPage() {
                     <tbody className="divide-y divide-slate-100">
                       {rateRows.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                             No rates configured. Click "Add Vehicle" to start.
                           </td>
                         </tr>
@@ -371,6 +443,9 @@ export default function PricingPage() {
                               onChange={e => updateRateRow(idx, 'vehicle_model', e.target.value)}
                               placeholder="e.g. Honda City"
                             />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => updateRateRow(idx, 'cost_per_km', e.target.value)} />
                           </td>
                           <td className="px-4 py-3">
                             <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => updateRateRow(idx, 'rate_spot_5hr', e.target.value)} />

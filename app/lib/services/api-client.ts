@@ -251,6 +251,7 @@ export interface ChauffeurContractRate {
     id: number;
     contract_id: number;
     vehicle_model: string;
+    cost_per_km: string;
     rate_spot_5hr: string;
     rate_spot_10hr: string;
     rate_spot_24hr: string;
@@ -259,15 +260,13 @@ export interface ChauffeurContractRate {
     rate_overtime_per_hr: string;
     allowance_outstation: string;
     allowance_accommodation: string;
-    agreed_fuel_avg_city: string;
-    agreed_fuel_avg_highway: string;
 }
 
 export interface ChauffeurContract {
     id: number;
     company_id: number;
     fuel_base_price: string;
-    revision_percentage: string;
+    revision_percentage: string | null;
     companies?: {
         name: string;
     };
@@ -276,12 +275,13 @@ export interface ChauffeurContract {
 
 export interface CreateChauffeurContractRequest {
     companyId: number;
-    // Settings
+    //  Settings
     fuelBasePrice?: number;
-    revisionPercentage?: number;
+    revisionPercentage?: number | null;
 
     // Optional Rate Entry
     vehicleModel?: string;
+    costPerKm?: number;
     rateSpot5hr?: number;
     rateSpot10hr?: number;
     rateSpot24hr?: number;
@@ -290,17 +290,16 @@ export interface CreateChauffeurContractRequest {
     rateOvertimePerHr?: number;
     allowanceOutstation?: number;
     allowanceAccommodation?: number;
-    agreedFuelAvgCity?: number;
-    agreedFuelAvgHighway?: number;
 }
 
 export interface UpdateChauffeurContractRequest {
     // For GLOBAL updates
     fuelBasePrice?: number;
-    revisionPercentage?: number;
+    revisionPercentage?: number | null;
 
     // For RATE updates
     vehicleModel?: string;
+    costPerKm?: number;
     rateSpot5hr?: number;
     rateSpot10hr?: number;
     rateSpot24hr?: number;
@@ -309,8 +308,6 @@ export interface UpdateChauffeurContractRequest {
     rateOvertimePerHr?: number;
     allowanceOutstation?: number;
     allowanceAccommodation?: number;
-    agreedFuelAvgCity?: number;
-    agreedFuelAvgHighway?: number;
 }
 
 export interface ChauffeurContractResponse {
@@ -774,6 +771,26 @@ class ApiClient {
         });
     }
 
+    /**
+     * Preview how rates would be adjusted based on fuel price
+     * Super admin can view adjustments after changing fuel price
+     */
+    async previewRateAdjustments(newFuelPrice: number, companyId?: number): Promise<any> {
+        const query = new URLSearchParams();
+        query.append('newFuelPrice', newFuelPrice.toString());
+        if (companyId) query.append('companyId', companyId.toString());
+
+        return this.request<any>(`/contracts/chauffeur/preview-adjustments?${query.toString()}`);
+    }
+
+    /**
+     * Get adjusted billing rate for a booking
+     * Used during invoice generation
+     */
+    async getAdjustedBillingRate(bookingId: number): Promise<any> {
+        return this.request<any>(`/contracts/chauffeur/billing-rate/${bookingId}`);
+    }
+
     // -- System Settings --
 
     /**
@@ -796,3 +813,4 @@ class ApiClient {
 
 
 export const apiClient = new ApiClient();
+
