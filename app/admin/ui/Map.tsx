@@ -106,6 +106,17 @@ function MapResizeHandler() {
   return null;
 }
 
+// Component to handle dynamic centering
+function MapReCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.flyTo(center, map.getZoom());
+  }, [center, map]);
+
+  return null;
+}
+
 export default function Map({
   center = [24.8607, 67.0011], // Karachi default
   zoom = 13,
@@ -159,9 +170,9 @@ export default function Map({
 
   return (
     <div className={`rounded-lg overflow-hidden border border-border shadow-lg ${className}`} style={{ height }}>
-      <MapContainer 
-        center={center} 
-        zoom={zoom} 
+      <MapContainer
+        center={center}
+        zoom={zoom}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
       >
@@ -173,12 +184,13 @@ export default function Map({
           maxZoom={19}
         />
         <MapResizeHandler />
+        <MapReCenter center={center} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         {markers.map((marker) => {
           const icon = getMarkerIcon(marker);
           return (
-            <Marker 
-              key={marker.id} 
+            <Marker
+              key={marker.id}
               position={marker.position}
               icon={icon}
             >

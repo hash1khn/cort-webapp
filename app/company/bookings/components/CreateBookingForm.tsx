@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useCompanyStore } from "../../store/CompanyStore";
 import Map from "../../../admin/ui/Map";
+import { useGeocodeMapsAutocomplete } from "../../../hooks/useGeocodeMapsAutocomplete";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -72,6 +73,12 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Initialize geocode.maps.co autocomplete
+    const geocodeMapsKey = process.env.NEXT_PUBLIC_GEOCODE_MAPS_API_KEY || "";
+    const { suggestions, isLoading: isLoadingSuggestions, search, clearSuggestions, error: searchError } = useGeocodeMapsAutocomplete({
+        apiKey: geocodeMapsKey,
+    });
+
     const activeEmployees = useMemo(() => {
         return employees.filter((e) => e.status === "ACTIVE");
     }, [employees]);
@@ -81,9 +88,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             passengerId.length > 0 &&
             vehicleModel.length > 0 &&
             (timeType === "now" || scheduledDateTime.length > 0) &&
-            pickupAddress.length > 0
+            pickupAddress.length > 0 &&
+            pickupLat !== undefined &&
+            pickupLng !== undefined
         );
-    }, [passengerId, vehicleModel, timeType, scheduledDateTime, pickupAddress]);
+    }, [passengerId, vehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng]);
 
     if (!company) {
         return (
@@ -118,7 +127,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         }
 
         if (!canSubmit) {
-            setError("Please fill in all required fields");
+            if (!pickupLat || !pickupLng) {
+                setError("Please select a location on the map to set coordinates");
+            } else {
+                setError("Please fill in all required fields");
+            }
             setIsSubmitting(false);
             return;
         }
@@ -267,9 +280,13 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <TextInput
                             value={pickupAddress}
                             onChange={(e) => setPickupAddress(e.target.value)}
-                            placeholder="Enter pickup location"
+                            placeholder="Enter full pickup address manually"
                             required
                         />
+                        {/* Helper text */}
+                        <div className="mt-1 text-xs text-muted">
+                            Enter the specific address for the driver (e.g., "House 123, Street 4, Phase 5...").
+                        </div>
                     </Field>
                 </div>
             </div>
@@ -278,18 +295,56 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 <div className="mb-4">
                     <div className="text-xs font-semibold tracking-wider text-muted">PICKUP LOCATION MAP</div>
                     <div className="mt-1 text-sm text-muted">
-                        Click on the map to set the pickup location.
+                        Search and select the location on the map.
                     </div>
                 </div>
+
+                {/* Map Search Bar */}
+                <div className="relative mb-3 z-[1000] max-w-sm">
+                    <TextInput
+                        onChange={(e) => search(e.target.value)}
+                        placeholder="Search location on map..."
+                        className="w-full pr-10"
+                    />
+                    {isLoadingSuggestions && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue border-t-transparent"></div>
+                        </div>
+                    )}
+
+                    {/* Suggestions Dropdown */}
+                    {suggestions.length > 0 && (
+                        <div className="absolute top-full left-0 mt-1 w-full rounded-md border border-border bg-white shadow-lg max-h-60 overflow-auto">
+                            {suggestions.map((suggestion) => (
+                                <button
+                                    key={suggestion.place_id}
+                                    type="button"
+                                    onClick={() => {
+                                        setPickupLat(parseFloat(suggestion.lat));
+                                        setPickupLng(parseFloat(suggestion.lon));
+                                        setPickupAddress(suggestion.display_name); // Auto-fill address from map selection
+                                        clearSuggestions();
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-blue/5 focus:bg-blue/5 focus:outline-none border-b border-border last:border-b-0"
+                                >
+                                    <div className="font-medium text-navy">{suggestion.name || suggestion.type || 'Location'}</div>
+                                    <div className="text-xs text-muted mt-0.5">{suggestion.display_name}</div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 <Map
                     height="300px"
+                    center={pickupLat && pickupLng ? [pickupLat, pickupLng] : undefined}
                     markers={
                         pickupLat && pickupLng
                             ? [
                                 {
                                     id: "pickup",
                                     position: [pickupLat, pickupLng] as [number, number],
-                                    label: `Pickup: ${pickupAddress || "Selected"}`,
+                                    label: "Pickup Location",
                                     color: "#22c55e",
                                 },
                             ]
@@ -298,18 +353,27 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     onMapClick={(lat, lng) => {
                         setPickupLat(lat);
                         setPickupLng(lng);
-                        if (!pickupAddress) {
-                            setPickupAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-                        }
+                        // No reverse geocoding
                     }}
                 />
-                <div className="mt-3 flex items-center gap-4 text-xs text-muted">
+                <div className="mt-3 flex items-center justify-between text-xs text-muted">
                     <div className="flex items-center gap-2">
                         <div className="h-3 w-3 rounded-full bg-green"></div>
-                        <span>Pickup Location</span>
+                        <span>Pickup Location Pin</span>
                     </div>
+                    {pickupLat && pickupLng && (
+                        <span>
+                            Coordinates: {pickupLat.toFixed(6)}, {pickupLng.toFixed(6)}
+                        </span>
+                    )}
                 </div>
             </div>
+
+            {searchError && (
+                <div className="rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger mt-2">
+                    Search Error: {searchError}
+                </div>
+            )}
 
             {error && (
                 <div className="rounded-md border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">

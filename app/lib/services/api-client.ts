@@ -398,6 +398,7 @@ export interface ChauffeurBooking {
     status: TripStatus;
     fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
     internal_cost_center_code: string | null;
+    pickup_address?: string; // Human readable address
     created_at: string;
     companies?: {
         id: number;

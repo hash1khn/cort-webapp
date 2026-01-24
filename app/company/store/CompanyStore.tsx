@@ -270,12 +270,14 @@ export function CompanyStoreProvider({
       // Transform the booking data to match the new API structure
       const apiData = {
         booking_type: bookingData.package?.toString().includes('monthly') ? 'MONTHLY' : 'SPOT',
+        vehicle_model: bookingData.vehicle_model as string,
         package_selected: transformPackageType(bookingData.package as string),
         trip_type: transformTripType(bookingData.trip_type as string),
         pickup_location: {
           latitude: bookingData.pickup_lat as number,
           longitude: bookingData.pickup_lng as number,
         },
+        pickup_address: bookingData.pickup_address as string | undefined,
         scheduled_for: bookingData.scheduled_at as string,
         internal_cost_center_code: bookingData.internal_cost_center_code as string | undefined,
         passenger_id: bookingData.passenger_id as string | undefined, // Add the selected employee ID

@@ -182,6 +182,7 @@ export default function BookingsPage() {
                   <th className="px-4 py-3 text-left">Company</th>
                   <th className="px-4 py-3 text-left">Passenger</th>
                   <th className="px-4 py-3 text-left">Request</th>
+                  <th className="px-4 py-3 text-left">Pickup Address</th>
                   <th className="px-4 py-3 text-left">Assigned Driver</th>
                   <th className="px-4 py-3 text-left">Assigned Vehicle</th>
                   <th className="px-4 py-3 text-left">Scheduled At</th>
@@ -223,6 +224,11 @@ export default function BookingsPage() {
                       <td className="px-4 py-4">
                         <div className="text-ink font-medium">{b.vehicle_model || "Any Model"}</div>
                         <div className="text-[11px] text-muted">{b.package_selected.replace(/_/g, " ")}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="max-w-[150px] truncate text-sm text-ink" title={b.pickup_address || "No address"}>
+                          {b.pickup_address || "-"}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         {driver ? (
@@ -338,6 +344,10 @@ export default function BookingsPage() {
                     <div>
                       <div className="text-[10px] text-muted uppercase">Requested Model</div>
                       <div className="text-sm font-medium text-ink">{selectedBooking.vehicle_model || "Any"}</div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-[10px] text-muted uppercase">Pickup Address</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.pickup_address || "—"}</div>
                     </div>
                   </div>
                 </div>
