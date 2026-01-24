@@ -70,6 +70,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [pickupAddress, setPickupAddress] = useState<string>("");
     const [pickupLat, setPickupLat] = useState<number | undefined>();
     const [pickupLng, setPickupLng] = useState<number | undefined>();
+    const [destinationCities, setDestinationCities] = useState<string[]>([]);
+    const [cityInput, setCityInput] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,15 +86,38 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     }, [employees]);
 
     const canSubmit = useMemo(() => {
-        return (
+        const basicFields =
             passengerId.length > 0 &&
             vehicleModel.length > 0 &&
             (timeType === "now" || scheduledDateTime.length > 0) &&
             pickupAddress.length > 0 &&
             pickupLat !== undefined &&
-            pickupLng !== undefined
-        );
-    }, [passengerId, vehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng]);
+            pickupLng !== undefined;
+
+        if (tripType === "out_station") {
+            return basicFields && destinationCities.length > 0;
+        }
+
+        return basicFields;
+    }, [passengerId, vehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
+
+    const handleAddCity = () => {
+        if (cityInput.trim()) {
+            setDestinationCities([...destinationCities, cityInput.trim()]);
+            setCityInput("");
+        }
+    };
+
+    const handleRemoveCity = (index: number) => {
+        setDestinationCities(destinationCities.filter((_, i) => i !== index));
+    };
+
+    const handleCityKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddCity();
+        }
+    };
 
     if (!company) {
         return (
@@ -161,6 +186,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 pickup_address: pickupAddress,
                 pickup_lat: pickupLat,
                 pickup_lng: pickupLng,
+                destination_cities: tripType === "out_station" ? destinationCities : [],
             });
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
@@ -251,6 +277,52 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <option value="out_station">Out-Station</option>
                     </Select>
                 </Field>
+
+                {tripType === "out_station" && (
+                    <div className="sm:col-span-2">
+                        <Field label="Destination Cities" required>
+                            <div className="flex gap-2">
+                                <TextInput
+                                    value={cityInput}
+                                    onChange={(e) => setCityInput(e.target.value)}
+                                    onKeyDown={handleCityKeyDown}
+                                    placeholder="Enter city name (e.g. Lahore)"
+                                    className="flex-1"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddCity}
+                                    disabled={!cityInput.trim()}
+                                    className="rounded-md bg-blue/10 px-4 py-2 text-sm font-semibold text-blue hover:bg-blue/20 disabled:opacity-50"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                            {destinationCities.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {destinationCities.map((city, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center gap-1 rounded-full bg-surface px-3 py-1 text-sm font-medium text-navy border border-border"
+                                        >
+                                            <span>{city}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveCity(index)}
+                                                className="ml-1 text-muted hover:text-danger"
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {destinationCities.length === 0 && (
+                                <div className="mt-1 text-xs text-danger">At least one destination city is required</div>
+                            )}
+                        </Field>
+                    </div>
+                )}
 
                 <Field label="Time" required>
                     <Select

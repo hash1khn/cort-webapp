@@ -281,6 +281,7 @@ export function CompanyStoreProvider({
         scheduled_for: bookingData.scheduled_at as string,
         internal_cost_center_code: bookingData.internal_cost_center_code as string | undefined,
         passenger_id: bookingData.passenger_id as string | undefined, // Add the selected employee ID
+        destination_cities: bookingData.destination_cities as string[] | undefined,
       };
 
       const response = await fetch(`${API_URL}/companies/${company.id}/chauffeur-bookings`, {
