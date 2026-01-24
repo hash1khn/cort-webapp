@@ -1001,6 +1001,7 @@ class ApiClient {
         if (params.page) query.append('page', params.page.toString());
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.status) query.append('status', params.status);
+        if (params.search) query.append('search', params.search);
 
         const queryString = query.toString();
         const endpoint = `/companies/${companyId}/chauffeur-bookings${queryString ? `?${queryString}` : ''}`;
