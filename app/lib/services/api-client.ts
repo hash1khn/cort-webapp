@@ -361,7 +361,7 @@ export enum TripType {
 }
 
 export enum TripStatus {
-    SEARCHING = 'SEARCHING',
+    PENDING = 'PENDING',
     ASSIGNED = 'ASSIGNED',
     ARRIVED = 'ARRIVED',
     IN_PROGRESS = 'IN_PROGRESS',
@@ -376,6 +376,7 @@ export interface PickupLocation {
 
 export interface CreateChauffeurBookingRequest {
     booking_type: BookingType;
+    vehicle_model: string;
     package_selected: PackageType;
     trip_type: TripType;
     pickup_location: PickupLocation;
@@ -389,6 +390,7 @@ export interface ChauffeurBooking {
     passenger_id: string;
     driver_id: string | null;
     vehicle_id: number | null;
+    vehicle_model?: string; // Stored model preference
     booking_type: BookingType;
     package_selected: PackageType;
     trip_type: TripType;
@@ -400,6 +402,7 @@ export interface ChauffeurBooking {
     companies?: {
         id: number;
         name: string;
+        logo_url?: string;
     };
     users_chauffeur_bookings_passenger_idTousers?: {
         id: string;
@@ -423,6 +426,7 @@ export interface QueryChauffeurBookingParams {
     page?: number;
     limit?: number;
     status?: string;
+    search?: string;
 }
 
 export interface ChauffeurBookingResponse {
@@ -693,6 +697,23 @@ class ApiClient {
     }
 
     /**
+     * Get available vehicles (not in active booking)
+     */
+    async getAvailableVehicles(params: QueryVehicleParams = {}): Promise<PaginatedResponse<Vehicle>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+        if (params.category) query.append('category', params.category);
+        if (params.ownership) query.append('ownership', params.ownership);
+
+        const queryString = query.toString();
+        const endpoint = `/vehicles/available${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Vehicle>>(endpoint);
+    }
+
+    /**
      * Get single vehicle
      */
     async getVehicle(id: number): Promise<VehicleResponse> {
@@ -759,6 +780,24 @@ class ApiClient {
 
         const queryString = query.toString();
         const endpoint = `/drivers/pending-chauffeurs${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Driver>>(endpoint);
+    }
+
+
+
+    /**
+     * Get available drivers (not in active booking)
+     */
+    async getAvailableDrivers(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+        if (params.company_id) query.append('company_id', params.company_id.toString());
+        if (params.driver_type) query.append('driver_type', params.driver_type.toString());
+        const queryString = query.toString();
+        const endpoint = `/drivers/available${queryString ? `?${queryString}` : ''}`;
 
         return this.request<PaginatedResponse<Driver>>(endpoint);
     }
@@ -908,12 +947,49 @@ class ApiClient {
     // -- Company Chauffeur Bookings --
 
     /**
+     * Get all bookings (Admin)
+     */
+    async getAllBookings(params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.status) query.append('status', params.status);
+        if (params.search) query.append('search', params.search);
+
+        const queryString = query.toString();
+        // Correct string interpolation for template literal
+        const endpoint = `/admin/bookings${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ChauffeurBooking>>(endpoint);
+    }
+
+    /**
      * Create a chauffeur booking for a company
      */
     async createChauffeurBooking(companyId: number, data: CreateChauffeurBookingRequest): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings`, {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Assign driver and vehicle to a booking (Admin)
+     */
+    async assignBooking(id: number, vehicleId: number, driverId: string): Promise<void> {
+        return this.request<void>(`/admin/bookings/${id}/assign`, {
+            method: 'PATCH',
+            body: JSON.stringify({ vehicle_id: vehicleId, driver_id: driverId }),
+        });
+    }
+
+    /**
+     * Update booking status (Admin)
+     */
+    async updateBookingStatus(id: number, status: string): Promise<void> {
+        return this.request<void>(`/admin/bookings/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
         });
     }
 

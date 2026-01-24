@@ -1,113 +1,179 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useAdminStore } from "../../store/AdminStore";
-import type { ChauffeurBooking, ChauffeurCar } from "../../store/types";
+import { useMemo, useState, useEffect } from "react";
+import { apiClient, ChauffeurBooking, DriverType } from "../../../lib/services/api-client";
 import Map, { type MapMarker } from "../../ui/Map";
+import Modal from "../../../company/bookings/components/Modal";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'Asia/Karachi', // GMT+5
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 }
 
-export default function PendingBookingsPage() {
-  const { db, upsertChauffeurBooking, upsertChauffeurCar } = useAdminStore();
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+export default function BookingsPage() {
+  const [bookings, setBookings] = useState<ChauffeurBooking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [selectedCarId, setSelectedCarId] = useState<string>("");
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [availableCars, setAvailableCars] = useState<any[]>([]);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
 
-  const pendingBookings = useMemo(() => {
-    return db.chauffeur_bookings.filter((b) => b.status === "pending");
-  }, [db.chauffeur_bookings]);
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+
+  // Fetch bookings
+  const fetchBookings = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient.getAllBookings({
+        status: statusFilter || undefined,
+        search: searchQuery || undefined
+      });
+      setBookings(res.data.data);
+    } catch (error) {
+      console.error("Failed to fetch bookings", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchBookings();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, statusFilter]);
+
+  // Fetch available cars
+  const fetchVehicles = async () => {
+    try {
+      const res = await apiClient.getAvailableVehicles({ limit: 100 });
+      setAvailableCars(res.data.data);
+    } catch (error) {
+      console.error("Failed to fetch vehicles", error);
+    }
+  };
+
+  // Fetch available drivers
+  const fetchDrivers = async () => {
+    try {
+      const res = await apiClient.getAvailableDrivers({ limit: 100, driver_type: DriverType.CHAUFFEUR });
+      setAvailableDrivers(res.data.data);
+    } catch (error) {
+      console.error("Failed to fetch drivers", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchVehicles();
+    fetchDrivers();
+    // Initial fetch handled by debounce effect
+  }, []);
 
   const selectedBooking = useMemo(() => {
     if (!selectedBookingId) return null;
-    return db.chauffeur_bookings.find((b) => b.id === selectedBookingId) ?? null;
-  }, [db.chauffeur_bookings, selectedBookingId]);
+    return bookings.find((b) => b.id === selectedBookingId) ?? null;
+  }, [bookings, selectedBookingId]);
 
-  // Get available cars matching the booking's vehicle model
-  const availableCars = useMemo(() => {
-    if (!selectedBooking) return [];
-    return db.chauffeur_cars.filter(
-      (car) =>
-        car.model === selectedBooking.vehicle_model &&
-        (car.status === "available" || car.status === "offline"),
-    );
-  }, [db.chauffeur_cars, selectedBooking]);
-
-  function handleApprove() {
-    if (!selectedBooking || !selectedCarId) {
-      alert("Please select a driver/car to assign");
+  async function handleApprove() {
+    if (!selectedBooking || !selectedCarId || !selectedDriverId) {
+      alert("Please select both a vehicle and a driver to assign");
       return;
     }
 
-    const car = db.chauffeur_cars.find((c) => c.id === selectedCarId);
-    if (!car) {
-      alert("Selected car not found");
-      return;
+    try {
+      await apiClient.assignBooking(selectedBooking.id, parseInt(selectedCarId), selectedDriverId);
+
+      alert("Booking approved and assignment complete!");
+      setSelectedBookingId(null);
+      setSelectedCarId("");
+      setSelectedDriverId("");
+
+      // Refresh all lists as resources are now consumed
+      fetchBookings();
+      fetchVehicles();
+      fetchDrivers();
+    } catch (error) {
+      console.error("Failed to approve booking", error);
+      alert("Failed to approve booking");
     }
-
-    const now = new Date().toISOString();
-    const updated: ChauffeurBooking = {
-      ...selectedBooking,
-      status: "searching", // Move to searching after approval
-      driver_car_id: car.id,
-      driver_name: car.driver_name,
-      driver_phone: "", // Would come from driver profile in real app
-      plate_no: car.plate_no,
-      approved_at: now,
-      approved_by: "superadmin", // In real app, use actual admin ID
-      updated_at: now,
-    };
-
-    // Update car status to in_trip
-    const updatedCar: ChauffeurCar = {
-      ...car,
-      status: "in_trip",
-    };
-
-    upsertChauffeurBooking(updated);
-    upsertChauffeurCar(updatedCar);
-
-    // Reset selection
-    setSelectedBookingId(null);
-    setSelectedCarId("");
-    alert("Booking approved and driver assigned!");
   }
 
-  function handleReject() {
+  async function handleReject() {
     if (!selectedBooking) return;
     if (!confirm("Are you sure you want to reject this booking?")) return;
 
-    const now = new Date().toISOString();
-    const updated: ChauffeurBooking = {
-      ...selectedBooking,
-      status: "cancelled",
-      updated_at: now,
-    };
-
-    upsertChauffeurBooking(updated);
-    setSelectedBookingId(null);
-    alert("Booking rejected");
+    try {
+      await apiClient.updateBookingStatus(selectedBooking.id, "CANCELLED");
+      alert("Booking rejected");
+      setSelectedBookingId(null);
+      fetchBookings(); // Refresh list
+    } catch (error) {
+      console.error("Failed to reject booking", error);
+      alert("Failed to reject booking");
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-sm font-medium text-muted">Booking Approval</div>
+          <div className="text-sm font-medium text-muted">Bookings Management</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
-            Pending Bookings
+            All Bookings
           </h1>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl border border-border shadow-sm">
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-xs font-semibold text-muted uppercase mb-1 block">Search</label>
+          <input
+            type="text"
+            placeholder="Search passenger, company, vehicle..."
+            className="w-full h-10 px-3 rounded-md border border-border bg-surface/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue/20"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="w-[200px]">
+          <label className="text-xs font-semibold text-muted uppercase mb-1 block">Status</label>
+          <select
+            className="w-full h-10 px-3 rounded-md border border-border bg-surface/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue/20"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="ASSIGNED">Assigned</option>
+            <option value="ARRIVED">Arrived</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
         <section className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
           <div className="p-4 border-b border-border bg-surface/30">
-            <div className="text-sm font-semibold text-navy">Pending Requests</div>
+            <div className="text-sm font-semibold text-navy">Booking List</div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -115,17 +181,20 @@ export default function PendingBookingsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left">Company</th>
                   <th className="px-4 py-3 text-left">Passenger</th>
-                  <th className="px-4 py-3 text-left">Vehicle & Package</th>
+                  <th className="px-4 py-3 text-left">Request</th>
+                  <th className="px-4 py-3 text-left">Assigned Driver</th>
+                  <th className="px-4 py-3 text-left">Assigned Vehicle</th>
                   <th className="px-4 py-3 text-left">Scheduled At</th>
-                  <th className="px-4 py-3 text-left">Created At</th>
                   <th className="px-4 py-3 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {pendingBookings.map((b) => {
-                  const company = db.companies.find((c) => c.id === b.company_id);
-                  const employee = company?.employees.find((e) => e.id === b.passenger_employee_id);
+                {isLoading ? (
+                  <tr><td colSpan={8} className="p-4 text-center">Loading...</td></tr>
+                ) : bookings.map((b) => {
                   const isSelected = selectedBookingId === b.id;
+                  const driver = b.users_chauffeur_bookings_driver_idTousers;
+                  const vehicle = b.vehicles;
 
                   return (
                     <tr
@@ -141,189 +210,254 @@ export default function PendingBookingsPage() {
                     >
                       <td className="px-4 py-4">
                         <div className="font-semibold text-ink group-hover:text-blue transition-colors">
-                          {company?.name || "Unknown Company"}
+                          {b.companies?.name || "Unknown Company"}
                         </div>
                         <div className="text-[10px] text-muted font-mono">{b.id}</div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="text-ink">{employee?.full_name || "Unknown Passenger"}</div>
+                        <div className="text-ink">{b.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown Passenger"}</div>
                         <div className="text-[11px] text-muted">
-                          {employee?.employee_id ? `ID: ${employee.employee_id}` : ""}
+                          {b.users_chauffeur_bookings_passenger_idTousers?.email}
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="text-ink font-medium">{b.vehicle_model}</div>
-                        <div className="text-[11px] text-muted">{b.package.replace(/_/g, " ")}</div>
+                        <div className="text-ink font-medium">{b.vehicle_model || "Any Model"}</div>
+                        <div className="text-[11px] text-muted">{b.package_selected.replace(/_/g, " ")}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        {driver ? (
+                          <div>
+                            <div className="text-sm font-medium text-ink">{driver.full_name}</div>
+                            {driver.phone && (
+                              <div className="text-[11px] text-muted mt-0.5">{driver.phone}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted text-xs italic">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        {vehicle ? (
+                          <div>
+                            <div className="text-sm font-medium text-ink">{vehicle.model}</div>
+                            <div className="text-[11px] text-muted font-mono mt-0.5">{vehicle.plate_number}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted text-xs italic">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-muted">
-                        {formatDateTime(b.scheduled_at)}
-                      </td>
-                      <td className="px-4 py-4 text-[11px] text-muted">
-                        {formatDateTime(b.created_at)}
+                        {formatDateTime(b.scheduled_for)}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="inline-flex items-center rounded-full bg-yellow/10 px-2.5 py-0.5 text-[11px] font-semibold text-yellow">
-                          Pending
-                        </span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={b.status}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              if (!confirm(`Change status to ${newStatus}?`)) return;
+                              try {
+                                await apiClient.updateBookingStatus(b.id, newStatus);
+                                // Optimistic update or refetch
+                                fetchBookings();
+                              } catch (err) {
+                                console.error(err);
+                                alert("Failed to update status");
+                              }
+                            }}
+                            className={cx(
+                              "h-7 rounded-full px-2 text-[11px] font-semibold border-none outline-none cursor-pointer appearance-none text-center min-w-[100px]",
+                              b.status === 'PENDING' ? "bg-yellow/10 text-yellow" :
+                                b.status === 'COMPLETED' ? "bg-green/10 text-green-600" :
+                                  b.status === 'CANCELLED' ? "bg-red/10 text-red-600" :
+                                    "bg-blue/10 text-blue"
+                            )}
+                          >
+                            <option value="PENDING">PENDING</option>
+                            <option value="ASSIGNED">ASSIGNED</option>
+                            <option value="ARRIVED">ARRIVED</option>
+                            <option value="IN_PROGRESS">IN_PROGRESS</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-            {pendingBookings.length === 0 ? (
+            {!isLoading && bookings.length === 0 ? (
               <div className="py-12 text-center">
-                <div className="text-sm text-muted">No pending bookings found.</div>
+                <div className="text-sm text-muted">No bookings found matching criteria.</div>
               </div>
             ) : null}
           </div>
         </section>
 
         {selectedBooking && (
-          <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Modal
+            isOpen={!!selectedBooking}
+            onClose={() => setSelectedBookingId(null)}
+            title={`Booking Details #${selectedBooking.id}`}
+          >
             <div className="flex flex-col gap-6">
-              <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4 mb-6">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted uppercase">
-                      Booking Details
-                    </div>
-                    <div className="mt-1 text-lg font-semibold text-navy">
-                      Reviewing Booking <span className="text-muted font-mono ml-2 text-sm">{selectedBooking.id}</span>
-                    </div>
+              {/* Status Header */}
+              <div className="flex items-center justify-between bg-surface p-4 rounded-lg border border-border">
+                <div>
+                  <div className="text-xs text-muted uppercase tracking-wider font-semibold">Current Status</div>
+                  <div className={cx(
+                    "mt-1 text-sm font-bold px-2 py-0.5 rounded-full inline-block",
+                    selectedBooking.status === 'PENDING' ? "bg-yellow/10 text-yellow" :
+                      selectedBooking.status === 'COMPLETED' ? "bg-green/10 text-green-600" :
+                        selectedBooking.status === 'CANCELLED' ? "bg-red/10 text-red-600" :
+                          "bg-blue/10 text-blue"
+                  )}>
+                    {selectedBooking.status}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-yellow/10 px-3 py-1 text-xs font-semibold text-yellow">
-                      Pending Approval
-                    </span>
-                    <button
-                      onClick={() => setSelectedBookingId(null)}
-                      className="text-muted hover:text-ink text-sm font-medium ml-2"
-                    >
-                      Close
-                    </button>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted uppercase tracking-wider font-semibold">Scheduled For</div>
+                  <div className="mt-1 text-sm font-medium text-ink">{formatDateTime(selectedBooking.scheduled_for)}</div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* Trip & Vehicle Request */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 border-b border-border pb-1">Trip Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">Trip Type</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">Package</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.package_selected.replace(/_/g, " ")}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">Requested Model</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.vehicle_model || "Any"}</div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Company</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {db.companies.find((c) => c.id === selectedBooking.company_id)?.name || "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Passenger</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {(() => {
-                        const company = db.companies.find((c) => c.id === selectedBooking.company_id);
-                        const employee = company?.employees.find(
-                          (e) => e.id === selectedBooking.passenger_employee_id,
-                        );
-                        return employee ? `${employee.full_name} (${employee.employee_id})` : "—";
-                      })()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Vehicle Model</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {selectedBooking.vehicle_model}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Package</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {selectedBooking.package.replace(/_/g, " ")}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Trip Type</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {selectedBooking.trip_type.replace(/_/g, " ")}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Scheduled At</div>
-                    <div className="mt-1 text-sm font-medium text-ink">
-                      {formatDateTime(selectedBooking.scheduled_at)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold tracking-wider text-muted">Created At</div>
-                    <div className="mt-1 text-sm text-muted">
-                      {formatDateTime(selectedBooking.created_at)}
-                    </div>
-                  </div>
-                  {selectedBooking.pickup_address && (
+                {/* Passenger Info */}
+                <div>
+                  <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 border-b border-border pb-1">Passenger & Company</h4>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <div className="text-xs font-semibold tracking-wider text-muted">Pickup Location</div>
-                      <div className="mt-1 text-sm font-medium text-ink">
-                        {selectedBooking.pickup_address}
+                      <div className="text-[10px] text-muted uppercase">Passenger Name</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name || "—"}</div>
+                      {selectedBooking.users_chauffeur_bookings_passenger_idTousers?.email && (
+                        <div className="text-xs text-muted">{selectedBooking.users_chauffeur_bookings_passenger_idTousers.email}</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">Company</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.companies?.name || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assignment Details (if active) */}
+                {selectedBooking.status !== 'PENDING' && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 border-b border-border pb-1">Assignment Details</h4>
+                    <div className="grid grid-cols-2 gap-4 bg-surface/30 p-3 rounded-md">
+                      <div>
+                        <div className="text-[10px] text-muted uppercase">Assigned Driver</div>
+                        <div className="text-sm font-medium text-ink mt-0.5">
+                          {selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "—"}
+                        </div>
+                        {selectedBooking.users_chauffeur_bookings_driver_idTousers?.phone && (
+                          <div className="text-xs text-muted">{selectedBooking.users_chauffeur_bookings_driver_idTousers.phone}</div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-muted uppercase">Assigned Vehicle</div>
+                        <div className="text-sm font-medium text-ink mt-0.5">
+                          {selectedBooking.vehicles ? selectedBooking.vehicles.model : "—"}
+                        </div>
+                        {selectedBooking.vehicles && (
+                          <div className="text-xs font-mono text-muted">{selectedBooking.vehicles.plate_number}</div>
+                        )}
                       </div>
                     </div>
-                  )}
-                  {selectedBooking.dropoff_address && (
-                    <div>
-                      <div className="text-xs font-semibold tracking-wider text-muted">Dropoff Location</div>
-                      <div className="mt-1 text-sm font-medium text-ink">
-                        {selectedBooking.dropoff_address}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
-                <div className="text-xs font-semibold tracking-wider text-muted">
-                  ASSIGN DRIVER
-                </div>
-                <div className="mt-3">
-                  <label className="flex flex-col gap-1">
-                    <span className="text-sm font-medium text-ink">Available Drivers</span>
-                    <select
-                      value={selectedCarId}
-                      onChange={(e) => setSelectedCarId(e.target.value)}
-                      className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    >
-                      <option value="">Select a driver</option>
-                      {availableCars.map((car) => (
-                        <option key={car.id} value={car.id}>
-                          {car.driver_name} - {car.plate_no} ({car.status})
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {availableCars.length === 0 && (
-                    <div className="mt-2 text-xs text-danger">
-                      No available drivers found for {selectedBooking.vehicle_model}. The booking
-                      will be set to "searching" status.
-                    </div>
-                  )}
-                </div>
-              </div>
+              {selectedBooking.status === 'PENDING' && (
+                <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
+                  <div className="text-xs font-semibold tracking-wider text-muted">
+                    ASSIGN DRIVER & VEHICLE
+                  </div>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-ink">Select Vehicle</span>
+                      <select
+                        value={selectedCarId}
+                        onChange={(e) => setSelectedCarId(e.target.value)}
+                        className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                      >
+                        <option value="">Select a vehicle</option>
+                        {availableCars.map((car) => (
+                          <option key={car.id} value={car.id}>
+                            {car.make} {car.model} ({car.plate_number})
+                          </option>
+                        ))}
+                      </select>
+                      {availableCars.length === 0 && (
+                        <div className="mt-1 text-xs text-muted">No available vehicles found.</div>
+                      )}
+                    </label>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleApprove}
-                  disabled={!selectedCarId && availableCars.length > 0}
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
-                >
-                  Approve & Assign Driver
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReject}
-                  className="inline-flex h-10 items-center justify-center rounded-md border border-danger/30 bg-white px-4 text-sm font-semibold text-danger hover:bg-danger/5"
-                >
-                  Reject
-                </button>
-              </div>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-sm font-medium text-ink">Select Driver</span>
+                      <select
+                        value={selectedDriverId}
+                        onChange={(e) => setSelectedDriverId(e.target.value)}
+                        className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                      >
+                        <option value="">Select a driver</option>
+                        {availableDrivers.map((driver) => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.full_name} ({driver.email})
+                          </option>
+                        ))}
+                      </select>
+                      {availableDrivers.length === 0 && (
+                        <div className="mt-1 text-xs text-muted">No available drivers found.</div>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {selectedBooking.status === 'PENDING' && (
+                <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={handleReject}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-danger/30 bg-white px-4 text-sm font-semibold text-danger hover:bg-danger/5"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={!selectedCarId || !selectedDriverId}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
+                  >
+                    Approve & Assign
+                  </button>
+                </div>
+              )}
             </div>
-          </section>
+          </Modal>
         )}
       </div>
     </div>
   );
 }
-
