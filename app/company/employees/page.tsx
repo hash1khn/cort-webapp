@@ -21,7 +21,7 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export default function EmployeesPage() {
   const { company, employees, updateEmployee, deactivateEmployee } = useCompanyStore();
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");
 
