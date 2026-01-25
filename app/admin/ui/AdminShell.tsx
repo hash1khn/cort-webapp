@@ -14,6 +14,7 @@ const nav = [
   { href: "/admin/bookings/pending", label: "Bookings" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur" },
+  { href: "/admin/reports", label: "Reports" },
   { href: "/admin/invoicing", label: "Invoicing" },
 ];
 

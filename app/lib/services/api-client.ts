@@ -514,6 +514,36 @@ class ApiClient {
     }
 
     /**
+     * Download blob from endpoint (with auth)
+     */
+    async downloadPdf(endpoint: string, filename: string): Promise<void> {
+        const token = this.getToken();
+        const headers: Record<string, string> = {};
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            headers,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+
+    /**
      * Login user with email and password
      */
     async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -1050,6 +1080,38 @@ class ApiClient {
 
         return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
     }
+
+    /**
+     * Get all chauffeur reports (Superadmin)
+     */
+    async getAllChauffeurReports(params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
+        const query = new URLSearchParams();
+        if (params.startDate) query.append('startDate', params.startDate);
+        if (params.endDate) query.append('endDate', params.endDate);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/reports/all-chauffeur${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
+    }
+
+    /**
+     * Invoices
+     */
+    async generateMonthlyInvoice(data: { companyId: number, year: number, month: number }) {
+        return this.request('/invoices/generate', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    }
+
+    async getAllInvoices(): Promise<any> {
+        return this.request<any>('/invoices');
+    }
+
+    async downloadInvoicePdf(id: number, invoiceNumber: string): Promise<void> {
+        return this.downloadPdf(`/invoices/${id}/pdf`, `invoice-${invoiceNumber}.pdf`);
+    }
 }
 
 export interface ChauffeurReport {
@@ -1058,6 +1120,10 @@ export interface ChauffeurReport {
     total_duration_minutes: number;
     total_distance_km: number;
     total_cost: number;
+    company?: {
+        id: number;
+        name: string;
+    } | null;
     passenger: {
         full_name: string;
         email: string;
@@ -1092,3 +1158,15 @@ export interface ReportQueryParams {
 }
 
 export const apiClient = new ApiClient();
+
+export interface Invoice {
+    id: number;
+    invoice_number: string;
+    billing_month: string;
+    total_amount: number;
+    pdf_url?: string;
+    generated_at: string;
+    companies?: {
+        name: string;
+    }
+}
