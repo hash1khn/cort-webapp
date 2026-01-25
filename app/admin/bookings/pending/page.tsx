@@ -22,12 +22,71 @@ function formatDateTime(iso: string) {
   });
 }
 
+function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void }) {
+  const [distance, setDistance] = useState("0");
+  const [toll, setToll] = useState("0");
+  const [parking, setParking] = useState("0");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+        <h3 className="text-lg font-semibold text-navy mb-4">End Trip & Enter Details</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold uppercase text-muted">Total Distance (KM)</label>
+            <input
+              type="number"
+              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-muted">Toll Expenses</label>
+            <input
+              type="number"
+              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+              value={toll}
+              onChange={(e) => setToll(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-muted">Parking Expenses</label>
+            <input
+              type="number"
+              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+              value={parking}
+              onChange={(e) => setParking(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-3 justify-end mt-6">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
+            <button
+              onClick={() => onSubmit({
+                total_distance_km: parseFloat(distance),
+                expense_toll: parseFloat(toll),
+                expense_parking: parseFloat(parking)
+              })}
+              className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
+            >
+              End Trip
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<ChauffeurBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [selectedCarId, setSelectedCarId] = useState<string>("");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [showEndTripModal, setShowEndTripModal] = useState(false);
   const [availableCars, setAvailableCars] = useState<any[]>([]);
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
 
@@ -114,15 +173,59 @@ export default function BookingsPage() {
     }
   }
 
+  async function handleStartTrip() {
+    if (!selectedBooking) return;
+    if (!confirm("Are you sure you want to START this trip?")) return;
+
+    try {
+      await apiClient.startTrip(selectedBooking.id);
+      alert("Trip started successfully!");
+      setSelectedBookingId(null);
+      fetchBookings();
+    } catch (error) {
+      console.error("Failed to start trip", error);
+      alert("Failed to start trip");
+    }
+  }
+
+  async function handleEndTrip(data: any) {
+    if (!selectedBooking) return;
+
+    try {
+      await apiClient.endTrip(selectedBooking.id, data);
+      alert("Trip ended successfully!");
+      setShowEndTripModal(false);
+      setSelectedBookingId(null);
+      fetchBookings();
+    } catch (error) {
+      console.error("Failed to end trip", error);
+      alert("Failed to end trip");
+    }
+  }
+
+  async function handleCompleteTrip() {
+    if (!selectedBooking) return;
+    if (!confirm("Are you sure you want to COMPLETE this trip? Financials will be calculated.")) return;
+
+    try {
+      const res: any = await apiClient.completeTrip(selectedBooking.id);
+      alert(`Trip completed! Invoice Amount: ${res.invoice_amount ?? 'Calculated'}`);
+      setSelectedBookingId(null);
+      fetchBookings();
+    } catch (error) {
+      console.error("Failed to complete trip", error);
+      alert("Failed to complete trip: " + (error as any).message);
+    }
+  }
   async function handleReject() {
     if (!selectedBooking) return;
-    if (!confirm("Are you sure you want to reject this booking?")) return;
+    if (!confirm("Are you sure you want to REJECT this booking?")) return;
 
     try {
       await apiClient.updateBookingStatus(selectedBooking.id, "CANCELLED");
-      alert("Booking rejected");
+      alert("Booking rejected.");
       setSelectedBookingId(null);
-      fetchBookings(); // Refresh list
+      fetchBookings();
     } catch (error) {
       console.error("Failed to reject booking", error);
       alert("Failed to reject booking");
@@ -131,6 +234,11 @@ export default function BookingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <EndTripModal
+        isOpen={showEndTripModal}
+        onClose={() => setShowEndTripModal(false)}
+        onSubmit={handleEndTrip}
+      />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-sm font-medium text-muted">Bookings Management</div>
@@ -165,6 +273,7 @@ export default function BookingsPage() {
             <option value="ARRIVED">Arrived</option>
             <option value="IN_PROGRESS">In Progress</option>
             <option value="COMPLETED">Completed</option>
+            <option value="ENDED">Ended</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
@@ -261,10 +370,41 @@ export default function BookingsPage() {
                             value={b.status}
                             onChange={async (e) => {
                               const newStatus = e.target.value;
+
+                              if (newStatus === 'IN_PROGRESS') {
+                                if (!confirm("Start this trip? This will create a trip log.")) return;
+                                try {
+                                  await apiClient.startTrip(b.id);
+                                  fetchBookings();
+                                } catch (err) {
+                                  console.error(err);
+                                  alert("Failed to start trip");
+                                }
+                                return;
+                              }
+
+                              if (newStatus === 'ENDED') {
+                                setSelectedBookingId(b.id);
+                                setShowEndTripModal(true);
+                                return;
+                              }
+
+                              if (newStatus === 'COMPLETED') {
+                                if (!confirm("Complete this trip? This will calculate financials and generate the invoice.")) return;
+                                try {
+                                  await apiClient.completeTrip(b.id);
+                                  fetchBookings();
+                                } catch (err) {
+                                  console.error(err);
+                                  alert("Failed to complete trip");
+                                }
+                                return;
+                              }
+
+                              // for ARRIVED, CANCELLED, etc.
                               if (!confirm(`Change status to ${newStatus}?`)) return;
                               try {
                                 await apiClient.updateBookingStatus(b.id, newStatus);
-                                // Optimistic update or refetch
                                 fetchBookings();
                               } catch (err) {
                                 console.error(err);
@@ -283,6 +423,7 @@ export default function BookingsPage() {
                             <option value="ASSIGNED">ASSIGNED</option>
                             <option value="ARRIVED">ARRIVED</option>
                             <option value="IN_PROGRESS">IN_PROGRESS</option>
+                            <option value="ENDED">ENDED</option>
                             <option value="COMPLETED">COMPLETED</option>
                             <option value="CANCELLED">CANCELLED</option>
                           </select>
@@ -461,6 +602,42 @@ export default function BookingsPage() {
                     className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
                   >
                     Approve & Assign
+                  </button>
+                </div>
+              )}
+
+              {(selectedBooking.status === 'ASSIGNED' || selectedBooking.status === 'ARRIVED') && (
+                <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={handleStartTrip}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-4 text-sm font-semibold text-white hover:opacity-95"
+                  >
+                    Start Trip
+                  </button>
+                </div>
+              )}
+
+              {selectedBooking.status === 'IN_PROGRESS' && (
+                <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setShowEndTripModal(true)}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95"
+                  >
+                    End Trip
+                  </button>
+                </div>
+              )}
+
+              {selectedBooking.status === 'ENDED' && (
+                <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={handleCompleteTrip}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-semibold text-white hover:opacity-95"
+                  >
+                    Complete Trip (Generate Invoice)
                   </button>
                 </div>
               )}

@@ -367,6 +367,7 @@ export enum TripStatus {
     IN_PROGRESS = 'IN_PROGRESS',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED',
+    ENDED = 'ENDED',
 }
 
 export interface PickupLocation {
@@ -994,6 +995,25 @@ class ApiClient {
         });
     }
 
+    async startTrip(id: number): Promise<ChauffeurBookingResponse> {
+        return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/start`, {
+            method: 'PATCH',
+        });
+    }
+
+    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number }): Promise<ChauffeurBookingResponse> {
+        return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async completeTrip(id: number): Promise<ChauffeurBookingResponse> {
+        return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/complete`, {
+            method: 'PATCH',
+        });
+    }
+
     /**
      * Get all bookings for a company
      */
@@ -1016,8 +1036,59 @@ class ApiClient {
     async getCompanyChauffeurBooking(companyId: number, bookingId: number): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings/${bookingId}`);
     }
+
+    /**
+     * Get chauffeur reports for a company
+     */
+    async getChauffeurReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
+        const query = new URLSearchParams();
+        if (params.startDate) query.append('startDate', params.startDate);
+        if (params.endDate) query.append('endDate', params.endDate);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/${companyId}/reports/chauffeur${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
+    }
 }
 
+export interface ChauffeurReport {
+    id: number;
+    completed_at: string;
+    total_duration_minutes: number;
+    total_distance_km: number;
+    total_cost: number;
+    passenger: {
+        full_name: string;
+        email: string;
+        employee_id: string;
+    } | null;
+    driver: {
+        full_name: string;
+    } | null;
+    vehicle: {
+        make: string;
+        model: string;
+        plate_number: string;
+    } | null;
+    route: {
+        pickup: string;
+        dropoff: string;
+    };
+    breakdown: {
+        service_charge: number;
+        fuel_cost: number;
+        toll: number;
+        parking: number;
+        accommodation: number;
+        outstation_allowance: number;
+        overtime: number;
+    };
+}
+
+export interface ReportQueryParams {
+    startDate?: string;
+    endDate?: string;
+}
 
 export const apiClient = new ApiClient();
-

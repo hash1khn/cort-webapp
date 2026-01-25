@@ -11,7 +11,7 @@ const nav = [
   { href: "/admin/pricing", label: "Contracts & Pricing" },
   { href: "/admin/vehicles", label: "Vehicles" },
   { href: "/admin/drivers", label: "Drivers" },
-  { href: "/admin/bookings/pending", label: "Pending Bookings" },
+  { href: "/admin/bookings/pending", label: "Bookings" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur" },
   { href: "/admin/invoicing", label: "Invoicing" },

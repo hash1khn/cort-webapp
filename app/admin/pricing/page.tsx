@@ -64,7 +64,7 @@ export default function PricingPage() {
           setSelectedCompanyId(String(comps.data.data[0].id));
         }
 
-        const sys = await apiClient.getSystemSetting('fuel_price');
+        const sys = await apiClient.getSystemSetting('current_fuel_price');
         setSystemFuelPrice(sys.data.value);
       } catch (err) {
         console.error("Init failed", err);
