@@ -1109,8 +1109,19 @@ class ApiClient {
         return this.request<any>('/invoices');
     }
 
+    async getCompanyInvoices(companyId: number): Promise<any> {
+        return this.request<any>(`/companies/${companyId}/invoices`);
+    }
+
     async downloadInvoicePdf(id: number, invoiceNumber: string): Promise<void> {
         return this.downloadPdf(`/invoices/${id}/pdf`, `invoice-${invoiceNumber}.pdf`);
+    }
+
+    async updateInvoiceStatus(id: number, status: string): Promise<any> {
+        return this.request<any>(`/invoices/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status })
+        });
     }
 }
 
@@ -1166,6 +1177,7 @@ export interface Invoice {
     total_amount: number;
     pdf_url?: string;
     generated_at: string;
+    status: string;
     companies?: {
         name: string;
     }

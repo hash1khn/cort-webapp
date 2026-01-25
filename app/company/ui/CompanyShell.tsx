@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/contexts/auth-context";
 const getNavItems = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
   const items = [
     { href: "/company", label: "Dashboard" },
+    { href: "/company/invoicing", label: "Invoices" },
     { href: "/company/employees", label: "Employees" },
   ];
 

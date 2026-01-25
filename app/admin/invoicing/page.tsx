@@ -75,6 +75,24 @@ export default function InvoicingPage() {
     }
   };
 
+  const handleStatusUpdate = async (id: number, newStatus: string) => {
+    try {
+      if (!confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
+
+      await apiClient.updateInvoiceStatus(id, newStatus);
+
+      // Update local state
+      setInvoices(prev => prev.map(inv =>
+        inv.id === id ? { ...inv, status: newStatus } : inv
+      ));
+
+      alert("Status updated successfully");
+    } catch (error: any) {
+      console.error("Failed to update status:", error);
+      alert("Failed to update status: " + error.message);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -104,6 +122,7 @@ export default function InvoicingPage() {
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Billing Month</th>
                 <th className="px-4 py-3">Generated At</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Total Amount</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -111,13 +130,13 @@ export default function InvoicingPage() {
             <tbody className="divide-y divide-border">
               {isInvoicesLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     Loading invoices...
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     No invoices generated yet.
                   </td>
                 </tr>
@@ -129,6 +148,22 @@ export default function InvoicingPage() {
                     <td className="px-4 py-3 text-navy">{inv.billing_month}</td>
                     <td className="px-4 py-3 text-navy">
                       {new Date(inv.generated_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={inv.status || 'DRAFT'}
+                        onChange={(e) => handleStatusUpdate(inv.id, e.target.value)}
+                        className={`rounded px-2 py-1 text-xs font-medium border border-border ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                            inv.status === 'UNPAID' ? 'bg-red-100 text-red-700' :
+                              'bg-zinc-100 text-zinc-700'
+                          }`}
+                      >
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="UNPAID">UNPAID</option>
+                        <option value="PAID">PAID</option>
+                        <option value="OVERDUE">OVERDUE</option>
+                        <option value="CANCELLED">CANCELLED</option>
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-navy">
                       PKR {Number(inv.total_amount).toLocaleString()}
