@@ -159,7 +159,10 @@ export default function PricingPage() {
       rate_spot_10hr: "0",
       rate_spot_24hr: "0",
       rate_monthly_10hr: "0",
-      rate_monthly_24hr: "0"
+      rate_monthly_24hr: "0",
+      rate_overtime_per_hr: "0",
+      allowance_outstation: "0",
+      allowance_accommodation: "0"
     }]);
   };
 
@@ -454,13 +457,16 @@ export default function PricingPage() {
                         <th className="px-4 py-4 min-w-[100px]">24Hr Spot</th>
                         <th className="px-4 py-4 min-w-[100px]">Mth 10hr</th>
                         <th className="px-4 py-4 min-w-[100px]">Mth 24hr</th>
+                        <th className="px-4 py-4 min-w-[100px]">Overtime/Hr</th>
+                        <th className="px-4 py-4 min-w-[100px]">Outstation</th>
+                        <th className="px-4 py-4 min-w-[100px]">Accommod.</th>
                         <th className="px-4 py-4 w-[50px]"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {rateRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
                             No rates configured. Click "Add Vehicle" to start.
                           </td>
                         </tr>
@@ -491,6 +497,15 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => updateRateRow(idx, 'rate_monthly_24hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'rate_overtime_per_hr', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.allowance_outstation} onChange={e => updateRateRow(idx, 'allowance_outstation', e.target.value)} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.allowance_accommodation} onChange={e => updateRateRow(idx, 'allowance_accommodation', e.target.value)} />
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
