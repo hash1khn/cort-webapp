@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCompanyStore } from "./store/CompanyStore";
+import { useAuth } from "../lib/contexts/auth-context";
 
 // Mock data for analytics
 const MOCK_DATA = {
@@ -61,16 +62,16 @@ function StatCard({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+    <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-500/80">{label}</div>
           <div className={`mt-2 text-3xl font-bold ${colorClasses[color as keyof typeof colorClasses] || colorClasses.navy}`}>
             {value}
           </div>
-          {subtext && <div className="text-xs text-slate-500 mt-1">{subtext}</div>}
+          {subtext && <div className="text-xs text-slate-500 mt-1 font-medium">{subtext}</div>}
           {trend && (
-            <div className="mt-2 flex items-center gap-1 text-xs font-medium text-green-600">
+            <div className="mt-2 flex items-center gap-1 text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded-full w-fit">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
@@ -78,7 +79,7 @@ function StatCard({
             </div>
           )}
         </div>
-        {icon && <div className="text-slate-300">{icon}</div>}
+        {icon && <div className="text-slate-400/80 p-2 bg-white/50 rounded-lg">{icon}</div>}
       </div>
     </div>
   );
@@ -129,9 +130,9 @@ function ProgressBar({ label, value, max, color = "#3b82f6", showPercentage = tr
         <span className="font-medium text-slate-700">{label}</span>
         <span className="font-semibold text-slate-900">{value}{showPercentage && ` (${percentage}%)`}</span>
       </div>
-      <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-slate-200/50 rounded-full overflow-hidden">
         <div
-          className="h-full transition-all duration-500 rounded-full"
+          className="h-full transition-all duration-500 rounded-full shadow-sm"
           style={{ width: `${percentage}%`, backgroundColor: color }}
         ></div>
       </div>
@@ -142,13 +143,13 @@ function ProgressBar({ label, value, max, color = "#3b82f6", showPercentage = tr
 function SectionHeader({ title, action }: { title: string; action?: { label: string; href: string } }) {
   return (
     <div className="flex items-center justify-between mb-6">
-      <h2 className="text-xl font-bold text-[#0c225e]">{title}</h2>
+      <h2 className="text-xl font-bold text-[#0c225e] tracking-tight">{title}</h2>
       {action && (
         <Link
           href={action.href}
-          className="text-sm font-semibold text-[#f47f00] hover:text-[#d97000] transition-colors"
+          className="text-sm font-semibold text-[#f47f00] hover:text-[#d97000] transition-colors flex items-center gap-1 hover:gap-2 duration-200"
         >
-          {action.label} →
+          {action.label} <span>→</span>
         </Link>
       )}
     </div>
@@ -157,6 +158,7 @@ function SectionHeader({ title, action }: { title: string; action?: { label: str
 
 export default function CompanyDashboardPage() {
   const { company, employees, loading, error } = useCompanyStore();
+  const { user } = useAuth();
 
   if (loading) {
     return (
@@ -188,26 +190,46 @@ export default function CompanyDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-8">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-slate-500">Dashboard</div>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#0c225e]">
-            {company.name}
-          </h1>
+    <div className="flex flex-col gap-8 pb-8 relative">
+      {/* Background Decoration for Glass Effect */}
+      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
+        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-[100px]" />
+        <div className="absolute bottom-[10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-orange-100/30 blur-[100px]" />
+      </div>
+
+      {/* Welcome Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-navy to-blue p-8 text-white shadow-xl ring-1 ring-white/10">
+        <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-blue-200 mb-2">
+              <span className="text-sm font-medium">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-white mb-1">
+              Welcome back, <span className="text-premium-gold">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
+            </h1>
+            <p className="text-blue-100/80">
+              Here is what's happening at <span className="font-semibold text-white">{company.name}</span> today.
+            </p>
+          </div>
+
+          {company.services_enabled.chauffeur_enabled && (
+            <Link
+              href="/company/bookings?action=new"
+              className="group flex items-center gap-2 rounded-lg bg-premium-gold px-5 py-2.5 text-sm font-bold text-black transition-all hover:bg-[#c5a028] hover:shadow-[0_0_20px_rgba(212,175,55,0.6)] shadow-lg shadow-black/20"
+            >
+              <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              New Booking
+            </Link>
+          )}
         </div>
-        {company.services_enabled.chauffeur_enabled && (
-          <Link
-            href="/company/bookings/new"
-            className="inline-flex h-11 items-center justify-center rounded-lg bg-[#f47f00] px-6 text-sm font-bold text-white hover:bg-[#d97000] shadow-lg shadow-orange-500/20 transition-all hover:shadow-xl"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Booking
-          </Link>
-        )}
+
+        {/* Decorative Background Elements */}
+        <div className="absolute right-0 top-0 h-64 w-64 translate-x-1/3 -translate-y-1/2 rounded-full bg-premium-gold/10 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-40 w-40 -translate-x-1/3 translate-y-1/3 rounded-full bg-blue-500/20 blur-3xl" />
       </div>
 
       {/* Key Metrics Overview */}
@@ -274,25 +296,25 @@ export default function CompanyDashboardPage() {
 
           {/* Chauffeur Stats */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Total Bookings</div>
               <div className="text-3xl font-bold text-[#0c225e]">{MOCK_DATA.chauffeur.totalBookings}</div>
               <div className="mt-4 text-xs text-slate-600">This month</div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Completed</div>
               <div className="text-3xl font-bold text-green-600">{MOCK_DATA.chauffeur.completedThisMonth}</div>
               <div className="mt-4 text-xs text-slate-600">{Math.round((MOCK_DATA.chauffeur.completedThisMonth / MOCK_DATA.chauffeur.totalBookings) * 100)}% completion rate</div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Monthly Spend</div>
               <div className="text-3xl font-bold text-[#f47f00]">PKR {(MOCK_DATA.chauffeur.totalSpend / 1000).toFixed(0)}K</div>
               <div className="mt-4 text-xs text-slate-600">Chauffeur services</div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex items-center justify-center">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 flex items-center justify-center hover:bg-white/80">
               <div className="text-center">
                 <CircularProgress percentage={Math.round((MOCK_DATA.chauffeur.completedThisMonth / MOCK_DATA.chauffeur.totalBookings) * 100)} />
                 <div className="mt-2 text-xs font-semibold text-slate-600">Success Rate</div>
@@ -303,7 +325,7 @@ export default function CompanyDashboardPage() {
           {/* Chauffeur Details */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Booking Breakdown */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <h3 className="text-sm font-bold text-slate-700 mb-5">Package Distribution</h3>
               <div className="space-y-4">
                 <div>
@@ -325,11 +347,11 @@ export default function CompanyDashboardPage() {
             </div>
 
             {/* Top Passengers */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <h3 className="text-sm font-bold text-slate-700 mb-5">Top Passengers</h3>
               <div className="space-y-4">
                 {MOCK_DATA.chauffeur.topPassengers.map((passenger, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white/40 rounded-lg hover:bg-white/60 transition-colors border border-transparent hover:border-white/40">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#f47f00] to-[#d97000] text-white font-bold text-sm shadow-md">
                         {idx + 1}
@@ -374,9 +396,9 @@ export default function CompanyDashboardPage() {
         <SectionHeader title="Alerts & Actions" />
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Upcoming Bookings */}
-          <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/80 to-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-blue-100/50 rounded-lg backdrop-blur-sm">
                 <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -393,9 +415,9 @@ export default function CompanyDashboardPage() {
           </div>
 
           {/* Budget Alert */}
-          <div className="rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-red-200/50 bg-gradient-to-br from-red-50/80 to-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-lg">
+              <div className="p-2 bg-red-100/50 rounded-lg backdrop-blur-sm">
                 <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -407,13 +429,13 @@ export default function CompanyDashboardPage() {
                 <span className="text-sm font-medium text-red-800">Monthly Budget Used</span>
                 <span className="text-2xl font-bold text-red-900">{MOCK_DATA.alerts.budgetUsed}%</span>
               </div>
-              <div className="h-4 bg-red-100 rounded-full overflow-hidden">
+              <div className="h-4 bg-red-100/50 rounded-full overflow-hidden backdrop-blur-sm">
                 <div
                   className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500"
                   style={{ width: `${MOCK_DATA.alerts.budgetUsed}%` }}
                 ></div>
               </div>
-              <div className="text-xs text-red-700 bg-red-100 rounded-lg p-3">
+              <div className="text-xs text-red-700 bg-red-100/60 rounded-lg p-3 backdrop-blur-sm border border-red-200/20">
                 You've used {MOCK_DATA.alerts.budgetUsed}% of your monthly transportation budget. Consider reviewing expenses.
               </div>
             </div>

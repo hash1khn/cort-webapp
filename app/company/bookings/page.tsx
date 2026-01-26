@@ -5,9 +5,12 @@ import { useState, useEffect } from "react";
 import Modal from "./components/Modal";
 import CreateBookingForm from "./components/CreateBookingForm";
 import { apiClient, ChauffeurBooking } from "../../lib/services/api-client";
+import { useSearchParams, useRouter } from "next/navigation";
 
 export default function BookingsPage() {
   const { company } = useCompanyStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [bookings, setBookings] = useState<ChauffeurBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,6 +19,16 @@ export default function BookingsPage() {
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  // Check for action param to open modal
+  useEffect(() => {
+    const action = searchParams.get("action");
+    if (action === "new") {
+      setIsModalOpen(true);
+      // Clean up URL without reload
+      router.replace("/company/bookings", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const fetchBookings = async () => {
     if (!company) return;
