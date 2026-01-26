@@ -356,7 +356,7 @@ export default function CompanyDashboardPage() {
       {/* Alerts & Actions */}
       <div>
         <SectionHeader title="Alerts & Actions" />
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4">
           {/* Upcoming Bookings */}
           <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/80 to-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-4">
@@ -374,33 +374,6 @@ export default function CompanyDashboardPage() {
             <Link href="/company/bookings" className="block mt-4 text-center text-sm text-blue-700 hover:text-blue-900 font-semibold transition-colors">
               View Schedule →
             </Link>
-          </div>
-
-          {/* Budget Alert */}
-          <div className="rounded-xl border border-red-200/50 bg-gradient-to-br from-red-50/80 to-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100/50 rounded-lg backdrop-blur-sm">
-                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-bold text-red-900">Budget Alert</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-red-800">Monthly Budget Used</span>
-                <span className="text-2xl font-bold text-red-900">{stats.alerts.budgetUsed}%</span>
-              </div>
-              <div className="h-4 bg-red-100/50 rounded-full overflow-hidden backdrop-blur-sm">
-                <div
-                  className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500"
-                  style={{ width: `${stats.alerts.budgetUsed}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-red-700 bg-red-100/60 rounded-lg p-3 backdrop-blur-sm border border-red-200/20">
-                You've used {stats.alerts.budgetUsed}% of your monthly transportation budget. Consider reviewing expenses.
-              </div>
-            </div>
           </div>
         </div>
       </div>
