@@ -111,6 +111,33 @@ type ShuttleDriver = {
   username: string;
 };
 
+type DashboardStats = {
+  employees: {
+    total: number;
+    active: number;
+  };
+  chauffeur: {
+    totalBookings: number;
+    activeRides: number;
+    completedThisMonth: number;
+    totalSpend: number;
+    spotBookings: { total: number; hr5: number; hr10: number; hr24: number };
+    monthlyBookings: { total: number; hr10Daily: number; hr24Daily: number };
+    topPassengers: { name: string; trips: number }[];
+  };
+  shuttle: {
+    totalRoutes: number;
+    totalRidersToday: number;
+    monthlyTrips: number;
+    totalSpend: number;
+    routes: { name: string; utilization: number; trips: number }[];
+  };
+  alerts: {
+    upcomingBookings: number;
+    budgetUsed: number;
+  };
+};
+
 type CompanyStore = {
   company: Company | null;
   employees: Employee[];
@@ -118,6 +145,7 @@ type CompanyStore = {
   contract: ChauffeurContract | null;
   vehicles: Vehicle[];
   allowedVehicleModels: string[];
+  dashboardStats: DashboardStats | null;
 
   // Mocked data for Shuttle Reports / Routes
   routes: ShuttleRoute[];
@@ -146,6 +174,7 @@ export function CompanyStoreProvider({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [contract, setContract] = useState<ChauffeurContract | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [allowedVehicleModels, setAllowedVehicleModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,6 +192,7 @@ export function CompanyStoreProvider({
         setBookings([]);
         setContract(null);
         setVehicles([]);
+        setDashboardStats(null);
         setLoading(false);
         return;
       }
@@ -236,6 +266,22 @@ export function CompanyStoreProvider({
           console.warn('Failed to fetch bookings', e);
           setBookings([]);
         }
+
+        // 4. Fetch Dashboard Stats
+        try {
+          const statsRes = await fetch(`${API_URL}/companies/${companyId}/dashboard-stats`, { headers });
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setDashboardStats(statsData.data || null);
+          } else {
+            console.warn('Could not fetch dashboard stats');
+            setDashboardStats(null);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch dashboard stats', e);
+          setDashboardStats(null);
+        }
+
 
         // Clear other data - these endpoints don't exist or aren't needed in company portal
         setContract(null);
@@ -344,6 +390,7 @@ export function CompanyStoreProvider({
     contract,
     vehicles,
     allowedVehicleModels,
+    dashboardStats,
     routes,
     shuttlePricing,
     shuttleDrivers,

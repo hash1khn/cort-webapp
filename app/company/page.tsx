@@ -8,37 +8,31 @@ import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
 
 // Mock data for analytics
-const MOCK_DATA = {
+// Initial fallback data
+const INITIAL_STATS = {
   employees: {
-    total: 200,
-    active: 180,
+    total: 0,
+    active: 0,
   },
   chauffeur: {
-    totalBookings: 45,
-    activeRides: 3,
-    completedThisMonth: 40,
-    totalSpend: 240000,
-    spotBookings: { total: 30, hr5: 15, hr10: 10, hr24: 5 },
-    monthlyBookings: { total: 15, hr10Daily: 10, hr24Daily: 5 },
-    topPassengers: [
-      { name: "Ahmed Ali", trips: 8 },
-      { name: "Sara Khan", trips: 6 },
-      { name: "Hassan Raza", trips: 5 },
-    ],
+    totalBookings: 0,
+    activeRides: 0,
+    completedThisMonth: 0,
+    totalSpend: 0, // In PKR
+    spotBookings: { total: 0, hr5: 0, hr10: 0, hr24: 0 },
+    monthlyBookings: { total: 0, hr10Daily: 0, hr24Daily: 0 },
+    topPassengers: [],
   },
   shuttle: {
-    totalRoutes: 2,
-    totalRidersToday: 87,
-    monthlyTrips: 86,
-    totalSpend: 105000,
-    routes: [
-      { name: "Karachi to DFML", utilization: 90, trips: 44 },
-      { name: "Gulshan to Office", utilization: 88, trips: 42 },
-    ]
+    totalRoutes: 0,
+    totalRidersToday: 0,
+    monthlyTrips: 0,
+    totalSpend: 0, // In PKR
+    routes: []
   },
   alerts: {
-    upcomingBookings: 7,
-    budgetUsed: 80
+    upcomingBookings: 0,
+    budgetUsed: 0
   }
 };
 
@@ -88,41 +82,6 @@ function StatCard({
   );
 }
 
-function CircularProgress({ percentage, size = 80, strokeWidth = 8, color = "#f47f00" }: { percentage: number; size?: number; strokeWidth?: number; color?: string }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#e5e7eb"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-500"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold text-slate-900">{percentage}%</span>
-      </div>
-    </div>
-  );
-}
 
 function ProgressBar({ label, value, max, color = "#3b82f6", showPercentage = true }: { label: string; value: number; max: number; color?: string; showPercentage?: boolean }) {
   const percentage = Math.round((value / max) * 100);
@@ -160,9 +119,11 @@ function SectionHeader({ title, action }: { title: string; action?: { label: str
 }
 
 export default function CompanyDashboardPage() {
-  const { company, employees, loading, error } = useCompanyStore();
+  const { company, employees, loading, error, dashboardStats } = useCompanyStore();
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const stats = dashboardStats || INITIAL_STATS;
 
   if (loading) {
     return (
@@ -242,8 +203,8 @@ export default function CompanyDashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Employees"
-            value={MOCK_DATA.employees.total}
-            trend="+5 this month"
+            value={stats.employees.total}
+            trend="+0 this month"
             icon={
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -252,8 +213,8 @@ export default function CompanyDashboardPage() {
           />
           <StatCard
             label="Active Employees"
-            value={MOCK_DATA.employees.active}
-            subtext={`${Math.round((MOCK_DATA.employees.active / MOCK_DATA.employees.total) * 100)}% of total`}
+            value={stats.employees.active}
+            subtext={`${stats.employees.total > 0 ? Math.round((stats.employees.active / stats.employees.total) * 100) : 0}% of total`}
             color="green"
             icon={
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -264,7 +225,7 @@ export default function CompanyDashboardPage() {
           {company.services_enabled.chauffeur_enabled && (
             <StatCard
               label="Active Rides"
-              value={MOCK_DATA.chauffeur.activeRides}
+              value={stats.chauffeur.activeRides}
               subtext="In progress now"
               color="blue"
               icon={
@@ -277,7 +238,7 @@ export default function CompanyDashboardPage() {
           {company.services_enabled.shuttle_enabled && (
             <StatCard
               label="Shuttle Usage Today"
-              value={MOCK_DATA.shuttle.totalRidersToday}
+              value={stats.shuttle.totalRidersToday}
               subtext="Across all routes"
               color="orange"
               icon={
@@ -299,31 +260,25 @@ export default function CompanyDashboardPage() {
           />
 
           {/* Chauffeur Stats */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
             <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Total Bookings</div>
-              <div className="text-3xl font-bold text-[#0c225e]">{MOCK_DATA.chauffeur.totalBookings}</div>
+              <div className="text-3xl font-bold text-[#0c225e]">{stats.chauffeur.totalBookings}</div>
               <div className="mt-4 text-xs text-slate-600">This month</div>
             </div>
 
             <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Completed</div>
-              <div className="text-3xl font-bold text-green-600">{MOCK_DATA.chauffeur.completedThisMonth}</div>
-              <div className="mt-4 text-xs text-slate-600">{Math.round((MOCK_DATA.chauffeur.completedThisMonth / MOCK_DATA.chauffeur.totalBookings) * 100)}% completion rate</div>
+              <div className="text-3xl font-bold text-green-600">{stats.chauffeur.completedThisMonth}</div>
+              <div className="mt-4 text-xs text-slate-600">{stats.chauffeur.totalBookings > 0 ? Math.round((stats.chauffeur.completedThisMonth / stats.chauffeur.totalBookings) * 100) : 0}% completion rate</div>
             </div>
 
             <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Monthly Spend</div>
-              <div className="text-3xl font-bold text-[#f47f00]">PKR {(MOCK_DATA.chauffeur.totalSpend / 1000).toFixed(0)}K</div>
+              <div className="text-3xl font-bold text-[#f47f00]">PKR {(stats.chauffeur.totalSpend / 1000).toFixed(0)}K</div>
               <div className="mt-4 text-xs text-slate-600">Chauffeur services</div>
             </div>
 
-            <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 flex items-center justify-center hover:bg-white/80">
-              <div className="text-center">
-                <CircularProgress percentage={Math.round((MOCK_DATA.chauffeur.completedThisMonth / MOCK_DATA.chauffeur.totalBookings) * 100)} />
-                <div className="mt-2 text-xs font-semibold text-slate-600">Success Rate</div>
-              </div>
-            </div>
           </div>
 
           {/* Chauffeur Details */}
@@ -335,16 +290,16 @@ export default function CompanyDashboardPage() {
                 <div>
                   <div className="text-xs font-semibold text-slate-500 mb-3">Spot Bookings</div>
                   <div className="space-y-3">
-                    <ProgressBar label="5-Hour Package" value={MOCK_DATA.chauffeur.spotBookings.hr5} max={MOCK_DATA.chauffeur.spotBookings.total} color="#3b82f6" showPercentage={false} />
-                    <ProgressBar label="10-Hour Package" value={MOCK_DATA.chauffeur.spotBookings.hr10} max={MOCK_DATA.chauffeur.spotBookings.total} color="#8b5cf6" showPercentage={false} />
-                    <ProgressBar label="24-Hour Package" value={MOCK_DATA.chauffeur.spotBookings.hr24} max={MOCK_DATA.chauffeur.spotBookings.total} color="#ec4899" showPercentage={false} />
+                    <ProgressBar label="5-Hour Package" value={stats.chauffeur.spotBookings.hr5} max={stats.chauffeur.spotBookings.total} color="#3b82f6" showPercentage={false} />
+                    <ProgressBar label="10-Hour Package" value={stats.chauffeur.spotBookings.hr10} max={stats.chauffeur.spotBookings.total} color="#8b5cf6" showPercentage={false} />
+                    <ProgressBar label="24-Hour Package" value={stats.chauffeur.spotBookings.hr24} max={stats.chauffeur.spotBookings.total} color="#ec4899" showPercentage={false} />
                   </div>
                 </div>
                 <div className="pt-3 border-t border-slate-100">
                   <div className="text-xs font-semibold text-slate-500 mb-3">Monthly Bookings</div>
                   <div className="space-y-3">
-                    <ProgressBar label="10-Hr Daily" value={MOCK_DATA.chauffeur.monthlyBookings.hr10Daily} max={MOCK_DATA.chauffeur.monthlyBookings.total} color="#f59e0b" showPercentage={false} />
-                    <ProgressBar label="24-Hr Daily" value={MOCK_DATA.chauffeur.monthlyBookings.hr24Daily} max={MOCK_DATA.chauffeur.monthlyBookings.total} color="#f97316" showPercentage={false} />
+                    <ProgressBar label="10-Hr Daily" value={stats.chauffeur.monthlyBookings.hr10Daily} max={stats.chauffeur.monthlyBookings.total} color="#f59e0b" showPercentage={false} />
+                    <ProgressBar label="24-Hr Daily" value={stats.chauffeur.monthlyBookings.hr24Daily} max={stats.chauffeur.monthlyBookings.total} color="#f97316" showPercentage={false} />
                   </div>
                 </div>
               </div>
@@ -354,7 +309,7 @@ export default function CompanyDashboardPage() {
             <div className="rounded-xl border border-white/40 bg-white/60 backdrop-blur-lg p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:bg-white/80">
               <h3 className="text-sm font-bold text-slate-700 mb-5">Top Passengers</h3>
               <div className="space-y-4">
-                {MOCK_DATA.chauffeur.topPassengers.map((passenger, idx) => (
+                {stats.chauffeur.topPassengers.map((passenger, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-white/40 rounded-lg hover:bg-white/60 transition-colors border border-transparent hover:border-white/40">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#f47f00] to-[#d97000] text-white font-bold text-sm shadow-md">
@@ -371,6 +326,9 @@ export default function CompanyDashboardPage() {
                     </div>
                   </div>
                 ))}
+                {stats.chauffeur.topPassengers.length === 0 && (
+                  <div className="text-center text-slate-500 py-8 text-sm">No passenger data available yet</div>
+                )}
               </div>
             </div>
           </div>
@@ -387,10 +345,10 @@ export default function CompanyDashboardPage() {
 
           {/* Shuttle Stats */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-            <StatCard label="Total Routes" value={MOCK_DATA.shuttle.totalRoutes} color="navy" />
-            <StatCard label="Shuttle Usage Today" value={MOCK_DATA.shuttle.totalRidersToday} color="green" />
-            <StatCard label="Monthly Trips" value={MOCK_DATA.shuttle.monthlyTrips} color="blue" />
-            <StatCard label="Monthly Spend" value={`PKR ${(MOCK_DATA.shuttle.totalSpend / 1000).toFixed(0)}K`} color="orange" />
+            <StatCard label="Total Routes" value={stats.shuttle.totalRoutes} color="navy" />
+            <StatCard label="Shuttle Usage Today" value={stats.shuttle.totalRidersToday} color="green" />
+            <StatCard label="Monthly Trips" value={stats.shuttle.monthlyTrips} color="blue" />
+            <StatCard label="Monthly Spend" value={`PKR ${(stats.shuttle.totalSpend / 1000).toFixed(0)}K`} color="orange" />
           </div>
         </div>
       )}
@@ -410,7 +368,7 @@ export default function CompanyDashboardPage() {
               <h3 className="text-sm font-bold text-blue-900">Upcoming Bookings</h3>
             </div>
             <div className="text-center py-6">
-              <div className="text-5xl font-bold text-blue-700">{MOCK_DATA.alerts.upcomingBookings}</div>
+              <div className="text-5xl font-bold text-blue-700">{stats.alerts.upcomingBookings}</div>
               <div className="text-sm text-blue-600 mt-2">Scheduled in next 7 days</div>
             </div>
             <Link href="/company/bookings" className="block mt-4 text-center text-sm text-blue-700 hover:text-blue-900 font-semibold transition-colors">
@@ -431,16 +389,16 @@ export default function CompanyDashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-red-800">Monthly Budget Used</span>
-                <span className="text-2xl font-bold text-red-900">{MOCK_DATA.alerts.budgetUsed}%</span>
+                <span className="text-2xl font-bold text-red-900">{stats.alerts.budgetUsed}%</span>
               </div>
               <div className="h-4 bg-red-100/50 rounded-full overflow-hidden backdrop-blur-sm">
                 <div
                   className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-500"
-                  style={{ width: `${MOCK_DATA.alerts.budgetUsed}%` }}
+                  style={{ width: `${stats.alerts.budgetUsed}%` }}
                 ></div>
               </div>
               <div className="text-xs text-red-700 bg-red-100/60 rounded-lg p-3 backdrop-blur-sm border border-red-200/20">
-                You've used {MOCK_DATA.alerts.budgetUsed}% of your monthly transportation budget. Consider reviewing expenses.
+                You've used {stats.alerts.budgetUsed}% of your monthly transportation budget. Consider reviewing expenses.
               </div>
             </div>
           </div>
