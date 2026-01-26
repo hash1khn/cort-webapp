@@ -25,6 +25,10 @@ export interface AuthUser {
     role: UserRole;
     company_id: number | null;
     account_status: UserStatus | null;
+    enabled_services: {
+        shuttle: boolean;
+        chauffeur: boolean;
+    } | null;
 }
 
 // Supabase session interface
@@ -93,4 +97,6 @@ export interface AuthContextType extends AuthState {
     isDriver: boolean;
     hasRole: (roles: UserRole[]) => boolean;
     hasCompanyAccess: (companyId: number) => boolean;
+    isShuttleEnabled: boolean;
+    isChauffeurEnabled: boolean;
 }

@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useCompanyStore } from "./store/CompanyStore";
 import { useAuth } from "../lib/contexts/auth-context";
+import { useState } from "react";
+import Modal from "./bookings/components/Modal";
+import CreateBookingForm from "./bookings/components/CreateBookingForm";
 
 // Mock data for analytics
 const MOCK_DATA = {
@@ -159,6 +162,7 @@ function SectionHeader({ title, action }: { title: string; action?: { label: str
 export default function CompanyDashboardPage() {
   const { company, employees, loading, error } = useCompanyStore();
   const { user } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -215,15 +219,15 @@ export default function CompanyDashboardPage() {
           </div>
 
           {company.services_enabled.chauffeur_enabled && (
-            <Link
-              href="/company/bookings?action=new"
+            <button
+              onClick={() => setIsModalOpen(true)}
               className="group flex items-center gap-2 rounded-lg bg-premium-gold px-5 py-2.5 text-sm font-bold text-black transition-all hover:bg-[#c5a028] hover:shadow-[0_0_20px_rgba(212,175,55,0.6)] shadow-lg shadow-black/20"
             >
               <svg className="w-4 h-4 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
               New Booking
-            </Link>
+            </button>
           )}
         </div>
 
@@ -442,6 +446,17 @@ export default function CompanyDashboardPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Create New Booking"
+      >
+        <CreateBookingForm
+          onSuccess={() => setIsModalOpen(false)}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
     </div>
   );
 }

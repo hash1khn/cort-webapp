@@ -145,6 +145,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return user.company_id === companyId;
     }, [user]);
 
+    /**
+     * Check if shuttle service is enabled for the user's company
+     */
+    const isShuttleEnabled = !!user && (user.role === UserRole.SUPER_ADMIN || user.enabled_services?.shuttle === true);
+
+    /**
+     * Check if chauffeur service is enabled for the user's company
+     */
+    const isChauffeurEnabled = !!user && (user.role === UserRole.SUPER_ADMIN || user.enabled_services?.chauffeur === true);
+
     const value: AuthContextType = {
         user,
         session,
@@ -160,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isDriver,
         hasRole,
         hasCompanyAccess,
+        isShuttleEnabled,
+        isChauffeurEnabled,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
