@@ -35,14 +35,7 @@ export default function CompanyInvoicingPage() {
         fetchInvoices();
     }, [user?.company_id]);
 
-    const downloadPdf = async (id: number, invoiceNumber: string) => {
-        try {
-            await apiClient.downloadInvoicePdf(id, invoiceNumber);
-        } catch (e) {
-            console.error("Failed to download PDF", e);
-            alert("Failed to download PDF");
-        }
-    };
+
 
     if (isLoading) {
         return <div className="p-8 text-center text-muted">Loading invoices...</div>;
@@ -73,13 +66,13 @@ export default function CompanyInvoicingPage() {
                                 <th className="px-4 py-3">Generated At</th>
                                 <th className="px-4 py-3">Status</th>
                                 <th className="px-4 py-3 text-right">Total Amount</th>
-                                <th className="px-4 py-3 text-right">Actions</th>
+                                <th className="px-4 py-3 text-right">Total Amount</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {invoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
                                         No invoices found.
                                     </td>
                                 </tr>
@@ -102,13 +95,8 @@ export default function CompanyInvoicingPage() {
                                         <td className="px-4 py-3 text-right font-medium text-navy">
                                             PKR {Number(inv.total_amount).toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <button
-                                                onClick={() => downloadPdf(inv.id, inv.invoice_number)}
-                                                className="text-blue-600 hover:text-blue-800 font-medium"
-                                            >
-                                                Download PDF
-                                            </button>
+                                        <td className="px-4 py-3 text-right font-medium text-navy">
+                                            PKR {Number(inv.total_amount).toLocaleString()}
                                         </td>
                                     </tr>
                                 ))

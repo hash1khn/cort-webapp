@@ -1200,11 +1200,15 @@ class ApiClient {
     /**
      * Invoices
      */
-    async generateMonthlyInvoice(data: { companyId: number, year: number, month: number }) {
+    async generateTripInvoice(bookingId: number) {
         return this.request('/invoices/generate', {
             method: 'POST',
-            body: JSON.stringify(data)
+            body: JSON.stringify({ bookingId })
         });
+    }
+
+    async getPendingTrips(): Promise<any> {
+        return this.request('/invoices/pending-trips');
     }
 
     async getAllInvoices(): Promise<any> {

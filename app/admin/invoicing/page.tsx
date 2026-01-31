@@ -9,14 +9,12 @@ export default function InvoicingPage() {
   const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
 
-  // Modal State
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<number | "">("");
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // 1-12
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  // Pending Trips State
+  const [pendingTrips, setPendingTrips] = useState<any[]>([]);
+  const [isLoadingPending, setIsLoadingPending] = useState(false);
+  const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch Invoices
   // Fetch Invoices
   const fetchInvoices = async () => {
     setIsInvoicesLoading(true);
@@ -37,25 +35,35 @@ export default function InvoicingPage() {
     }
   };
 
+  const fetchPendingTrips = async () => {
+    setIsLoadingPending(true);
+    try {
+      const res = await apiClient.getPendingTrips();
+      if (res && res.data) {
+        setPendingTrips(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to pending trips", error);
+    } finally {
+      setIsLoadingPending(false);
+    }
+  }
+
   useEffect(() => {
     fetchInvoices();
-    // Prefetch companies for modal
-    apiClient.getCompanies({ limit: 100 }).then(res => {
-      if (res.data && res.data.data) {
-        setCompanies(res.data.data);
-      }
-    });
   }, []);
 
+  useEffect(() => {
+    if (showGenerateModal) {
+      fetchPendingTrips();
+    }
+  }, [showGenerateModal]);
+
   const handleGenerateInvoice = async () => {
-    if (!selectedCompany) return;
+    if (!selectedTripId) return;
     setIsGenerating(true);
     try {
-      await apiClient.generateMonthlyInvoice({
-        companyId: Number(selectedCompany),
-        year: Number(selectedYear),
-        month: Number(selectedMonth)
-      });
+      await apiClient.generateTripInvoice(selectedTripId);
       setShowGenerateModal(false);
       fetchInvoices();
       alert("Invoice generated successfully!");
@@ -109,7 +117,7 @@ export default function InvoicingPage() {
           onClick={() => setShowGenerateModal(true)}
           className="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-navy/90"
         >
-          Generate Invoice
+          Generate New Invoice
         </button>
       </div>
 
@@ -120,7 +128,7 @@ export default function InvoicingPage() {
               <tr>
                 <th className="px-4 py-3">Invoice #</th>
                 <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3">Billing Month</th>
+                <th className="px-4 py-3">Reference Month</th>
                 <th className="px-4 py-3">Generated At</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Total Amount</th>
@@ -154,8 +162,8 @@ export default function InvoicingPage() {
                         value={inv.status || 'DRAFT'}
                         onChange={(e) => handleStatusUpdate(inv.id, e.target.value)}
                         className={`rounded px-2 py-1 text-xs font-medium border border-border ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
-                            inv.status === 'UNPAID' ? 'bg-red-100 text-red-700' :
-                              'bg-zinc-100 text-zinc-700'
+                          inv.status === 'UNPAID' ? 'bg-red-100 text-red-700' :
+                            'bg-zinc-100 text-zinc-700'
                           }`}
                       >
                         <option value="DRAFT">DRAFT</option>
@@ -187,53 +195,56 @@ export default function InvoicingPage() {
       {/* Generate Invoice Modal */}
       {showGenerateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-navy mb-4">Generate Monthly Invoice</h2>
+          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl flex flex-col max-h-[90vh]">
+            <h2 className="text-lg font-semibold text-navy mb-4">Select Trip to Invoice</h2>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-muted mb-1">Company</label>
-                <select
-                  className="w-full rounded-md border border-border p-2 text-sm"
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(Number(e.target.value))}
-                >
-                  <option value="">Select Company</option>
-                  {companies.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+            <p className="text-sm text-muted mb-4">
+              Below are completed trips that have not been invoiced yet. Select one to generate an invoice.
+            </p>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-muted mb-1">Month</label>
-                  <select
-                    className="w-full rounded-md border border-border p-2 text-sm"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  >
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                      <option key={m} value={m}>{m}</option>
+            <div className="flex-1 overflow-y-auto border border-border rounded-md">
+              {isLoadingPending ? (
+                <div className="p-8 text-center text-muted">Loading pending trips...</div>
+              ) : pendingTrips.length === 0 ? (
+                <div className="p-8 text-center text-muted">No pending trips found. All completed trips have been invoiced.</div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-zinc-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 border-b">Select</th>
+                      <th className="px-4 py-2 border-b">Date</th>
+                      <th className="px-4 py-2 border-b">Company</th>
+                      <th className="px-4 py-2 border-b">Passenger</th>
+                      <th className="px-4 py-2 border-b text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingTrips.map(trip => (
+                      <tr key={trip.id} className={`hover:bg-zinc-50 cursor-pointer ${selectedTripId === trip.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedTripId(trip.id)}>
+                        <td className="px-4 py-3 border-b">
+                          <input
+                            type="radio"
+                            name="tripSelect"
+                            checked={selectedTripId === trip.id}
+                            onChange={() => setSelectedTripId(trip.id)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 border-b">
+                          {trip.chauffeur_trip_logs?.completed_at ? new Date(trip.chauffeur_trip_logs.completed_at).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 border-b font-medium">{trip.companies?.name}</td>
+                        <td className="px-4 py-3 border-b">{trip.users_chauffeur_bookings_passenger_idTousers?.full_name}</td>
+                        <td className="px-4 py-3 border-b text-right">
+                          PKR {Number(trip.chauffeur_trip_logs?.total_invoice_amount || 0).toLocaleString()}
+                        </td>
+                      </tr>
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-muted mb-1">Year</label>
-                  <select
-                    className="w-full rounded-md border border-border p-2 text-sm"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  >
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                  </select>
-                </div>
-              </div>
+                  </tbody>
+                </table>
+              )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border">
               <button
                 onClick={() => setShowGenerateModal(false)}
                 className="px-4 py-2 text-sm font-medium text-muted hover:text-navy"
@@ -243,10 +254,10 @@ export default function InvoicingPage() {
               </button>
               <button
                 onClick={handleGenerateInvoice}
-                disabled={isGenerating || !selectedCompany}
+                disabled={isGenerating || !selectedTripId}
                 className="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50"
               >
-                {isGenerating ? 'Generating...' : 'Generate'}
+                {isGenerating ? 'Generating...' : 'Generate Invoice'}
               </button>
             </div>
           </div>
