@@ -136,6 +136,8 @@ export interface CreateVehicleRequest {
     fuel_avg_highway: number;
     owner_company_id?: number;
     is_available_for_pooling?: boolean;
+    vendor_id?: number;
+    rent_per_day?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
@@ -147,6 +149,7 @@ export interface QueryVehicleParams {
     category?: VehicleCategory;
     ownership?: OwnershipType;
     show_all?: boolean;
+    vendor_id?: number;
 }
 
 export interface Vehicle {
@@ -164,10 +167,53 @@ export interface Vehicle {
     is_available_for_pooling: boolean;
     created_at?: string;
     updated_at?: string;
+    vendor_id?: number | null;
+    rent_per_day?: number | null;
     companies?: {
         id: number;
         name: string;
     };
+    vendors?: {
+        id: number;
+        name: string;
+    };
+}
+
+// -- VENDORS --
+
+export interface CreateVendorRequest {
+    name: string;
+    contact_person?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+}
+
+export interface UpdateVendorRequest extends Partial<CreateVendorRequest> { }
+
+export interface QueryVendorParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+}
+
+export interface Vendor {
+    id: number;
+    name: string;
+    contact_person: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    created_at: string;
+    _count?: {
+        vehicles: number;
+    };
+}
+
+export interface VendorResponse {
+    data: Vendor;
+    statusCode: number;
+    message: string;
 }
 
 export interface VehicleResponse {
@@ -725,6 +771,7 @@ class ApiClient {
         if (params.category) query.append('category', params.category);
         if (params.ownership) query.append('ownership', params.ownership);
         if (params.show_all !== undefined) query.append('show_all', params.show_all.toString());
+        if (params.vendor_id) query.append('vendor_id', params.vendor_id.toString());
 
         const queryString = query.toString();
         const endpoint = `/vehicles/list${queryString ? `?${queryString}` : ''}`;
@@ -781,6 +828,57 @@ class ApiClient {
      */
     async deleteVehicle(id: number): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/vehicles/delete/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    /**
+     * Get vendors
+     */
+    async getVendors(params: QueryVendorParams = {}): Promise<PaginatedResponse<Vendor>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+
+        const queryString = query.toString();
+        const endpoint = `/vendors${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Vendor>>(endpoint);
+    }
+
+    /**
+     * Get single vendor
+     */
+    async getVendor(id: number): Promise<VendorResponse> {
+        return this.request<VendorResponse>(`/vendors/${id}`);
+    }
+
+    /**
+     * Create vendor
+     */
+    async createVendor(data: CreateVendorRequest): Promise<VendorResponse> {
+        return this.request<VendorResponse>('/vendors', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update vendor
+     */
+    async updateVendor(id: number, data: UpdateVendorRequest): Promise<VendorResponse> {
+        return this.request<VendorResponse>(`/vendors/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete vendor
+     */
+    async deleteVendor(id: number): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/vendors/${id}`, {
             method: 'DELETE',
         });
     }

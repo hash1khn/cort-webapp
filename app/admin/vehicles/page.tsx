@@ -8,7 +8,8 @@ import {
     OwnershipType,
     CreateVehicleRequest,
     UpdateVehicleRequest,
-    QueryVehicleParams
+    QueryVehicleParams,
+    Vendor
 } from "../../lib/services/api-client";
 
 // Debounce helper
@@ -23,6 +24,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function VehiclesPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [vendors, setVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,6 +37,7 @@ export default function VehiclesPage() {
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState<VehicleCategory | "ALL">("ALL");
     const [ownership, setOwnership] = useState<OwnershipType | "ALL">("ALL");
+    const [filterVendorId, setFilterVendorId] = useState<number | "ALL">("ALL");
 
     const debouncedSearch = useDebounce(search, 500);
 
@@ -48,6 +51,7 @@ export default function VehiclesPage() {
             if (debouncedSearch) params.search = debouncedSearch;
             if (category !== "ALL") params.category = category as VehicleCategory;
             if (ownership !== "ALL") params.ownership = ownership as OwnershipType;
+            if (filterVendorId !== "ALL") params.vendor_id = filterVendorId;
 
             const response = await apiClient.getVehicles(params);
             setVehicles(response.data?.data || []);
@@ -56,10 +60,11 @@ export default function VehiclesPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [debouncedSearch, category, ownership]);
+    }, [debouncedSearch, category, ownership, filterVendorId]);
 
     useEffect(() => {
         fetchVehicles();
+        apiClient.getVendors({ limit: 100 }).then(res => setVendors(res.data?.data || []));
     }, [fetchVehicles]);
 
     const handleCreate = async () => {
@@ -133,6 +138,8 @@ export default function VehiclesPage() {
             ownership: vehicle.ownership,
             fuel_avg_city: vehicle.fuel_avg_city,
             fuel_avg_highway: vehicle.fuel_avg_highway,
+            vendor_id: vehicle.vendor_id || undefined,
+            rent_per_day: vehicle.rent_per_day || undefined,
         });
         setModalMode("edit");
         setIsModalOpen(true);
@@ -216,6 +223,34 @@ export default function VehiclesPage() {
                 </select>
             </label>
 
+            {formData.ownership === OwnershipType.PARTNER && (
+                <>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold tracking-wider text-muted">Vendor *</span>
+                        <select
+                            value={formData.vendor_id || ""}
+                            onChange={(e) => setFormData({ ...formData, vendor_id: Number(e.target.value) })}
+                            className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                        >
+                            <option value="">Select Vendor</option>
+                            {vendors.map((v) => (
+                                <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold tracking-wider text-muted">Rent Per Day</span>
+                        <input
+                            type="number"
+                            value={formData.rent_per_day || ""}
+                            onChange={(e) => setFormData({ ...formData, rent_per_day: Number(e.target.value) })}
+                            className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                            placeholder="0.00"
+                        />
+                    </label>
+                </>
+            )}
+
             <div className="col-span-full mt-4 rounded-lg border border-border bg-surface p-4">
                 <div className="text-xs font-semibold tracking-wider text-muted">FUEL CONSUMPTION (CRUCIAL FOR BILLING)</div>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -279,6 +314,16 @@ export default function VehiclesPage() {
                     <option value="ALL">All Ownership</option>
                     {Object.values(OwnershipType).map((own) => (
                         <option key={own} value={own}>{own}</option>
+                    ))}
+                </select>
+                <select
+                    value={filterVendorId}
+                    onChange={(e) => setFilterVendorId(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                >
+                    <option value="ALL">All Vendors</option>
+                    {vendors.map((v) => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
                 </select>
                 <button
