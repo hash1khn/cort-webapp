@@ -56,6 +56,7 @@ export interface CreateEmployeeRequest {
     company_id: number;
     password?: string;
     employee_id?: string;
+    department?: string;
 }
 
 export interface UpdateEmployeeRequest extends Partial<CreateEmployeeRequest> {

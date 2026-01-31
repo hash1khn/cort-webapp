@@ -62,6 +62,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
     const [newEmpPhone, setNewEmpPhone] = useState("");
     const [newEmpPassword, setNewEmpPassword] = useState("");
     const [newEmpId, setNewEmpId] = useState("");
+    const [newEmpDepartment, setNewEmpDepartment] = useState("");
     const [isCreatingEmp, setIsCreatingEmp] = useState(false);
     const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
@@ -104,13 +105,16 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                 phone: newEmpPhone,
                 password: newEmpPassword || undefined,
                 employee_id: newEmpId || undefined,
+                department: newEmpDepartment || undefined,
             });
             await fetchCompanyData(); // Refresh list
             setNewEmpName("");
             setNewEmpEmail("");
             setNewEmpPhone("");
             setNewEmpPassword("");
+            setNewEmpPassword("");
             setNewEmpId("");
+            setNewEmpDepartment("");
             setIsEmpModalOpen(false);
         } catch (err: any) {
             alert(err.message || "Failed to create employee");
@@ -131,7 +135,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
             if (!text) return;
 
             // Simple CSV Parser
-            // Expected headers: full_name, email, phone, employee_id
+            // Expected headers: full_name, email, phone, employee_id, department
             const lines = text.split(/\r?\n/);
             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
@@ -155,7 +159,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
             }
 
             if (employeesToCreate.length === 0) {
-                alert("No valid rows found in CSV. Headers should be: full_name, email, phone, employee_id");
+                alert("No valid rows found in CSV. Headers should include: full_name, email, phone, employee_id, department");
                 setIsUploadingCsv(false);
                 return;
             }
@@ -526,6 +530,16 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                             onChange={(e) => setNewEmpId(e.target.value)}
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none font-mono"
                             placeholder="EMP-001"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Department</label>
+                        <input
+                            type="text"
+                            value={newEmpDepartment}
+                            onChange={(e) => setNewEmpDepartment(e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                            placeholder="Engineering"
                         />
                     </div>
                     <div>
