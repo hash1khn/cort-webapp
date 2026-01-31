@@ -138,6 +138,7 @@ export default function BookingsPage() {
             <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
               <tr>
                 <th className="px-3 py-2 text-left">ID</th>
+                <th className="px-3 py-2 text-left">Service Type</th>
                 <th className="px-3 py-2 text-left">Passenger</th>
                 <th className="px-3 py-2 text-left">Package</th>
                 <th className="px-3 py-2 text-left">Pickup Address</th>
@@ -166,6 +167,7 @@ export default function BookingsPage() {
                       className={`${isPending ? "cursor-default" : "cursor-pointer hover:bg-slate-50"}`}
                     >
                       <td className="px-3 py-3 font-medium">#{booking.id}</td>
+                      <td className="px-3 py-3 text-muted">{booking.service_category || "-"}</td>
                       <td className="px-3 py-3">
                         {getPassengerName(booking)}
                       </td>
@@ -255,6 +257,10 @@ export default function BookingsPage() {
                   <div>
                     <div className="text-[10px] text-muted uppercase">Trip Type</div>
                     <div className="text-sm font-medium text-ink">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-muted uppercase">Service Type</div>
+                    <div className="text-sm font-medium text-ink">{selectedBooking.service_category || "—"}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-muted uppercase">Package</div>

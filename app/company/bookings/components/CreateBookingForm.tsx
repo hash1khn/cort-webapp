@@ -61,6 +61,7 @@ interface CreateBookingFormProps {
 export default function CreateBookingForm({ onSuccess, onCancel }: CreateBookingFormProps) {
     const { company, employees, allowedVehicleModels, createBooking } = useCompanyStore();
 
+    const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
     const [vehicleModel, setVehicleModel] = useState<string>("");
     const [packageType, setPackageType] = useState<"5hr" | "10hr" | "24hr" | "monthly_10hr" | "monthly_24hr">("10hr");
@@ -187,6 +188,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 pickup_lat: pickupLat,
                 pickup_lng: pickupLng,
                 destination_cities: tripType === "out_station" ? destinationCities : [],
+                service_category: serviceCategory,
             });
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
@@ -204,6 +206,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Service Type" required>
+                    <Select
+                        value={serviceCategory}
+                        onChange={(e) => setServiceCategory(e.target.value)}
+                        required
+                    >
+                        <option value="Chauffeur Ride">Chauffeur Ride</option>
+                        <option value="Airport Transfer">Airport Transfer</option>
+                    </Select>
+                </Field>
+
                 <Field label="Passenger" required>
                     <Select
                         value={passengerId}
