@@ -85,6 +85,7 @@ export default function EmployeesPage() {
                 <th className="px-3 py-2 text-left">Full Name</th>
                 <th className="px-3 py-2 text-left">Phone</th>
                 <th className="px-3 py-2 text-left">Email</th>
+                <th className="px-3 py-2 text-left">Department</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
@@ -118,6 +119,7 @@ export default function EmployeesPage() {
                         <span className="text-muted">{e.email || "—"}</span>
                       )}
                     </td>
+                    <td className="px-3 py-2 text-muted">{e.department || "—"}</td>
                     <td className="px-3 py-2">
                       <span
                         className={cx(

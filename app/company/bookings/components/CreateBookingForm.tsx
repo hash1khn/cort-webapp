@@ -214,7 +214,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <option value="">Select employee</option>
                         {activeEmployees.map((e) => (
                             <option key={e.id} value={e.id}>
-                                {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''}
+                                {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''} {e.department ? `- ${e.department}` : ''}
                             </option>
                         ))}
                     </Select>

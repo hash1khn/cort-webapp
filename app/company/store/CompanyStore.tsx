@@ -27,6 +27,7 @@ type Employee = {
   status: string;
   company_id: number;
   employee_id?: string; // Optional as it might not be in all responses depending on backend
+  department?: string | null;
 };
 
 type Booking = {

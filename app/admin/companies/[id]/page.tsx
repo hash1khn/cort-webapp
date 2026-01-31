@@ -205,9 +205,9 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
             `Company: ${company.name}`,
             `Generated: ${new Date().toLocaleString()}`,
             "",
-            "employee_id,full_name,email,phone,status",
+            "employee_id,full_name,email,phone,department,status",
             ...employees.map(e =>
-                [e.employee_id, e.full_name, e.email, e.phone, e.status].join(",")
+                [e.employee_id, e.full_name, e.email, e.phone, e.department || "", e.status].join(",")
             )
         ];
 
@@ -377,6 +377,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                         <th className="px-6 py-4">Emp ID</th>
                                         <th className="px-6 py-4">Name</th>
                                         <th className="px-6 py-4">Contact</th>
+                                        <th className="px-6 py-4">Department</th>
                                         <th className="px-6 py-4">Status</th>
                                         <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
@@ -390,6 +391,7 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                                 <div className="text-xs">{emp.email || "No Email"}</div>
                                                 <div className="text-xs">{emp.phone}</div>
                                             </td>
+                                            <td className="px-6 py-4 text-slate-500">{emp.department || "—"}</td>
                                             <td className="px-6 py-4">
                                                 {emp.status === 'ACTIVE' ? (
                                                     <Badge color="green">Active</Badge>

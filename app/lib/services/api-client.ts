@@ -68,6 +68,7 @@ export interface Employee {
     email: string;
     phone: string | null;
     employee_id: string | null;
+    department: string | null;
     status: string;
     company_id: number | null;
     created_at: string;
