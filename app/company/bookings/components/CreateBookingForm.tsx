@@ -64,6 +64,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
     const [vehicleModel, setVehicleModel] = useState<string>("");
+    const [customVehicleModel, setCustomVehicleModel] = useState<string>("");
     const [packageType, setPackageType] = useState<"5hr" | "10hr" | "24hr" | "monthly_10hr" | "monthly_24hr">("10hr");
     const [tripType, setTripType] = useState<"in_city" | "out_station">("in_city");
     const [timeType, setTimeType] = useState<"now" | "scheduled">("now");
@@ -89,7 +90,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const canSubmit = useMemo(() => {
         const basicFields =
             passengerId.length > 0 &&
-            vehicleModel.length > 0 &&
+            passengerId.length > 0 &&
+            (vehicleModel === "Other" ? customVehicleModel.length > 0 : vehicleModel.length > 0) &&
             (timeType === "now" || scheduledDateTime.length > 0) &&
             pickupAddress.length > 0 &&
             pickupLat !== undefined &&
@@ -100,7 +102,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         }
 
         return basicFields;
-    }, [passengerId, vehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
+    }, [passengerId, vehicleModel, customVehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -179,7 +181,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             await createBooking({
                 company_id: company.id,
                 passenger_id: passengerId, // The selected employee's UUID
-                vehicle_model: vehicleModel,
+                vehicle_model: vehicleModel === "Other" ? customVehicleModel : vehicleModel,
                 package: packageType,
                 trip_type: tripType,
                 scheduled_at: scheduledAt,
@@ -250,6 +252,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 {model}
                             </option>
                         ))}
+                        <option value="Other">Other</option>
                     </Select>
                     {allowedVehicleModels.length === 0 && (
                         <div className="mt-1 text-xs text-danger">
@@ -257,6 +260,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         </div>
                     )}
                 </Field>
+
+                {vehicleModel === "Other" && (
+                    <Field label="Specify Vehicle Model" required>
+                        <TextInput
+                            value={customVehicleModel}
+                            onChange={(e) => setCustomVehicleModel(e.target.value)}
+                            placeholder="Enter vehicle model (e.g. Honda Civic)"
+                            required
+                        />
+                    </Field>
+                )}
 
                 <Field label="Usage Package" required>
                     <Select
@@ -407,7 +421,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                     onClick={() => {
                                         setPickupLat(parseFloat(suggestion.lat));
                                         setPickupLng(parseFloat(suggestion.lon));
-                                        setPickupAddress(suggestion.display_name); // Auto-fill address from map selection
+                                        // setPickupAddress(suggestion.display_name); // Removed auto-fill per user request
                                         clearSuggestions();
                                     }}
                                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-blue/5 focus:bg-blue/5 focus:outline-none border-b border-border last:border-b-0"

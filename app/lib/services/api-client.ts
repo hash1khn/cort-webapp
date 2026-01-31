@@ -1219,6 +1219,13 @@ class ApiClient {
         return this.request<any>(`/companies/${companyId}/invoices`);
     }
 
+    /**
+     * Contracts
+     */
+    async getMyContract(): Promise<any> {
+        return this.request<any>('/contracts/my-contract');
+    }
+
     async downloadInvoicePdf(id: number, invoiceNumber: string): Promise<void> {
         return this.downloadPdf(`/invoices/${id}/pdf`, `invoice-${invoiceNumber}.pdf`);
     }

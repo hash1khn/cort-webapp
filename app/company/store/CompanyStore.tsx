@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { apiClient } from "../../lib/services/api-client";
 
 // Types based on backend structure
 type Company = {
@@ -232,11 +233,30 @@ export function CompanyStoreProvider({
         };
         setCompany(companyObj);
 
-        // Extract allowed vehicle models from whitelists
-        const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
-          (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
-        );
-        setAllowedVehicleModels(vehicleModels);
+        // 1.5 Fetch Contract (New)
+        try {
+          const contractRes = await apiClient.getMyContract().catch(() => null);
+          if (contractRes && contractRes.data) {
+            setContract(contractRes.data);
+            // Extract models from contract rates
+            const contractModels = (contractRes.data.chauffeur_contract_rates || []).map((r: any) => r.vehicle_model);
+
+            // USER REQUEST: Do not merge with legacy whitelist. Check if contract exists, use it exclusively.
+            setAllowedVehicleModels(contractModels);
+          } else {
+            // Fallback to whitelist only
+            const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
+              (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
+            );
+            setAllowedVehicleModels(vehicleModels);
+          }
+        } catch (e) {
+          console.warn("Failed to fetch contract", e);
+          const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
+            (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
+          );
+          setAllowedVehicleModels(vehicleModels);
+        }
 
         // 2. Fetch Employees using the new endpoint
         try {
