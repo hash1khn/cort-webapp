@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCompanyStore } from "../store/CompanyStore";
 import { Card } from "../components/DashboardComponents";
 import TablePageSkeleton from "../components/TablePageSkeleton";
@@ -23,7 +23,12 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export default function EmployeesPage() {
-  const { company, employees, updateEmployee, deactivateEmployee, loading } = useCompanyStore();
+  const { company, employees, updateEmployee, deactivateEmployee, loading, fetchEmployees } = useCompanyStore();
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");

@@ -61,7 +61,11 @@ interface CreateBookingFormProps {
 
 export default function CreateBookingForm({ onSuccess, onCancel }: CreateBookingFormProps) {
     // ... existing state and logic ...
-    const { company, employees, allowedVehicleModels, createBooking } = useCompanyStore();
+    const { company, employees, allowedVehicleModels, createBooking, fetchEmployees } = useCompanyStore();
+
+    useEffect(() => {
+        fetchEmployees();
+    }, [fetchEmployees]);
 
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");

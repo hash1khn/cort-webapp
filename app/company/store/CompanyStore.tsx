@@ -160,6 +160,7 @@ type CompanyStore = {
   createBooking: (booking: Record<string, unknown>) => Promise<void>;
   updateEmployee: (id: string, data: Partial<Employee>) => Promise<void>;
   deactivateEmployee: (id: string, active: boolean) => Promise<void>;
+  fetchEmployees: () => Promise<void>;
 };
 
 const Ctx = createContext<CompanyStore | null>(null);
@@ -180,11 +181,40 @@ export function CompanyStoreProvider({
   const [allowedVehicleModels, setAllowedVehicleModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [employeesLoaded, setEmployeesLoaded] = useState(false);
 
   // Mocks
   const routes: ShuttleRoute[] = [];
   const shuttlePricing: ShuttlePricing[] = [];
   const shuttleDrivers: ShuttleDriver[] = [];
+
+  const fetchEmployees = async () => {
+    if (!companyId || employeesLoaded) return;
+    
+    try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        };
+
+        const empRes = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
+        if (empRes.ok) {
+          const empData = await empRes.json();
+          setEmployees(empData.data?.data || []);
+        } else {
+          console.warn('Could not fetch employees');
+          setEmployees([]);
+        }
+        setEmployeesLoaded(true);
+    } catch (e) {
+      console.warn('Failed to fetch employees', e);
+      setEmployees([]);
+    }
+  };
 
   useEffect(() => {
     async function fetchCompanyData() {
@@ -196,6 +226,7 @@ export function CompanyStoreProvider({
         setVehicles([]);
         setDashboardStats(null);
         setLoading(false);
+        setEmployeesLoaded(false);
         return;
       }
 
@@ -258,20 +289,7 @@ export function CompanyStoreProvider({
           setAllowedVehicleModels(vehicleModels);
         }
 
-        // 2. Fetch Employees using the new endpoint
-        try {
-          const empRes = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
-          if (empRes.ok) {
-            const empData = await empRes.json();
-            setEmployees(empData.data?.data || []);
-          } else {
-            console.warn('Could not fetch employees');
-            setEmployees([]);
-          }
-        } catch (e) {
-          console.warn('Failed to fetch employees', e);
-          setEmployees([]);
-        }
+        // 2. Employees fetch removed (lazy loaded)
 
         // 3. Fetch Bookings for the company
         try {
@@ -421,6 +439,7 @@ export function CompanyStoreProvider({
     createBooking,
     updateEmployee,
     deactivateEmployee,
+    fetchEmployees,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
