@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
+import { Card } from "../components/DashboardComponents";
+import TablePageSkeleton from "../components/TablePageSkeleton";
 
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
@@ -35,76 +37,88 @@ export default function CompanyInvoicingPage() {
         fetchInvoices();
     }, [user?.company_id]);
 
-
-
     if (isLoading) {
-        return <div className="p-8 text-center text-muted">Loading invoices...</div>;
+        return <TablePageSkeleton />;
     }
 
     if (error) {
-        return <div className="p-8 text-center text-red-500">{error}</div>;
+        return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-xl m-6 border border-rose-200">{error}</div>;
     }
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-navy">
+                <div className="flex items-center gap-2 text-slate-400 mb-1">
+                    <span className="text-xs font-medium uppercase tracking-wide">Financials</span>
+                </div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
                     Data & Billing
                 </h1>
-                <p className="text-sm text-muted">
-                    View and download your monthly service invoices
+                <p className="mt-2 text-slate-500 max-w-2xl">
+                    Track your monthly service usage, view generated invoices, and manage payment settlements.
                 </p>
             </div>
 
-            <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
+            <Card className="min-h-[500px] overflow-hidden !p-0">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-max text-left text-sm">
-                        <thead className="bg-zinc-50 text-xs font-medium uppercase text-muted">
-                            <tr>
-                                <th className="px-4 py-3">Invoice #</th>
-                                <th className="px-4 py-3">Billing Month</th>
-                                <th className="px-4 py-3">Generated At</th>
-                                <th className="px-4 py-3">Status</th>
-                                <th className="px-4 py-3 text-right">Total Amount</th>
-                                <th className="px-4 py-3 text-right">Total Amount</th>
+                    <table className="min-w-full text-left text-sm">
+                        <thead className="bg-slate-50/50">
+                            <tr className="border-b border-slate-100">
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice #</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Billing Month</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Generated At</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Total Amount</th>
+
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
+                        <tbody className="divide-y divide-slate-50/50">
                             {invoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                                        No invoices found.
+                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center justify-center text-slate-400">
+                                            <span className="bg-slate-50 p-4 rounded-full mb-3">
+                                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                            </span>
+                                            <span>No invoices found.</span>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 invoices.map((inv) => (
-                                    <tr key={inv.id} className="hover:bg-zinc-50/50">
-                                        <td className="px-4 py-3 font-medium text-navy">{inv.invoice_number}</td>
-                                        <td className="px-4 py-3 text-navy">{inv.billing_month}</td>
-                                        <td className="px-4 py-3 text-navy">
+                                    <tr key={inv.id} className="group hover:bg-slate-50/80 transition-colors border-b border-transparent">
+                                        <td className="px-6 py-4 font-bold text-slate-700 font-mono">#{inv.invoice_number}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-900">{inv.billing_month}</td>
+                                        <td className="px-6 py-4 text-slate-500">
                                             {new Date(inv.generated_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${inv.status === 'PAID' ? 'bg-green-50 text-green-700 ring-green-600/20' :
-                                                inv.status === 'UNPAID' ? 'bg-red-50 text-red-700 ring-red-600/20' :
-                                                    'bg-gray-50 text-gray-600 ring-gray-500/10'
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                inv.status === 'UNPAID' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                    'bg-slate-50 text-slate-600 border-slate-200'
                                                 }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${inv.status === 'PAID' ? 'bg-emerald-400' :
+                                                    inv.status === 'UNPAID' ? 'bg-rose-400' :
+                                                        'bg-slate-400'
+                                                    }`}></span>
                                                 {inv.status || 'DRAFT'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-medium text-navy">
-                                            PKR {Number(inv.total_amount).toLocaleString()}
+                                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-base">
+                                            <span className="text-slate-400 text-xs font-normal mr-1">PKR</span>
+                                            {Number(inv.total_amount).toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right font-medium text-navy">
-                                            PKR {Number(inv.total_amount).toLocaleString()}
-                                        </td>
+
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }
+

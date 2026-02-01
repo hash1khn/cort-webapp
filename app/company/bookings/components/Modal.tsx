@@ -22,13 +22,13 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-2xl transform overflow-hidden rounded-xl bg-white shadow-xl transition-all max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between border-b border-border px-6 py-4">
-                    <h3 className="text-lg font-semibold text-navy">{title}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all max-h-[90vh] flex flex-col ring-1 ring-slate-900/5">
+                <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
+                    <h3 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h3>
                     <button
                         onClick={onClose}
-                        className="rounded-full p-1 text-muted hover:bg-surface hover:text-ink transition-colors"
+                        className="rounded-full p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all hover:rotate-90"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -37,7 +37,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
-                            strokeWidth="2"
+                            strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                         >
@@ -46,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                         </svg>
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30">
                     {children}
                 </div>
             </div>

@@ -18,31 +18,45 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 
-const getNavItems = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
-  const items = [
-    { href: "/company", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/company/employees", label: "Employees", icon: Users },
+const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
+  const groups = [
+    {
+      title: "",
+      items: [
+        { href: "/company", label: "Dashboard", icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: "Operations",
+      items: [] as any[]
+    },
+    {
+      title: "Administration",
+      items: [
+        { href: "/company/employees", label: "Employees", icon: Users },
+        { href: "/company/invoicing", label: "Invoices", icon: Receipt },
+      ]
+    }
   ];
 
   if (servicesEnabled.shuttle_enabled) {
-    items.push({ href: "/company/routes", label: "Route Roster", icon: Map });
+    groups[1].items.push({ href: "/company/routes", label: "Route Roster", icon: Map });
   }
 
   if (servicesEnabled.chauffeur_enabled) {
-    items.push({ href: "/company/bookings", label: "Bookings", icon: Calendar });
+    groups[1].items.push({ href: "/company/bookings", label: "Bookings", icon: Calendar });
   }
 
   if (servicesEnabled.shuttle_enabled) {
-    items.push({ href: "/company/reports/shuttle", label: "Shuttle Reports", icon: FileBarChart });
+    groups[1].items.push({ href: "/company/reports/shuttle", label: "Shuttle Reports", icon: FileBarChart });
   }
 
   if (servicesEnabled.chauffeur_enabled) {
-    items.push({ href: "/company/reports/chauffeur", label: "Chauffeur Reports", icon: FileSpreadsheet });
+    groups[1].items.push({ href: "/company/reports/chauffeur", label: "Chauffeur Reports", icon: FileSpreadsheet });
   }
 
-  items.push({ href: "/company/invoicing", label: "Invoices", icon: Receipt });
-
-  return items;
+  // Filter out empty groups if any
+  return groups.filter(g => g.items.length > 0);
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -62,10 +76,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname || !company) return "/company";
-    const navItems = getNavItems(company.services_enabled);
-    const found = navItems.find((n) => pathname === n.href);
+    const navGroups = getNavGroups(company.services_enabled);
+
+    // Flatten items for search
+    const allItems = navGroups.flatMap(g => g.items);
+
+    const found = allItems.find((n) => pathname === n.href);
     if (found) return found.href;
-    const prefix = navItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
+    const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
   }, [pathname, company]);
 
@@ -116,37 +134,48 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <nav className="px-3 mt-2 space-y-1.5">
-              {getNavItems(company.services_enabled).map((item) => {
-                const active = item.href === activeHref;
-                const Icon = item.icon;
+            <nav className="px-3 mt-2 space-y-6">
+              {getNavGroups(company.services_enabled).map((group, groupIndex) => (
+                <div key={groupIndex}>
+                  {group.title && !collapsed && (
+                    <div className="px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                      {group.title}
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {group.items.map((item) => {
+                      const active = item.href === activeHref;
+                      const Icon = item.icon;
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    className={cx(
-                      "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
-                      active
-                        ? "bg-purple/5 text-purple shadow-sm"
-                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                    )}
-                  >
-                    {/* Active Indicator Bar - Vertical Line on Left */}
-                    {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-purple" />}
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          title={collapsed ? item.label : undefined}
+                          className={cx(
+                            "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                            active
+                              ? "bg-purple/5 text-purple shadow-sm"
+                              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                          )}
+                        >
+                          {/* Active Indicator Bar - Vertical Line on Left */}
+                          {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-purple" />}
 
-                    <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
+                          <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
 
-                    <span className={cx(
-                      "whitespace-nowrap transition-all duration-300 origin-left",
-                      collapsed ? "opacity-0 w-0 hidden scale-90" : "opacity-100 w-auto scale-100"
-                    )}>
-                      {item.label}
-                    </span>
-                  </Link>
-                );
-              })}
+                          <span className={cx(
+                            "whitespace-nowrap transition-all duration-300 origin-left",
+                            collapsed ? "opacity-0 w-0 hidden scale-90" : "opacity-100 w-auto scale-100"
+                          )}>
+                            {item.label}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </nav>
           </div>
 
