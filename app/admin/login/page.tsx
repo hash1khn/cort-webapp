@@ -14,11 +14,15 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // If already logged in, redirect based on role
     if (!loading && isAuthenticated && user) {
-      // On a subdomain, "/" IS the dashboard.
-      // Redirecting to "/admin" on the admin subdomain 
-      // actually sends the user to "admin.cort.com.pk/admin"
-      router.replace("/");
+      if (user.role === UserRole.SUPER_ADMIN) {
+        router.replace("/admin");
+      } else if (user.role === UserRole.COMPANY_ADMIN || user.role === UserRole.EMPLOYEE) {
+        router.replace("/company");
+      } else {
+        router.replace("/");
+      }
     }
   }, [loading, isAuthenticated, user, router]);
 
