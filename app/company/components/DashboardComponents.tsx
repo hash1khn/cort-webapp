@@ -107,7 +107,7 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
     const isZero = data.unassignedBookings === 0;
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+        <div className="grid grid-cols-1 gap-4 h-full">
             <Card className={`${isZero ? 'bg-slate-50 border-slate-200' : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-none'} relative overflow-hidden group transition-all`}>
                 <div className={`absolute top-0 right-0 p-4 transition-opacity ${isZero ? 'opacity-5 text-slate-400' : 'opacity-10 text-white'}`}>
                     <AlertCircle size={80} />
@@ -168,8 +168,8 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
                 </div>
                 <div>
-                    <div className="text-2xl font-black text-slate-800 tracking-tight">
-                        <span className="text-sm text-slate-400 font-normal mr-1">PKR</span>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">
+                        <span className="text-2xl text-slate-400 font-normal mr-1">PKR</span>
                         {(data.estimatedSavings / 1000).toFixed(0)}k
                     </div>
                     <div className="text-xs text-slate-400 mt-1">Estimated MTD</div>
@@ -182,7 +182,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <Clock className="w-4 h-4 text-blue-500" />
                 </div>
                 <div>
-                    <div className="text-2xl font-black text-slate-800 tracking-tight">{data.idleTimeReduced}</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.idleTimeReduced}</div>
                     <div className="text-xs text-slate-400 mt-1">Idle time reduction</div>
                 </div>
             </div>
@@ -193,8 +193,8 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <MapPin className="w-4 h-4 text-emerald-500" />
                 </div>
                 <div>
-                    <div className="text-2xl font-black text-slate-800 tracking-tight">{data.routesOptimized}</div>
-                    <HeatmapPlaceholder />
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.routesOptimized}</div>
+                    <div className="text-xs text-slate-400 mt-1">Faster routes identified</div>
                 </div>
             </div>
 
@@ -204,7 +204,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <Car className="w-4 h-4 text-purple-500" />
                 </div>
                 <div>
-                    <div className="text-2xl font-black text-slate-800 tracking-tight">{data.ridesConsolidated}</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.ridesConsolidated}</div>
                     <div className="text-xs text-slate-400 mt-1">Single passenger rides merged</div>
                 </div>
             </div>
@@ -219,18 +219,20 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
     return (
         <Card>
             <SectionTitle><CreditCard className="w-5 h-5 text-purple-500" /> Cost Visibility</SectionTitle>
-            <div className="space-y-6">
-                <div>
-                    <div className="flex justify-between items-end mb-1">
-                        <div className="text-slate-500 text-sm font-medium">Total Spend (MTD)</div>
-                        <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${data.spendTrend.startsWith('-') ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                            {data.spendTrend}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                <div className="flex flex-col gap-6">
+                    <div>
+                        <div className="flex justify-between items-end mb-1">
+                            <div className="text-slate-500 text-sm font-medium">Total Spend (MTD)</div>
+                            <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${data.spendTrend.startsWith('-') ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                {data.spendTrend}
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
-                        <span className="text-lg text-slate-400 font-medium mr-1">PKR</span>
-                        {(data.totalSpendMTD / 1000).toLocaleString()}k
+                        <div className="text-4xl font-extrabold text-slate-900 tracking-tight mb-4">
+                            <span className="text-xl text-slate-400 font-medium mr-1">PKR</span>
+                            {(data.totalSpendMTD / 1000).toLocaleString()}k
+                        </div>
                     </div>
 
                     {/* Bullet Graph / Progress Bar */}
@@ -239,9 +241,8 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
                             <div className="text-xs text-slate-400 font-semibold uppercase">Budget Usage</div>
                             <div className="text-xs text-right font-bold text-slate-600">{percentageUsed.toFixed(0)}%</div>
                         </div>
-                        <div className="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-slate-100 border border-slate-200">
+                        <div className="overflow-hidden h-3 mb-2 text-xs flex rounded-full bg-slate-100 border border-slate-200">
                             <div style={{ width: `${percentageUsed}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${percentageUsed > 90 ? 'bg-rose-500' : 'bg-slate-800'}`}></div>
-                            {/* Visual marker for budget limit if needed, here simple progress bar is enough */}
                         </div>
                         <div className="text-[10px] text-slate-400 flex justify-between uppercase font-medium">
                             <span>0k</span>
@@ -250,10 +251,24 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
                     </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-100">
-                    <div className="flex justify-between items-center mb-1">
-                        <div className="text-slate-500 text-sm">Cost per Employee</div>
-                        <div className="font-bold text-slate-800">PKR {data.costPerEmployee.toLocaleString()}</div>
+                <div className="flex flex-col h-full border-t md:border-t-0 md:border-l border-slate-100 md:pl-8 pt-6 md:pt-0">
+                    <div className="flex flex-col">
+                        <div className="flex justify-between items-end mb-1">
+                            <div className="text-slate-500 text-sm font-medium">Cost per Employee</div>
+                        </div>
+                        <div className="text-4xl font-extrabold text-slate-900 tracking-tight">PKR {data.costPerEmployee.toLocaleString()}</div>
+                        <div className="text-xs text-slate-400 mt-2">Average spend across {data.costPerEmployee > 5000 ? 'active' : 'all'} employees</div>
+                    </div>
+                    <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                <Activity className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <div className="text-xs font-bold text-slate-500 uppercase">Projection</div>
+                                <div className="text-sm font-semibold text-slate-700">On track to stay within budget</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,19 +278,19 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
 
 export const SmartInsightsSection = ({ insights, seasonality }: { insights: string[], seasonality: DashboardData['seasonality'] }) => {
     return (
-        <Card className="bg-slate-900 text-white border-slate-700">
-            <SectionTitle><span className="text-white flex items-center gap-2"><div className="animate-pulse w-2 h-2 bg-indigo-400 rounded-full"></div> Smart Insights</span></SectionTitle>
+        <Card>
+            <SectionTitle><span className="flex items-center gap-2"><div className="animate-pulse w-2 h-2 bg-indigo-500 rounded-full"></div> Smart Insights</span></SectionTitle>
 
             <div className="space-y-4">
                 {insights.map((insight, idx) => (
                     <div
                         key={idx}
-                        className="group flex flex-col gap-1 pb-3 border-b border-white/10 last:border-0 last:pb-0 cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors"
+                        className="group flex flex-col gap-1 pb-3 border-b border-slate-100 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors"
                         title="Click to view details"
                     >
                         <div className="flex justify-between items-start gap-2">
-                            <div className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                                <span className="text-indigo-400 font-bold mr-2">Ok.</span>
+                            <div className="text-sm text-slate-600 group-hover:text-slate-900 transition-colors">
+                                <span className="text-indigo-500 font-bold mr-2">Ok.</span>
                                 {insight}
                             </div>
                         </div>
@@ -287,14 +302,14 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
                 ))}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
+            <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
                 <div>
                     <div className="text-xs text-slate-500 uppercase tracking-wide font-bold">Peak Day</div>
-                    <div className="text-white font-bold text-lg">{seasonality.highDemandDay}</div>
+                    <div className="text-slate-800 font-bold text-lg">{seasonality.highDemandDay}</div>
                 </div>
                 <div>
                     <div className="text-xs text-slate-500 uppercase tracking-wide font-bold">Pattern</div>
-                    <div className="text-white font-bold text-base leading-tight">{seasonality.monthlyPattern}</div>
+                    <div className="text-slate-800 font-bold text-base leading-tight">{seasonality.monthlyPattern}</div>
                 </div>
             </div>
         </Card>

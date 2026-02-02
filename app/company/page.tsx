@@ -119,13 +119,8 @@ export default function CompanyDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
 
         {/* We're Taking Care of This */}
-        <div className="lg:col-span-2">
-          <TakingCareSection data={data.takingCare} />
-        </div>
-
-        {/* Cost Visibility */}
         <div className="lg:col-span-1">
-          <CostVisibilitySection data={data.cost} />
+          <TakingCareSection data={data.takingCare} />
         </div>
 
         {/* Employee Usage - Wider card */}
@@ -133,8 +128,13 @@ export default function CompanyDashboardPage() {
           <EmployeeUsageSection data={data.employeeUsage} />
         </div>
 
+        {/* Cost Visibility */}
+        <div className="lg:col-span-2">
+          <CostVisibilitySection data={data.cost} />
+        </div>
+
         {/* Smart Insights */}
-        <div className="lg:col-span-1 md:col-span-2 lg:col-span-1">
+        <div className="lg:col-span-2">
           <SmartInsightsSection insights={data.smartInsights} seasonality={data.seasonality} />
         </div>
 
