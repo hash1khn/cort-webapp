@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { Card } from "../components/DashboardComponents";
-import TablePageSkeleton from "../components/TablePageSkeleton";
+import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
@@ -37,9 +37,10 @@ export default function CompanyInvoicingPage() {
         fetchInvoices();
     }, [user?.company_id]);
 
-    if (isLoading) {
+    // Loading skeleton is now handled inside the table to preserve headers
+    /* if (isLoading) {
         return <TablePageSkeleton />;
-    }
+    } */
 
     if (error) {
         return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-xl m-6 border border-rose-200">{error}</div>;
@@ -73,7 +74,9 @@ export default function CompanyInvoicingPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50/50">
-                            {invoices.length === 0 ? (
+                            {isLoading ? (
+                                <TableSkeleton columns={5} rows={8} />
+                            ) : invoices.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-400">
