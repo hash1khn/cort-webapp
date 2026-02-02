@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
     // If already logged in, redirect based on role
     if (!loading && isAuthenticated && user) {
       if (user.role === UserRole.SUPER_ADMIN) {
-        router.replace("/dashboard");
+        router.replace("/admin");
       } else {
         // Non-admin users shouldn't access this
         router.replace("/");

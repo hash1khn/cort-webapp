@@ -17,7 +17,7 @@ export default function CompanyLoginPage() {
     // If already logged in, redirect based on role
     if (!loading && isAuthenticated && user) {
       if (user.role === UserRole.COMPANY_ADMIN || user.role === UserRole.EMPLOYEE) {
-        router.replace("/dashboard");
+        router.replace("/company");
       } else {
         // Non-company users shouldn't access this
         router.replace("/");
