@@ -1,0 +1,25 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "rewrites": [
+        {
+            "source": "/:path*",
+            "destination": "/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "admin.cort.com.pk"
+                }
+            ]
+        },
+        {
+            "source": "/:path*",
+            "destination": "/:path*",
+            "has": [
+                {
+                    "type": "host",
+                    "value": "portal.cort.com.pk"
+                }
+            ]
+        }
+    ]
+}
