@@ -53,7 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      */
     useEffect(() => {
         loadUserProfile();
-    }, [loadUserProfile]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run once on mount
 
     /**
      * Login user with email and password

@@ -190,26 +190,26 @@ export function CompanyStoreProvider({
 
   const fetchEmployees = async () => {
     if (!companyId || employeesLoaded) return;
-    
+
     try {
-        const token = localStorage.getItem('auth_token');
-        if (!token) return;
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
 
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        };
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
 
-        const empRes = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
-        if (empRes.ok) {
-          const empData = await empRes.json();
-          setEmployees(empData.data?.data || []);
-        } else {
-          console.warn('Could not fetch employees');
-          setEmployees([]);
-        }
-        setEmployeesLoaded(true);
+      const empRes = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
+      if (empRes.ok) {
+        const empData = await empRes.json();
+        setEmployees(empData.data?.data || []);
+      } else {
+        console.warn('Could not fetch employees');
+        setEmployees([]);
+      }
+      setEmployeesLoaded(true);
     } catch (e) {
       console.warn('Failed to fetch employees', e);
       setEmployees([]);
@@ -245,12 +245,21 @@ export function CompanyStoreProvider({
           'Content-Type': 'application/json',
         };
 
-        // 1. Fetch Company
-        const companyRes = await fetch(`${API_URL}/companies/${companyId}`, { headers });
-        if (!companyRes.ok) throw new Error(`Failed to fetch company: ${companyRes.status}`);
-        const companyData = await companyRes.json();
-        const rawCompany = companyData.data || companyData;
+        // Fetch Company, Contract, and Bookings in parallel for faster loading
+        const [companyRes, contractRes, bookingsRes] = await Promise.all([
+          fetch(`${API_URL}/companies/${companyId}`, { headers })
+            .then(async (r) => {
+              if (!r.ok) throw new Error(`Failed to fetch company: ${r.status}`);
+              return r.json();
+            }),
+          apiClient.getMyContract().catch(() => null),
+          fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers })
+            .then((r) => (r.ok ? r.json() : { data: { data: [] } }))
+            .catch(() => ({ data: { data: [] } })),
+        ]);
 
+        // Process company data
+        const rawCompany = companyRes.data || companyRes;
         const companyObj: Company = {
           id: rawCompany.id,
           name: rawCompany.name,
@@ -263,14 +272,6 @@ export function CompanyStoreProvider({
           vehicle_whitelists: rawCompany.vehicle_whitelists || [],
         };
         setCompany(companyObj);
-
-        // 2. Fetch Contract and Bookings in parallel (dashboard-stats not needed for initial load)
-        const [contractRes, bookingsRes] = await Promise.all([
-          apiClient.getMyContract().catch(() => null),
-          fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers })
-            .then((r) => (r.ok ? r.json() : { data: { data: [] } }))
-            .catch(() => ({ data: { data: [] } })),
-        ]);
 
         // Process contract -> allowed vehicle models
         try {
