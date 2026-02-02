@@ -47,16 +47,7 @@ export default function AdminLoginPage() {
     }
   }
 
-  if (loading || isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/20 border-t-[#f47f00]"></div>
-          <p className="mt-4 text-sm font-medium text-white/70">Authenticating...</p>
-        </div>
-      </div>
-    );
-  }
+  // Keep user on login page during redirect - button spinner shows loading state
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#0f172a] font-sans selection:bg-[#f47f00]/30">
