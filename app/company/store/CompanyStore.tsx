@@ -264,63 +264,36 @@ export function CompanyStoreProvider({
         };
         setCompany(companyObj);
 
-        // 1.5 Fetch Contract (New)
+        // 2. Fetch Contract and Bookings in parallel (dashboard-stats not needed for initial load)
+        const [contractRes, bookingsRes] = await Promise.all([
+          apiClient.getMyContract().catch(() => null),
+          fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers })
+            .then((r) => (r.ok ? r.json() : { data: { data: [] } }))
+            .catch(() => ({ data: { data: [] } })),
+        ]);
+
+        // Process contract -> allowed vehicle models
         try {
-          const contractRes = await apiClient.getMyContract().catch(() => null);
           if (contractRes && contractRes.data) {
             setContract(contractRes.data);
-            // Extract models from contract rates
-            const contractModels = (contractRes.data.chauffeur_contract_rates || []).map((r: any) => r.vehicle_model);
-
-            // USER REQUEST: Do not merge with legacy whitelist. Check if contract exists, use it exclusively.
+            const contractModels = (contractRes.data.chauffeur_contract_rates || []).map((r: { vehicle_model: string }) => r.vehicle_model);
             setAllowedVehicleModels(contractModels);
           } else {
-            // Fallback to whitelist only
             const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
               (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
             );
             setAllowedVehicleModels(vehicleModels);
           }
         } catch (e) {
-          console.warn("Failed to fetch contract", e);
+          console.warn("Failed to process contract", e);
           const vehicleModels = (rawCompany.vehicle_whitelists || []).map(
             (wl: { allowed_vehicle_model: string }) => wl.allowed_vehicle_model
           );
           setAllowedVehicleModels(vehicleModels);
         }
 
-        // 2. Employees fetch removed (lazy loaded)
-
-        // 3. Fetch Bookings for the company
-        try {
-          const bookingsRes = await fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers });
-          if (bookingsRes.ok) {
-            const bookingsData = await bookingsRes.json();
-            setBookings(bookingsData.data?.data || []);
-          } else {
-            console.warn('Could not fetch bookings');
-            setBookings([]);
-          }
-        } catch (e) {
-          console.warn('Failed to fetch bookings', e);
-          setBookings([]);
-        }
-
-        // 4. Fetch Dashboard Stats
-        try {
-          const statsRes = await fetch(`${API_URL}/companies/${companyId}/dashboard-stats`, { headers });
-          if (statsRes.ok) {
-            const statsData = await statsRes.json();
-            setDashboardStats(statsData.data || null);
-          } else {
-            console.warn('Could not fetch dashboard stats');
-            setDashboardStats(null);
-          }
-        } catch (e) {
-          console.warn('Failed to fetch dashboard stats', e);
-          setDashboardStats(null);
-        }
-
+        // Process bookings
+        setBookings(bookingsRes.data?.data || []);
 
         // Clear other data - these endpoints don't exist or aren't needed in company portal
         setContract(null);

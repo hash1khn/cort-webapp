@@ -91,8 +91,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   if (!company) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-sm text-muted">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent" aria-label="Loading" />
       </div>
     );
   }

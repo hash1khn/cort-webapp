@@ -51,14 +51,11 @@ export function ProtectedRoute({
         }
     }, [loading, isAuthenticated, user, allowedRoles, requireCompanyId, redirectTo, router, hasRole]);
 
-    // Show loading state
+    // Show loading state (single spinner only)
     if (loading) {
         return (
             <div className="min-h-screen bg-surface flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent"></div>
-                    <p className="mt-4 text-sm text-muted">Loading...</p>
-                </div>
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent" aria-label="Loading" />
             </div>
         );
     }
