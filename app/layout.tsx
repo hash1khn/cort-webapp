@@ -15,10 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Cort Ops Portal",
-  description: "Super Admin Portal",
-  icons: {
-    icon: "/cort-app-icon.svg",
-  },
+  description: "Cort Ops Portal",
 };
 
 export default function RootLayout({
