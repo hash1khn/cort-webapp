@@ -53,6 +53,7 @@ export default function Home() {
               v2.1 Enterprise Availability
             </div>
 
+
             <h1 className="mx-auto max-w-4xl text-5xl font-bold tracking-tight text-navy sm:text-6xl lg:text-7xl">
               Enterprise Mobility, <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange to-purple">
