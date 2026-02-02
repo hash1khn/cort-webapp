@@ -2,50 +2,55 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-    const hostname = request.headers.get("host");
-    const { pathname } = request.nextUrl;
+    const hostname = request.headers.get("host") || "";
+    const { pathname, search } = request.nextUrl;
 
     // Define domains
     const ADMIN_DOMAIN = "admin.cort.com.pk";
     const PORTAL_DOMAIN = "portal.cort.com.pk";
 
-    // Check if we are on the Admin domain
-    if (hostname && hostname.includes(ADMIN_DOMAIN)) {
-        // Determine the new URL path
-        // We want to serve content from /admin/* without showing /admin in the URL
-        // So admin.cort.com.pk/dashboard servers /admin/dashboard
+    // Debugging logs - View these in your Vercel logs or terminal
+    const logData = {
+        hostname,
+        pathname,
+        timestamp: new Date().toISOString(),
+    };
 
-        // If the path already starts with /admin (unlikely if we are hiding it, but possible),
-        // we might not need to rewrite, or we might want to handle it.
-        // However, usually we rewrite everything that doesn't start with /admin to /admin
+    // 1. Admin Logic
+    if (hostname.includes(ADMIN_DOMAIN)) {
+        console.log("DEBUG: Admin Match", logData);
 
-        if (!pathname.startsWith("/admin")) {
-            return NextResponse.rewrite(new URL(`/admin${pathname}`, request.url));
+        // Prevent users from accessing /admin directly
+        if (pathname.startsWith("/admin")) {
+            const newPath = pathname.replace("/admin", "") || "/";
+            return NextResponse.redirect(new URL(newPath, request.url));
         }
+
+        const rewriteUrl = new URL(`/admin${pathname}${search}`, request.url);
+        console.log(`DEBUG: Rewriting Admin to: ${rewriteUrl.pathname}`);
+        return NextResponse.rewrite(rewriteUrl);
     }
 
-    // Check if we are on the Portal/Company domain
-    if (hostname && hostname.includes(PORTAL_DOMAIN)) {
-        // Similar logic for company portal
-        if (!pathname.startsWith("/company")) {
-            return NextResponse.rewrite(new URL(`/company${pathname}`, request.url));
+    // 2. Portal/Company Logic
+    if (hostname.includes(PORTAL_DOMAIN)) {
+        console.log("DEBUG: Portal Match", logData);
+
+        // Prevent users from accessing /company directly
+        if (pathname.startsWith("/company")) {
+            const newPath = pathname.replace("/company", "") || "/";
+            return NextResponse.redirect(new URL(newPath, request.url));
         }
+
+        const rewriteUrl = new URL(`/company${pathname}${search}`, request.url);
+        console.log(`DEBUG: Rewriting Portal to: ${rewriteUrl.pathname}`);
+        return NextResponse.rewrite(rewriteUrl);
     }
 
-    // Default behavior: allow request to proceed as is (e.g. for landing page on main domain)
     return NextResponse.next();
 }
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - api (API routes)
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public files with extensions (png, svg, jpg, jpeg, gif, webp)
-         */
         "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 };
