@@ -916,6 +916,16 @@ class ApiClient {
     }
 
     /**
+     * Reset company password
+     */
+    async resetCompanyPassword(id: number, password: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/companies/${id}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({ password }),
+        });
+    }
+
+    /**
      * Delete a company
      */
     async deleteCompany(id: number): Promise<void> {

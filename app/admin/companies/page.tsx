@@ -125,6 +125,96 @@ function CredentialsModal({
   );
 }
 
+function PasswordResetModal({
+  isOpen,
+  onClose,
+  company,
+  onReset,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  company: Company | null;
+  onReset: (password: string) => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
+  const generatePassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let pass = "";
+    for (let i = 0; i < 12; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setPassword(pass);
+  };
+
+  const handleReset = async () => {
+    if (!password || password.length < 8) {
+      alert("Password must be at least 8 characters long");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await onReset(password);
+      setPassword("");
+      onClose();
+    } catch (error) {
+      // Error handled by parent
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  if (!isOpen || !company) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Reset Company Password">
+      <div className="space-y-4">
+        <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
+          You are resetting the password for <strong>{company.name}</strong> ({company.email}).
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">New Password</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none font-mono"
+              placeholder="Enter new password (min 8 characters)"
+              disabled={isResetting}
+            />
+            <button
+              type="button"
+              onClick={generatePassword}
+              className="px-3 py-2 text-xs font-bold text-[#f47f00] border border-[#f47f00] rounded-lg hover:bg-orange-50 disabled:opacity-50"
+              disabled={isResetting}
+            >
+              Generate
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+            disabled={isResetting}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleReset}
+            className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
+            disabled={isResetting || !password}
+          >
+            {isResetting ? "Resetting..." : "Reset Password"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 type CompanyFormData = CreateCompanyRequest;
 
 const initialFormData: CompanyFormData = {
@@ -446,6 +536,9 @@ export default function CompaniesPage() {
   // Credentials Modal State
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password?: string } | null>(null);
 
+  // Password Reset Modal State
+  const [passwordResetCompany, setPasswordResetCompany] = useState<Company | null>(null);
+
   const fetchCompanies = async () => {
     try {
       setIsLoading(true);
@@ -514,6 +607,17 @@ export default function CompaniesPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCompany(null);
+  };
+
+  const handleResetPassword = async (companyId: number, password: string) => {
+    try {
+      await apiClient.resetCompanyPassword(companyId, password);
+      alert("Password reset successfully!");
+    } catch (err: any) {
+      console.error("Failed to reset password:", err);
+      alert(err.message || "Failed to reset password");
+      throw err;
+    }
   };
 
   return (
@@ -598,6 +702,13 @@ export default function CompaniesPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </button>
                       <button
+                        onClick={() => setPasswordResetCompany(company)}
+                        className="rounded-md p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                        title="Reset Password"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </button>
+                      <button
                         onClick={() => handleDelete(company.id)}
                         className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                         title="Delete Company"
@@ -651,6 +762,14 @@ export default function CompaniesPage() {
           password={createdCredentials.password}
         />
       )}
+
+      {/* Password Reset Modal */}
+      <PasswordResetModal
+        isOpen={!!passwordResetCompany}
+        onClose={() => setPasswordResetCompany(null)}
+        company={passwordResetCompany}
+        onReset={(password) => handleResetPassword(passwordResetCompany!.id, password)}
+      />
     </div>
   );
 }
