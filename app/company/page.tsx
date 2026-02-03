@@ -21,13 +21,43 @@ import {
 import DashboardSkeleton from "./components/DashboardSkeleton";
 
 export default function CompanyDashboardPage() {
-  const { company, loading, error, bookings } = useCompanyStore();
+  const { company, loading, error, bookings, dashboardStats } = useCompanyStore();
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // In a real app, we would merge real data with the mock data structure here
-  // For now, we use the mock data to achieve the requested design
-  const data = MOCK_DASHBOARD_DATA;
+  // Merge real data with mock structure
+  const data = dashboardStats ? {
+    ...MOCK_DASHBOARD_DATA,
+    takingCare: {
+      ...MOCK_DASHBOARD_DATA.takingCare,
+      ridesCompleted: dashboardStats.chauffeur.completedThisMonth,
+    },
+    valueDelivered: {
+      ...MOCK_DASHBOARD_DATA.valueDelivered,
+      estimatedSavings: dashboardStats.chauffeur.totalSavings || 0,
+    },
+    cost: {
+      ...MOCK_DASHBOARD_DATA.cost,
+      totalSpendMTD: dashboardStats.chauffeur.totalSpend,
+      costPerEmployee: dashboardStats.employees.active > 0
+        ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.employees.active)
+        : 0,
+    },
+    employeeUsage: {
+      ...MOCK_DASHBOARD_DATA.employeeUsage,
+      activeEmployees: dashboardStats.employees.active,
+      totalEmployees: dashboardStats.employees.total,
+      topRider: dashboardStats.chauffeur.topPassengers[0] ? {
+        name: dashboardStats.chauffeur.topPassengers[0].name,
+        rides: dashboardStats.chauffeur.topPassengers[0].trips,
+        department: "N/A"
+      } : MOCK_DASHBOARD_DATA.employeeUsage.topRider,
+    },
+    services: {
+      ...MOCK_DASHBOARD_DATA.services,
+      chauffeur: dashboardStats.chauffeur.totalBookings,
+    }
+  } : MOCK_DASHBOARD_DATA;
 
   // Real data overrides where possible (example)
   const today = new Date();

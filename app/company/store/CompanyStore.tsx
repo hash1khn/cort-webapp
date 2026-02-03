@@ -123,6 +123,7 @@ type DashboardStats = {
     activeRides: number;
     completedThisMonth: number;
     totalSpend: number;
+    totalSavings: number;
     spotBookings: { total: number; hr5: number; hr10: number; hr24: number };
     monthlyBookings: { total: number; hr10Daily: number; hr24Daily: number };
     topPassengers: { name: string; trips: number }[];
@@ -246,7 +247,8 @@ export function CompanyStoreProvider({
         };
 
         // Fetch Company, Contract, and Bookings in parallel for faster loading
-        const [companyRes, contractRes, bookingsRes] = await Promise.all([
+        // Fetch Company, Contract, and Bookings in parallel for faster loading
+        const [companyRes, contractRes, bookingsRes, statsRes] = await Promise.all([
           fetch(`${API_URL}/companies/${companyId}`, { headers })
             .then(async (r) => {
               if (!r.ok) throw new Error(`Failed to fetch company: ${r.status}`);
@@ -256,6 +258,9 @@ export function CompanyStoreProvider({
           fetch(`${API_URL}/companies/${companyId}/chauffeur-bookings`, { headers })
             .then((r) => (r.ok ? r.json() : { data: { data: [] } }))
             .catch(() => ({ data: { data: [] } })),
+          fetch(`${API_URL}/companies/${companyId}/dashboard-stats`, { headers })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
         ]);
 
         // Process company data
@@ -296,6 +301,11 @@ export function CompanyStoreProvider({
         // Process bookings
         setBookings(bookingsRes.data?.data || []);
 
+        // Process dashboard stats
+        if (statsRes && statsRes.data) {
+          setDashboardStats(statsRes.data);
+        }
+
         // Clear other data - these endpoints don't exist or aren't needed in company portal
         setContract(null);
         setVehicles([]);
@@ -308,6 +318,7 @@ export function CompanyStoreProvider({
         setBookings([]);
         setContract(null);
         setVehicles([]);
+        setDashboardStats(null);
       } finally {
         setLoading(false);
       }
