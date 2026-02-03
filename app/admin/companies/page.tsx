@@ -39,15 +39,15 @@ function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+      <div className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-200 my-auto">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 sticky top-0 bg-white rounded-t-xl z-10">
           <h3 className="text-lg font-bold text-[#0c225e]">{title}</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 text-gray-500">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 max-h-[80vh] overflow-y-auto">
           {children}
         </div>
       </div>
@@ -129,6 +129,7 @@ type CompanyFormData = CreateCompanyRequest;
 
 const initialFormData: CompanyFormData = {
   name: "",
+  prefix: "", // Added prefix
   email: "",
   password: "", // Added password
   contact_person: "",
@@ -161,6 +162,7 @@ function CompanyForm({
         logo_url: company.logo_url || "",
         is_shuttle_enabled: company.is_shuttle_enabled,
         is_chauffeur_enabled: company.is_chauffeur_enabled,
+        prefix: company.prefix || "",
       }
       : initialFormData
   );
@@ -214,16 +216,31 @@ function CompanyForm({
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Name</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
-            placeholder="e.g. Acme Corp"
-            disabled={isSaving}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="col-span-1">
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Name</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+              placeholder="e.g. Acme Corp"
+              disabled={isSaving}
+            />
+          </div>
+          <div className="col-span-1">
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+              Prefix <span className="text-slate-400 font-normal">(Short Name)</span>
+            </label>
+            <input
+              type="text"
+              value={formData.prefix || ""}
+              onChange={(e) => handleChange("prefix", e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+              placeholder="e.g. acme"
+              disabled={isSaving}
+            />
+          </div>
         </div>
         <div>
           <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>

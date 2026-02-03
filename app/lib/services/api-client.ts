@@ -10,6 +10,7 @@ export interface CreateCompanyRequest {
     logo_url?: string;
     is_shuttle_enabled?: boolean;
     is_chauffeur_enabled?: boolean;
+    prefix?: string;
 }
 
 export interface UpdateCompanyRequest extends Partial<CreateCompanyRequest> {
@@ -45,6 +46,7 @@ export interface Company {
     _count?: {
         users: number;
     };
+    prefix?: string;
 }
 // ... (rest of file) ...
 

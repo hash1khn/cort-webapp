@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cort Ops Portal",
-  description: "Cort Ops Portal",
+  title: "Cort Portal",
+  description: "Cort Portal",
 };
 
 export default function RootLayout({
