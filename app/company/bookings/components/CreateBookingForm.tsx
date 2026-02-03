@@ -4,6 +4,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useCompanyStore } from "../../store/CompanyStore";
 import Map from "../../../admin/ui/Map";
 import { useGeocodeMapsAutocomplete } from "../../../hooks/useGeocodeMapsAutocomplete";
+import { AutocompleteInput } from "../../../components/AutocompleteInput";
+import { pakistaniCars } from "../../../lib/data/pakistaniCars";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -269,9 +271,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
                 {vehicleModel === "Other" && (
                     <Field label="Specify Vehicle Model" required>
-                        <TextInput
+                        <AutocompleteInput
                             value={customVehicleModel}
-                            onChange={(e) => setCustomVehicleModel(e.target.value)}
+                            onChange={setCustomVehicleModel}
+                            options={pakistaniCars}
                             placeholder="Enter vehicle model (e.g. Honda Civic)"
                             required
                         />
