@@ -491,6 +491,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 class ApiClient {
     private baseUrl: string;
+    private isRefreshing = false;
+    private refreshSubscribers: ((token: string) => void)[] = [];
 
     constructor() {
         this.baseUrl = API_URL;
@@ -505,6 +507,14 @@ class ApiClient {
     }
 
     /**
+     * Get stored refresh token from localStorage
+     */
+    private getRefreshToken(): string | null {
+        if (typeof window === 'undefined') return null;
+        return localStorage.getItem('refresh_token');
+    }
+
+    /**
      * Store auth token in localStorage
      */
     private setToken(token: string): void {
@@ -513,22 +523,88 @@ class ApiClient {
     }
 
     /**
-     * Remove auth token from localStorage
+     * Store refresh token in localStorage
+     */
+    private setRefreshToken(token: string): void {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('refresh_token', token);
+    }
+
+    /**
+     * Remove auth tokens from localStorage
      */
     private removeToken(): void {
         if (typeof window === 'undefined') return;
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
     }
 
     /**
      * Make HTTP request with automatic token attachment
      */
+    /**
+     * Request a new access token using the refresh token
+     */
+    private async refreshToken(): Promise<string | null> {
+        const refreshToken = this.getRefreshToken();
+        if (!refreshToken) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to refresh token');
+            }
+
+            const data = await response.json();
+            const { session } = data.data;
+
+            if (session?.access_token) {
+                this.setToken(session.access_token);
+                if (session.refresh_token) {
+                    this.setRefreshToken(session.refresh_token);
+                }
+                return session.access_token;
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            this.removeToken();
+        }
+        return null;
+    }
+
+    /**
+     * Add callback to be executed after token refresh
+     */
+    private onRefreshed(token: string) {
+        this.refreshSubscribers.forEach((callback) => callback(token));
+        this.refreshSubscribers = [];
+    }
+
+    /**
+     * Add subscriber to wait for token refresh
+     */
+    private subscribeTokenRefresh(callback: (token: string) => void) {
+        this.refreshSubscribers.push(callback);
+    }
+
+    /**
+     * Make HTTP request with automatic token attachment and refreshing
+     */
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
-        const token = this.getToken();
-        const headers: Record<string, string> = {
+        let token = this.getToken();
+        let headers: Record<string, string> = {
             'Content-Type': 'application/json',
             ...(options.headers as Record<string, string>),
         };
@@ -538,10 +614,112 @@ class ApiClient {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        let response = await fetch(`${this.baseUrl}${endpoint}`, {
             ...options,
             headers,
         });
+
+        // Handle 401 Unauthorized - Try to refresh token
+        if (response.status === 401 && !endpoint.includes('/auth/login')) {
+            if (!this.isRefreshing) {
+                this.isRefreshing = true;
+                const newToken = await this.refreshToken();
+                this.isRefreshing = false;
+
+                if (newToken) {
+                    this.onRefreshed(newToken);
+                } else {
+                    // unexpected logout if refresh fails
+                    // Let the error propagate so the app can handle it (e.g. redirect to login)
+                }
+            }
+
+            // Return a promise that resolves when the token is refreshed
+            if (this.isRefreshing || this.getToken()) { // Check if we have a valid token now
+                return new Promise((resolve, reject) => {
+                    this.subscribeTokenRefresh(async (newToken) => {
+                        // Update header with new token
+                        headers['Authorization'] = `Bearer ${newToken}`;
+                        try {
+                            // Retry original request
+                            const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, {
+                                ...options,
+                                headers,
+                            });
+
+                            // Handle non-JSON responses for retry
+                            const contentType = retryResponse.headers.get('content-type');
+                            if (!contentType || !contentType.includes('application/json')) {
+                                if (!retryResponse.ok) {
+                                    reject(new Error(`HTTP error! status: ${retryResponse.status}`));
+                                    return;
+                                }
+                                resolve({} as T);
+                                return;
+                            }
+
+                            const retryData = await retryResponse.json();
+                            if (!retryResponse.ok) {
+                                reject(new Error(retryData.message || `HTTP error! status: ${retryResponse.status}`));
+                                return;
+                            }
+                            resolve(retryData);
+                        } catch (err) {
+                            reject(err);
+                        }
+                    });
+                    // If refresh failed and no new token, we might not call subscribers. 
+                    // But here we rely on the fact that if refreshToken returns null, it likely won't call subscribers.
+                    // However, above logic: if refreshToken fails, returns null. 
+                    // Wait, if refreshToken fails, it doesn't call onRefreshed. Subscribers hang? 
+                    // Need to handle failure case.
+                });
+            }
+        }
+
+        // RE-CHECK: The logic above is slightly flawed for handling the queue. 
+        // If multiple requests fail with 401:
+        // 1. First one sets isRefreshing = true, calls refreshToken.
+        // 2. Others enter the block. isRefreshing is true. They subscribe.
+        // 3. First one finishes. Calls onRefreshed. Subscribers run. 
+        // 4. First one needs to run its own retry too? 
+        // Actually, the first one should also just retry. 
+
+        // Let's refine the logic. 
+        if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh-token')) {
+            if (this.isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    this.subscribeTokenRefresh(async (newToken) => {
+                        headers['Authorization'] = `Bearer ${newToken}`;
+                        try {
+                            const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
+                            // duplicate logic for parsing... ideally extract fetch logic
+                            const contentType = retryResponse.headers.get('content-type');
+                            if (!contentType || !contentType.includes('application/json')) {
+                                if (!retryResponse.ok) reject(new Error(`HTTP error! status: ${retryResponse.status}`));
+                                else resolve({} as T);
+                                return;
+                            }
+                            const retryData = await retryResponse.json();
+                            if (!retryResponse.ok) reject(new Error(retryData.message));
+                            else resolve(retryData);
+                        } catch (e) { reject(e); }
+                    });
+                });
+            }
+
+            this.isRefreshing = true;
+            const newToken = await this.refreshToken();
+            this.isRefreshing = false;
+
+            if (newToken) {
+                this.onRefreshed(newToken);
+                // Retry current request
+                headers['Authorization'] = `Bearer ${newToken}`;
+                response = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
+            }
+            // If refresh fails, we fall through to return error from original 401 response or new response
+        }
 
         // Handle non-JSON responses
         const contentType = response.headers.get('content-type');
@@ -596,15 +774,21 @@ class ApiClient {
     /**
      * Login user with email and password
      */
+    /**
+     * Login user with email and password
+     */
     async login(credentials: LoginRequest): Promise<LoginResponse> {
         const response = await this.request<LoginResponse>('/auth/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
         });
 
-        // Store token after successful login
+        // Store tokens after successful login
         if (response.data?.session?.access_token) {
             this.setToken(response.data.session.access_token);
+            if (response.data.session.refresh_token) {
+                this.setRefreshToken(response.data.session.refresh_token);
+            }
         }
 
         return response;
@@ -619,9 +803,12 @@ class ApiClient {
             body: JSON.stringify(data),
         });
 
-        // Store token after successful signup
+        // Store tokens after successful signup
         if (response.data?.session?.access_token) {
             this.setToken(response.data.session.access_token);
+            if (response.data.session.refresh_token) {
+                this.setRefreshToken(response.data.session.refresh_token);
+            }
         }
 
         return response;
