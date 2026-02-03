@@ -306,8 +306,6 @@ export interface ChauffeurContractRate {
     rate_monthly_10hr: string;
     rate_monthly_24hr: string;
     rate_overtime_per_hr: string;
-    allowance_outstation: string;
-    allowance_accommodation: string;
 }
 
 export interface ChauffeurContract {
@@ -317,6 +315,8 @@ export interface ChauffeurContract {
     revision_percentage: string | null;
     contract_duration?: string | null;
     created_at?: string | null;
+    allowance_outstation?: string | null;
+    allowance_accommodation?: string | null;
     companies?: {
         name: string;
     };

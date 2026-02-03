@@ -35,7 +35,9 @@ export default function PricingPage() {
     fuelBasePrice: "0",
     revisionPercentage: "", // Empty string means NULL (no threshold)
     contractDuration: "",
-    contractDate: ""
+    contractDate: "",
+    allowanceOutstation: "",
+    allowanceAccommodation: ""
   });
 
   // Rates State
@@ -96,7 +98,9 @@ export default function PricingPage() {
             fuelBasePrice: mainContract.fuel_base_price,
             revisionPercentage: mainContract.revision_percentage || "",
             contractDuration: mainContract.contract_duration || "",
-            contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : ""
+            contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : "",
+            allowanceOutstation: mainContract.allowance_outstation || "",
+            allowanceAccommodation: mainContract.allowance_accommodation || ""
           });
           setRateRows(mainContract.chauffeur_contract_rates || []);
         } else {
@@ -105,7 +109,9 @@ export default function PricingPage() {
             fuelBasePrice: "300",
             revisionPercentage: "",
             contractDuration: "",
-            contractDate: ""
+            contractDate: "",
+            allowanceOutstation: "",
+            allowanceAccommodation: ""
           });
           setRateRows([]);
         }
@@ -160,9 +166,7 @@ export default function PricingPage() {
       rate_spot_24hr: "0",
       rate_monthly_10hr: "0",
       rate_monthly_24hr: "0",
-      rate_overtime_per_hr: "0",
-      allowance_outstation: "0",
-      allowance_accommodation: "0"
+      rate_overtime_per_hr: "0"
     }]);
   };
 
@@ -200,7 +204,9 @@ export default function PricingPage() {
           fuelBasePrice: Number(globalSettings.fuelBasePrice),
           revisionPercentage: revisionPct,
           contractDuration: globalSettings.contractDuration,
-          contractDate: globalSettings.contractDate
+          contractDate: globalSettings.contractDate,
+          allowanceOutstation: Number(globalSettings.allowanceOutstation),
+          allowanceAccommodation: Number(globalSettings.allowanceAccommodation)
         });
       } else {
         const res = await apiClient.createChauffeurContract({
@@ -209,6 +215,8 @@ export default function PricingPage() {
           revisionPercentage: revisionPct,
           contractDuration: globalSettings.contractDuration,
           contractDate: globalSettings.contractDate,
+          allowanceOutstation: Number(globalSettings.allowanceOutstation),
+          allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
           vehicleModel: ""
         });
         currentContractId = res.data.id;
@@ -226,9 +234,7 @@ export default function PricingPage() {
           rateSpot24hr: Number(row.rate_spot_24hr),
           rateMonthly10hr: Number(row.rate_monthly_10hr),
           rateMonthly24hr: Number(row.rate_monthly_24hr),
-          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
-          allowanceOutstation: Number(row.allowance_outstation || 0),
-          allowanceAccommodation: Number(row.allowance_accommodation || 0),
+          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0)
         };
 
         if (row.isNew) {
@@ -236,6 +242,10 @@ export default function PricingPage() {
             companyId: Number(selectedCompanyId),
             fuelBasePrice: Number(globalSettings.fuelBasePrice),
             revisionPercentage: revisionPct,
+            contractDuration: globalSettings.contractDuration,
+            contractDate: globalSettings.contractDate,
+            allowanceOutstation: Number(globalSettings.allowanceOutstation),
+            allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
             ...commonData
           });
         } else if (row.id) {
@@ -398,6 +408,16 @@ export default function PricingPage() {
                     onChange={(v: string) => setGlobalSettings(s => ({ ...s, revisionPercentage: v }))}
                     helperText="Leave empty to always adjust rates with fuel price changes"
                   />
+                  <Input
+                    label="Outstation Allowance"
+                    value={globalSettings.allowanceOutstation}
+                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, allowanceOutstation: v }))}
+                  />
+                  <Input
+                    label="Accommodation Allowance"
+                    value={globalSettings.allowanceAccommodation}
+                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, allowanceAccommodation: v }))}
+                  />
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
                     <select
@@ -458,8 +478,6 @@ export default function PricingPage() {
                         <th className="px-4 py-4 min-w-[100px]">Mth 10hr</th>
                         <th className="px-4 py-4 min-w-[100px]">Mth 24hr</th>
                         <th className="px-4 py-4 min-w-[100px]">Overtime/Hr</th>
-                        <th className="px-4 py-4 min-w-[100px]">Outstation</th>
-                        <th className="px-4 py-4 min-w-[100px]">Accommod.</th>
                         <th className="px-4 py-4 w-[50px]"></th>
                       </tr>
                     </thead>
@@ -500,12 +518,6 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'rate_overtime_per_hr', e.target.value)} />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.allowance_outstation} onChange={e => updateRateRow(idx, 'allowance_outstation', e.target.value)} />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.allowance_accommodation} onChange={e => updateRateRow(idx, 'allowance_accommodation', e.target.value)} />
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
