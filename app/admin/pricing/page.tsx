@@ -40,9 +40,12 @@ export default function PricingPage() {
     allowanceAccommodation: ""
   });
 
+
+
   // Rates State
   type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
   const [rateRows, setRateRows] = useState<RateRow[]>([]);
+  const [showMarketRates, setShowMarketRates] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -166,7 +169,14 @@ export default function PricingPage() {
       rate_spot_24hr: "0",
       rate_monthly_10hr: "0",
       rate_monthly_24hr: "0",
-      rate_overtime_per_hr: "0"
+      rate_overtime_per_hr: "0",
+      market_cost_per_km: "0",
+      market_rate_spot_5hr: "0",
+      market_rate_spot_10hr: "0",
+      market_rate_spot_24hr: "0",
+      market_rate_monthly_10hr: "0",
+      market_rate_monthly_24hr: "0",
+      market_rate_overtime_per_hr: "0"
     }]);
   };
 
@@ -189,6 +199,20 @@ export default function PricingPage() {
         alert("Failed to delete rate: " + err.message);
       }
     }
+  };
+
+  const getSavings = (contractVal: string | number | undefined, marketVal: string | number | undefined) => {
+    const c = Number(contractVal || 0);
+    const m = Number(marketVal || 0);
+    if (!m || !c || m <= c) return null;
+    const diff = m - c;
+    const pct = (diff / m) * 100;
+    return (
+      <div className="text-[10px] font-bold text-green-600 flex items-center gap-1">
+        <span>↓ {pct.toFixed(0)}%</span>
+        <span className="text-green-600/70">({diff.toLocaleString()})</span>
+      </div>
+    );
   };
 
   const handleSave = async () => {
@@ -234,7 +258,14 @@ export default function PricingPage() {
           rateSpot24hr: Number(row.rate_spot_24hr),
           rateMonthly10hr: Number(row.rate_monthly_10hr),
           rateMonthly24hr: Number(row.rate_monthly_24hr),
-          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0)
+          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
+          marketCostPerKm: Number(row.market_cost_per_km || 0),
+          marketRateSpot5hr: Number(row.market_rate_spot_5hr || 0),
+          marketRateSpot10hr: Number(row.market_rate_spot_10hr || 0),
+          marketRateSpot24hr: Number(row.market_rate_spot_24hr || 0),
+          marketRateMonthly10hr: Number(row.market_rate_monthly_10hr || 0),
+          marketRateMonthly24hr: Number(row.market_rate_monthly_24hr || 0),
+          marketRateOvertimePerHr: Number(row.market_rate_overtime_per_hr || 0)
         };
 
         if (row.isNew) {
@@ -450,6 +481,15 @@ export default function PricingPage() {
                     <p className="text-xs text-slate-500 mt-1">Base rates - actual billing rates calculated dynamically.</p>
                   </div>
                   <div className="flex gap-3">
+                    <label className="flex items-center gap-2 text-sm text-slate-600 mr-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={showMarketRates}
+                        onChange={e => setShowMarketRates(e.target.checked)}
+                        className="rounded border-slate-300 text-[#f47f00] focus:ring-[#f47f00]"
+                      />
+                      Show Market Rates
+                    </label>
                     <button
                       onClick={handleAddRateRow}
                       className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3"
@@ -499,25 +539,81 @@ export default function PricingPage() {
                             />
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => updateRateRow(idx, 'cost_per_km', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => updateRateRow(idx, 'cost_per_km', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => updateRateRow(idx, 'market_cost_per_km', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.cost_per_km, row.market_cost_per_km)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => updateRateRow(idx, 'rate_spot_5hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => updateRateRow(idx, 'rate_spot_5hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => updateRateRow(idx, 'market_rate_spot_5hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_spot_5hr, row.market_rate_spot_5hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => updateRateRow(idx, 'rate_spot_10hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => updateRateRow(idx, 'rate_spot_10hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => updateRateRow(idx, 'market_rate_spot_10hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_spot_10hr, row.market_rate_spot_10hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => updateRateRow(idx, 'rate_spot_24hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => updateRateRow(idx, 'rate_spot_24hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => updateRateRow(idx, 'market_rate_spot_24hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_spot_24hr, row.market_rate_spot_24hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => updateRateRow(idx, 'rate_monthly_10hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => updateRateRow(idx, 'rate_monthly_10hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => updateRateRow(idx, 'market_rate_monthly_10hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_monthly_10hr, row.market_rate_monthly_10hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => updateRateRow(idx, 'rate_monthly_24hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => updateRateRow(idx, 'rate_monthly_24hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => updateRateRow(idx, 'market_rate_monthly_24hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_monthly_24hr, row.market_rate_monthly_24hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'rate_overtime_per_hr', e.target.value)} />
+                            <div className="flex flex-col gap-1">
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'rate_overtime_per_hr', e.target.value)} placeholder="Contract" />
+                              {showMarketRates && (
+                                <>
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'market_rate_overtime_per_hr', e.target.value)} placeholder="Market" />
+                                  {getSavings(row.rate_overtime_per_hr, row.market_rate_overtime_per_hr)}
+                                </>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button

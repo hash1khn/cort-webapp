@@ -306,6 +306,13 @@ export interface ChauffeurContractRate {
     rate_monthly_10hr: string;
     rate_monthly_24hr: string;
     rate_overtime_per_hr: string;
+    market_cost_per_km?: string;
+    market_rate_spot_5hr?: string;
+    market_rate_spot_10hr?: string;
+    market_rate_spot_24hr?: string;
+    market_rate_monthly_10hr?: string;
+    market_rate_monthly_24hr?: string;
+    market_rate_overtime_per_hr?: string;
 }
 
 export interface ChauffeurContract {
@@ -340,6 +347,13 @@ export interface CreateChauffeurContractRequest {
     rateMonthly10hr?: number;
     rateMonthly24hr?: number;
     rateOvertimePerHr?: number;
+    marketCostPerKm?: number;
+    marketRateSpot5hr?: number;
+    marketRateSpot10hr?: number;
+    marketRateSpot24hr?: number;
+    marketRateMonthly10hr?: number;
+    marketRateMonthly24hr?: number;
+    marketRateOvertimePerHr?: number;
     allowanceOutstation?: number;
     allowanceAccommodation?: number;
 }
@@ -360,6 +374,13 @@ export interface UpdateChauffeurContractRequest {
     rateMonthly10hr?: number;
     rateMonthly24hr?: number;
     rateOvertimePerHr?: number;
+    marketCostPerKm?: number;
+    marketRateSpot5hr?: number;
+    marketRateSpot10hr?: number;
+    marketRateSpot24hr?: number;
+    marketRateMonthly10hr?: number;
+    marketRateMonthly24hr?: number;
+    marketRateOvertimePerHr?: number;
     allowanceOutstation?: number;
     allowanceAccommodation?: number;
 }
