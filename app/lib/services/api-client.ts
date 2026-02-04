@@ -510,6 +510,133 @@ export interface ChauffeurBookingResponse {
     message: string;
 }
 
+// -- FUEL RECORDS --
+
+export enum MaintenanceType {
+    OIL_CHANGE = 'OIL_CHANGE',
+    TIRE_ROTATION = 'TIRE_ROTATION',
+    BRAKE_SERVICE = 'BRAKE_SERVICE',
+    GENERAL_INSPECTION = 'GENERAL_INSPECTION',
+    REPAIR = 'REPAIR',
+    OTHER = 'OTHER',
+}
+
+export interface CreateFuelRecordRequest {
+    vehicle_id: number;
+    date: string; // ISO date format YYYY-MM-DD
+    fuel_litres: number;
+    current_fuel_rate: number;
+    fuel_cost?: number; // Auto-calculated if not provided
+    billed?: boolean;
+}
+
+export interface UpdateFuelRecordRequest extends Partial<CreateFuelRecordRequest> { }
+
+export interface QueryFuelRecordParams {
+    page?: number;
+    limit?: number;
+    vehicle_id?: number;
+    start_date?: string;
+    end_date?: string;
+    billed?: boolean;
+}
+
+export interface FuelRecord {
+    id: number;
+    vehicle_id: number;
+    date: string;
+    fuel_litres: number;
+    current_fuel_rate: number;
+    fuel_cost: number;
+    billed: boolean;
+    created_at: string;
+    updated_at: string;
+    vehicles?: {
+        id: number;
+        plate_number: string;
+        make: string;
+        model: string;
+    };
+}
+
+export interface FuelRecordResponse {
+    data: FuelRecord;
+    statusCode: number;
+    message: string;
+}
+
+export interface FuelStatsResponse {
+    data: {
+        total_fuel_cost: number;
+        average_fuel_rate: number;
+        total_records: number;
+    };
+    statusCode: number;
+    message: string;
+}
+
+// -- MAINTENANCE RECORDS --
+
+export interface CreateMaintenanceRecordRequest {
+    vehicle_id: number;
+    maintenance_type: MaintenanceType;
+    date: string; // ISO date format YYYY-MM-DD
+    odometer_reading: number;
+    next_service_odometer?: number; // Auto-calculated for oil changes
+    cost?: number;
+    notes?: string;
+}
+
+export interface UpdateMaintenanceRecordRequest extends Partial<CreateMaintenanceRecordRequest> { }
+
+export interface QueryMaintenanceRecordParams {
+    page?: number;
+    limit?: number;
+    vehicle_id?: number;
+    maintenance_type?: MaintenanceType;
+    start_date?: string;
+    end_date?: string;
+}
+
+export interface MaintenanceRecord {
+    id: number;
+    vehicle_id: number;
+    maintenance_type: MaintenanceType;
+    date: string;
+    odometer_reading: number;
+    next_service_odometer: number | null;
+    cost: number | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    vehicles?: {
+        id: number;
+        plate_number: string;
+        make: string;
+        model: string;
+    };
+}
+
+export interface MaintenanceRecordResponse {
+    data: MaintenanceRecord;
+    statusCode: number;
+    message: string;
+}
+
+export interface UpcomingMaintenanceResponse {
+    data: {
+        vehicle_id: number;
+        plate_number: string;
+        make: string;
+        model: string;
+        last_oil_change_date: string;
+        last_oil_change_odometer: number;
+        next_service_odometer: number;
+    }[];
+    statusCode: number;
+    message: string;
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 class ApiClient {
@@ -1455,6 +1582,94 @@ class ApiClient {
             method: 'PATCH',
             body: JSON.stringify({ status })
         });
+    }
+
+    /**
+     * Vehicle Fuel Records
+     */
+    async getFuelRecords(params: QueryFuelRecordParams = {}): Promise<PaginatedResponse<FuelRecord>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', String(params.page));
+        if (params.limit) query.append('limit', String(params.limit));
+        if (params.vehicle_id) query.append('vehicle_id', String(params.vehicle_id));
+        if (params.start_date) query.append('start_date', params.start_date);
+        if (params.end_date) query.append('end_date', params.end_date);
+        if (params.billed !== undefined) query.append('billed', String(params.billed));
+
+        const queryString = query.toString();
+        return this.request<PaginatedResponse<FuelRecord>>(`/vehicle-fuel${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async createFuelRecord(data: CreateFuelRecordRequest): Promise<FuelRecordResponse> {
+        return this.request<FuelRecordResponse>('/vehicle-fuel', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getFuelRecord(id: number): Promise<FuelRecordResponse> {
+        return this.request<FuelRecordResponse>(`/vehicle-fuel/${id}`);
+    }
+
+    async updateFuelRecord(id: number, data: UpdateFuelRecordRequest): Promise<FuelRecordResponse> {
+        return this.request<FuelRecordResponse>(`/vehicle-fuel/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteFuelRecord(id: number): Promise<{ data: { message: string }; statusCode: number; message: string }> {
+        return this.request(`/vehicle-fuel/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getFuelStats(): Promise<FuelStatsResponse> {
+        return this.request<FuelStatsResponse>('/vehicle-fuel/stats');
+    }
+
+    /**
+     * Vehicle Maintenance Records
+     */
+    async getMaintenanceRecords(params: QueryMaintenanceRecordParams = {}): Promise<PaginatedResponse<MaintenanceRecord>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', String(params.page));
+        if (params.limit) query.append('limit', String(params.limit));
+        if (params.vehicle_id) query.append('vehicle_id', String(params.vehicle_id));
+        if (params.maintenance_type) query.append('maintenance_type', params.maintenance_type);
+        if (params.start_date) query.append('start_date', params.start_date);
+        if (params.end_date) query.append('end_date', params.end_date);
+
+        const queryString = query.toString();
+        return this.request<PaginatedResponse<MaintenanceRecord>>(`/vehicle-maintenance${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async createMaintenanceRecord(data: CreateMaintenanceRecordRequest): Promise<MaintenanceRecordResponse> {
+        return this.request<MaintenanceRecordResponse>('/vehicle-maintenance', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getMaintenanceRecord(id: number): Promise<MaintenanceRecordResponse> {
+        return this.request<MaintenanceRecordResponse>(`/vehicle-maintenance/${id}`);
+    }
+
+    async updateMaintenanceRecord(id: number, data: UpdateMaintenanceRecordRequest): Promise<MaintenanceRecordResponse> {
+        return this.request<MaintenanceRecordResponse>(`/vehicle-maintenance/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteMaintenanceRecord(id: number): Promise<{ data: { message: string }; statusCode: number; message: string }> {
+        return this.request(`/vehicle-maintenance/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getUpcomingMaintenance(): Promise<UpcomingMaintenanceResponse> {
+        return this.request<UpcomingMaintenanceResponse>('/vehicle-maintenance/upcoming');
     }
 }
 

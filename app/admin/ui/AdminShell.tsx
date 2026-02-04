@@ -10,6 +10,8 @@ const nav = [
   { href: "/admin/companies", label: "Companies" },
   { href: "/admin/pricing", label: "Contracts & Pricing" },
   { href: "/admin/vehicles", label: "Vehicles" },
+  { href: "/admin/vehicles/fueling", label: "↳ Fuel Records" },
+  { href: "/admin/vehicles/maintenance", label: "↳ Maintenance" },
   { href: "/admin/vendors", label: "Vendors" },
   { href: "/admin/drivers", label: "Drivers" },
   { href: "/admin/bookings/pending", label: "Bookings" },

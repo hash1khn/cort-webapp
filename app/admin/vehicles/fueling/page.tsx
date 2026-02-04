@@ -1,0 +1,407 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import {
+    apiClient,
+    FuelRecord,
+    CreateFuelRecordRequest,
+    UpdateFuelRecordRequest,
+    QueryFuelRecordParams,
+    Vehicle,
+} from "../../../lib/services/api-client";
+
+// Debounce helper
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+    useEffect(() => {
+        const handler = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(handler);
+    }, [value, delay]);
+    return debouncedValue;
+}
+
+export default function FuelingPage() {
+    const [records, setRecords] = useState<FuelRecord[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [stats, setStats] = useState<{ total_fuel_cost: number; average_fuel_rate: number; total_records: number } | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Modal State
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+    const [selectedRecord, setSelectedRecord] = useState<FuelRecord | null>(null);
+
+    // Filters
+    const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">("ALL");
+    const [filterBilled, setFilterBilled] = useState<boolean | "ALL">("ALL");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
+    // Form Data
+    const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
+
+    const fetchRecords = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params: QueryFuelRecordParams = { limit: 100 };
+            if (filterVehicleId !== "ALL") params.vehicle_id = filterVehicleId;
+            if (filterBilled !== "ALL") params.billed = filterBilled;
+            if (startDate) params.start_date = startDate;
+            if (endDate) params.end_date = endDate;
+
+            const response = await apiClient.getFuelRecords(params);
+            setRecords(response.data?.data || []);
+        } catch (error) {
+            console.error("Failed to fetch fuel records:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [filterVehicleId, filterBilled, startDate, endDate]);
+
+    const fetchStats = async () => {
+        try {
+            const response = await apiClient.getFuelStats();
+            setStats(response.data);
+        } catch (error) {
+            console.error("Failed to fetch fuel stats:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchRecords();
+        fetchStats();
+        apiClient.getVehicles({ limit: 100 }).then(res => setVehicles(res.data?.data || []));
+    }, [fetchRecords]);
+
+    const handleCreate = async () => {
+        if (!formData.vehicle_id || !formData.date || !formData.fuel_litres || !formData.current_fuel_rate) {
+            alert("Please fill all required fields");
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            await apiClient.createFuelRecord(formData as CreateFuelRecordRequest);
+            closeModal();
+            fetchRecords();
+            fetchStats();
+        } catch (error: any) {
+            console.error("Failed to create fuel record:", error);
+            alert(error.message || "Failed to create fuel record");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleUpdate = async () => {
+        if (!selectedRecord) return;
+        try {
+            setIsSubmitting(true);
+            await apiClient.updateFuelRecord(selectedRecord.id, formData as UpdateFuelRecordRequest);
+            closeModal();
+            fetchRecords();
+            fetchStats();
+        } catch (error: any) {
+            console.error("Failed to update fuel record:", error);
+            alert(error.message || "Failed to update fuel record");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (record: FuelRecord) => {
+        if (!confirm(`Are you sure you want to delete this fuel record?`)) return;
+
+        try {
+            await apiClient.deleteFuelRecord(record.id);
+            fetchRecords();
+            fetchStats();
+        } catch (error: any) {
+            console.error("Failed to delete fuel record:", error);
+            alert(error.message || "Failed to delete fuel record");
+        }
+    };
+
+    const startCreate = () => {
+        setSelectedRecord(null);
+        setFormData({
+            date: new Date().toISOString().split('T')[0],
+            billed: false,
+        });
+        setModalMode("create");
+        setIsModalOpen(true);
+    };
+
+    const startEdit = (record: FuelRecord) => {
+        setSelectedRecord(record);
+        setFormData({
+            vehicle_id: record.vehicle_id,
+            date: record.date,
+            fuel_litres: record.fuel_litres,
+            current_fuel_rate: record.current_fuel_rate,
+            billed: record.billed,
+        });
+        setModalMode("edit");
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setSelectedRecord(null);
+        setFormData({});
+    };
+
+    const renderForm = () => (
+        <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 sm:col-span-2">
+                <span className="text-xs font-semibold tracking-wider text-muted">Vehicle *</span>
+                <select
+                    value={formData.vehicle_id || ""}
+                    onChange={(e) => setFormData({ ...formData, vehicle_id: Number(e.target.value) })}
+                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                >
+                    <option value="">Select Vehicle</option>
+                    {vehicles.map((v) => (
+                        <option key={v.id} value={v.id}>
+                            {v.plate_number} - {v.make} {v.model}
+                        </option>
+                    ))}
+                </select>
+            </label>
+            <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wider text-muted">Date *</span>
+                <input
+                    type="date"
+                    value={formData.date || ""}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                />
+            </label>
+            <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wider text-muted">Fuel Litres *</span>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={formData.fuel_litres || ""}
+                    onChange={(e) => setFormData({ ...formData, fuel_litres: Number(e.target.value) })}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    placeholder="50.00"
+                />
+            </label>
+            <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wider text-muted">Fuel Rate (PKR/L) *</span>
+                <input
+                    type="number"
+                    step="0.01"
+                    value={formData.current_fuel_rate || ""}
+                    onChange={(e) => setFormData({ ...formData, current_fuel_rate: Number(e.target.value) })}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    placeholder="280.00"
+                />
+            </label>
+            <label className="flex items-center gap-2">
+                <input
+                    type="checkbox"
+                    checked={formData.billed || false}
+                    onChange={(e) => setFormData({ ...formData, billed: e.target.checked })}
+                    className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
+                />
+                <span className="text-sm font-medium text-ink">Mark as Billed</span>
+            </label>
+            {formData.fuel_litres && formData.current_fuel_rate && (
+                <div className="col-span-full rounded-lg border border-border bg-blue/5 p-4">
+                    <div className="text-xs font-semibold tracking-wider text-muted">CALCULATED COST</div>
+                    <div className="mt-1 text-2xl font-bold text-blue">
+                        PKR {(formData.fuel_litres * formData.current_fuel_rate).toFixed(2)}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div>
+                <div className="text-sm font-medium text-muted">Admin / Vehicles</div>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Fuel Records</h1>
+            </div>
+
+            {/* Stats Cards */}
+            {stats && (
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-border bg-white p-4">
+                        <div className="text-xs font-semibold tracking-wider text-muted">TOTAL FUEL COST</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {stats.total_fuel_cost.toFixed(2)}</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-white p-4">
+                        <div className="text-xs font-semibold tracking-wider text-muted">AVERAGE FUEL RATE</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {stats.average_fuel_rate.toFixed(2)}/L</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-white p-4">
+                        <div className="text-xs font-semibold tracking-wider text-muted">TOTAL RECORDS</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">{stats.total_records}</div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4">
+                <select
+                    value={filterVehicleId}
+                    onChange={(e) => setFilterVehicleId(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                >
+                    <option value="ALL">All Vehicles</option>
+                    {vehicles.map((v) => (
+                        <option key={v.id} value={v.id}>
+                            {v.plate_number}
+                        </option>
+                    ))}
+                </select>
+                <select
+                    value={String(filterBilled)}
+                    onChange={(e) => setFilterBilled(e.target.value === "ALL" ? "ALL" : e.target.value === "true")}
+                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                >
+                    <option value="ALL">All Status</option>
+                    <option value="true">Billed</option>
+                    <option value="false">Not Billed</option>
+                </select>
+                <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    placeholder="Start Date"
+                />
+                <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    placeholder="End Date"
+                />
+                <button
+                    onClick={startCreate}
+                    className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+                >
+                    Add Fuel Record
+                </button>
+            </div>
+
+            <div className="rounded-xl border border-border bg-white overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
+                            <tr>
+                                <th className="px-4 py-3 text-left">Date</th>
+                                <th className="px-4 py-3 text-left">Vehicle</th>
+                                <th className="px-4 py-3 text-right">Litres</th>
+                                <th className="px-4 py-3 text-right">Rate (PKR/L)</th>
+                                <th className="px-4 py-3 text-right">Total Cost</th>
+                                <th className="px-4 py-3 text-center">Status</th>
+                                <th className="px-4 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {records.map((r) => (
+                                <tr key={r.id} className="hover:bg-surface/50">
+                                    <td className="px-4 py-3 font-medium text-ink">{new Date(r.date).toLocaleDateString()}</td>
+                                    <td className="px-4 py-3">
+                                        <div className="font-medium text-ink">{r.vehicles?.plate_number}</div>
+                                        <div className="text-xs text-muted">{r.vehicles?.make} {r.vehicles?.model}</div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-semibold">{r.fuel_litres} L</td>
+                                    <td className="px-4 py-3 text-right">PKR {r.current_fuel_rate.toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-right font-bold text-blue">PKR {r.fuel_cost.toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.billed ? "bg-success/10 text-success" : "bg-orange/10 text-orange"}`}>
+                                            {r.billed ? "Billed" : "Pending"}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => startEdit(r)}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(r)}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {!isLoading && records.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                                        No fuel records found matching your filters.
+                                    </td>
+                                </tr>
+                            )}
+                            {isLoading && (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                                        Loading...
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="mb-6 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-semibold tracking-wider text-muted">
+                                    {modalMode === "create" ? "NEW ENTRY" : "EDIT ENTRY"}
+                                </div>
+                                <h2 className="mt-1 text-2xl font-semibold text-navy">
+                                    {modalMode === "create" ? "Add Fuel Record" : "Edit Fuel Record"}
+                                </h2>
+                            </div>
+                            <button
+                                onClick={closeModal}
+                                className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
+                            >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="max-h-[70vh] overflow-y-auto pr-2">
+                            {renderForm()}
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
+                            <button
+                                onClick={closeModal}
+                                disabled={isSubmitting}
+                                className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={modalMode === "create" ? handleCreate : handleUpdate}
+                                disabled={isSubmitting}
+                                className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Record" : "Save Changes")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
