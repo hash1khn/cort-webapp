@@ -495,6 +495,7 @@ export interface ChauffeurBooking {
         model: string;
         plate_number: string;
     };
+    invoices?: Invoice | null;
 }
 
 export interface QueryChauffeurBookingParams {
@@ -1560,6 +1561,10 @@ class ApiClient {
 
     async getAllInvoices(): Promise<any> {
         return this.request<any>('/invoices');
+    }
+
+    async getInvoiceStats(): Promise<any> {
+        return this.request<any>('/invoices/stats');
     }
 
     async getCompanyInvoices(companyId: number): Promise<any> {

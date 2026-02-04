@@ -7,13 +7,26 @@ export default function InvoicingPage() {
   // Invoices State
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
 
-  // Pending Trips State
-  const [pendingTrips, setPendingTrips] = useState<any[]>([]);
-  const [isLoadingPending, setIsLoadingPending] = useState(false);
-  const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Stats
+  const [stats, setStats] = useState({
+    totalCollectable: 0,
+    totalCollected: 0,
+    totalOverdue: 0
+  });
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  // Fetch Stats
+  const fetchStats = async () => {
+    try {
+      const res = await apiClient.getInvoiceStats();
+      if (res && res.data) {
+        setStats(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch invoice stats:", error);
+    }
+  }
 
   // Fetch Invoices
   const fetchInvoices = async () => {
@@ -21,13 +34,14 @@ export default function InvoicingPage() {
     try {
       const response = await apiClient.getAllInvoices();
       // Backend returns { data: [...], status: ..., message: ... }
+      let fetchedInvoices: Invoice[] = [];
       if (response && response.data && Array.isArray(response.data)) {
-        setInvoices(response.data);
+        fetchedInvoices = response.data;
       } else if (Array.isArray(response)) {
-        setInvoices(response);
-      } else {
-        setInvoices([]);
+        fetchedInvoices = response;
       }
+
+      setInvoices(fetchedInvoices);
     } catch (error) {
       console.error("Failed to fetch invoices:", error);
     } finally {
@@ -35,51 +49,21 @@ export default function InvoicingPage() {
     }
   };
 
-  const fetchPendingTrips = async () => {
-    setIsLoadingPending(true);
-    try {
-      const res = await apiClient.getPendingTrips();
-      if (res && res.data) {
-        setPendingTrips(res.data);
-      }
-    } catch (error) {
-      console.error("Failed to pending trips", error);
-    } finally {
-      setIsLoadingPending(false);
-    }
-  }
-
   useEffect(() => {
     fetchInvoices();
+    fetchStats();
   }, []);
 
-  useEffect(() => {
-    if (showGenerateModal) {
-      fetchPendingTrips();
-    }
-  }, [showGenerateModal]);
-
-  const handleGenerateInvoice = async () => {
-    if (!selectedTripId) return;
-    setIsGenerating(true);
-    try {
-      await apiClient.generateTripInvoice(selectedTripId);
-      setShowGenerateModal(false);
-      fetchInvoices();
-      alert("Invoice generated successfully!");
-    } catch (error: any) {
-      alert("Failed to generate invoice: " + error.message);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const downloadPdf = async (id: number, invoiceNumber: string) => {
+    if (downloadingId) return;
+    setDownloadingId(id);
     try {
       await apiClient.downloadInvoicePdf(id, invoiceNumber);
     } catch (e) {
       console.error("Failed to download PDF", e);
       alert("Failed to download PDF");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -90,9 +74,13 @@ export default function InvoicingPage() {
       await apiClient.updateInvoiceStatus(id, newStatus);
 
       // Update local state
-      setInvoices(prev => prev.map(inv =>
+      const updatedInvoices = invoices.map(inv =>
         inv.id === id ? { ...inv, status: newStatus } : inv
-      ));
+      );
+      setInvoices(updatedInvoices);
+
+      // Refresh Stats from backend
+      fetchStats();
 
       alert("Status updated successfully");
     } catch (error: any) {
@@ -107,18 +95,36 @@ export default function InvoicingPage() {
         <div>
           <div className="text-sm font-medium text-muted">Financial Engine</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
-            Invoicing
+            General Ledger
           </h1>
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowGenerateModal(true)}
-          className="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-navy/90"
-        >
-          Generate New Invoice
-        </button>
+      {/* Financial Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold text-muted uppercase">Unpaid / Collectable</div>
+          <div className="mt-2 text-2xl font-bold text-red-600">
+            PKR {stats.totalCollectable.toLocaleString()}
+          </div>
+          <div className="text-xs text-muted mt-1">Pending payments</div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold text-muted uppercase">Total Collected</div>
+          <div className="mt-2 text-2xl font-bold text-green-600">
+            PKR {stats.totalCollected.toLocaleString()}
+          </div>
+          <div className="text-xs text-muted mt-1">Successfully recognized revenue</div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-white p-4 shadow-sm opacity-70">
+          <div className="text-xs font-semibold text-muted uppercase">Overdue Amount</div>
+          <div className="mt-2 text-2xl font-bold text-orange-600">
+            PKR {stats.totalOverdue.toLocaleString()}
+          </div>
+          <div className="text-xs text-muted mt-1">Included in Collectable</div>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
@@ -130,8 +136,8 @@ export default function InvoicingPage() {
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Reference Month</th>
                 <th className="px-4 py-3">Generated At</th>
-                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Total Amount</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -157,6 +163,9 @@ export default function InvoicingPage() {
                     <td className="px-4 py-3 text-navy">
                       {new Date(inv.generated_at).toLocaleDateString()}
                     </td>
+                    <td className="px-4 py-3 text-right font-medium text-navy">
+                      PKR {Number(inv.total_amount).toLocaleString()}
+                    </td>
                     <td className="px-4 py-3">
                       <select
                         value={inv.status || 'DRAFT'}
@@ -173,15 +182,21 @@ export default function InvoicingPage() {
                         <option value="CANCELLED">CANCELLED</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-navy">
-                      PKR {Number(inv.total_amount).toLocaleString()}
-                    </td>
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => downloadPdf(inv.id, inv.invoice_number)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
+                        disabled={downloadingId === inv.id}
+                        className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
                       >
-                        Download PDF
+                        {downloadingId === inv.id ? (
+                          <>
+                            <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Downloading...
+                          </>
+                        ) : 'Download PDF'}
                       </button>
                     </td>
                   </tr>
@@ -192,77 +207,7 @@ export default function InvoicingPage() {
         </div>
       </div>
 
-      {/* Generate Invoice Modal */}
-      {showGenerateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl flex flex-col max-h-[90vh]">
-            <h2 className="text-lg font-semibold text-navy mb-4">Select Trip to Invoice</h2>
 
-            <p className="text-sm text-muted mb-4">
-              Below are completed trips that have not been invoiced yet. Select one to generate an invoice.
-            </p>
-
-            <div className="flex-1 overflow-y-auto border border-border rounded-md">
-              {isLoadingPending ? (
-                <div className="p-8 text-center text-muted">Loading pending trips...</div>
-              ) : pendingTrips.length === 0 ? (
-                <div className="p-8 text-center text-muted">No pending trips found. All completed trips have been invoiced.</div>
-              ) : (
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-zinc-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 border-b">Select</th>
-                      <th className="px-4 py-2 border-b">Date</th>
-                      <th className="px-4 py-2 border-b">Company</th>
-                      <th className="px-4 py-2 border-b">Passenger</th>
-                      <th className="px-4 py-2 border-b text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingTrips.map(trip => (
-                      <tr key={trip.id} className={`hover:bg-zinc-50 cursor-pointer ${selectedTripId === trip.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedTripId(trip.id)}>
-                        <td className="px-4 py-3 border-b">
-                          <input
-                            type="radio"
-                            name="tripSelect"
-                            checked={selectedTripId === trip.id}
-                            onChange={() => setSelectedTripId(trip.id)}
-                          />
-                        </td>
-                        <td className="px-4 py-3 border-b">
-                          {trip.chauffeur_trip_logs?.completed_at ? new Date(trip.chauffeur_trip_logs.completed_at).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 border-b font-medium">{trip.companies?.name}</td>
-                        <td className="px-4 py-3 border-b">{trip.users_chauffeur_bookings_passenger_idTousers?.full_name}</td>
-                        <td className="px-4 py-3 border-b text-right">
-                          PKR {Number(trip.chauffeur_trip_logs?.total_invoice_amount || 0).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border">
-              <button
-                onClick={() => setShowGenerateModal(false)}
-                className="px-4 py-2 text-sm font-medium text-muted hover:text-navy"
-                disabled={isGenerating}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleGenerateInvoice}
-                disabled={isGenerating || !selectedTripId}
-                className="rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90 disabled:opacity-50"
-              >
-                {isGenerating ? 'Generating...' : 'Generate Invoice'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

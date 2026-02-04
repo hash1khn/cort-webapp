@@ -11,6 +11,7 @@ export default function CompanyInvoicingPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchInvoices = async () => {
@@ -36,6 +37,19 @@ export default function CompanyInvoicingPage() {
 
         fetchInvoices();
     }, [user?.company_id]);
+
+    const downloadPdf = async (id: number, invoiceNumber: string) => {
+        if (downloadingId) return;
+        setDownloadingId(id);
+        try {
+            await apiClient.downloadInvoicePdf(id, invoiceNumber);
+        } catch (e) {
+            console.error("Failed to download PDF", e);
+            alert("Failed to download PDF");
+        } finally {
+            setDownloadingId(null);
+        }
+    };
 
     // Loading skeleton is now handled inside the table to preserve headers
     /* if (isLoading) {
@@ -68,14 +82,15 @@ export default function CompanyInvoicingPage() {
                                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice #</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Billing Month</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Generated At</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
                                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Total Amount</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
 
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50/50">
                             {isLoading ? (
-                                <TableSkeleton columns={5} rows={8} />
+                                <TableSkeleton columns={6} rows={8} />
                             ) : invoices.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center">
@@ -97,6 +112,10 @@ export default function CompanyInvoicingPage() {
                                         <td className="px-6 py-4 text-slate-500">
                                             {new Date(inv.generated_at).toLocaleDateString()}
                                         </td>
+                                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-base">
+                                            <span className="text-slate-400 text-xs font-normal mr-1">PKR</span>
+                                            {Number(inv.total_amount).toLocaleString()}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                 inv.status === 'UNPAID' ? 'bg-rose-50 text-rose-700 border-rose-200' :
@@ -109,9 +128,22 @@ export default function CompanyInvoicingPage() {
                                                 {inv.status || 'DRAFT'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-base">
-                                            <span className="text-slate-400 text-xs font-normal mr-1">PKR</span>
-                                            {Number(inv.total_amount).toLocaleString()}
+                                        <td className="px-6 py-4 text-right">
+                                            <button
+                                                onClick={() => downloadPdf(inv.id, inv.invoice_number)}
+                                                disabled={downloadingId === inv.id}
+                                                className="text-blue-600 hover:text-blue-800 font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                                            >
+                                                {downloadingId === inv.id ? (
+                                                    <>
+                                                        <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        Downloading...
+                                                    </>
+                                                ) : 'Download PDF'}
+                                            </button>
                                         </td>
 
                                     </tr>

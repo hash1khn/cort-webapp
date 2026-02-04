@@ -428,6 +428,30 @@ export default function BookingsPage() {
                             <option value="CANCELLED">CANCELLED</option>
                           </select>
                         </div>
+                        {b.status === 'COMPLETED' && !b.invoices && (
+                          <div className="mt-2 text-center" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Generate invoice for this trip?")) return;
+                                try {
+                                  await apiClient.generateTripInvoice(b.id);
+                                  alert("Invoice generated successfully");
+                                  fetchBookings();
+                                } catch (e: any) {
+                                  alert("Failed to generate invoice: " + e.message);
+                                }
+                              }}
+                              className="text-[10px] bg-navy text-white px-2 py-1 rounded hover:opacity-90"
+                            >
+                              Generate Invoice
+                            </button>
+                          </div>
+                        )}
+                        {b.invoices && (
+                          <div className="mt-2 text-center text-[10px] text-green-600 font-medium">
+                            Invoiced #{b.invoices.invoice_number}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
