@@ -89,11 +89,11 @@ export interface PaginatedResponse<T> {
         data: T[];
         pagination: {
             total: number;
-            lastPage: number;
-            currentPage: number;
-            perPage: number;
-            prev: number | null;
-            next: number | null;
+            pages: number;
+            page: number;
+            limit: number;
+            hasNext: boolean;
+            hasPrev: boolean;
         };
     };
     status: number;

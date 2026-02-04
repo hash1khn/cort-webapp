@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { apiClient, ChauffeurBooking, DriverType } from "../../../lib/services/api-client";
 import Map, { type MapMarker } from "../../ui/Map";
 import Modal from "../../../company/bookings/components/Modal";
+import Pagination from "../../../components/ui/Pagination";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -94,15 +95,30 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(10);
+
   // Fetch bookings
   const fetchBookings = async () => {
     try {
       setIsLoading(true);
       const res = await apiClient.getAllBookings({
         status: statusFilter || undefined,
-        search: searchQuery || undefined
+        search: searchQuery || undefined,
+        page: currentPage,
+        limit: limit
       });
-      setBookings(res.data.data);
+      // Handle Paginated Response
+      if (res && res.data && res.data.data) {
+        setBookings(res.data.data);
+        if (res.data.pagination) {
+          setTotalPages(res.data.pagination.pages || 1);
+        }
+      } else {
+        setBookings([]);
+      }
     } catch (error) {
       console.error("Failed to fetch bookings", error);
     } finally {
@@ -113,10 +129,20 @@ export default function BookingsPage() {
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchBookings();
+      // Reset to page 1 on filter change
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchBookings();
+      }
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery, statusFilter]);
+
+  // Fetch when page changes
+  useEffect(() => {
+    fetchBookings();
+  }, [currentPage]);
 
   // Fetch available cars
   const fetchVehicles = async () => {
@@ -464,6 +490,11 @@ export default function BookingsPage() {
               </div>
             ) : null}
           </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
         </section>
 
         {selectedBooking && (
