@@ -1,62 +1,74 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAppSelector } from "../../../lib/store/hooks";
+import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
-import { apiClient, ChauffeurReport } from "../../../lib/services/api-client";
+import {
+  fetchChauffeurReports,
+  selectReports,
+  selectReportsStatus,
+  selectReportsError,
+  selectReportsFilters,
+  setFilters
+} from "../../../lib/store/slices/companyReportsSlice";
+import { ChauffeurReport } from "../../../lib/services/api-client";
 import { Card } from "../../components/DashboardComponents";
 import Modal from "../../bookings/components/Modal";
 import TablePageSkeleton from "../../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
 export default function ChauffeurReportsPage() {
+  const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
-  // loading state for company is handled on shell level mostly, but if we need it here we can select it via selectCompanyStatus
-  // For reports page, local loading state handles specific fetches.
-  const [reports, setReports] = useState<ChauffeurReport[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [startDate, setStartDate] = useState<string>("");
+  const reports = useAppSelector(selectReports);
+  const status = useAppSelector(selectReportsStatus);
+  const errorState = useAppSelector(selectReportsError);
+  const savedFilters = useAppSelector(selectReportsFilters);
+
+  const isLoading = status === 'loading';
   const [selectedReport, setSelectedReport] = useState<ChauffeurReport | null>(null);
-  const [endDate, setEndDate] = useState<string>("");
 
+  // Local state for inputs (for smooth UX), initialized from Redux
+  const [startDate, setStartDate] = useState<string>(savedFilters.startDate);
+  const [endDate, setEndDate] = useState<string>(savedFilters.endDate);
+
+  // Sync local state with Redux when savedFilters change (e.g., on mount)
   useEffect(() => {
-    const fetchReports = async () => {
-      if (!company?.id) return;
+    setStartDate(savedFilters.startDate);
+    setEndDate(savedFilters.endDate);
+  }, [savedFilters.startDate, savedFilters.endDate]);
 
-      setIsLoading(true);
-      try {
-        const response = await apiClient.getChauffeurReports(company.id, {
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        });
-        if (response.data && Array.isArray(response.data.data)) {
-          setReports(response.data.data);
-        } else if (Array.isArray(response.data)) {
-          setReports(response.data as any);
-        } else {
-          setReports([]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch reports:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    fetchReports();
-  }, [company?.id, startDate, endDate]);
+  // Debounce and update Redux filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      dispatch(setFilters({ startDate, endDate }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [startDate, endDate, dispatch]);
+
+  // Fetch reports when company or Redux filters change
+  useEffect(() => {
+    if (!company?.id) return;
+
+    // Only fetch if we don't have reports or filters actually changed from saved
+    const filtersChanged =
+      savedFilters.startDate !== startDate ||
+      savedFilters.endDate !== endDate ||
+      reports.length === 0;
+
+    if (filtersChanged && status !== 'loading') {
+      dispatch(fetchChauffeurReports({
+        companyId: company.id,
+        startDate: savedFilters.startDate || undefined,
+        endDate: savedFilters.endDate || undefined,
+      }));
+    }
+  }, [dispatch, company?.id, savedFilters.startDate, savedFilters.endDate, reports.length, status]);
 
   if (!company) {
     // If company is loading, shell might cover it, or we can show skeleton.
     return <TablePageSkeleton />;
-  }
-
-  if (!company) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">No company selected</div>
-      </div>
-    );
   }
 
   if (!company.services_enabled?.chauffeur_enabled) {

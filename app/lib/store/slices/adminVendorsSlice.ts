@@ -13,6 +13,9 @@ interface AdminVendorsState {
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    filters: {
+        search: string;
+    };
     pagination: {
         total: number;
         pages: number;
@@ -27,6 +30,9 @@ const initialState: AdminVendorsState = {
     status: 'idle',
     actionStatus: 'idle',
     error: null,
+    filters: {
+        search: ""
+    },
     pagination: {
         total: 0,
         pages: 0,
@@ -42,7 +48,12 @@ export const fetchAdminVendors = createAsyncThunk(
     async (params: QueryVendorParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getVendors(params);
-            return response.data;
+            return {
+                data: response.data,
+                filters: {
+                    search: params.search || ""
+                }
+            };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch vendors');
         }
@@ -105,9 +116,10 @@ const adminVendorsSlice = createSlice({
             })
             .addCase(fetchAdminVendors.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.vendors = action.payload.data;
-                if (action.payload.pagination) {
-                    state.pagination = action.payload.pagination;
+                state.vendors = action.payload.data.data;
+                state.filters = action.payload.filters;
+                if (action.payload.data.pagination) {
+                    state.pagination = action.payload.data.pagination;
                 }
             })
             .addCase(fetchAdminVendors.rejected, (state, action) => {
@@ -153,5 +165,6 @@ export const selectAdminVendors = (state: RootState) => state.adminVendors.vendo
 export const selectAdminVendorsStatus = (state: RootState) => state.adminVendors.status;
 export const selectAdminVendorsActionStatus = (state: RootState) => state.adminVendors.actionStatus;
 export const selectAdminVendorsError = (state: RootState) => state.adminVendors.error;
+export const selectVendorFilters = (state: RootState) => state.adminVendors.filters;
 
 export default adminVendorsSlice.reducer;

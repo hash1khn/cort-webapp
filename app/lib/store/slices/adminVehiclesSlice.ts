@@ -30,6 +30,11 @@ interface AdminVehiclesState {
     error: string | null;
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionError: string | null;
+    vehicleFilters: {
+        search: string;
+        category: string;
+        ownership: string;
+    };
 
     // Fuel
     fuelRecords: FuelRecord[];
@@ -37,6 +42,12 @@ interface AdminVehiclesState {
     fuelStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     fuelError: string | null;
     fuelActionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    fuelFilters: {
+        filterVehicleId: number | "ALL";
+        filterBilled: boolean | "ALL";
+        startDate: string;
+        endDate: string;
+    };
 
     // Maintenance
     maintenanceRecords: MaintenanceRecord[];
@@ -44,16 +55,32 @@ interface AdminVehiclesState {
     maintenanceStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     maintenanceError: string | null;
     maintenanceActionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    maintenanceFilters: {
+        filterVehicleId: number | "ALL";
+        filterType: MaintenanceType | "ALL";
+        startDate: string;
+        endDate: string;
+    };
 }
 
 const initialState: AdminVehiclesState = {
     // Vehicles
     vehicles: [],
-    pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
+    pagination: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+    },
     status: 'idle',
     error: null,
     actionStatus: 'idle',
     actionError: null,
+    vehicleFilters: {
+        search: "",
+        category: "",
+        ownership: ""
+    },
 
     // Fuel
     fuelRecords: [],
@@ -61,6 +88,12 @@ const initialState: AdminVehiclesState = {
     fuelStatus: 'idle',
     fuelError: null,
     fuelActionStatus: 'idle',
+    fuelFilters: {
+        filterVehicleId: "ALL",
+        filterBilled: "ALL",
+        startDate: "",
+        endDate: ""
+    },
 
     // Maintenance
     maintenanceRecords: [],
@@ -68,6 +101,12 @@ const initialState: AdminVehiclesState = {
     maintenanceStatus: 'idle',
     maintenanceError: null,
     maintenanceActionStatus: 'idle',
+    maintenanceFilters: {
+        filterVehicleId: "ALL",
+        filterType: "ALL",
+        startDate: "",
+        endDate: ""
+    }
 };
 
 // --- Vehicles Thunks ---
@@ -77,7 +116,14 @@ export const fetchAdminVehicles = createAsyncThunk(
     async (params: QueryVehicleParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getVehicles(params);
-            return response.data;
+            return {
+                data: response.data,
+                filters: {
+                    search: params.search || "",
+                    category: (params as any).category || "",
+                    ownership: (params as any).ownership || ""
+                }
+            };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch vehicles');
         }
@@ -127,7 +173,15 @@ export const fetchFuelRecords = createAsyncThunk(
     async (params: QueryFuelRecordParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getFuelRecords(params);
-            return response.data;
+            return {
+                data: response.data,
+                filters: {
+                    filterVehicleId: params.vehicle_id || "ALL" as number | "ALL",
+                    filterBilled: params.billed !== undefined ? params.billed : "ALL" as boolean | "ALL",
+                    startDate: params.start_date || "",
+                    endDate: params.end_date || ""
+                }
+            };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch fuel records');
         }
@@ -189,7 +243,15 @@ export const fetchMaintenanceRecords = createAsyncThunk(
     async (params: QueryMaintenanceRecordParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getMaintenanceRecords(params);
-            return response.data;
+            return {
+                data: response.data,
+                filters: {
+                    filterVehicleId: params.vehicle_id || "ALL" as number | "ALL",
+                    filterType: params.maintenance_type || "ALL" as MaintenanceType | "ALL",
+                    startDate: params.start_date || "",
+                    endDate: params.end_date || ""
+                }
+            };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch maintenance records');
         }
@@ -272,13 +334,14 @@ export const adminVehiclesSlice = createSlice({
             })
             .addCase(fetchAdminVehicles.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.vehicles = action.payload.data;
-                if (action.payload.pagination) {
+                state.vehicles = action.payload.data.data;
+                state.vehicleFilters = action.payload.filters;
+                if (action.payload.data.pagination) {
                     state.pagination = {
-                        page: Number(action.payload.pagination.page),
-                        limit: Number(action.payload.pagination.limit),
-                        total: Number(action.payload.pagination.total),
-                        totalPages: Number(action.payload.pagination.pages),
+                        page: Number(action.payload.data.pagination.page),
+                        limit: Number(action.payload.data.pagination.limit),
+                        total: Number(action.payload.data.pagination.total),
+                        totalPages: Number(action.payload.data.pagination.pages),
                     };
                 }
             })
@@ -309,7 +372,8 @@ export const adminVehiclesSlice = createSlice({
             .addCase(fetchFuelRecords.pending, (state) => { state.fuelStatus = 'loading'; })
             .addCase(fetchFuelRecords.fulfilled, (state, action) => {
                 state.fuelStatus = 'succeeded';
-                state.fuelRecords = action.payload.data;
+                state.fuelRecords = action.payload.data.data || action.payload.data;
+                state.fuelFilters = action.payload.filters;
             })
             .addCase(fetchFuelRecords.rejected, (state, action) => { state.fuelStatus = 'failed'; state.fuelError = action.payload as string; })
 
@@ -340,7 +404,8 @@ export const adminVehiclesSlice = createSlice({
             .addCase(fetchMaintenanceRecords.pending, (state) => { state.maintenanceStatus = 'loading'; })
             .addCase(fetchMaintenanceRecords.fulfilled, (state, action) => {
                 state.maintenanceStatus = 'succeeded';
-                state.maintenanceRecords = action.payload.data;
+                state.maintenanceRecords = action.payload.data.data || action.payload.data;
+                state.maintenanceFilters = action.payload.filters;
             })
             .addCase(fetchMaintenanceRecords.rejected, (state, action) => { state.maintenanceStatus = 'failed'; state.maintenanceError = action.payload as string; })
 
@@ -370,20 +435,22 @@ export const adminVehiclesSlice = createSlice({
 
 export const { resetVehicleActionStatus, resetFuelActionStatus, resetMaintenanceActionStatus, clearAdminVehicles } = adminVehiclesSlice.actions;
 
-// Selectors
 export const selectAdminVehicles = (state: RootState) => state.adminVehicles.vehicles;
 export const selectAdminVehiclesStatus = (state: RootState) => state.adminVehicles.status;
 export const selectAdminVehiclesError = (state: RootState) => state.adminVehicles.error;
 export const selectAdminVehiclesActionStatus = (state: RootState) => state.adminVehicles.actionStatus;
+export const selectVehicleFilters = (state: RootState) => state.adminVehicles.vehicleFilters;
 
 export const selectFuelRecords = (state: RootState) => state.adminVehicles.fuelRecords;
 export const selectFuelStats = (state: RootState) => state.adminVehicles.fuelStats;
 export const selectFuelStatus = (state: RootState) => state.adminVehicles.fuelStatus;
 export const selectFuelActionStatus = (state: RootState) => state.adminVehicles.fuelActionStatus;
+export const selectFuelFilters = (state: RootState) => state.adminVehicles.fuelFilters;
 
 export const selectMaintenanceRecords = (state: RootState) => state.adminVehicles.maintenanceRecords;
 export const selectUpcomingMaintenance = (state: RootState) => state.adminVehicles.upcomingMaintenance;
 export const selectMaintenanceStatus = (state: RootState) => state.adminVehicles.maintenanceStatus;
 export const selectMaintenanceActionStatus = (state: RootState) => state.adminVehicles.maintenanceActionStatus;
+export const selectMaintenanceFilters = (state: RootState) => state.adminVehicles.maintenanceFilters;
 
 export default adminVehiclesSlice.reducer;

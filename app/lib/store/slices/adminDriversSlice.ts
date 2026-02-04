@@ -16,6 +16,10 @@ interface AdminDriversState {
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    filters: {
+        searchQuery: string;
+        activeTab: string;
+    };
     pagination: {
         total: number;
         pages: number;
@@ -31,6 +35,10 @@ const initialState: AdminDriversState = {
     status: 'idle',
     actionStatus: 'idle',
     error: null,
+    filters: {
+        searchQuery: "",
+        activeTab: "ALL"
+    },
     pagination: {
         total: 0,
         pages: 0,
@@ -43,10 +51,16 @@ const initialState: AdminDriversState = {
 
 export const fetchAdminDrivers = createAsyncThunk(
     'adminDrivers/fetchAdminDrivers',
-    async (params: QueryDriverParams = {}, { rejectWithValue }) => {
+    async (params: QueryDriverParams & { activeTab?: string } = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getDrivers(params);
-            return response.data; // Assuming response structure { data: Driver[], pagination: ... }
+            return {
+                data: response.data,
+                filters: {
+                    searchQuery: params.search || "",
+                    activeTab: params.activeTab || "ALL"
+                }
+            };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch drivers');
         }
@@ -58,7 +72,13 @@ export const fetchPendingChauffeurs = createAsyncThunk(
     async (params: QueryDriverParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getPendingChauffeurs(params);
-            return response.data;
+            return {
+                data: response.data,
+                filters: {
+                    searchQuery: params.search || "",
+                    activeTab: "PENDING_CHAUFFEUR"
+                }
+            };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch pending chauffeurs');
         }
@@ -138,9 +158,10 @@ const adminDriversSlice = createSlice({
             })
             .addCase(fetchAdminDrivers.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.data = action.payload.data;
-                if (action.payload.pagination) {
-                    state.pagination = action.payload.pagination;
+                state.data = action.payload.data.data;
+                state.filters = action.payload.filters;
+                if (action.payload.data.pagination) {
+                    state.pagination = action.payload.data.pagination;
                 }
             })
             .addCase(fetchAdminDrivers.rejected, (state, action) => {
@@ -154,9 +175,10 @@ const adminDriversSlice = createSlice({
             })
             .addCase(fetchPendingChauffeurs.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.data = action.payload.data;
-                if (action.payload.pagination) {
-                    state.pagination = action.payload.pagination;
+                state.data = action.payload.data.data;
+                state.filters = action.payload.filters;
+                if (action.payload.data.pagination) {
+                    state.pagination = action.payload.data.pagination;
                 }
             })
             .addCase(fetchPendingChauffeurs.rejected, (state, action) => {
@@ -225,5 +247,6 @@ export const selectAdminDriversStatus = (state: RootState) => state.adminDrivers
 export const selectAdminDriversError = (state: RootState) => state.adminDrivers.error;
 export const selectAdminDriversActionStatus = (state: RootState) => state.adminDrivers.actionStatus;
 export const selectAdminDriversPagination = (state: RootState) => state.adminDrivers.pagination;
+export const selectDriverFilters = (state: RootState) => state.adminDrivers.filters;
 
 export default adminDriversSlice.reducer;

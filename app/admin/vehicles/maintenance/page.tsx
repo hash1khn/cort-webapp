@@ -14,6 +14,7 @@ import {
     selectMaintenanceStatus,
     selectMaintenanceActionStatus,
     selectAdminVehicles,
+    selectMaintenanceFilters,
     resetMaintenanceActionStatus
 } from "../../../lib/store/slices/adminVehiclesSlice";
 import {
@@ -42,20 +43,29 @@ export default function MaintenancePage() {
     const upcomingMaintenance = useAppSelector(selectUpcomingMaintenance);
     const status = useAppSelector(selectMaintenanceStatus);
     const actionStatus = useAppSelector(selectMaintenanceActionStatus);
+    const savedFilters = useAppSelector(selectMaintenanceFilters);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedRecord, setSelectedRecord] = useState<MaintenanceRecord | null>(null);
 
-    // Filters
-    const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">("ALL");
-    const [filterType, setFilterType] = useState<MaintenanceType | "ALL">("ALL");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    // Filters - Initialize from Redux
+    const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">(savedFilters.filterVehicleId);
+    const [filterType, setFilterType] = useState<MaintenanceType | "ALL">(savedFilters.filterType);
+    const [startDate, setStartDate] = useState(savedFilters.startDate);
+    const [endDate, setEndDate] = useState(savedFilters.endDate);
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateMaintenanceRecordRequest>>({});
+
+    // Sync local state with Redux
+    useEffect(() => {
+        setFilterVehicleId(savedFilters.filterVehicleId);
+        setFilterType(savedFilters.filterType);
+        setStartDate(savedFilters.startDate);
+        setEndDate(savedFilters.endDate);
+    }, [savedFilters]);
 
     const loadData = useCallback(() => {
         const params: QueryMaintenanceRecordParams = { limit: 100 };
@@ -69,9 +79,23 @@ export default function MaintenancePage() {
     }, [dispatch, filterVehicleId, filterType, startDate, endDate]);
 
     useEffect(() => {
-        loadData();
         dispatch(fetchAdminVehicles({ limit: 100 }));
-    }, [loadData, dispatch]);
+    }, [dispatch]);
+
+    useEffect(() => {
+        const filtersChanged =
+            filterVehicleId !== savedFilters.filterVehicleId ||
+            filterType !== savedFilters.filterType ||
+            startDate !== savedFilters.startDate ||
+            endDate !== savedFilters.endDate;
+
+        if (status === 'idle' || filtersChanged) {
+            if (status === 'succeeded' && !filtersChanged) {
+                return;
+            }
+            loadData();
+        }
+    }, [filterVehicleId, filterType, startDate, endDate, status, savedFilters, loadData]);
 
     // Handle action updates
     useEffect(() => {

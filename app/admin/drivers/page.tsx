@@ -20,7 +20,9 @@ import {
     selectAdminDrivers,
     selectAdminDriversStatus,
     selectAdminDriversError,
-    selectAdminDriversActionStatus
+    selectAdminDriversActionStatus,
+    selectDriverFilters,
+    resetDriversActionStatus
 } from "../../lib/store/slices/adminDriversSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -362,8 +364,9 @@ export default function DriversPage() {
     const status = useAppSelector(selectAdminDriversStatus);
     const error = useAppSelector(selectAdminDriversError);
     const actionStatus = useAppSelector(selectAdminDriversActionStatus);
+    const savedFilters = useAppSelector(selectDriverFilters);
 
-    const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">("ALL");
+    const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">(savedFilters.activeTab as any || "ALL");
 
     // Modal States
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -376,8 +379,15 @@ export default function DriversPage() {
     const [rejectingDriverId, setRejectingDriverId] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState("");
 
-    const [searchQuery, setSearchQuery] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
+    const [debouncedSearch, setDebouncedSearch] = useState(savedFilters.searchQuery);
+
+    // Sync with Redux
+    useEffect(() => {
+        setSearchQuery(savedFilters.searchQuery);
+        setDebouncedSearch(savedFilters.searchQuery);
+        setActiveTab(savedFilters.activeTab as any);
+    }, [savedFilters]);
 
     // Debounce search query
     useEffect(() => {
@@ -388,11 +398,20 @@ export default function DriversPage() {
     }, [searchQuery]);
 
     useEffect(() => {
-        loadDrivers();
-    }, [activeTab, debouncedSearch, dispatch]);
+        const filtersChanged =
+            activeTab !== savedFilters.activeTab ||
+            debouncedSearch !== savedFilters.searchQuery;
+
+        if (status === 'idle' || filtersChanged) {
+            if (status === 'succeeded' && !filtersChanged) {
+                return;
+            }
+            loadDrivers();
+        }
+    }, [activeTab, debouncedSearch, status, savedFilters]);
 
     const loadDrivers = async () => {
-        const params: QueryDriverParams = { limit: 100, search: debouncedSearch };
+        const params: QueryDriverParams & { activeTab?: string } = { limit: 100, search: debouncedSearch, activeTab };
 
         if (activeTab === "PENDING_CHAUFFEUR") {
             // For pending chauffeurs logic

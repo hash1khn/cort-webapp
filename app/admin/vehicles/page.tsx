@@ -12,6 +12,8 @@ import {
     selectAdminVehiclesStatus,
     selectAdminVehiclesError,
     selectAdminVehiclesActionStatus,
+    selectVehicleFilters,
+    resetVehicleActionStatus
 } from "../../lib/store/slices/adminVehiclesSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -277,16 +279,25 @@ export default function VehiclesPage() {
     const status = useAppSelector(selectAdminVehiclesStatus);
     const error = useAppSelector(selectAdminVehiclesError);
     const actionStatus = useAppSelector(selectAdminVehiclesActionStatus);
+    const savedFilters = useAppSelector(selectVehicleFilters);
 
-    const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [search, setSearch] = useState(savedFilters.search);
+    const [debouncedSearch, setDebouncedSearch] = useState(savedFilters.search);
 
-    // Filters
-    const [category, setCategory] = useState<string>("");
-    const [ownership, setOwnership] = useState<string>("");
+    // Filters - Initialize from Redux
+    const [category, setCategory] = useState<string>(savedFilters.category);
+    const [ownership, setOwnership] = useState<string>(savedFilters.ownership);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+
+    // Sync with Redux
+    useEffect(() => {
+        setSearch(savedFilters.search);
+        setDebouncedSearch(savedFilters.search);
+        setCategory(savedFilters.category);
+        setOwnership(savedFilters.ownership);
+    }, [savedFilters]);
 
     // Debounce search
     useEffect(() => {
@@ -297,15 +308,26 @@ export default function VehiclesPage() {
     }, [search]);
 
     useEffect(() => {
-        const params: QueryVehicleParams = {
-            limit: 100,
-            search: debouncedSearch || undefined,
-        };
-        if (category) (params as any).category = category;
-        if (ownership) (params as any).ownership = ownership;
+        const filtersChanged =
+            debouncedSearch !== savedFilters.search ||
+            category !== savedFilters.category ||
+            ownership !== savedFilters.ownership;
 
-        dispatch(fetchAdminVehicles(params));
-    }, [dispatch, debouncedSearch, category, ownership]);
+        if (status === 'idle' || filtersChanged) {
+            if (status === 'succeeded' && !filtersChanged) {
+                return;
+            }
+
+            const params: QueryVehicleParams = {
+                limit: 100,
+                search: debouncedSearch || undefined,
+            };
+            if (category) (params as any).category = category;
+            if (ownership) (params as any).ownership = ownership;
+
+            dispatch(fetchAdminVehicles(params));
+        }
+    }, [dispatch, debouncedSearch, category, ownership, status, savedFilters]);
 
     const handleCreateNew = () => {
         setEditingVehicle(null);

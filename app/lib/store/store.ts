@@ -6,6 +6,7 @@ import contractReducer from './slices/contractSlice';
 import employeesReducer from './slices/employeeSlice';
 
 import invoiceReducer from './slices/invoiceSlice';
+import companyReportsReducer from './slices/companyReportsSlice';
 import adminCompaniesReducer from './slices/adminCompaniesSlice';
 import adminVehiclesReducer from './slices/adminVehiclesSlice';
 import adminDriversReducer from './slices/adminDriversSlice';
@@ -23,6 +24,7 @@ export const store = configureStore({
         contract: contractReducer,
         employees: employeesReducer,
         invoices: invoiceReducer,
+        companyReports: companyReportsReducer,
         adminCompanies: adminCompaniesReducer,
         adminVehicles: adminVehiclesReducer,
         adminDrivers: adminDriversReducer,

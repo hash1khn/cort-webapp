@@ -14,6 +14,7 @@ import {
     selectFuelStatus,
     selectFuelActionStatus,
     selectAdminVehicles,
+    selectFuelFilters,
     resetFuelActionStatus
 } from "../../../lib/store/slices/adminVehiclesSlice";
 
@@ -42,20 +43,29 @@ export default function FuelingPage() {
     const vehicles = useAppSelector(selectAdminVehicles);
     const status = useAppSelector(selectFuelStatus);
     const actionStatus = useAppSelector(selectFuelActionStatus);
+    const savedFilters = useAppSelector(selectFuelFilters);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedRecord, setSelectedRecord] = useState<FuelRecord | null>(null);
 
-    // Filters
-    const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">("ALL");
-    const [filterBilled, setFilterBilled] = useState<boolean | "ALL">("ALL");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    // Filters - Initialize from Redux
+    const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">(savedFilters.filterVehicleId);
+    const [filterBilled, setFilterBilled] = useState<boolean | "ALL">(savedFilters.filterBilled);
+    const [startDate, setStartDate] = useState(savedFilters.startDate);
+    const [endDate, setEndDate] = useState(savedFilters.endDate);
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
+
+    // Sync local state with Redux when filters change externally
+    useEffect(() => {
+        setFilterVehicleId(savedFilters.filterVehicleId);
+        setFilterBilled(savedFilters.filterBilled);
+        setStartDate(savedFilters.startDate);
+        setEndDate(savedFilters.endDate);
+    }, [savedFilters]);
 
     const loadData = useCallback(() => {
         const params: QueryFuelRecordParams = { limit: 100 };
@@ -69,9 +79,26 @@ export default function FuelingPage() {
     }, [dispatch, filterVehicleId, filterBilled, startDate, endDate]);
 
     useEffect(() => {
-        loadData();
+        // Only fetch vehicles list once
         dispatch(fetchAdminVehicles({ limit: 100 }));
-    }, [loadData, dispatch]);
+    }, [dispatch]);
+
+    useEffect(() => {
+        // Check if filters have changed from what's in Redux
+        const filtersChanged =
+            filterVehicleId !== savedFilters.filterVehicleId ||
+            filterBilled !== savedFilters.filterBilled ||
+            startDate !== savedFilters.startDate ||
+            endDate !== savedFilters.endDate;
+
+        // Only fetch if filters changed or initial load
+        if (status === 'idle' || filtersChanged) {
+            if (status === 'succeeded' && !filtersChanged) {
+                return; // Already have the right data
+            }
+            loadData();
+        }
+    }, [filterVehicleId, filterBilled, startDate, endDate, status, savedFilters, loadData]);
 
     // Handle action updates
     useEffect(() => {

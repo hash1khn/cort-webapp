@@ -11,6 +11,7 @@ import {
     selectAdminVendorsStatus,
     selectAdminVendorsActionStatus,
     selectAdminVendorsError,
+    selectVendorFilters,
     resetActionStatus
 } from "../../lib/store/slices/adminVendorsSlice";
 import { Vendor, CreateVendorRequest } from "../../lib/services/api-client";
@@ -30,21 +31,34 @@ export default function VendorsPage() {
     const status = useAppSelector(selectAdminVendorsStatus);
     const actionStatus = useAppSelector(selectAdminVendorsActionStatus);
     const error = useAppSelector(selectAdminVendorsError);
+    const savedFilters = useAppSelector(selectVendorFilters);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
-    // Filters
-    const [search, setSearch] = useState("");
+    // Filters - Initialize from Redux
+    const [search, setSearch] = useState(savedFilters.search);
     const debouncedSearch = useDebounce(search, 500);
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateVendorRequest>>({});
 
+    // Sync with Redux
     useEffect(() => {
-        dispatch(fetchAdminVendors({ limit: 100, search: debouncedSearch }));
-    }, [dispatch, debouncedSearch]);
+        setSearch(savedFilters.search);
+    }, [savedFilters]);
+
+    useEffect(() => {
+        const filtersChanged = debouncedSearch !== savedFilters.search;
+
+        if (status === 'idle' || filtersChanged) {
+            if (status === 'succeeded' && !filtersChanged) {
+                return;
+            }
+            dispatch(fetchAdminVendors({ limit: 100, search: debouncedSearch }));
+        }
+    }, [dispatch, debouncedSearch, status, savedFilters]);
 
     // Handle action updates
     useEffect(() => {
@@ -183,107 +197,115 @@ export default function VendorsPage() {
             </div>
 
             <div className="rounded-xl border border-border bg-white overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
-                            <tr>
-                                <th className="px-4 py-3 text-left">Vendor Name</th>
-                                <th className="px-4 py-3 text-left">Contact</th>
-                                <th className="px-4 py-3 text-left">Phone / Email</th>
-                                <th className="px-4 py-3 text-center">Vehicles</th>
-                                <th className="px-4 py-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {vendors.map((v) => (
-                                <tr key={v.id} className="hover:bg-surface/50">
-                                    <td className="px-4 py-3 font-medium text-ink">{v.name}</td>
-                                    <td className="px-4 py-3 text-ink">{v.contact_person || "-"}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="text-ink">{v.phone}</div>
-                                        <div className="text-xs text-muted">{v.email}</div>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        <span className="inline-flex items-center rounded-full bg-blue/10 px-2.5 py-0.5 text-xs font-medium text-blue">
-                                            {v._count?.vehicles || 0}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={() => startEdit(v)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(v)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {!isLoading && vendors.length === 0 && (
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="text-sm text-muted">Loading vendors...</div>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                                        No vendors found.
-                                    </td>
+                                    <th className="px-4 py-3 text-left">Vendor Name</th>
+                                    <th className="px-4 py-3 text-left">Contact</th>
+                                    <th className="px-4 py-3 text-left">Phone / Email</th>
+                                    <th className="px-4 py-3 text-center">Vehicles</th>
+                                    <th className="px-4 py-3 text-right">Actions</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {vendors.map((v) => (
+                                    <tr key={v.id} className="hover:bg-surface/50">
+                                        <td className="px-4 py-3 font-medium text-ink">{v.name}</td>
+                                        <td className="px-4 py-3 text-ink">{v.contact_person || "-"}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="text-ink">{v.phone}</div>
+                                            <div className="text-xs text-muted">{v.email}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className="inline-flex items-center rounded-full bg-blue/10 px-2.5 py-0.5 text-xs font-medium text-blue">
+                                                {v._count?.vehicles || 0}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => startEdit(v)}
+                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(v)}
+                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {!isLoading && vendors.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                                            No vendors found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
             {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                        <div className="mb-6 flex items-center justify-between">
-                            <div>
-                                <div className="text-xs font-semibold tracking-wider text-muted">
-                                    {modalMode === "create" ? "NEW VENDOR" : "EDIT VENDOR"}
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                        <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                            <div className="mb-6 flex items-center justify-between">
+                                <div>
+                                    <div className="text-xs font-semibold tracking-wider text-muted">
+                                        {modalMode === "create" ? "NEW VENDOR" : "EDIT VENDOR"}
+                                    </div>
+                                    <h2 className="mt-1 text-2xl font-semibold text-navy">
+                                        {modalMode === "create" ? "Add New Vendor" : "Edit Vendor"}
+                                    </h2>
                                 </div>
-                                <h2 className="mt-1 text-2xl font-semibold text-navy">
-                                    {modalMode === "create" ? "Add New Vendor" : "Edit Vendor"}
-                                </h2>
+                                <button
+                                    onClick={closeModal}
+                                    className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
+                                >
+                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
-                            <button
-                                onClick={closeModal}
-                                className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
-                            >
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
 
-                        <div className="max-h-[70vh] overflow-y-auto pr-2">
-                            {renderForm()}
-                        </div>
+                            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                                {renderForm()}
+                            </div>
 
-                        <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
-                            <button
-                                onClick={closeModal}
-                                disabled={isSubmitting}
-                                className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                disabled={isSubmitting}
-                                className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
-                            >
-                                {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vendor" : "Save Changes")}
-                            </button>
+                            <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
+                                <button
+                                    onClick={closeModal}
+                                    disabled={isSubmitting}
+                                    className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={modalMode === "create" ? handleCreate : handleUpdate}
+                                    disabled={isSubmitting}
+                                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vendor" : "Save Changes")}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

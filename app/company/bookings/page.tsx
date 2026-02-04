@@ -31,6 +31,11 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState(search);
   const [statusFilter, setStatusFilter] = useState(status);
 
+  // Sync local state with Redux filters when they change (e.g., on navigation back)
+  useEffect(() => {
+    setSearchQuery(search);
+    setStatusFilter(status);
+  }, [search, status]);
 
   // Check for action param to open modal
   useEffect(() => {
