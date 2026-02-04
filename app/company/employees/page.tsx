@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCompanyStore } from "../store/CompanyStore";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { selectCompany } from "../../lib/store/slices/companySlice";
+import { fetchEmployees, selectEmployees, selectEmployeesStatus, updateEmployee, deactivateEmployee } from "../../lib/store/slices/employeeSlice";
 import { Card } from "../components/DashboardComponents";
 import TablePageSkeleton from "../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
@@ -23,11 +25,17 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export default function EmployeesPage() {
-  const { company, employees, updateEmployee, deactivateEmployee, loading, fetchEmployees } = useCompanyStore();
+  const dispatch = useAppDispatch();
+  const company = useAppSelector(selectCompany);
+  const employees = useAppSelector(selectEmployees);
+  const status = useAppSelector(selectEmployeesStatus);
+  const loading = status === 'loading';
 
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    if (company?.id) {
+      dispatch(fetchEmployees(company.id.toString()));
+    }
+  }, [dispatch, company?.id]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
@@ -59,17 +67,22 @@ export default function EmployeesPage() {
 
   async function saveEdit(employee: typeof employees[0]) {
     if (!editingId) return;
-    await updateEmployee(employee.id, {
-      phone: editPhone,
-      email: editEmail,
-    });
+    await dispatch(updateEmployee({
+      employeeId: employee.id,
+      data: { phone: editPhone, email: editEmail }
+    }));
+    // Optimistically update or refetch - here relying on refetch or slice update logic
+    if (company?.id) dispatch(fetchEmployees(company.id.toString())); // simple refetch to be sure
     cancelEdit();
   }
 
   async function handleDeactivate(employee: typeof employees[0]) {
     const isActive = employee.status.toLowerCase() === "active";
     if (confirm(`Are you sure you want to ${isActive ? "deactivate" : "activate"} ${employee.full_name}?`)) {
-      await deactivateEmployee(employee.id, !isActive);
+      await dispatch(deactivateEmployee({
+        employeeId: employee.id,
+        isActive: !isActive
+      }));
     }
   }
 

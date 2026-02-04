@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useCompanyStore } from "../../store/CompanyStore";
+import { useAppSelector } from "../../../lib/store/hooks";
+import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient, ChauffeurReport } from "../../../lib/services/api-client";
 import { Card } from "../../components/DashboardComponents";
 import Modal from "../../bookings/components/Modal";
@@ -9,7 +10,9 @@ import TablePageSkeleton from "../../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
 export default function ChauffeurReportsPage() {
-  const { company, loading } = useCompanyStore();
+  const company = useAppSelector(selectCompany);
+  // loading state for company is handled on shell level mostly, but if we need it here we can select it via selectCompanyStatus
+  // For reports page, local loading state handles specific fetches.
   const [reports, setReports] = useState<ChauffeurReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [startDate, setStartDate] = useState<string>("");
@@ -43,7 +46,8 @@ export default function ChauffeurReportsPage() {
     fetchReports();
   }, [company?.id, startDate, endDate]);
 
-  if (loading) {
+  if (!company) {
+    // If company is loading, shell might cover it, or we can show skeleton.
     return <TablePageSkeleton />;
   }
 

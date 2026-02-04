@@ -1,9 +1,10 @@
 "use client";
 
-import { useCompanyStore } from "../../store/CompanyStore";
+import { useAppSelector } from "../../../lib/store/hooks";
+import { selectCompany } from "../../../lib/store/slices/companySlice";
 
 export default function ShuttleReportsPage() {
-  const { company } = useCompanyStore();
+  const company = useAppSelector(selectCompany);
 
   if (!company) {
     return (

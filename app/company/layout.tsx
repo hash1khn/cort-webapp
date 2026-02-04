@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { CompanyShell } from "./ui/CompanyShell";
-import { CompanyStoreProvider } from "./store/CompanyStore";
+import { Provider } from "react-redux";
+import { store } from "../lib/store/store";
 import { ProtectedRoute } from "../lib/components/protected-route";
 import { UserRole } from "../lib/types/auth-types";
 import { useAuth } from "../lib/contexts/auth-context";
@@ -24,9 +25,9 @@ export default function CompanyLayout({ children }: { children: ReactNode }) {
       requireCompanyId={true}
       redirectTo="/login"
     >
-      <CompanyStoreProvider companyId={companyId}>
+      <Provider store={store}>
         <CompanyShell>{children}</CompanyShell>
-      </CompanyStoreProvider>
+      </Provider>
     </ProtectedRoute>
   );
 }

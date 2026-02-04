@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
-import { useCompanyStore } from "../store/CompanyStore";
+import { useMemo, useState, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { fetchCompanyProfile, selectCompany } from "../../lib/store/slices/companySlice";
 import {
   LayoutDashboard,
   Users,
@@ -65,9 +66,17 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { company } = useCompanyStore();
+  const dispatch = useAppDispatch();
+  const company = useAppSelector(selectCompany);
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const companyId = user?.company_id?.toString();
+
+  useEffect(() => {
+    if (companyId && !company) {
+      dispatch(fetchCompanyProfile(companyId));
+    }
+  }, [companyId, company, dispatch]);
 
   // We want to persist the collapsed state if possible, but for now local state is fine.
   // Ideally this would be in a store or localStorage.

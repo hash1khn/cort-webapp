@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCompanyStore } from "./store/CompanyStore";
+import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
+import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from "../lib/store/slices/dashboardSlice";
+import { selectCompany } from "../lib/store/slices/companySlice";
 import { useAuth } from "../lib/contexts/auth-context";
 import { useState, useEffect } from "react";
 import Modal from "./bookings/components/Modal";
@@ -21,9 +23,21 @@ import {
 import DashboardSkeleton from "./components/DashboardSkeleton";
 
 export default function CompanyDashboardPage() {
-  const { company, loading, error, bookings, dashboardStats } = useCompanyStore();
+  const dispatch = useAppDispatch();
+  const company = useAppSelector(selectCompany);
+  const dashboardStats = useAppSelector(selectDashboardStats);
+  const status = useAppSelector(selectDashboardStatus);
+  const loading = status === 'loading';
+  const error = status === 'failed' ? 'Failed to load stats' : null;
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const companyId = user?.company_id?.toString();
+
+  useEffect(() => {
+    if (companyId) {
+      dispatch(fetchDashboardStats(companyId));
+    }
+  }, [dispatch, companyId]);
 
   // Merge real data with mock structure
   const data = dashboardStats ? {
@@ -61,8 +75,9 @@ export default function CompanyDashboardPage() {
 
   // Real data overrides where possible (example)
   const today = new Date();
-  const todayDateString = today.toDateString();
-  const todayBookingsCount = bookings.filter(b => new Date(b.scheduled_for).toDateString() === todayDateString).length;
+
+  // Use upcoming bookings from stats as proxy for today/actionable items
+  const todayBookingsCount = dashboardStats?.alerts.upcomingBookings || 0;
 
   if (loading) {
     return (
@@ -116,7 +131,7 @@ export default function CompanyDashboardPage() {
                 Welcome back, <span className="text-gray-200">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
               </h1>
               <p className="text-gray-300 max-w-xl text-lg">
-                You have <span className="text-white font-bold">{todayBookingsCount}</span> bookings today.
+                You have <span className="text-white font-bold">{todayBookingsCount}</span> upcoming bookings.
               </p>
             </div>
 

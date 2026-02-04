@@ -1,17 +1,21 @@
 "use client";
 
 
-import { useCompanyStore } from "../store/CompanyStore";
+import { useAppSelector } from "../../lib/store/hooks";
+import { selectCompany } from "../../lib/store/slices/companySlice";
+import { MOCK_ROUTES, MOCK_SHUTTLE_DRIVERS, MOCK_VEHICLES } from "../lib/routesMockData";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
 export default function RoutesPage() {
-  const { company, routes, shuttleDrivers, vehicles } = useCompanyStore();
+  const company = useAppSelector(selectCompany);
+  const routes = MOCK_ROUTES;
+  const shuttleDrivers = MOCK_SHUTTLE_DRIVERS;
+  const vehicles = MOCK_VEHICLES;
 
-  // No filtering needed as routes in store should already be filtered/mocked
-  // const routes = useMemo(() => ..., [company]);
+  // No filtering needed as routes are mocked
 
   if (!company) {
     return (

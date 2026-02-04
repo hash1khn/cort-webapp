@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useCompanyStore } from "../../store/CompanyStore";
+import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { selectCompany } from "../../../lib/store/slices/companySlice";
+import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
+import { fetchContract, selectAllowedVehicleModels } from "../../../lib/store/slices/contractSlice";
 import Map from "../../../admin/ui/Map";
 import { useGeocodeMapsAutocomplete } from "../../../hooks/useGeocodeMapsAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
@@ -62,12 +65,20 @@ interface CreateBookingFormProps {
 }
 
 export default function CreateBookingForm({ onSuccess, onCancel }: CreateBookingFormProps) {
-    // ... existing state and logic ...
-    const { company, employees, allowedVehicleModels, createBooking, fetchEmployees } = useCompanyStore();
+    const dispatch = useAppDispatch();
+    const company = useAppSelector(selectCompany);
+    const employees = useAppSelector(selectEmployees);
+    const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
+
+    // Legacy store for createBooking action (to be refactored or kept if just an action)
+
 
     useEffect(() => {
-        fetchEmployees();
-    }, [fetchEmployees]);
+        if (company?.id) {
+            dispatch(fetchEmployees(company.id.toString()));
+            dispatch(fetchContract());
+        }
+    }, [dispatch, company?.id]);
 
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
@@ -186,20 +197,40 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 : new Date(scheduledDateTime).toISOString();
 
         try {
-            await createBooking({
-                company_id: company.id,
-                passenger_id: passengerId, // The selected employee's UUID
+            const token = localStorage.getItem('auth_token');
+            if (!token) throw new Error('No auth_token found');
+
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+            const apiData = {
+                booking_type: packageType.includes('monthly') ? 'MONTHLY' : 'SPOT',
                 vehicle_model: vehicleModel === "Other" ? customVehicleModel : vehicleModel,
-                package: packageType,
-                trip_type: tripType,
-                scheduled_at: scheduledAt,
-                status: "pending",
+                package_selected: transformPackageType(packageType),
+                trip_type: transformTripType(tripType),
+                pickup_location: {
+                    latitude: pickupLat, // Ensure separate fields
+                    longitude: pickupLng, // Ensure separate fields
+                },
                 pickup_address: pickupAddress,
-                pickup_lat: pickupLat, // Ensure these are separate fields as per recent fix
-                pickup_lng: pickupLng, // Ensure these are separate fields
+                scheduled_for: scheduledAt,
+                passenger_id: passengerId,
                 destination_cities: tripType === "out_station" ? destinationCities : [],
                 service_category: serviceCategory,
+            };
+
+            const response = await fetch(`${API_URL}/companies/${company.id}/chauffeur-bookings`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(apiData),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create booking');
+            }
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
             onSuccess();
@@ -209,6 +240,22 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             setIsSubmitting(false);
         }
     }
+
+    // Helpers
+    const transformPackageType = (pkg: string): string => {
+        const pkgMap: Record<string, string> = {
+            '5hr': 'HOURS_5',
+            '10hr': 'HOURS_10',
+            '24hr': 'HOURS_24',
+            'monthly_10hr': 'HOURS_10',
+            'monthly_24hr': 'HOURS_24',
+        };
+        return pkgMap[pkg] || 'HOURS_10';
+    };
+
+    const transformTripType = (tripType: string): string => {
+        return tripType === 'in_city' ? 'IN_CITY' : 'OUT_STATION';
+    };
 
     // Get min datetime for scheduled bookings (now)
     const minDateTime = new Date().toISOString().slice(0, 16);

@@ -3,40 +3,27 @@
 import { useEffect, useState } from "react";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { fetchInvoices, selectInvoices, selectInvoicesStatus, selectInvoicesError } from "../../lib/store/slices/invoiceSlice";
 import { Card } from "../components/DashboardComponents";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const dispatch = useAppDispatch();
+    const invoices = useAppSelector(selectInvoices);
+    const status = useAppSelector(selectInvoicesStatus);
+    const errorState = useAppSelector(selectInvoicesError);
+    const isLoading = status === 'loading';
+
+    // We can keep local error for download if needed, but fetch error is global
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
     useEffect(() => {
-        const fetchInvoices = async () => {
-            if (!user?.company_id) return;
-
-            setIsLoading(true);
-            try {
-                const response = await apiClient.getCompanyInvoices(user.company_id);
-                if (response && response.data && Array.isArray(response.data)) {
-                    setInvoices(response.data);
-                } else if (Array.isArray(response)) {
-                    setInvoices(response);
-                } else {
-                    setInvoices([]);
-                }
-            } catch (err: any) {
-                console.error("Failed to fetch invoices:", err);
-                setError("Failed to load invoices.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchInvoices();
-    }, [user?.company_id]);
+        if (user?.company_id) {
+            dispatch(fetchInvoices(user.company_id));
+        }
+    }, [dispatch, user?.company_id]);
 
     const downloadPdf = async (id: number, invoiceNumber: string) => {
         if (downloadingId) return;
@@ -56,8 +43,8 @@ export default function CompanyInvoicingPage() {
         return <TablePageSkeleton />;
     } */
 
-    if (error) {
-        return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-xl m-6 border border-rose-200">{error}</div>;
+    if (errorState) {
+        return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-xl m-6 border border-rose-200">{errorState}</div>;
     }
 
     return (
