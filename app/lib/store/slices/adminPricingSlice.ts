@@ -1,0 +1,378 @@
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import {
+    apiClient,
+    Company,
+    ChauffeurContract,
+    ChauffeurContractRate,
+    CreateChauffeurContractRequest
+} from '../../services/api-client';
+import { RootState } from '../store';
+
+export type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
+
+interface AdminPricingState {
+    companies: Company[];
+    selectedCompanyId: string;
+    currentCompany: Company | null;
+    contract: ChauffeurContract | null;
+    globalSettings: {
+        fuelBasePrice: string;
+        revisionPercentage: string;
+        contractDuration: string;
+        contractDate: string;
+        allowanceOutstation: string;
+        allowanceAccommodation: string;
+    };
+    rateRows: RateRow[];
+    systemFuelPrice: string;
+
+    // Preview
+    showPreview: boolean;
+    previewData: any;
+    isLoadingPreview: boolean;
+
+    // Statuses
+    status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error: string | null;
+}
+
+const initialState: AdminPricingState = {
+    companies: [],
+    selectedCompanyId: "",
+    currentCompany: null,
+    contract: null,
+    globalSettings: {
+        fuelBasePrice: "0",
+        revisionPercentage: "",
+        contractDuration: "",
+        contractDate: "",
+        allowanceOutstation: "",
+        allowanceAccommodation: ""
+    },
+    rateRows: [],
+    systemFuelPrice: "0",
+
+    showPreview: false,
+    previewData: null,
+    isLoadingPreview: false,
+
+    status: 'idle',
+    actionStatus: 'idle',
+    error: null,
+};
+
+// Async Thunks
+
+export const fetchPricingCompanies = createAsyncThunk(
+    'adminPricing/fetchPricingCompanies',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getCompanies({ limit: 100 });
+            return response.data.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch companies');
+        }
+    }
+);
+
+export const fetchSystemFuelPrice = createAsyncThunk(
+    'adminPricing/fetchSystemFuelPrice',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getSystemSetting('current_fuel_price');
+            return response.data.value;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch fuel price');
+        }
+    }
+);
+
+export const updateSystemFuelPrice = createAsyncThunk(
+    'adminPricing/updateSystemFuelPrice',
+    async (value: string, { rejectWithValue }) => {
+        try {
+            await apiClient.updateSystemSetting('current_fuel_price', value);
+            return value;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to update fuel price');
+        }
+    }
+);
+
+export const fetchCompanyContractDetails = createAsyncThunk(
+    'adminPricing/fetchCompanyContractDetails',
+    async (companyId: string, { rejectWithValue }) => {
+        try {
+            const [compRes, contractsRes] = await Promise.all([
+                apiClient.getCompany(companyId),
+                apiClient.getChauffeurContracts(Number(companyId))
+            ]);
+            return {
+                company: compRes.data,
+                contracts: contractsRes.data
+            };
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch contract details');
+        }
+    }
+);
+
+export const previewRateAdjustments = createAsyncThunk(
+    'adminPricing/previewRateAdjustments',
+    async ({ fuelPrice, companyId }: { fuelPrice: number, companyId: number }, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.previewRateAdjustments(fuelPrice, companyId);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to preview adjustments');
+        }
+    }
+);
+
+export const savePricingChanges = createAsyncThunk(
+    'adminPricing/savePricingChanges',
+    async (_, { getState, rejectWithValue, dispatch }) => {
+        const state = getState() as RootState;
+        const { contract, globalSettings, selectedCompanyId, rateRows } = state.adminPricing;
+
+        try {
+            let currentContractId = contract?.id;
+            const revisionPct = globalSettings.revisionPercentage === "" ? null : Number(globalSettings.revisionPercentage);
+
+            // 1. Update or Create Contract
+            if (currentContractId) {
+                await apiClient.updateChauffeurContract(currentContractId, {
+                    fuelBasePrice: Number(globalSettings.fuelBasePrice),
+                    revisionPercentage: revisionPct,
+                    contractDuration: globalSettings.contractDuration,
+                    contractDate: globalSettings.contractDate,
+                    allowanceOutstation: Number(globalSettings.allowanceOutstation),
+                    allowanceAccommodation: Number(globalSettings.allowanceAccommodation)
+                });
+            } else {
+                const res = await apiClient.createChauffeurContract({
+                    companyId: Number(selectedCompanyId),
+                    fuelBasePrice: Number(globalSettings.fuelBasePrice),
+                    revisionPercentage: revisionPct,
+                    contractDuration: globalSettings.contractDuration,
+                    contractDate: globalSettings.contractDate,
+                    allowanceOutstation: Number(globalSettings.allowanceOutstation),
+                    allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
+                    vehicleModel: ""
+                });
+                currentContractId = res.data.id;
+            }
+
+            // 2. Save Rates
+            const promises = rateRows.map(async (row) => {
+                if (!row.vehicle_model) return;
+
+                const commonData = {
+                    vehicleModel: row.vehicle_model,
+                    costPerKm: Number(row.cost_per_km || 0),
+                    rateSpot5hr: Number(row.rate_spot_5hr),
+                    rateSpot10hr: Number(row.rate_spot_10hr),
+                    rateSpot24hr: Number(row.rate_spot_24hr),
+                    rateMonthly10hr: Number(row.rate_monthly_10hr),
+                    rateMonthly24hr: Number(row.rate_monthly_24hr),
+                    rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
+                    marketCostPerKm: Number(row.market_cost_per_km || 0),
+                    marketRateSpot5hr: Number(row.market_rate_spot_5hr || 0),
+                    marketRateSpot10hr: Number(row.market_rate_spot_10hr || 0),
+                    marketRateSpot24hr: Number(row.market_rate_spot_24hr || 0),
+                    marketRateMonthly10hr: Number(row.market_rate_monthly_10hr || 0),
+                    marketRateMonthly24hr: Number(row.market_rate_monthly_24hr || 0),
+                    marketRateOvertimePerHr: Number(row.market_rate_overtime_per_hr || 0)
+                };
+
+                if (row.isNew) {
+                    await apiClient.createChauffeurContract({
+                        companyId: Number(selectedCompanyId),
+                        fuelBasePrice: Number(globalSettings.fuelBasePrice),
+                        revisionPercentage: revisionPct,
+                        contractDuration: globalSettings.contractDuration,
+                        contractDate: globalSettings.contractDate,
+                        allowanceOutstation: Number(globalSettings.allowanceOutstation),
+                        allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
+                        ...commonData
+                    });
+                } else if (row.id) {
+                    await apiClient.updateChauffeurRate(row.id, commonData);
+                }
+            });
+
+            await Promise.all(promises);
+
+            // 3. Refresh details
+            dispatch(fetchCompanyContractDetails(selectedCompanyId));
+            return;
+
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to save changes');
+        }
+    }
+);
+
+export const deleteRateRow = createAsyncThunk(
+    'adminPricing/deleteRateRow',
+    async (index: number, { getState, rejectWithValue, dispatch }) => {
+        const state = getState() as RootState;
+        const row = state.adminPricing.rateRows[index];
+
+        try {
+            if (row.id) {
+                await apiClient.deleteChauffeurRate(row.id);
+            }
+            // If it's new (no ID), we just need to return the index to remove it from state
+            return index;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to delete rate');
+        }
+    }
+);
+
+
+const adminPricingSlice = createSlice({
+    name: 'adminPricing',
+    initialState,
+    reducers: {
+        setSelectedCompanyId(state, action: PayloadAction<string>) {
+            state.selectedCompanyId = action.payload;
+        },
+        setGlobalSettings(state, action: PayloadAction<Partial<AdminPricingState['globalSettings']>>) {
+            state.globalSettings = { ...state.globalSettings, ...action.payload };
+        },
+        setSystemFuelPriceLocal(state, action: PayloadAction<string>) {
+            state.systemFuelPrice = action.payload;
+        },
+        setShowPreview(state, action: PayloadAction<boolean>) {
+            state.showPreview = action.payload;
+        },
+        addRateRow(state) {
+            state.rateRows.push({
+                tempId: Date.now().toString(),
+                isNew: true,
+                vehicle_model: "",
+                cost_per_km: "0",
+                rate_spot_5hr: "0",
+                rate_spot_10hr: "0",
+                rate_spot_24hr: "0",
+                rate_monthly_10hr: "0",
+                rate_monthly_24hr: "0",
+                rate_overtime_per_hr: "0",
+                market_cost_per_km: "0",
+                market_rate_spot_5hr: "0",
+                market_rate_spot_10hr: "0",
+                market_rate_spot_24hr: "0",
+                market_rate_monthly_10hr: "0",
+                market_rate_monthly_24hr: "0",
+                market_rate_overtime_per_hr: "0"
+            });
+        },
+        updateRateRow(state, action: PayloadAction<{ index: number, field: keyof ChauffeurContractRate, value: string }>) {
+            const { index, field, value } = action.payload;
+            if (state.rateRows[index]) {
+                state.rateRows[index] = { ...state.rateRows[index], [field]: value };
+            }
+        },
+        resetActionStatus(state) {
+            state.actionStatus = 'idle';
+        }
+    },
+    extraReducers: (builder) => {
+        builder
+            // Fetch Companies
+            .addCase(fetchPricingCompanies.fulfilled, (state, action) => {
+                state.companies = action.payload;
+                if (action.payload.length > 0 && !state.selectedCompanyId) {
+                    state.selectedCompanyId = String(action.payload[0].id);
+                }
+            })
+            // Fetch Fuel Price
+            .addCase(fetchSystemFuelPrice.fulfilled, (state, action) => {
+                state.systemFuelPrice = action.payload;
+            })
+            // Update Fuel Price
+            .addCase(updateSystemFuelPrice.pending, (state) => { state.actionStatus = 'loading'; })
+            .addCase(updateSystemFuelPrice.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
+            .addCase(updateSystemFuelPrice.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            // Fetch Details
+            .addCase(fetchCompanyContractDetails.pending, (state) => { state.status = 'loading'; })
+            .addCase(fetchCompanyContractDetails.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                state.currentCompany = action.payload.company;
+                const contracts = action.payload.contracts;
+
+                if (contracts && contracts.length > 0) {
+                    const mainContract = contracts[0];
+                    state.contract = mainContract;
+                    state.globalSettings = {
+                        fuelBasePrice: mainContract.fuel_base_price,
+                        revisionPercentage: mainContract.revision_percentage || "",
+                        contractDuration: mainContract.contract_duration || "",
+                        contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : "",
+                        allowanceOutstation: mainContract.allowance_outstation || "",
+                        allowanceAccommodation: mainContract.allowance_accommodation || ""
+                    };
+                    state.rateRows = mainContract.chauffeur_contract_rates || [];
+                } else {
+                    state.contract = null;
+                    state.globalSettings = {
+                        fuelBasePrice: "300",
+                        revisionPercentage: "",
+                        contractDuration: "",
+                        contractDate: "",
+                        allowanceOutstation: "",
+                        allowanceAccommodation: ""
+                    };
+                    state.rateRows = [];
+                }
+            })
+            .addCase(fetchCompanyContractDetails.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload as string;
+            })
+            // Preview
+            .addCase(previewRateAdjustments.pending, (state) => { state.isLoadingPreview = true; })
+            .addCase(previewRateAdjustments.fulfilled, (state, action) => {
+                state.isLoadingPreview = false;
+                state.previewData = action.payload;
+            })
+            .addCase(previewRateAdjustments.rejected, (state) => { state.isLoadingPreview = false; })
+            // Save
+            .addCase(savePricingChanges.pending, (state) => { state.actionStatus = 'loading'; })
+            .addCase(savePricingChanges.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
+            .addCase(savePricingChanges.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            // Delete Rate
+            .addCase(deleteRateRow.fulfilled, (state, action) => {
+                state.rateRows = state.rateRows.filter((_, i) => i !== action.payload);
+            });
+    },
+});
+
+export const {
+    setSelectedCompanyId,
+    setGlobalSettings,
+    setSystemFuelPriceLocal,
+    setShowPreview,
+    addRateRow,
+    updateRateRow,
+    resetActionStatus
+} = adminPricingSlice.actions;
+
+export const selectAdminPricingState = (state: RootState) => state.adminPricing;
+export const selectPricingCompanies = (state: RootState) => state.adminPricing.companies;
+export const selectPricingCurrentCompany = (state: RootState) => state.adminPricing.currentCompany;
+export const selectPricingGlobalSettings = (state: RootState) => state.adminPricing.globalSettings;
+export const selectPricingRateRows = (state: RootState) => state.adminPricing.rateRows;
+export const selectPricingStatus = (state: RootState) => state.adminPricing.status;
+export const selectPricingActionStatus = (state: RootState) => state.adminPricing.actionStatus;
+
+export default adminPricingSlice.reducer;

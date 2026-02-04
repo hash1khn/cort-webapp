@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import {
-    apiClient,
+    fetchMaintenanceRecords,
+    fetchUpcomingMaintenance,
+    createMaintenanceRecord,
+    updateMaintenanceRecord,
+    deleteMaintenanceRecord,
+    fetchAdminVehicles,
+    selectMaintenanceRecords,
+    selectUpcomingMaintenance,
+    selectMaintenanceStatus,
+    selectMaintenanceActionStatus,
+    selectAdminVehicles,
+    resetMaintenanceActionStatus
+} from "../../../lib/store/slices/adminVehiclesSlice";
+import {
     MaintenanceRecord,
     MaintenanceType,
     CreateMaintenanceRecordRequest,
     UpdateMaintenanceRecordRequest,
     QueryMaintenanceRecordParams,
-    Vehicle,
 } from "../../../lib/services/api-client";
 
 // Debounce helper
@@ -22,11 +35,13 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function MaintenancePage() {
-    const [records, setRecords] = useState<MaintenanceRecord[]>([]);
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [upcomingMaintenance, setUpcomingMaintenance] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const dispatch = useAppDispatch();
+
+    const records = useAppSelector(selectMaintenanceRecords);
+    const vehicles = useAppSelector(selectAdminVehicles);
+    const upcomingMaintenance = useAppSelector(selectUpcomingMaintenance);
+    const status = useAppSelector(selectMaintenanceStatus);
+    const actionStatus = useAppSelector(selectMaintenanceActionStatus);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,86 +57,51 @@ export default function MaintenancePage() {
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateMaintenanceRecordRequest>>({});
 
-    const fetchRecords = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const params: QueryMaintenanceRecordParams = { limit: 100 };
-            if (filterVehicleId !== "ALL") params.vehicle_id = filterVehicleId;
-            if (filterType !== "ALL") params.maintenance_type = filterType;
-            if (startDate) params.start_date = startDate;
-            if (endDate) params.end_date = endDate;
+    const loadData = useCallback(() => {
+        const params: QueryMaintenanceRecordParams = { limit: 100 };
+        if (filterVehicleId !== "ALL") params.vehicle_id = filterVehicleId;
+        if (filterType !== "ALL") params.maintenance_type = filterType;
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
 
-            const response = await apiClient.getMaintenanceRecords(params);
-            setRecords(response.data?.data || []);
-        } catch (error) {
-            console.error("Failed to fetch maintenance records:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [filterVehicleId, filterType, startDate, endDate]);
-
-    const fetchUpcoming = async () => {
-        try {
-            const response = await apiClient.getUpcomingMaintenance();
-            setUpcomingMaintenance(response.data || []);
-        } catch (error) {
-            console.error("Failed to fetch upcoming maintenance:", error);
-        }
-    };
+        dispatch(fetchMaintenanceRecords(params));
+        dispatch(fetchUpcomingMaintenance());
+    }, [dispatch, filterVehicleId, filterType, startDate, endDate]);
 
     useEffect(() => {
-        fetchRecords();
-        fetchUpcoming();
-        apiClient.getVehicles({ limit: 100 }).then(res => setVehicles(res.data?.data || []));
-    }, [fetchRecords]);
+        loadData();
+        dispatch(fetchAdminVehicles({ limit: 100 }));
+    }, [loadData, dispatch]);
 
-    const handleCreate = async () => {
+    // Handle action updates
+    useEffect(() => {
+        if (actionStatus === 'succeeded') {
+            closeModal();
+            dispatch(resetMaintenanceActionStatus());
+            loadData();
+        } else if (actionStatus === 'failed') {
+            alert("Action failed");
+            dispatch(resetMaintenanceActionStatus());
+        }
+    }, [actionStatus, dispatch, loadData]);
+
+
+    const handleCreate = () => {
         if (!formData.vehicle_id || !formData.maintenance_type || !formData.date || !formData.odometer_reading) {
             alert("Please fill all required fields");
             return;
         }
-
-        try {
-            setIsSubmitting(true);
-            await apiClient.createMaintenanceRecord(formData as CreateMaintenanceRecordRequest);
-            closeModal();
-            fetchRecords();
-            fetchUpcoming();
-        } catch (error: any) {
-            console.error("Failed to create maintenance record:", error);
-            alert(error.message || "Failed to create maintenance record");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(createMaintenanceRecord(formData as CreateMaintenanceRecordRequest));
     };
 
-    const handleUpdate = async () => {
+    const handleUpdate = () => {
         if (!selectedRecord) return;
-        try {
-            setIsSubmitting(true);
-            await apiClient.updateMaintenanceRecord(selectedRecord.id, formData as UpdateMaintenanceRecordRequest);
-            closeModal();
-            fetchRecords();
-            fetchUpcoming();
-        } catch (error: any) {
-            console.error("Failed to update maintenance record:", error);
-            alert(error.message || "Failed to update maintenance record");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(updateMaintenanceRecord({ id: selectedRecord.id, data: formData as UpdateMaintenanceRecordRequest }));
     };
 
-    const handleDelete = async (record: MaintenanceRecord) => {
+    const handleDelete = (record: MaintenanceRecord) => {
         if (!confirm(`Are you sure you want to delete this maintenance record?`)) return;
-
-        try {
-            await apiClient.deleteMaintenanceRecord(record.id);
-            fetchRecords();
-            fetchUpcoming();
-        } catch (error: any) {
-            console.error("Failed to delete maintenance record:", error);
-            alert(error.message || "Failed to delete maintenance record");
-        }
+        dispatch(deleteMaintenanceRecord(record.id));
     };
 
     const startCreate = () => {
@@ -248,6 +228,9 @@ export default function MaintenancePage() {
         </div>
     );
 
+    const isLoading = status === 'loading';
+    const isSubmitting = actionStatus === 'loading';
+
     return (
         <div className="flex flex-col gap-6">
             <div>
@@ -256,7 +239,7 @@ export default function MaintenancePage() {
             </div>
 
             {/* Upcoming Maintenance Alert */}
-            {upcomingMaintenance.length > 0 && (
+            {upcomingMaintenance && upcomingMaintenance.length > 0 && (
                 <div className="rounded-xl border border-orange bg-orange/5 p-4">
                     <div className="flex items-start gap-3">
                         <div className="rounded-lg bg-orange/10 p-2">

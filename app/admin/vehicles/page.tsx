@@ -1,389 +1,449 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { CreateVehicleRequest, Vehicle, QueryVehicleParams, VehicleCategory, OwnershipType } from "../../lib/services/api-client";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
-    apiClient,
-    Vehicle,
-    VehicleCategory,
-    OwnershipType,
-    CreateVehicleRequest,
-    UpdateVehicleRequest,
-    QueryVehicleParams,
-    Vendor
-} from "../../lib/services/api-client";
+    fetchAdminVehicles,
+    createAdminVehicle,
+    updateAdminVehicle,
+    deleteAdminVehicle,
+    selectAdminVehicles,
+    selectAdminVehiclesStatus,
+    selectAdminVehiclesError,
+    selectAdminVehiclesActionStatus,
+} from "../../lib/store/slices/adminVehiclesSlice";
 
-// Debounce helper
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
+function cx(...classes: Array<string | false | null | undefined>) {
+    return classes.filter(Boolean).join(" ");
 }
 
-export default function VehiclesPage() {
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+function Badge({ children, color = "blue" }: { children: React.ReactNode; color?: "blue" | "green" | "red" | "orange" | "purple" }) {
+    const colors = {
+        blue: "bg-blue-100 text-blue-700",
+        green: "bg-green-100 text-green-700",
+        red: "bg-red-100 text-red-700",
+        orange: "bg-orange-100 text-orange-800",
+        purple: "bg-purple-100 text-purple-700",
+    };
+    return (
+        <span className={cx("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", colors[color])}>
+            {children}
+        </span>
+    );
+}
 
-    // Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-    const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+// Inline Vehicle Form
+type VehicleFormData = CreateVehicleRequest;
 
-    // Filters
-    const [search, setSearch] = useState("");
-    const [category, setCategory] = useState<VehicleCategory | "ALL">("ALL");
-    const [ownership, setOwnership] = useState<OwnershipType | "ALL">("ALL");
-    const [filterVendorId, setFilterVendorId] = useState<number | "ALL">("ALL");
+const initialVehicleFormData: VehicleFormData = {
+    make: "",
+    model: "",
+    year: new Date().getFullYear(),
+    color: "",
+    plate_number: "",
+    category: VehicleCategory.SEDAN,
+    ownership: OwnershipType.OWNED,
+    fuel_avg_city: 0,
+    fuel_avg_highway: 0,
+    rent_per_day: 0,
+    is_available_for_pooling: false,
+};
 
-    const debouncedSearch = useDebounce(search, 500);
+function VehicleFormInline({
+    vehicle,
+    onSave,
+    onCancel,
+    isSaving
+}: {
+    vehicle: Vehicle | null;
+    onSave: (data: VehicleFormData) => void;
+    onCancel: () => void;
+    isSaving: boolean;
+}) {
+    const [formData, setFormData] = useState<VehicleFormData>(
+        vehicle
+            ? {
+                make: vehicle.make,
+                model: vehicle.model,
+                year: vehicle.year,
+                color: vehicle.color || "",
+                plate_number: vehicle.plate_number,
+                category: vehicle.category,
+                ownership: vehicle.ownership,
+                fuel_avg_city: vehicle.fuel_avg_city,
+                fuel_avg_highway: vehicle.fuel_avg_highway,
+                owner_company_id: vehicle.owner_company_id || undefined,
+                rent_per_day: vehicle.rent_per_day || 0,
+                is_available_for_pooling: vehicle.is_available_for_pooling,
+            }
+            : initialVehicleFormData
+    );
 
-    // Form Data
-    const [formData, setFormData] = useState<Partial<CreateVehicleRequest>>({});
-
-    const fetchVehicles = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const params: QueryVehicleParams = { limit: 100 };
-            if (debouncedSearch) params.search = debouncedSearch;
-            if (category !== "ALL") params.category = category as VehicleCategory;
-            if (ownership !== "ALL") params.ownership = ownership as OwnershipType;
-            if (filterVendorId !== "ALL") params.vendor_id = filterVendorId;
-
-            const response = await apiClient.getVehicles(params);
-            setVehicles(response.data?.data || []);
-        } catch (error) {
-            console.error("Failed to fetch vehicles:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [debouncedSearch, category, ownership, filterVendorId]);
-
-    useEffect(() => {
-        fetchVehicles();
-        apiClient.getVendors({ limit: 100 }).then(res => setVendors(res.data?.data || []));
-    }, [fetchVehicles]);
-
-    const handleCreate = async () => {
-        if (!formData.plate_number || !formData.make || !formData.model || !formData.year || !formData.category || !formData.ownership || !formData.fuel_avg_city || !formData.fuel_avg_highway) {
-            alert("Please fill all required fields");
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-            await apiClient.createVehicle(formData as CreateVehicleRequest);
-            closeModal();
-            fetchVehicles();
-        } catch (error: any) {
-            console.error("Failed to create vehicle:", error);
-            alert(error.message || "Failed to create vehicle");
-        } finally {
-            setIsSubmitting(false);
-        }
+    const handleChange = (field: keyof VehicleFormData, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleUpdate = async () => {
-        if (!selectedVehicle) return;
-        try {
-            setIsSubmitting(true);
-            await apiClient.updateVehicle(selectedVehicle.id, formData as UpdateVehicleRequest);
-            closeModal();
-            fetchVehicles();
-        } catch (error: any) {
-            console.error("Failed to update vehicle:", error);
-            alert(error.message || "Failed to update vehicle");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleDelete = async (vehicle: Vehicle) => {
-        if (!confirm(`Are you sure you want to delete ${vehicle.plate_number}?`)) return;
-
-        try {
-            await apiClient.deleteVehicle(vehicle.id);
-            fetchVehicles();
-        } catch (error: any) {
-            console.error("Failed to delete vehicle:", error);
-            alert(error.message || "Failed to delete vehicle");
-        }
-    };
-
-    const startCreate = () => {
-        setSelectedVehicle(null);
-        setFormData({
-            year: new Date().getFullYear(),
-            category: VehicleCategory.SEDAN,
-            ownership: OwnershipType.OWNED,
-            fuel_avg_city: 10,
-            fuel_avg_highway: 12,
-        });
-        setModalMode("create");
-        setIsModalOpen(true);
-    };
-
-    const startEdit = (vehicle: Vehicle) => {
-        setSelectedVehicle(vehicle);
-        setFormData({
-            plate_number: vehicle.plate_number,
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year,
-            color: vehicle.color || "",
-            category: vehicle.category,
-            ownership: vehicle.ownership,
-            fuel_avg_city: vehicle.fuel_avg_city,
-            fuel_avg_highway: vehicle.fuel_avg_highway,
-            vendor_id: vehicle.vendor_id || undefined,
-            rent_per_day: vehicle.rent_per_day || undefined,
-        });
-        setModalMode("edit");
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setSelectedVehicle(null);
-        setFormData({});
-    };
-
-    const renderForm = () => (
-        <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Plate Number *</span>
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Make</label>
+                    <input
+                        type="text"
+                        value={formData.make}
+                        onChange={(e) => handleChange("make", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        placeholder="Toyota"
+                        disabled={isSaving}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Model</label>
+                    <input
+                        type="text"
+                        value={formData.model}
+                        onChange={(e) => handleChange("model", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        placeholder="Corolla"
+                        disabled={isSaving}
+                    />
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Year</label>
+                    <input
+                        type="number"
+                        value={formData.year}
+                        onChange={(e) => handleChange("year", parseInt(e.target.value) || new Date().getFullYear())}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        disabled={isSaving}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Color</label>
+                    <input
+                        type="text"
+                        value={formData.color || ""}
+                        onChange={(e) => handleChange("color", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        placeholder="White"
+                        disabled={isSaving}
+                    />
+                </div>
+            </div>
+            <div>
+                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Plate Number</label>
                 <input
-                    value={formData.plate_number || ""}
-                    onChange={(e) => setFormData({ ...formData, plate_number: e.target.value })}
-                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="LEA-123"
+                    type="text"
+                    value={formData.plate_number}
+                    onChange={(e) => handleChange("plate_number", e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                    placeholder="ABC-123"
+                    disabled={isSaving}
                 />
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Make *</span>
-                <input
-                    value={formData.make || ""}
-                    onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="Toyota"
-                />
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Model *</span>
-                <input
-                    value={formData.model || ""}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="Corolla"
-                />
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Year *</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Fuel Avg (City)</label>
+                    <input
+                        type="number"
+                        value={formData.fuel_avg_city}
+                        onChange={(e) => handleChange("fuel_avg_city", parseFloat(e.target.value) || 0)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        disabled={isSaving}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Fuel Avg (Highway)</label>
+                    <input
+                        type="number"
+                        value={formData.fuel_avg_highway}
+                        onChange={(e) => handleChange("fuel_avg_highway", parseFloat(e.target.value) || 0)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        disabled={isSaving}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day</label>
                 <input
                     type="number"
-                    value={formData.year || ""}
-                    onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    value={formData.rent_per_day || 0}
+                    onChange={(e) => handleChange("rent_per_day", parseFloat(e.target.value) || 0)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                    disabled={isSaving}
                 />
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Color</span>
-                <input
-                    value={formData.color || ""}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="White"
-                />
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Category *</span>
-                <select
-                    value={formData.category || ""}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as VehicleCategory })}
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                >
-                    {Object.values(VehicleCategory).map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                </select>
-            </label>
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wider text-muted">Ownership *</span>
-                <select
-                    value={formData.ownership || ""}
-                    onChange={(e) => setFormData({ ...formData, ownership: e.target.value as OwnershipType })}
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                >
-                    {Object.values(OwnershipType).map((own) => (
-                        <option key={own} value={own}>{own}</option>
-                    ))}
-                </select>
-            </label>
+            </div>
 
-            {formData.ownership === OwnershipType.PARTNER && (
-                <>
-                    <label className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold tracking-wider text-muted">Vendor *</span>
-                        <select
-                            value={formData.vendor_id || ""}
-                            onChange={(e) => setFormData({ ...formData, vendor_id: Number(e.target.value) })}
-                            className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                        >
-                            <option value="">Select Vendor</option>
-                            {vendors.map((v) => (
-                                <option key={v.id} value={v.id}>{v.name}</option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold tracking-wider text-muted">Rent Per Day</span>
-                        <input
-                            type="number"
-                            value={formData.rent_per_day || ""}
-                            onChange={(e) => setFormData({ ...formData, rent_per_day: Number(e.target.value) })}
-                            className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                            placeholder="0.00"
-                        />
-                    </label>
-                </>
-            )}
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Category</label>
+                    <select
+                        value={formData.category}
+                        onChange={(e) => handleChange("category", e.target.value as VehicleCategory)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                        disabled={isSaving}
+                    >
+                        {Object.values(VehicleCategory).map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Ownership</label>
+                    <select
+                        value={formData.ownership}
+                        onChange={(e) => handleChange("ownership", e.target.value as OwnershipType)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                        disabled={isSaving}
+                    >
+                        {Object.values(OwnershipType).map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
-            <div className="col-span-full mt-4 rounded-lg border border-border bg-surface p-4">
-                <div className="text-xs font-semibold tracking-wider text-muted">FUEL CONSUMPTION (CRUCIAL FOR BILLING)</div>
-                <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-ink">Fuel Avg (KM/L) — In-City *</span>
-                        <input
-                            type="number"
-                            step="0.1"
-                            value={formData.fuel_avg_city || ""}
-                            onChange={(e) => setFormData({ ...formData, fuel_avg_city: Number(e.target.value) })}
-                            className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                        />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-ink">Fuel Avg (KM/L) — Highway *</span>
-                        <input
-                            type="number"
-                            step="0.1"
-                            value={formData.fuel_avg_highway || ""}
-                            onChange={(e) => setFormData({ ...formData, fuel_avg_highway: Number(e.target.value) })}
-                            className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                        />
-                    </label>
+            <div>
+                <label className="flex items-center gap-2 mt-2">
+                    <input
+                        type="checkbox"
+                        checked={formData.is_available_for_pooling || false}
+                        onChange={(e) => handleChange("is_available_for_pooling", e.target.checked)}
+                        className="accent-[#f47f00]"
+                        disabled={isSaving}
+                    />
+                    <span className="text-sm text-slate-600">Available for Pooling</span>
+                </label>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+                <button
+                    onClick={onCancel}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                    disabled={isSaving}
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={() => onSave(formData)}
+                    className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
+                    disabled={isSaving}
+                >
+                    {isSaving ? "Saving..." : "Save Vehicle"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ModalContainer({
+    isOpen,
+    onClose,
+    title,
+    children,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    children: React.ReactNode;
+}) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
+            <div className="relative w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-200 my-auto">
+                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 sticky top-0 bg-white rounded-t-xl z-10">
+                    <h3 className="text-lg font-bold text-[#0c225e]">{title}</h3>
+                    <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div className="p-6 max-h-[80vh] overflow-y-auto">
+                    {children}
                 </div>
             </div>
         </div>
     );
+}
+
+
+export default function VehiclesPage() {
+    const dispatch = useAppDispatch();
+    const vehicles = useAppSelector(selectAdminVehicles);
+    const status = useAppSelector(selectAdminVehiclesStatus);
+    const error = useAppSelector(selectAdminVehiclesError);
+    const actionStatus = useAppSelector(selectAdminVehiclesActionStatus);
+
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+
+    // Filters
+    const [category, setCategory] = useState<string>("");
+    const [ownership, setOwnership] = useState<string>("");
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+
+    // Debounce search
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 500);
+        return () => clearTimeout(handler);
+    }, [search]);
+
+    useEffect(() => {
+        const params: QueryVehicleParams = {
+            limit: 100,
+            search: debouncedSearch || undefined,
+        };
+        if (category) (params as any).category = category;
+        if (ownership) (params as any).ownership = ownership;
+
+        dispatch(fetchAdminVehicles(params));
+    }, [dispatch, debouncedSearch, category, ownership]);
+
+    const handleCreateNew = () => {
+        setEditingVehicle(null);
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (vehicle: Vehicle) => {
+        setEditingVehicle(vehicle);
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: number) => {
+        if (window.confirm("Are you sure you want to delete this vehicle?")) {
+            dispatch(deleteAdminVehicle(id));
+        }
+    };
+
+    const handleSave = async (data: VehicleFormData) => {
+        try {
+            if (editingVehicle) {
+                await dispatch(updateAdminVehicle({ id: editingVehicle.id, data })).unwrap();
+            } else {
+                await dispatch(createAdminVehicle(data)).unwrap();
+            }
+            setIsModalOpen(false);
+            setEditingVehicle(null);
+            dispatch(fetchAdminVehicles({ limit: 100 }));
+        } catch (err: any) {
+            console.error("Failed to save vehicle:", err);
+            alert(err.message || "Failed to save vehicle");
+        }
+    };
+
+    const isLoading = status === 'loading';
+    const isSaving = actionStatus === 'loading';
 
     return (
-        <div className="flex flex-col gap-6">
-            <div>
-                <div className="text-sm font-medium text-muted">Admin</div>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Vehicles</h1>
+        <div className="flex flex-col gap-6 p-6 mx-auto">
+            {/* Header */}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#0c225e]">Vehicles</h1>
+                </div>
+                <button
+                    onClick={handleCreateNew}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5"
+                >
+                    <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Vehicle
+                </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex-1 min-w-[200px]">
-                    <input
-                        type="text"
-                        placeholder="Search plate, make, model..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="h-10 w-full rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    />
+                    <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search vehicles..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-300 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                        />
+                    </div>
                 </div>
                 <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as VehicleCategory | "ALL")}
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-[#f47f00] outline-none bg-white"
                 >
-                    <option value="ALL">All Categories</option>
+                    <option value="">All Categories</option>
                     {Object.values(VehicleCategory).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                     ))}
                 </select>
                 <select
                     value={ownership}
-                    onChange={(e) => setOwnership(e.target.value as OwnershipType | "ALL")}
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    onChange={(e) => setOwnership(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-slate-300 text-sm focus:border-[#f47f00] outline-none bg-white"
                 >
-                    <option value="ALL">All Ownership</option>
-                    {Object.values(OwnershipType).map((own) => (
-                        <option key={own} value={own}>{own}</option>
+                    <option value="">All Ownership</option>
+                    {Object.values(OwnershipType).map((type) => (
+                        <option key={type} value={type}>{type}</option>
                     ))}
                 </select>
-                <select
-                    value={filterVendorId}
-                    onChange={(e) => setFilterVendorId(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
-                    className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                >
-                    <option value="ALL">All Vendors</option>
-                    {vendors.map((v) => (
-                        <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                </select>
-                <button
-                    onClick={startCreate}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
-                >
-                    Add Vehicle
-                </button>
             </div>
 
-            <div className="rounded-xl border border-border bg-white overflow-hidden">
+            {/* Table */}
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-[#f8fafc] text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="px-4 py-3 text-left">Plate</th>
-                                <th className="px-4 py-3 text-left">Make / Model</th>
-                                <th className="px-4 py-3 text-left">Category</th>
-                                <th className="px-4 py-3 text-left">Ownership</th>
-                                <th className="px-4 py-3 text-left">Fuel (City/Hwy)</th>
-                                <th className="px-4 py-3 text-right">Actions</th>
+                                <th className="px-6 py-4">Vehicle Details</th>
+                                <th className="px-6 py-4">Category</th>
+                                <th className="px-6 py-4">Ownership</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
-                            {vehicles.map((v) => (
-                                <tr key={v.id} className="hover:bg-surface/50">
-                                    <td className="px-4 py-3 font-medium text-ink">{v.plate_number}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium text-ink">{v.make} {v.model}</div>
-                                        <div className="text-xs text-muted">{v.year} · {v.color || "No Color"}</div>
+                        <tbody className="divide-y divide-slate-100">
+                            {isLoading && vehicles.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading vehicles...</td></tr>
+                            ) : error ? (
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-red-500">{error}</td></tr>
+                            ) : vehicles.map((vehicle) => (
+                                <tr key={vehicle.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="font-semibold text-[#0c225e]">{vehicle.make} {vehicle.model} <span className="text-slate-400 font-normal">({vehicle.year})</span></div>
+                                        <div className="text-xs text-slate-500 font-mono">{vehicle.plate_number}</div>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <span className="inline-flex items-center rounded-full border border-border bg-white px-2 py-0.5 text-xs font-medium text-ink">
-                                            {v.category}
-                                        </span>
+                                    <td className="px-6 py-4">
+                                        <Badge color={vehicle.category === VehicleCategory.SEDAN ? 'blue' : vehicle.category === VehicleCategory.SUV ? 'green' : 'purple'}>
+                                            {vehicle.category}
+                                        </Badge>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${v.ownership === OwnershipType.OWNED ? "bg-success/10 text-success" : "bg-blue/10 text-blue"
-                                            }`}>
-                                            {v.ownership}
-                                        </span>
+                                    <td className="px-6 py-4 text-slate-600">
+                                        <Badge color={vehicle.ownership === OwnershipType.OWNED ? 'orange' : 'blue'}>
+                                            {vehicle.ownership}
+                                        </Badge>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="text-xs">
-                                            <span className="font-semibold">{v.fuel_avg_city}</span> / <span className="font-semibold">{v.fuel_avg_highway}</span> km/l
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex justify-end gap-2">
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
                                             <button
-                                                onClick={() => startEdit(v)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                onClick={() => handleEdit(vehicle)}
+                                                className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors"
                                             >
-                                                Edit
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(v)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                onClick={() => handleDelete(vehicle.id)}
+                                                className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                                             >
-                                                Delete
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                             </button>
                                         </div>
                                     </td>
@@ -391,15 +451,8 @@ export default function VehiclesPage() {
                             ))}
                             {!isLoading && vehicles.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted">
-                                        No vehicles found matching your filters.
-                                    </td>
-                                </tr>
-                            )}
-                            {isLoading && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted">
-                                        Loading...
+                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                        No vehicles found.
                                     </td>
                                 </tr>
                             )}
@@ -408,52 +461,19 @@ export default function VehiclesPage() {
                 </div>
             </div>
 
-            {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                        <div className="mb-6 flex items-center justify-between">
-                            <div>
-                                <div className="text-xs font-semibold tracking-wider text-muted">
-                                    {modalMode === "create" ? "NEW ENTRY" : "EDIT ENTRY"}
-                                </div>
-                                <h2 className="mt-1 text-2xl font-semibold text-navy">
-                                    {modalMode === "create" ? "Add New Vehicle" : `Edit ${selectedVehicle?.plate_number}`}
-                                </h2>
-                            </div>
-                            <button
-                                onClick={closeModal}
-                                className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
-                            >
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
+            <ModalContainer
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={!editingVehicle ? "Add New Vehicle" : "Edit Vehicle"}
+            >
+                <VehicleFormInline
+                    vehicle={editingVehicle}
+                    onSave={handleSave}
+                    onCancel={() => setIsModalOpen(false)}
+                    isSaving={isSaving}
+                />
+            </ModalContainer>
 
-                        <div className="max-h-[70vh] overflow-y-auto pr-2">
-                            {renderForm()}
-                        </div>
-
-                        <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
-                            <button
-                                onClick={closeModal}
-                                disabled={isSubmitting}
-                                className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                disabled={isSubmitting}
-                                className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vehicle" : "Save Changes")}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

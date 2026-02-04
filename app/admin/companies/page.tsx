@@ -1,8 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiClient, Company, CreateCompanyRequest, UpdateCompanyRequest } from "../../lib/services/api-client";
+import { Company, CreateCompanyRequest, UpdateCompanyRequest } from "../../lib/services/api-client";
 import { uploadFile } from "../../lib/supabase";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import {
+  fetchAdminCompanies,
+  createAdminCompany,
+  updateAdminCompany,
+  deleteAdminCompany,
+  resetCompanyPassword,
+  selectAdminCompanies,
+  selectAdminCompaniesStatus,
+  selectAdminCompaniesError,
+  selectAdminCompaniesActionStatus,
+} from "../../lib/store/slices/adminCompaniesSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -524,14 +536,14 @@ function CompanyForm({
 // -- Main Page Definition --
 
 export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const dispatch = useAppDispatch();
+  const companies = useAppSelector(selectAdminCompanies);
+  const status = useAppSelector(selectAdminCompaniesStatus);
+  const error = useAppSelector(selectAdminCompaniesError);
+  const actionStatus = useAppSelector(selectAdminCompaniesActionStatus);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Credentials Modal State
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password?: string } | null>(null);
@@ -539,24 +551,9 @@ export default function CompaniesPage() {
   // Password Reset Modal State
   const [passwordResetCompany, setPasswordResetCompany] = useState<Company | null>(null);
 
-  const fetchCompanies = async () => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.getCompanies({ limit: 100 });
-      setCompanies(response.data.data);
-      setError(null);
-    } catch (err: any) {
-      console.error("Failed to fetch companies:", err);
-      setError("Failed to load companies. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Debounced Search and Filter Effect
   useEffect(() => {
-    fetchCompanies();
-  }, []);
+    dispatch(fetchAdminCompanies({ limit: 100 }));
+  }, [dispatch]);
 
   const handleCreateNew = () => {
     setEditingCompany(null);
@@ -570,37 +567,30 @@ export default function CompaniesPage() {
 
   const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
-      try {
-        await apiClient.deleteCompany(id);
-        await fetchCompanies();
-      } catch (err: any) {
-        console.error("Failed to delete company:", err);
-        alert(err.message || "Failed to delete company");
-      }
+      dispatch(deleteAdminCompany(id));
     }
   };
 
   const handleSave = async (data: CompanyFormData) => {
     try {
-      setIsSaving(true);
       if (editingCompany) {
-        await apiClient.updateCompany(editingCompany.id, data);
+        await dispatch(updateAdminCompany({ id: editingCompany.id, data })).unwrap();
       } else {
-        const response = await apiClient.createCompany(data);
-        // Show credentials modal with returned password or formatted one
+        const result = await dispatch(createAdminCompany(data)).unwrap();
+        // Type assertion here because result might be loose typed from thunk
+        const created = result as unknown as { generatedPassword?: string };
         setCreatedCredentials({
           email: data.email,
-          password: response.data.generatedPassword || data.password
+          password: created.generatedPassword || data.password
         });
       }
-      await fetchCompanies();
       setIsModalOpen(false);
       setEditingCompany(null);
+      // Refresh list to ensure consistency, though optimized update is in place
+      dispatch(fetchAdminCompanies({ limit: 100 }));
     } catch (err: any) {
       console.error("Failed to save company:", err);
       alert(err.message || "Failed to save company");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -611,7 +601,7 @@ export default function CompaniesPage() {
 
   const handleResetPassword = async (companyId: number, password: string) => {
     try {
-      await apiClient.resetCompanyPassword(companyId, password);
+      await dispatch(resetCompanyPassword({ id: companyId, password })).unwrap();
       alert("Password reset successfully!");
     } catch (err: any) {
       console.error("Failed to reset password:", err);
@@ -619,6 +609,9 @@ export default function CompaniesPage() {
       throw err;
     }
   };
+
+  const isLoading = status === 'loading';
+  const isSaving = actionStatus === 'loading';
 
   return (
     <div className="flex flex-col gap-6 p-6 mx-auto">
@@ -654,7 +647,7 @@ export default function CompaniesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+              {isLoading && companies.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading companies...</td>
                 </tr>

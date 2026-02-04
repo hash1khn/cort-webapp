@@ -2,14 +2,26 @@
 
 import { useEffect, useState } from "react";
 import {
-    apiClient,
     Driver,
     CreateDriverRequest,
     DriverType,
     DriverStatus,
     DriverStatusAction,
-    Company
+    QueryDriverParams
 } from "../../lib/services/api-client";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import {
+    fetchAdminDrivers,
+    fetchPendingChauffeurs,
+    createAdminDriver,
+    updateAdminDriver,
+    updateAdminDriverStatus,
+    deleteAdminDriver,
+    selectAdminDrivers,
+    selectAdminDriversStatus,
+    selectAdminDriversError,
+    selectAdminDriversActionStatus
+} from "../../lib/store/slices/adminDriversSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -149,13 +161,11 @@ function DriverForm({
     onSave,
     onCancel,
     isSaving,
-    companies
 }: {
     driver: Driver | null;
     onSave: (data: CreateDriverRequest) => void;
     onCancel: () => void;
     isSaving: boolean;
-    companies: Company[];
 }) {
     const [formData, setFormData] = useState<CreateDriverRequest>(
         driver
@@ -167,7 +177,7 @@ function DriverForm({
                 driver_type: driver.drivers_profile?.driver_type || DriverType.SHUTTLE,
                 cnic_number: driver.drivers_profile?.cnic_number || "",
                 license_number: driver.drivers_profile?.license_number || "",
-                status: driver.status,
+                status: driver.status as any,
             }
             : initialFormData
     );
@@ -347,10 +357,11 @@ function DriverForm({
 // -- Main Page Definition --
 
 export default function DriversPage() {
-    const [drivers, setDrivers] = useState<Driver[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
+    const dispatch = useAppDispatch();
+    const drivers = useAppSelector(selectAdminDrivers);
+    const status = useAppSelector(selectAdminDriversStatus);
+    const error = useAppSelector(selectAdminDriversError);
+    const actionStatus = useAppSelector(selectAdminDriversActionStatus);
 
     const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">("ALL");
 
@@ -359,7 +370,6 @@ export default function DriversPage() {
     const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password?: string } | null>(null);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
 
     // Rejection Modal
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -377,34 +387,22 @@ export default function DriversPage() {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    const fetchDrivers = async () => {
-        try {
-            setIsLoading(true);
-            let response;
-            if (activeTab === "PENDING_CHAUFFEUR") {
-                response = await apiClient.getPendingChauffeurs({ limit: 100, search: debouncedSearch });
-            } else {
-                const params: any = { limit: 100, search: debouncedSearch };
-                if (activeTab === "SHUTTLE") params.driver_type = DriverType.SHUTTLE;
-                if (activeTab === "CHAUFFEUR") params.driver_type = DriverType.CHAUFFEUR;
-                response = await apiClient.getDrivers(params);
-            }
-            setDrivers(response.data.data);
-            setError(null);
-        } catch (err: any) {
-            console.error("Failed to fetch drivers:", err);
-            setError("Failed to load drivers. Please try again.");
-        } finally {
-            setIsLoading(false);
+    useEffect(() => {
+        loadDrivers();
+    }, [activeTab, debouncedSearch, dispatch]);
+
+    const loadDrivers = async () => {
+        const params: QueryDriverParams = { limit: 100, search: debouncedSearch };
+
+        if (activeTab === "PENDING_CHAUFFEUR") {
+            // For pending chauffeurs logic
+            dispatch(fetchPendingChauffeurs(params));
+        } else {
+            if (activeTab === "SHUTTLE") params.driver_type = DriverType.SHUTTLE;
+            if (activeTab === "CHAUFFEUR") params.driver_type = DriverType.CHAUFFEUR;
+            dispatch(fetchAdminDrivers(params));
         }
     };
-
-
-
-    useEffect(() => {
-        fetchDrivers();
-    }, [activeTab, debouncedSearch]);
-
 
 
     const handleCreateNew = () => {
@@ -425,7 +423,6 @@ export default function DriversPage() {
                 return;
             }
 
-
             // Password handling for new drivers
             let finalData = { ...data };
             if (!editingDriver && !finalData.password) {
@@ -444,50 +441,50 @@ export default function DriversPage() {
                 return;
             }
 
-            setIsSaving(true);
             if (editingDriver) {
-                // For updates, we must NOT send email or password
+                // For updates, we must NOT send email or password unless explicitly handled
+                // API UpdateDriverRequest has status, etc.
                 const { email, password, ...updateData } = finalData;
-                await apiClient.updateDriver(editingDriver.id, updateData);
+                await dispatch(updateAdminDriver({ id: editingDriver.id, data: updateData })).unwrap();
             } else {
-                const response = await apiClient.createDriver(finalData as CreateDriverRequest);
+                const response = await dispatch(createAdminDriver(finalData)).unwrap();
 
+                // Check if response contains password or if we generated it
+                // API usually returns created object. If we auto-generated, we use finalData.password
+                // If API generates it (e.g. email service), we might rely on response
+                // Assuming we use locally generated one for display if set
                 setCreatedCredentials({
                     email: finalData.email,
                     password: finalData.password
                 });
                 setIsCredentialsModalOpen(true);
             }
-            await fetchDrivers();
+
+            // Re-fetch handled by dispatch responses normally if we just added to list, 
+            // but refreshing ensures filtered lists sort correctly etc.
+            // dispatch(fetchAdminDrivers({ limit: 100 })); // Optimistic updates might suffice, but safety reload:
+            loadDrivers();
+
             setIsCreateModalOpen(false);
             setEditingDriver(null);
         } catch (err: any) {
             console.error("Failed to save driver:", err);
-            alert(err.message || "Failed to save driver");
-        } finally {
-            setIsSaving(false);
+            // Error is in Redux state usually, handled there?
+            // Alert here for explicit user feedback
+            alert(err || "Failed to save driver");
         }
     }
 
     const handleDelete = async (id: string) => {
         if (window.confirm("Are you sure you want to delete this driver?")) {
-            try {
-                await apiClient.deleteDriver(id);
-                await fetchDrivers();
-            } catch (err: any) {
-                alert(err.message || "Failed to delete driver");
-            }
+            await dispatch(deleteAdminDriver(id));
         }
     }
 
     const handleApprove = async (id: string) => {
         if (window.confirm("Are you sure you want to approve this driver?")) {
-            try {
-                await apiClient.updateDriverStatus(id, { action: DriverStatusAction.APPROVE });
-                await fetchDrivers();
-            } catch (err: any) {
-                alert(err.message || "Failed to approve driver");
-            }
+            await dispatch(updateAdminDriverStatus({ id, payload: { action: DriverStatusAction.APPROVE } }));
+            loadDrivers();
         }
     }
 
@@ -505,17 +502,23 @@ export default function DriversPage() {
         }
 
         try {
-            await apiClient.updateDriverStatus(rejectingDriverId, {
-                action: DriverStatusAction.REJECT,
-                reason: rejectionReason
-            });
+            await dispatch(updateAdminDriverStatus({
+                id: rejectingDriverId,
+                payload: {
+                    action: DriverStatusAction.REJECT,
+                    reason: rejectionReason
+                }
+            })).unwrap();
             setIsRejectModalOpen(false);
             setRejectingDriverId(null);
-            await fetchDrivers();
+            loadDrivers();
         } catch (err: any) {
-            alert(err.message || "Failed to reject driver");
+            alert(err || "Failed to reject driver");
         }
     }
+
+    const isLoading = status === 'loading';
+    const isSaving = actionStatus === 'loading';
 
     return (
         <div className="flex flex-col gap-6 p-6 mx-auto">
@@ -592,7 +595,7 @@ export default function DriversPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {isLoading ? (
+                            {isLoading && drivers.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading drivers...</td>
                                 </tr>
@@ -704,7 +707,6 @@ export default function DriversPage() {
                     onSave={handleSave}
                     onCancel={() => setIsCreateModalOpen(false)}
                     isSaving={isSaving}
-                    companies={[]} // Removed companies
                 />
             </Modal>
 

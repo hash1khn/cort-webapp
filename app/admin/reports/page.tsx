@@ -1,41 +1,71 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiClient, ChauffeurReport } from "../../lib/services/api-client";
-
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import {
+    fetchAdminReports,
+    selectAdminReports,
+    selectAdminReportsStatus,
+    selectAdminReportsError,
+    selectAdminReportsFilters
+} from "../../lib/store/slices/adminReportsSlice";
 
 export default function AdminReportsPage() {
-    // Reports State
-    const [reports, setReports] = useState<ChauffeurReport[]>([]);
-    const [isReportsLoading, setIsReportsLoading] = useState(false);
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const dispatch = useAppDispatch();
+    const reports = useAppSelector(selectAdminReports);
+    const status = useAppSelector(selectAdminReportsStatus);
+    const error = useAppSelector(selectAdminReportsError);
+    const savedFilters = useAppSelector(selectAdminReportsFilters);
 
-    // Fetch Reports
+    const [startDate, setStartDate] = useState<string>(savedFilters.startDate);
+    const [endDate, setEndDate] = useState<string>(savedFilters.endDate);
+
+    // Sync local state if Redux state changes externally (optional, but good practice)
     useEffect(() => {
-        const fetchReports = async () => {
-            setIsReportsLoading(true);
-            try {
-                const response = await apiClient.getAllChauffeurReports({
+        setStartDate(savedFilters.startDate);
+        setEndDate(savedFilters.endDate);
+    }, [savedFilters]);
+
+    useEffect(() => {
+        // Only fetch if:
+        // 1. Status is idle (initial load)
+        // 2. OR Filters have changed from what's in the store
+        const filtersChanged = startDate !== savedFilters.startDate || endDate !== savedFilters.endDate;
+
+        if (status === 'idle' || filtersChanged) {
+            // Debounce could be added here if needed, but for now direct dispatch
+            // We only want to dispatch if we are INTENTINALLY causing a change or init load.
+            // However, since we sync state from props in the effect above, be careful of loops.
+
+            // Actually, simplified approach:
+            // Just request data. The slice will update the stored filters on success.
+            // To prevent "reload from start", we check if we already have data matching these params.
+
+            // If status is succeeded and params match, DON'T fetch.
+            if (status === 'succeeded' && !filtersChanged) {
+                return;
+            }
+
+            const timer = setTimeout(() => {
+                dispatch(fetchAdminReports({
                     startDate: startDate || undefined,
                     endDate: endDate || undefined,
-                });
+                }));
+            }, 500); // 500ms debounce to avoid spamming while typing date? Date inputs usually atomic changes.
 
-                if (response.data && Array.isArray(response.data.data)) {
-                    setReports(response.data.data);
-                } else if (Array.isArray(response.data)) {
-                    setReports(response.data as any);
-                } else {
-                    setReports([]);
-                }
-            } catch (error) {
-                console.error("Failed to fetch reports:", error);
-            } finally {
-                setIsReportsLoading(false);
-            }
-        };
-        fetchReports();
-    }, [startDate, endDate]);
+            return () => clearTimeout(timer);
+        }
+    }, [dispatch, startDate, endDate, status, savedFilters]);
+
+    const isReportsLoading = status === 'loading';
+
+    // Manual refresh handler if needed
+    const handleRefresh = () => {
+        dispatch(fetchAdminReports({
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+        }));
+    };
 
     return (
         <div className="flex flex-col gap-6 p-6">
@@ -63,6 +93,13 @@ export default function AdminReportsPage() {
                             className="h-10 rounded-md border border-border px-3 text-sm"
                             placeholder="End Date"
                         />
+                        <button
+                            onClick={handleRefresh}
+                            className="h-10 px-3 rounded-md border border-border bg-white text-sm hover:bg-zinc-50"
+                            title="Refresh Data"
+                        >
+                            ↻
+                        </button>
                     </div>
                     <button
                         type="button"
@@ -105,6 +142,12 @@ export default function AdminReportsPage() {
                                 <tr>
                                     <td colSpan={8} className="px-4 py-8 text-center text-muted">
                                         Loading reports...
+                                    </td>
+                                </tr>
+                            ) : status === 'failed' ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                                        {error || "Failed to load reports. Please try again."}
                                     </td>
                                 </tr>
                             ) : reports.length === 0 ? (
@@ -169,6 +212,6 @@ export default function AdminReportsPage() {
                     </table>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
-    apiClient,
-    Vendor,
-    CreateVendorRequest,
-    QueryVendorParams
-} from "../../lib/services/api-client";
+    fetchAdminVendors,
+    createAdminVendor,
+    updateAdminVendor,
+    deleteAdminVendor,
+    selectAdminVendors,
+    selectAdminVendorsStatus,
+    selectAdminVendorsActionStatus,
+    selectAdminVendorsError,
+    resetActionStatus
+} from "../../lib/store/slices/adminVendorsSlice";
+import { Vendor, CreateVendorRequest } from "../../lib/services/api-client";
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -18,11 +25,12 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function VendorsPage() {
-    const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const dispatch = useAppDispatch();
+    const vendors = useAppSelector(selectAdminVendors);
+    const status = useAppSelector(selectAdminVendorsStatus);
+    const actionStatus = useAppSelector(selectAdminVendorsActionStatus);
+    const error = useAppSelector(selectAdminVendorsError);
 
-    // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -34,66 +42,37 @@ export default function VendorsPage() {
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateVendorRequest>>({});
 
-    const fetchVendors = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const params: QueryVendorParams = { limit: 100 };
-            if (debouncedSearch) params.search = debouncedSearch;
-            const response = await apiClient.getVendors(params);
-            setVendors(response.data?.data || []);
-        } catch (error) {
-            console.error("Failed to fetch vendors:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [debouncedSearch]);
-
     useEffect(() => {
-        fetchVendors();
-    }, [fetchVendors]);
+        dispatch(fetchAdminVendors({ limit: 100, search: debouncedSearch }));
+    }, [dispatch, debouncedSearch]);
 
-    const handleCreate = async () => {
+    // Handle action updates
+    useEffect(() => {
+        if (actionStatus === 'succeeded') {
+            closeModal();
+            dispatch(resetActionStatus());
+        } else if (actionStatus === 'failed' && error) {
+            alert(error);
+            dispatch(resetActionStatus());
+        }
+    }, [actionStatus, error, dispatch]);
+
+    const handleCreate = () => {
         if (!formData.name) {
             alert("Vendor name is required");
             return;
         }
-        try {
-            setIsSubmitting(true);
-            await apiClient.createVendor(formData as CreateVendorRequest);
-            closeModal();
-            fetchVendors();
-        } catch (error: any) {
-            console.error("Failed to create vendor:", error);
-            alert(error.message || "Failed to create vendor");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(createAdminVendor(formData as CreateVendorRequest));
     };
 
-    const handleUpdate = async () => {
+    const handleUpdate = () => {
         if (!selectedVendor) return;
-        try {
-            setIsSubmitting(true);
-            await apiClient.updateVendor(selectedVendor.id, formData);
-            closeModal();
-            fetchVendors();
-        } catch (error: any) {
-            console.error("Failed to update vendor:", error);
-            alert(error.message || "Failed to update vendor");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(updateAdminVendor({ id: selectedVendor.id, data: formData }));
     };
 
-    const handleDelete = async (vendor: Vendor) => {
+    const handleDelete = (vendor: Vendor) => {
         if (!confirm(`Are you sure you want to delete ${vendor.name}?`)) return;
-        try {
-            await apiClient.deleteVendor(vendor.id);
-            fetchVendors();
-        } catch (error: any) {
-            console.error("Failed to delete vendor:", error);
-            alert(error.message || "Failed to delete vendor");
-        }
+        dispatch(deleteAdminVendor(vendor.id));
     };
 
     const startCreate = () => {
@@ -174,6 +153,9 @@ export default function VendorsPage() {
             </div>
         </div>
     );
+
+    const isLoading = status === 'loading';
+    const isSubmitting = actionStatus === 'loading';
 
     return (
         <div className="flex flex-col gap-6">
@@ -305,4 +287,3 @@ export default function VendorsPage() {
         </div>
     );
 }
-

@@ -1,10 +1,27 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { apiClient, ChauffeurBooking, DriverType } from "../../../lib/services/api-client";
+import { DriverType, ChauffeurBooking } from "../../../lib/services/api-client";
 import Map, { type MapMarker } from "../../ui/Map";
 import Modal from "../../../company/bookings/components/Modal";
 import Pagination from "../../../components/ui/Pagination";
+import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import {
+  fetchAdminBookings,
+  fetchAvailableVehicles,
+  fetchAvailableDrivers,
+  assignBooking,
+  updateBookingStatus,
+  startTrip,
+  endTrip,
+  completeTrip,
+  generateTripInvoice,
+  selectAdminBookings,
+  selectAvailableVehicles,
+  selectAvailableDrivers,
+  selectAdminBookingsStatus,
+  selectAdminBookingsPagination
+} from "../../../lib/store/slices/adminBookingsSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -82,14 +99,18 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
 }
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<ChauffeurBooking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const bookings = useAppSelector(selectAdminBookings);
+  const status = useAppSelector(selectAdminBookingsStatus);
+  const pagination = useAppSelector(selectAdminBookingsPagination);
+  const availableCars = useAppSelector(selectAvailableVehicles);
+  const availableDrivers = useAppSelector(selectAvailableDrivers);
+
+  const [isLoading, setIsLoading] = useState(true); // Local loading state for initial load or debounce
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [selectedCarId, setSelectedCarId] = useState<string>("");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [showEndTripModal, setShowEndTripModal] = useState(false);
-  const [availableCars, setAvailableCars] = useState<any[]>([]);
-  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,43 +118,29 @@ export default function BookingsPage() {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10);
+  const limit = 10;
 
-  // Fetch bookings
-  const fetchBookings = async () => {
-    try {
-      setIsLoading(true);
-      const res = await apiClient.getAllBookings({
-        status: statusFilter || undefined,
-        search: searchQuery || undefined,
-        page: currentPage,
-        limit: limit
-      });
-      // Handle Paginated Response
-      if (res && res.data && res.data.data) {
-        setBookings(res.data.data);
-        if (res.data.pagination) {
-          setTotalPages(res.data.pagination.pages || 1);
-        }
-      } else {
-        setBookings([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch bookings", error);
-    } finally {
-      setIsLoading(false);
-    }
+  useEffect(() => {
+    // Sync loading state with Redux if needed, or just use Redux status directly
+    setIsLoading(status === 'loading');
+  }, [status]);
+
+  const loadData = () => {
+    dispatch(fetchAdminBookings({
+      status: statusFilter || undefined,
+      search: searchQuery || undefined,
+      page: currentPage,
+      limit
+    }));
   };
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Reset to page 1 on filter change
       if (currentPage !== 1) {
         setCurrentPage(1);
       } else {
-        fetchBookings();
+        loadData();
       }
     }, 500);
     return () => clearTimeout(timer);
@@ -141,34 +148,23 @@ export default function BookingsPage() {
 
   // Fetch when page changes
   useEffect(() => {
-    fetchBookings();
+    loadData();
   }, [currentPage]);
 
-  // Fetch available cars
-  const fetchVehicles = async () => {
-    try {
-      const res = await apiClient.getAvailableVehicles({ limit: 100 });
-      setAvailableCars(res.data.data);
-    } catch (error) {
-      console.error("Failed to fetch vehicles", error);
+  // Handle opening modal and fetching resources
+  const onOpenBookingModal = (booking: ChauffeurBooking) => {
+    setSelectedBookingId(booking.id);
+    setSelectedCarId("");
+    setSelectedDriverId("");
+
+    // Only fetch resources if the booking needs assignment (PENDING status)
+    if (booking.status === 'PENDING') {
+      // Check if resources are already loaded to avoid redundant calls or force refresh if needed
+      // Currently forcing refresh to ensure availability is up to date
+      dispatch(fetchAvailableVehicles({ limit: 100 }));
+      dispatch(fetchAvailableDrivers({ limit: 100, driver_type: DriverType.CHAUFFEUR }));
     }
   };
-
-  // Fetch available drivers
-  const fetchDrivers = async () => {
-    try {
-      const res = await apiClient.getAvailableDrivers({ limit: 100, driver_type: DriverType.CHAUFFEUR });
-      setAvailableDrivers(res.data.data);
-    } catch (error) {
-      console.error("Failed to fetch drivers", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchVehicles();
-    fetchDrivers();
-    // Initial fetch handled by debounce effect
-  }, []);
 
   const selectedBooking = useMemo(() => {
     if (!selectedBookingId) return null;
@@ -182,20 +178,22 @@ export default function BookingsPage() {
     }
 
     try {
-      await apiClient.assignBooking(selectedBooking.id, parseInt(selectedCarId), selectedDriverId);
+      await dispatch(assignBooking({
+        bookingId: selectedBooking.id,
+        vehicleId: parseInt(selectedCarId),
+        driverId: selectedDriverId
+      })).unwrap();
 
       alert("Booking approved and assignment complete!");
       setSelectedBookingId(null);
       setSelectedCarId("");
       setSelectedDriverId("");
 
-      // Refresh all lists as resources are now consumed
-      fetchBookings();
-      fetchVehicles();
-      fetchDrivers();
-    } catch (error) {
+      loadData();
+      // Refresh resources if needed? Usually not strictly necessary unless availability changed drastically
+    } catch (error: any) {
       console.error("Failed to approve booking", error);
-      alert("Failed to approve booking");
+      alert(error || "Failed to approve booking");
     }
   }
 
@@ -204,13 +202,12 @@ export default function BookingsPage() {
     if (!confirm("Are you sure you want to START this trip?")) return;
 
     try {
-      await apiClient.startTrip(selectedBooking.id);
+      await dispatch(startTrip(selectedBooking.id)).unwrap();
       alert("Trip started successfully!");
       setSelectedBookingId(null);
-      fetchBookings();
-    } catch (error) {
-      console.error("Failed to start trip", error);
-      alert("Failed to start trip");
+      loadData();
+    } catch (error: any) {
+      alert(error || "Failed to start trip");
     }
   }
 
@@ -218,14 +215,13 @@ export default function BookingsPage() {
     if (!selectedBooking) return;
 
     try {
-      await apiClient.endTrip(selectedBooking.id, data);
+      await dispatch(endTrip({ id: selectedBooking.id, data })).unwrap();
       alert("Trip ended successfully!");
       setShowEndTripModal(false);
       setSelectedBookingId(null);
-      fetchBookings();
-    } catch (error) {
-      console.error("Failed to end trip", error);
-      alert("Failed to end trip");
+      loadData();
+    } catch (error: any) {
+      alert(error || "Failed to end trip");
     }
   }
 
@@ -234,28 +230,72 @@ export default function BookingsPage() {
     if (!confirm("Are you sure you want to COMPLETE this trip? Financials will be calculated.")) return;
 
     try {
-      const res: any = await apiClient.completeTrip(selectedBooking.id);
-      alert(`Trip completed! Invoice Amount: ${res.invoice_amount ?? 'Calculated'}`);
+      const res: any = await dispatch(completeTrip(selectedBooking.id)).unwrap();
+      // res.result might contain invoice_amount
+      alert(`Trip completed! Invoice Amount: ${res.result?.invoice_amount ?? 'Calculated'}`);
       setSelectedBookingId(null);
-      fetchBookings();
-    } catch (error) {
-      console.error("Failed to complete trip", error);
-      alert("Failed to complete trip: " + (error as any).message);
+      loadData();
+    } catch (error: any) {
+      alert("Failed to complete trip: " + error);
     }
   }
+
   async function handleReject() {
     if (!selectedBooking) return;
     if (!confirm("Are you sure you want to REJECT this booking?")) return;
 
     try {
-      await apiClient.updateBookingStatus(selectedBooking.id, "CANCELLED");
+      await dispatch(updateBookingStatus({ id: selectedBooking.id, status: "CANCELLED" })).unwrap();
       alert("Booking rejected.");
       setSelectedBookingId(null);
-      fetchBookings();
-    } catch (error) {
-      console.error("Failed to reject booking", error);
-      alert("Failed to reject booking");
+      loadData();
+    } catch (error: any) {
+      alert(error || "Failed to reject booking");
     }
+  }
+
+  async function handleGenerateInvoice(id: number) {
+    if (!confirm("Generate invoice for this trip?")) return;
+    try {
+      await dispatch(generateTripInvoice(id)).unwrap();
+      alert("Invoice generated successfully");
+      loadData();
+    } catch (e: any) {
+      alert("Failed to generate invoice: " + e);
+    }
+  }
+
+  const handleStatusChange = async (b: ChauffeurBooking, newStatus: string) => {
+    if (newStatus === 'IN_PROGRESS') {
+      if (!confirm("Start this trip? This will create a trip log.")) return;
+      try {
+        await dispatch(startTrip(b.id)).unwrap();
+        loadData();
+      } catch (e: any) { alert("Failed: " + e); }
+      return;
+    }
+
+    if (newStatus === 'ENDED') {
+      setSelectedBookingId(b.id);
+      setShowEndTripModal(true);
+      return;
+    }
+
+    if (newStatus === 'COMPLETED') {
+      if (!confirm("Complete this trip? This will calculate financials and generate the invoice.")) return;
+      try {
+        await dispatch(completeTrip(b.id)).unwrap();
+        loadData();
+      } catch (e: any) { alert("Failed: " + e); }
+      return;
+    }
+
+    // Default status update
+    if (!confirm(`Change status to ${newStatus}?`)) return;
+    try {
+      await dispatch(updateBookingStatus({ id: b.id, status: newStatus })).unwrap();
+      loadData();
+    } catch (e: any) { alert("Failed: " + e); }
   }
 
   return (
@@ -325,7 +365,7 @@ export default function BookingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {isLoading ? (
+                {isLoading && bookings.length === 0 ? (
                   <tr><td colSpan={8} className="p-4 text-center">Loading...</td></tr>
                 ) : bookings.map((b) => {
                   const isSelected = selectedBookingId === b.id;
@@ -335,10 +375,7 @@ export default function BookingsPage() {
                   return (
                     <tr
                       key={b.id}
-                      onClick={() => {
-                        setSelectedBookingId(b.id);
-                        setSelectedCarId("");
-                      }}
+                      onClick={() => onOpenBookingModal(b)}
                       className={cx(
                         "cursor-pointer transition-colors group",
                         isSelected ? "bg-blue/5" : "hover:bg-surface",
@@ -394,49 +431,7 @@ export default function BookingsPage() {
                         <div onClick={(e) => e.stopPropagation()}>
                           <select
                             value={b.status}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
-
-                              if (newStatus === 'IN_PROGRESS') {
-                                if (!confirm("Start this trip? This will create a trip log.")) return;
-                                try {
-                                  await apiClient.startTrip(b.id);
-                                  fetchBookings();
-                                } catch (err) {
-                                  console.error(err);
-                                  alert("Failed to start trip");
-                                }
-                                return;
-                              }
-
-                              if (newStatus === 'ENDED') {
-                                setSelectedBookingId(b.id);
-                                setShowEndTripModal(true);
-                                return;
-                              }
-
-                              if (newStatus === 'COMPLETED') {
-                                if (!confirm("Complete this trip? This will calculate financials and generate the invoice.")) return;
-                                try {
-                                  await apiClient.completeTrip(b.id);
-                                  fetchBookings();
-                                } catch (err) {
-                                  console.error(err);
-                                  alert("Failed to complete trip");
-                                }
-                                return;
-                              }
-
-                              // for ARRIVED, CANCELLED, etc.
-                              if (!confirm(`Change status to ${newStatus}?`)) return;
-                              try {
-                                await apiClient.updateBookingStatus(b.id, newStatus);
-                                fetchBookings();
-                              } catch (err) {
-                                console.error(err);
-                                alert("Failed to update status");
-                              }
-                            }}
+                            onChange={(e) => handleStatusChange(b, e.target.value)}
                             className={cx(
                               "h-7 rounded-full px-2 text-[11px] font-semibold border-none outline-none cursor-pointer appearance-none text-center min-w-[100px]",
                               b.status === 'PENDING' ? "bg-yellow/10 text-yellow" :
@@ -457,16 +452,7 @@ export default function BookingsPage() {
                         {b.status === 'COMPLETED' && !b.invoices && (
                           <div className="mt-2 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
-                              onClick={async () => {
-                                if (!confirm("Generate invoice for this trip?")) return;
-                                try {
-                                  await apiClient.generateTripInvoice(b.id);
-                                  alert("Invoice generated successfully");
-                                  fetchBookings();
-                                } catch (e: any) {
-                                  alert("Failed to generate invoice: " + e.message);
-                                }
-                              }}
+                              onClick={() => handleGenerateInvoice(b.id)}
                               className="text-[10px] bg-navy text-white px-2 py-1 rounded hover:opacity-90"
                             >
                               Generate Invoice
@@ -492,7 +478,7 @@ export default function BookingsPage() {
           </div>
           <Pagination
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={pagination.pages}
             onPageChange={(page) => setCurrentPage(page)}
           />
         </section>

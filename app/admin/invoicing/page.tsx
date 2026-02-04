@@ -1,64 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiClient, Company, Invoice } from "../../lib/services/api-client";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import {
+  fetchAdminInvoices,
+  fetchInvoiceStats,
+  updateInvoiceStatus,
+  downloadInvoicePdf,
+  selectAdminInvoices,
+  selectAdminInvoiceStats,
+  selectAdminInvoicingStatus,
+  selectAdminInvoicingActionStatus
+} from "../../lib/store/slices/adminInvoicingSlice";
 
 export default function InvoicingPage() {
-  // Invoices State
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isInvoicesLoading, setIsInvoicesLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const invoices = useAppSelector(selectAdminInvoices);
+  const stats = useAppSelector(selectAdminInvoiceStats);
+  const status = useAppSelector(selectAdminInvoicingStatus);
+  const actionStatus = useAppSelector(selectAdminInvoicingActionStatus);
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalCollectable: 0,
-    totalCollected: 0,
-    totalOverdue: 0
-  });
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
-  // Fetch Stats
-  const fetchStats = async () => {
-    try {
-      const res = await apiClient.getInvoiceStats();
-      if (res && res.data) {
-        setStats(res.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch invoice stats:", error);
-    }
-  }
-
-  // Fetch Invoices
-  const fetchInvoices = async () => {
-    setIsInvoicesLoading(true);
-    try {
-      const response = await apiClient.getAllInvoices();
-      // Backend returns { data: [...], status: ..., message: ... }
-      let fetchedInvoices: Invoice[] = [];
-      if (response && response.data && Array.isArray(response.data)) {
-        fetchedInvoices = response.data;
-      } else if (Array.isArray(response)) {
-        fetchedInvoices = response;
-      }
-
-      setInvoices(fetchedInvoices);
-    } catch (error) {
-      console.error("Failed to fetch invoices:", error);
-    } finally {
-      setIsInvoicesLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchInvoices();
-    fetchStats();
-  }, []);
+    dispatch(fetchAdminInvoices());
+    dispatch(fetchInvoiceStats());
+  }, [dispatch]);
 
   const downloadPdf = async (id: number, invoiceNumber: string) => {
     if (downloadingId) return;
     setDownloadingId(id);
     try {
-      await apiClient.downloadInvoicePdf(id, invoiceNumber);
+      await dispatch(downloadInvoicePdf({ id, invoiceNumber })).unwrap();
     } catch (e) {
       console.error("Failed to download PDF", e);
       alert("Failed to download PDF");
@@ -71,23 +44,19 @@ export default function InvoicingPage() {
     try {
       if (!confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
 
-      await apiClient.updateInvoiceStatus(id, newStatus);
+      await dispatch(updateInvoiceStatus({ id, status: newStatus })).unwrap();
 
-      // Update local state
-      const updatedInvoices = invoices.map(inv =>
-        inv.id === id ? { ...inv, status: newStatus } : inv
-      );
-      setInvoices(updatedInvoices);
-
-      // Refresh Stats from backend
-      fetchStats();
+      // Also refresh stats as they might change with status
+      dispatch(fetchInvoiceStats());
 
       alert("Status updated successfully");
     } catch (error: any) {
       console.error("Failed to update status:", error);
-      alert("Failed to update status: " + error.message);
+      alert("Failed to update status: " + error);
     }
   };
+
+  const isInvoicesLoading = status === 'loading';
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,7 +111,7 @@ export default function InvoicingPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {isInvoicesLoading ? (
+              {isInvoicesLoading && invoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     Loading invoices...
@@ -206,8 +175,6 @@ export default function InvoicingPage() {
           </table>
         </div>
       </div>
-
-
     </div>
   );
 }

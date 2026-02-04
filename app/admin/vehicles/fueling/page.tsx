@@ -1,13 +1,27 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import {
-    apiClient,
+    fetchFuelRecords,
+    fetchFuelStats,
+    createFuelRecord,
+    updateFuelRecord,
+    deleteFuelRecord,
+    fetchAdminVehicles,
+    selectFuelRecords,
+    selectFuelStats,
+    selectFuelStatus,
+    selectFuelActionStatus,
+    selectAdminVehicles,
+    resetFuelActionStatus
+} from "../../../lib/store/slices/adminVehiclesSlice";
+
+import {
     FuelRecord,
     CreateFuelRecordRequest,
     UpdateFuelRecordRequest,
     QueryFuelRecordParams,
-    Vehicle,
 } from "../../../lib/services/api-client";
 
 // Debounce helper
@@ -21,11 +35,13 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function FuelingPage() {
-    const [records, setRecords] = useState<FuelRecord[]>([]);
-    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [stats, setStats] = useState<{ total_fuel_cost: number; average_fuel_rate: number; total_records: number } | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const dispatch = useAppDispatch();
+
+    const records = useAppSelector(selectFuelRecords);
+    const stats = useAppSelector(selectFuelStats);
+    const vehicles = useAppSelector(selectAdminVehicles);
+    const status = useAppSelector(selectFuelStatus);
+    const actionStatus = useAppSelector(selectFuelActionStatus);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,86 +57,50 @@ export default function FuelingPage() {
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
 
-    const fetchRecords = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const params: QueryFuelRecordParams = { limit: 100 };
-            if (filterVehicleId !== "ALL") params.vehicle_id = filterVehicleId;
-            if (filterBilled !== "ALL") params.billed = filterBilled;
-            if (startDate) params.start_date = startDate;
-            if (endDate) params.end_date = endDate;
+    const loadData = useCallback(() => {
+        const params: QueryFuelRecordParams = { limit: 100 };
+        if (filterVehicleId !== "ALL") params.vehicle_id = filterVehicleId;
+        if (filterBilled !== "ALL") params.billed = filterBilled;
+        if (startDate) params.start_date = startDate;
+        if (endDate) params.end_date = endDate;
 
-            const response = await apiClient.getFuelRecords(params);
-            setRecords(response.data?.data || []);
-        } catch (error) {
-            console.error("Failed to fetch fuel records:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [filterVehicleId, filterBilled, startDate, endDate]);
-
-    const fetchStats = async () => {
-        try {
-            const response = await apiClient.getFuelStats();
-            setStats(response.data);
-        } catch (error) {
-            console.error("Failed to fetch fuel stats:", error);
-        }
-    };
+        dispatch(fetchFuelRecords(params));
+        dispatch(fetchFuelStats());
+    }, [dispatch, filterVehicleId, filterBilled, startDate, endDate]);
 
     useEffect(() => {
-        fetchRecords();
-        fetchStats();
-        apiClient.getVehicles({ limit: 100 }).then(res => setVehicles(res.data?.data || []));
-    }, [fetchRecords]);
+        loadData();
+        dispatch(fetchAdminVehicles({ limit: 100 }));
+    }, [loadData, dispatch]);
 
-    const handleCreate = async () => {
+    // Handle action updates
+    useEffect(() => {
+        if (actionStatus === 'succeeded') {
+            closeModal();
+            dispatch(resetFuelActionStatus());
+            loadData(); // Re-fetch to update list and stats
+        } else if (actionStatus === 'failed') {
+            alert("Action failed"); // Could be improved with specific error message from state
+            dispatch(resetFuelActionStatus());
+        }
+    }, [actionStatus, dispatch, loadData]);
+
+    const handleCreate = () => {
         if (!formData.vehicle_id || !formData.date || !formData.fuel_litres || !formData.current_fuel_rate) {
             alert("Please fill all required fields");
             return;
         }
-
-        try {
-            setIsSubmitting(true);
-            await apiClient.createFuelRecord(formData as CreateFuelRecordRequest);
-            closeModal();
-            fetchRecords();
-            fetchStats();
-        } catch (error: any) {
-            console.error("Failed to create fuel record:", error);
-            alert(error.message || "Failed to create fuel record");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(createFuelRecord(formData as CreateFuelRecordRequest));
     };
 
-    const handleUpdate = async () => {
+    const handleUpdate = () => {
         if (!selectedRecord) return;
-        try {
-            setIsSubmitting(true);
-            await apiClient.updateFuelRecord(selectedRecord.id, formData as UpdateFuelRecordRequest);
-            closeModal();
-            fetchRecords();
-            fetchStats();
-        } catch (error: any) {
-            console.error("Failed to update fuel record:", error);
-            alert(error.message || "Failed to update fuel record");
-        } finally {
-            setIsSubmitting(false);
-        }
+        dispatch(updateFuelRecord({ id: selectedRecord.id, data: formData as UpdateFuelRecordRequest }));
     };
 
-    const handleDelete = async (record: FuelRecord) => {
+    const handleDelete = (record: FuelRecord) => {
         if (!confirm(`Are you sure you want to delete this fuel record?`)) return;
-
-        try {
-            await apiClient.deleteFuelRecord(record.id);
-            fetchRecords();
-            fetchStats();
-        } catch (error: any) {
-            console.error("Failed to delete fuel record:", error);
-            alert(error.message || "Failed to delete fuel record");
-        }
+        dispatch(deleteFuelRecord(record.id));
     };
 
     const startCreate = () => {
@@ -219,6 +199,9 @@ export default function FuelingPage() {
             )}
         </div>
     );
+
+    const isLoading = status === 'loading';
+    const isSubmitting = actionStatus === 'loading';
 
     return (
         <div className="flex flex-col gap-6">

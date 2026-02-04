@@ -6,6 +6,14 @@ import contractReducer from './slices/contractSlice';
 import employeesReducer from './slices/employeeSlice';
 
 import invoiceReducer from './slices/invoiceSlice';
+import adminCompaniesReducer from './slices/adminCompaniesSlice';
+import adminVehiclesReducer from './slices/adminVehiclesSlice';
+import adminDriversReducer from './slices/adminDriversSlice';
+import adminBookingsReducer from './slices/adminBookingsSlice';
+import adminInvoicingReducer from './slices/adminInvoicingSlice';
+import adminPricingReducer from './slices/adminPricingSlice';
+import adminVendorsReducer from './slices/adminVendorsSlice';
+import adminReportsReducer from './slices/adminReportsSlice';
 
 export const store = configureStore({
     reducer: {
@@ -15,6 +23,14 @@ export const store = configureStore({
         contract: contractReducer,
         employees: employeesReducer,
         invoices: invoiceReducer,
+        adminCompanies: adminCompaniesReducer,
+        adminVehicles: adminVehiclesReducer,
+        adminDrivers: adminDriversReducer,
+        adminBookings: adminBookingsReducer,
+        adminInvoicing: adminInvoicingReducer,
+        adminPricing: adminPricingReducer,
+        adminVendors: adminVendorsReducer,
+        adminReports: adminReportsReducer,
     },
 });
 

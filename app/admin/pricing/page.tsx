@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
-  apiClient,
-  Company,
-  ChauffeurContract,
-  ChauffeurContractRate,
-  CreateChauffeurContractRequest,
-  UpdateChauffeurContractRequest
-} from "../../lib/services/api-client";
+  fetchPricingCompanies,
+  fetchSystemFuelPrice,
+  updateSystemFuelPrice,
+  fetchCompanyContractDetails,
+  previewRateAdjustments,
+  savePricingChanges,
+  deleteRateRow,
+  setSelectedCompanyId,
+  setGlobalSettings,
+  setSystemFuelPriceLocal,
+  setShowPreview,
+  addRateRow,
+  updateRateRow,
+  resetActionStatus,
+  selectPricingCompanies,
+  selectPricingCurrentCompany,
+  selectAdminPricingState
+} from "../../lib/store/slices/adminPricingSlice";
+import { ChauffeurContractRate } from "../../lib/services/api-client";
 
 const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText }: any) => (
   <label className="flex flex-col gap-1.5">
@@ -25,180 +38,72 @@ const Input = ({ label, value, onChange, placeholder = "0", type = "number", hel
 );
 
 export default function PricingPage() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
-  const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
-  const [contract, setContract] = useState<ChauffeurContract | null>(null);
+  const dispatch = useAppDispatch();
+  const companies = useAppSelector(selectPricingCompanies);
+  const currentCompany = useAppSelector(selectPricingCurrentCompany);
+  const {
+    selectedCompanyId,
+    globalSettings,
+    rateRows,
+    systemFuelPrice,
+    showPreview,
+    previewData,
+    isLoadingPreview,
+    status,
+    actionStatus,
+    error
+  } = useAppSelector(selectAdminPricingState);
 
-  // Global settings state
-  const [globalSettings, setGlobalSettings] = useState({
-    fuelBasePrice: "0",
-    revisionPercentage: "", // Empty string means NULL (no threshold)
-    contractDuration: "",
-    contractDate: "",
-    allowanceOutstation: "",
-    allowanceAccommodation: ""
-  });
-
-
-
-  // Rates State
-  type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
-  const [rateRows, setRateRows] = useState<RateRow[]>([]);
   const [showMarketRates, setShowMarketRates] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  // System Setting
-  const [systemFuelPrice, setSystemFuelPrice] = useState("0");
-  const [isUpdatingFuel, setIsUpdatingFuel] = useState(false);
-
-  // Preview state
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-
-  // Initial load: Fetch companies & System Settings
+  // Initial load
   useEffect(() => {
-    const init = async () => {
-      try {
-        const comps = await apiClient.getCompanies({ limit: 100 });
-        setCompanies(comps.data.data);
-        if (comps.data.data.length > 0) {
-          setSelectedCompanyId(String(comps.data.data[0].id));
-        }
+    dispatch(fetchPricingCompanies());
+    dispatch(fetchSystemFuelPrice());
+  }, [dispatch]);
 
-        const sys = await apiClient.getSystemSetting('current_fuel_price');
-        setSystemFuelPrice(sys.data.value);
-      } catch (err) {
-        console.error("Init failed", err);
-      }
-    };
-    init();
-  }, []);
-
-  // Load Contract Details
+  // Load Contract Details when company selected
   useEffect(() => {
+    if (selectedCompanyId) {
+      dispatch(fetchCompanyContractDetails(selectedCompanyId));
+    }
+  }, [selectedCompanyId, dispatch]);
+
+  // Handle action status updates
+  useEffect(() => {
+    if (actionStatus === 'succeeded') {
+      alert("Action completed successfully!");
+      dispatch(resetActionStatus());
+    } else if (actionStatus === 'failed' && error) {
+      alert("Action failed: " + error);
+      dispatch(resetActionStatus());
+    }
+  }, [actionStatus, error, dispatch]);
+
+
+  const handleUpdateGlobalFuel = () => {
+    dispatch(updateSystemFuelPrice(systemFuelPrice));
+  };
+
+  const handlePreviewAdjustments = () => {
     if (!selectedCompanyId) return;
-
-    const loadDetails = async () => {
-      setIsLoading(true);
-      try {
-        const [compRes, contractsRes] = await Promise.all([
-          apiClient.getCompany(selectedCompanyId),
-          apiClient.getChauffeurContracts(Number(selectedCompanyId))
-        ]);
-
-        setCurrentCompany(compRes.data);
-
-        // Chauffeur Contract logic
-        const contracts = contractsRes.data;
-        if (contracts && contracts.length > 0) {
-          const mainContract = contracts[0];
-          setContract(mainContract);
-          setGlobalSettings({
-            fuelBasePrice: mainContract.fuel_base_price,
-            revisionPercentage: mainContract.revision_percentage || "",
-            contractDuration: mainContract.contract_duration || "",
-            contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : "",
-            allowanceOutstation: mainContract.allowance_outstation || "",
-            allowanceAccommodation: mainContract.allowance_accommodation || ""
-          });
-          setRateRows(mainContract.chauffeur_contract_rates || []);
-        } else {
-          setContract(null);
-          setGlobalSettings({
-            fuelBasePrice: "300",
-            revisionPercentage: "",
-            contractDuration: "",
-            contractDate: "",
-            allowanceOutstation: "",
-            allowanceAccommodation: ""
-          });
-          setRateRows([]);
-        }
-
-      } catch (err) {
-        console.error("Failed to load details", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadDetails();
-  }, [selectedCompanyId]);
-
-  const handleUpdateGlobalFuel = async () => {
-    setIsUpdatingFuel(true);
-    try {
-      await apiClient.updateSystemSetting('current_fuel_price', systemFuelPrice);
-      alert("Global Fuel Price updated successfully. Use the Preview button to see how rates are affected.");
-    } catch (err) {
-      console.error("Failed to update global fuel price", err);
-      alert("Failed to update global fuel price");
-    } finally {
-      setIsUpdatingFuel(false);
-    }
+    dispatch(setShowPreview(true));
+    dispatch(previewRateAdjustments({
+      fuelPrice: Number(systemFuelPrice),
+      companyId: Number(selectedCompanyId)
+    }));
   };
 
-  const handlePreviewAdjustments = async () => {
-    setIsLoadingPreview(true);
-    setShowPreview(true);
-    try {
-      const preview = await apiClient.previewRateAdjustments(
-        Number(systemFuelPrice),
-        Number(selectedCompanyId)
-      );
-      setPreviewData(preview.data);
-    } catch (err) {
-      console.error("Failed to load preview", err);
-      alert("Failed to load preview");
-    } finally {
-      setIsLoadingPreview(false);
-    }
-  };
-
-  const handleAddRateRow = () => {
-    setRateRows([...rateRows, {
-      tempId: Date.now().toString(),
-      isNew: true,
-      vehicle_model: "",
-      cost_per_km: "0",
-      rate_spot_5hr: "0",
-      rate_spot_10hr: "0",
-      rate_spot_24hr: "0",
-      rate_monthly_10hr: "0",
-      rate_monthly_24hr: "0",
-      rate_overtime_per_hr: "0",
-      market_cost_per_km: "0",
-      market_rate_spot_5hr: "0",
-      market_rate_spot_10hr: "0",
-      market_rate_spot_24hr: "0",
-      market_rate_monthly_10hr: "0",
-      market_rate_monthly_24hr: "0",
-      market_rate_overtime_per_hr: "0"
-    }]);
-  };
-
-  const updateRateRow = (index: number, field: keyof ChauffeurContractRate, value: string) => {
-    const newRows = [...rateRows];
-    newRows[index] = { ...newRows[index], [field]: value };
-    setRateRows(newRows);
-  };
-
-  const handleDeleteRateRow = async (index: number) => {
+  const handleDeleteRow = (index: number) => {
     const row = rateRows[index];
-    if (row.isNew) {
-      setRateRows(rateRows.filter((_, i) => i !== index));
-    } else if (row.id) {
+    if (row.id) {
       if (!confirm("Are you sure you want to delete this rate card?")) return;
-      try {
-        await apiClient.deleteChauffeurRate(row.id);
-        setRateRows(rateRows.filter((_, i) => i !== index));
-      } catch (err: any) {
-        alert("Failed to delete rate: " + err.message);
-      }
     }
+    dispatch(deleteRateRow(index));
+  };
+
+  const handleSave = () => {
+    dispatch(savePricingChanges());
   };
 
   const getSavings = (contractVal: string | number | undefined, marketVal: string | number | undefined) => {
@@ -215,92 +120,9 @@ export default function PricingPage() {
     );
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      let currentContractId = contract?.id;
-
-      // Parse revision percentage - empty string becomes null
-      const revisionPct = globalSettings.revisionPercentage === "" ? null : Number(globalSettings.revisionPercentage);
-
-      if (currentContractId) {
-        await apiClient.updateChauffeurContract(currentContractId, {
-          fuelBasePrice: Number(globalSettings.fuelBasePrice),
-          revisionPercentage: revisionPct,
-          contractDuration: globalSettings.contractDuration,
-          contractDate: globalSettings.contractDate,
-          allowanceOutstation: Number(globalSettings.allowanceOutstation),
-          allowanceAccommodation: Number(globalSettings.allowanceAccommodation)
-        });
-      } else {
-        const res = await apiClient.createChauffeurContract({
-          companyId: Number(selectedCompanyId),
-          fuelBasePrice: Number(globalSettings.fuelBasePrice),
-          revisionPercentage: revisionPct,
-          contractDuration: globalSettings.contractDuration,
-          contractDate: globalSettings.contractDate,
-          allowanceOutstation: Number(globalSettings.allowanceOutstation),
-          allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
-          vehicleModel: ""
-        });
-        currentContractId = res.data.id;
-      }
-
-      // Save Rates
-      const promises = rateRows.map(async (row) => {
-        if (!row.vehicle_model) return;
-
-        const commonData = {
-          vehicleModel: row.vehicle_model,
-          costPerKm: Number(row.cost_per_km || 0),
-          rateSpot5hr: Number(row.rate_spot_5hr),
-          rateSpot10hr: Number(row.rate_spot_10hr),
-          rateSpot24hr: Number(row.rate_spot_24hr),
-          rateMonthly10hr: Number(row.rate_monthly_10hr),
-          rateMonthly24hr: Number(row.rate_monthly_24hr),
-          rateOvertimePerHr: Number(row.rate_overtime_per_hr || 0),
-          marketCostPerKm: Number(row.market_cost_per_km || 0),
-          marketRateSpot5hr: Number(row.market_rate_spot_5hr || 0),
-          marketRateSpot10hr: Number(row.market_rate_spot_10hr || 0),
-          marketRateSpot24hr: Number(row.market_rate_spot_24hr || 0),
-          marketRateMonthly10hr: Number(row.market_rate_monthly_10hr || 0),
-          marketRateMonthly24hr: Number(row.market_rate_monthly_24hr || 0),
-          marketRateOvertimePerHr: Number(row.market_rate_overtime_per_hr || 0)
-        };
-
-        if (row.isNew) {
-          await apiClient.createChauffeurContract({
-            companyId: Number(selectedCompanyId),
-            fuelBasePrice: Number(globalSettings.fuelBasePrice),
-            revisionPercentage: revisionPct,
-            contractDuration: globalSettings.contractDuration,
-            contractDate: globalSettings.contractDate,
-            allowanceOutstation: Number(globalSettings.allowanceOutstation),
-            allowanceAccommodation: Number(globalSettings.allowanceAccommodation),
-            ...commonData
-          });
-        } else if (row.id) {
-          await apiClient.updateChauffeurRate(row.id, commonData);
-        }
-      });
-
-      await Promise.all(promises);
-
-      // Refresh
-      const contractsRes = await apiClient.getChauffeurContracts(Number(selectedCompanyId));
-      if (contractsRes.data && contractsRes.data.length > 0) {
-        setContract(contractsRes.data[0]);
-        setRateRows(contractsRes.data[0].chauffeur_contract_rates || []);
-      }
-      alert("Saved successfully!");
-
-    } catch (err: any) {
-      console.error(err);
-      alert("Save failed: " + err.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const isLoading = status === 'loading';
+  const isSaving = actionStatus === 'loading';
+  const isUpdatingFuel = actionStatus === 'loading'; // Simplified for now, could distinct
 
   return (
     <div className="flex flex-col gap-8 mx-auto p-6">
@@ -314,7 +136,7 @@ export default function PricingPage() {
           <span className="text-sm font-medium text-slate-700">Select Company</span>
           <select
             value={selectedCompanyId}
-            onChange={(e) => setSelectedCompanyId(e.target.value)}
+            onChange={(e) => dispatch(setSelectedCompanyId(e.target.value))}
             className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
           >
             {companies.map((c) => (
@@ -336,7 +158,7 @@ export default function PricingPage() {
             <input
               type="number"
               value={systemFuelPrice}
-              onChange={(e) => setSystemFuelPrice(e.target.value)}
+              onChange={(e) => dispatch(setSystemFuelPriceLocal(e.target.value))}
               className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
             />
           </label>
@@ -365,7 +187,7 @@ export default function PricingPage() {
               <h3 className="text-lg font-bold text-[#0c225e]">Rate Adjustment Preview</h3>
               <p className="text-sm text-slate-600 mt-1">How rates will be adjusted at fuel price: PKR {systemFuelPrice}</p>
             </div>
-            <button onClick={() => setShowPreview(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            <button onClick={() => dispatch(setShowPreview(false))} className="text-slate-400 hover:text-slate-600">✕</button>
           </div>
           {previewData && previewData.length > 0 && (
             <div className="space-y-4">
@@ -431,29 +253,29 @@ export default function PricingPage() {
                   <Input
                     label="Base Fuel Price (PKR)"
                     value={globalSettings.fuelBasePrice}
-                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, fuelBasePrice: v }))}
+                    onChange={(v: string) => dispatch(setGlobalSettings({ fuelBasePrice: v }))}
                   />
                   <Input
                     label="Revision Threshold (%)"
                     value={globalSettings.revisionPercentage}
-                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, revisionPercentage: v }))}
+                    onChange={(v: string) => dispatch(setGlobalSettings({ revisionPercentage: v }))}
                     helperText="Leave empty to always adjust rates with fuel price changes"
                   />
                   <Input
                     label="Outstation Allowance"
                     value={globalSettings.allowanceOutstation}
-                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, allowanceOutstation: v }))}
+                    onChange={(v: string) => dispatch(setGlobalSettings({ allowanceOutstation: v }))}
                   />
                   <Input
                     label="Accommodation Allowance"
                     value={globalSettings.allowanceAccommodation}
-                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, allowanceAccommodation: v }))}
+                    onChange={(v: string) => dispatch(setGlobalSettings({ allowanceAccommodation: v }))}
                   />
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
                     <select
                       value={globalSettings.contractDuration}
-                      onChange={(e) => setGlobalSettings(s => ({ ...s, contractDuration: e.target.value }))}
+                      onChange={(e) => dispatch(setGlobalSettings({ contractDuration: e.target.value }))}
                       className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white"
                     >
                       <option value="">Select Duration</option>
@@ -467,7 +289,7 @@ export default function PricingPage() {
                   <Input
                     label="Contract Date"
                     value={globalSettings.contractDate}
-                    onChange={(v: string) => setGlobalSettings(s => ({ ...s, contractDate: v }))}
+                    onChange={(v: string) => dispatch(setGlobalSettings({ contractDate: v }))}
                     type="date"
                   />
                 </div>
@@ -491,7 +313,7 @@ export default function PricingPage() {
                       Show Market Rates
                     </label>
                     <button
-                      onClick={handleAddRateRow}
+                      onClick={() => dispatch(addRateRow())}
                       className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3"
                     >
                       + Add Vehicle
@@ -534,16 +356,16 @@ export default function PricingPage() {
                             <input
                               className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
                               value={row.vehicle_model}
-                              onChange={e => updateRateRow(idx, 'vehicle_model', e.target.value)}
+                              onChange={e => dispatch(updateRateRow({ index: idx, field: 'vehicle_model', value: e.target.value }))}
                               placeholder="e.g. Honda City"
                             />
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => updateRateRow(idx, 'cost_per_km', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'cost_per_km', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => updateRateRow(idx, 'market_cost_per_km', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_cost_per_km', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.cost_per_km, row.market_cost_per_km)}
                                 </>
                               )}
@@ -551,10 +373,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => updateRateRow(idx, 'rate_spot_5hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_5hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => updateRateRow(idx, 'market_rate_spot_5hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_5hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_5hr, row.market_rate_spot_5hr)}
                                 </>
                               )}
@@ -562,10 +384,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => updateRateRow(idx, 'rate_spot_10hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => updateRateRow(idx, 'market_rate_spot_10hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_10hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_10hr, row.market_rate_spot_10hr)}
                                 </>
                               )}
@@ -573,10 +395,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => updateRateRow(idx, 'rate_spot_24hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => updateRateRow(idx, 'market_rate_spot_24hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_24hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_24hr, row.market_rate_spot_24hr)}
                                 </>
                               )}
@@ -584,10 +406,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => updateRateRow(idx, 'rate_monthly_10hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => updateRateRow(idx, 'market_rate_monthly_10hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_10hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_monthly_10hr, row.market_rate_monthly_10hr)}
                                 </>
                               )}
@@ -595,10 +417,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => updateRateRow(idx, 'rate_monthly_24hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => updateRateRow(idx, 'market_rate_monthly_24hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_24hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_monthly_24hr, row.market_rate_monthly_24hr)}
                                 </>
                               )}
@@ -606,10 +428,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'rate_overtime_per_hr', e.target.value)} placeholder="Contract" />
+                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_overtime_per_hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => updateRateRow(idx, 'market_rate_overtime_per_hr', e.target.value)} placeholder="Market" />
+                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_overtime_per_hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_overtime_per_hr, row.market_rate_overtime_per_hr)}
                                 </>
                               )}
@@ -617,7 +439,7 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
-                              onClick={() => handleDeleteRateRow(idx)}
+                              onClick={() => handleDeleteRow(idx)}
                               className="text-red-400 hover:text-red-600 p-1"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
