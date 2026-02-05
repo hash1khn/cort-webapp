@@ -79,14 +79,24 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     }
   }, [companyId, company, dispatch]);
 
-  // We want to persist the collapsed state if possible, but for now local state is fine.
-  // Ideally this would be in a store or localStorage.
+  // ✅ FIX: Use user's enabled_services as fallback when company profile hasn't loaded yet
+  // This prevents showing a second full-page loader
+  const servicesEnabled = useMemo(() => {
+    if (company?.services_enabled) {
+      return company.services_enabled;
+    }
+    // Fallback to user's enabled services during company profile loading
+    return {
+      shuttle_enabled: user?.enabled_services?.shuttle ?? false,
+      chauffeur_enabled: user?.enabled_services?.chauffeur ?? false,
+    };
+  }, [company, user]);
 
   const isLogin = pathname === "/company/login";
 
   const activeHref = useMemo(() => {
-    if (!pathname || !company) return "/company";
-    const navGroups = getNavGroups(company.services_enabled);
+    if (!pathname) return "/company";
+    const navGroups = getNavGroups(servicesEnabled);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -95,17 +105,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, company]);
+  }, [pathname, servicesEnabled]);
 
   if (isLogin) return <>{children}</>;
-
-  if (!company) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-solid border-orange border-r-transparent" aria-label="Loading" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-surface text-ink font-sans">
@@ -145,7 +147,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <nav className="px-3 mt-2 space-y-6">
-              {getNavGroups(company.services_enabled).map((group, groupIndex) => (
+              {getNavGroups(servicesEnabled).map((group, groupIndex) => (
                 <div key={groupIndex}>
                   {group.title && !collapsed && (
                     <div className="px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
@@ -194,16 +196,16 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             <div className={cx("flex items-center gap-3 rounded-lg p-2 transition-all duration-300", collapsed ? "justify-center" : "justify-between hover:bg-white hover:shadow-sm")}>
               <div className="flex items-center gap-3 overflow-hidden">
                 {/* Company Logo in Footer */}
-                {company.logo_url ? (
+                {company?.logo_url ? (
                   <img
                     src={company.logo_url}
-                    alt={company.name}
+                    alt={company.name || 'Company'}
                     className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-gray-100"
                   />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white ring-1 ring-gray-100 shrink-0">
                     {/* Fallback to user icon or company initial */}
-                    {company.name?.[0]?.toUpperCase() || <Users size={14} />}
+                    {company?.name?.[0]?.toUpperCase() || <Users size={14} />}
                   </div>
                 )}
 
