@@ -3,7 +3,8 @@
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { fetchBookings, setPage, setFilters, selectBookings, selectPagination, selectBookingsStatus, selectFilters } from "../../lib/store/slices/bookingsSlice";
 import { selectCompany } from "../../lib/store/slices/companySlice";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { formatDateTime } from "@/app/lib/utils";
 import Modal from "./components/Modal";
 import CreateBookingForm from "./components/CreateBookingForm";
 import { ChauffeurBooking } from "../../lib/services/api-client";
@@ -17,7 +18,7 @@ export default function BookingsPage() {
   const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
   const bookings = useAppSelector(selectBookings);
-  const { page: currentPage, limit, totalPages } = useAppSelector(selectPagination);
+  const { page: reduxPage, limit, pages: totalPages } = useAppSelector(selectPagination);
   const { search, status } = useAppSelector(selectFilters);
   const statusState = useAppSelector(selectBookingsStatus);
   const isLoading = statusState === 'loading';
@@ -27,11 +28,14 @@ export default function BookingsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<ChauffeurBooking | null>(null);
 
+  // Local state for pagination - decoupled from Redux metadata to prevent loops
+  const [currentPage, setCurrentPage] = useState(reduxPage);
+
   // Local state for inputs to allow debouncing
   const [searchQuery, setSearchQuery] = useState(search);
   const [statusFilter, setStatusFilter] = useState(status);
 
-  // Sync local state with Redux filters when they change (e.g., on navigation back)
+  // Sync local state with Redux when it changes (e.g., on mount or navigation back)
   useEffect(() => {
     setSearchQuery(search);
     setStatusFilter(status);
@@ -50,27 +54,37 @@ export default function BookingsPage() {
   // Debounce search and update Redux filters
   useEffect(() => {
     const timer = setTimeout(() => {
-      dispatch(setFilters({ search: searchQuery, status: statusFilter }));
+      if (searchQuery !== search || statusFilter !== status) {
+        dispatch(setFilters({ search: searchQuery, status: statusFilter }));
+      }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, statusFilter, dispatch]);
+  }, [searchQuery, statusFilter, search, status, dispatch]);
 
-  // Fetch when params change
+  // Track last fetched params to avoid duplicates
+  const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
+
+  // Fetch when params change - Primary driver is LOCAL state
   useEffect(() => {
-    if (company?.id) {
-      dispatch(fetchBookings({
-        companyId: company.id,
-        page: currentPage,
-        limit,
-        status,
-        search
-      }));
-    }
-  }, [dispatch, company?.id, currentPage, limit, status, search]);
+    if (!company?.id) return;
+
+    const currentParams = JSON.stringify({ currentPage, limit, status, search });
+    if (currentParams === lastFetchedParams && statusState !== 'idle') return;
+
+    setLastFetchedParams(currentParams);
+    dispatch(fetchBookings({
+      companyId: company.id,
+      page: currentPage,
+      limit,
+      status,
+      search
+    }));
+  }, [dispatch, company?.id, currentPage, limit, status, search, lastFetchedParams, statusState]);
 
   const handleBookingCreated = () => {
     setIsModalOpen(false);
     if (company?.id) {
+      setCurrentPage(1); // Reset local page
       dispatch(fetchBookings({ companyId: company.id, page: 1, limit, status, search }));
     }
   };
@@ -79,21 +93,6 @@ export default function BookingsPage() {
     return booking.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown";
   };
 
-  // Helper to format date
-  const formatDateTime = (iso: string) => {
-    return new Date(iso).toLocaleString('en-PK', {
-      timeZone: 'Asia/Karachi',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  if (isLoading) {
-    return <TablePageSkeleton />;
-  }
 
   if (!company) {
     return (
@@ -179,9 +178,9 @@ export default function BookingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50/50">
-              {isLoading ? (
+              {isLoading && bookings.length === 0 ? (
                 <TableSkeleton columns={8} rows={8} />
-              ) : bookings.length === 0 ? (
+              ) : bookings.length === 0 && !isLoading ? (
                 <tr>
                   <td colSpan={8} className="p-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
@@ -258,7 +257,10 @@ export default function BookingsPage() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={(page) => dispatch(setPage(page))}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            dispatch(setPage(page));
+          }}
         />
       </Card >
 

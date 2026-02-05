@@ -1518,6 +1518,29 @@ class ApiClient {
     }
 
     /**
+     * Get company dashboard stats
+     */
+    async getCompanyDashboardStats(companyId: string | number): Promise<any> {
+        return this.request<any>(`/companies/${companyId}/dashboard-stats`);
+    }
+
+    /**
+     * Get employees for a specific company
+     */
+    async getEmployeesByCompany(companyId: string | number): Promise<any> {
+        return this.request<any>(`/employees/company/${companyId}`);
+    }
+
+    /**
+     * Activate or deactivate employee
+     */
+    async toggleEmployeeStatus(id: string, activate: boolean): Promise<any> {
+        return this.request<any>(`/employees/${id}/${activate ? 'activate' : 'deactivate'}`, {
+            method: 'POST',
+        });
+    }
+
+    /**
      * Get chauffeur reports for a company
      */
     async getChauffeurReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {

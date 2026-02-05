@@ -8,7 +8,7 @@ interface BookingsState {
         page: number;
         limit: number;
         total: number;
-        totalPages: number;
+        pages: number;
     };
     filters: {
         search: string;
@@ -24,7 +24,7 @@ const initialState: BookingsState = {
         page: 1,
         limit: 10,
         total: 0,
-        totalPages: 1,
+        pages: 1,
     },
     filters: {
         search: '',
@@ -36,19 +36,11 @@ const initialState: BookingsState = {
 
 export const fetchBookings = createAsyncThunk(
     'bookings/fetchBookings',
-    async ({ companyId, page, limit, status, search }: { companyId: number, page: number, limit: number, status?: string, search?: string }, { rejectWithValue }) => {
+    async (params: { companyId: number } & any, { rejectWithValue }) => {
         try {
-            const res = await apiClient.getCompanyChauffeurBookings(companyId, {
-                page,
-                limit,
-                status: status || undefined,
-                search: search || undefined,
-            });
-
-            return {
-                bookings: res.data.data,
-                pagination: res.data.pagination || { page: 1, limit: 10, total: 0, pages: 1 }
-            };
+            const { companyId, ...queryParams } = params;
+            const res = await apiClient.getCompanyChauffeurBookings(companyId, queryParams);
+            return res.data; // { data: [], pagination: {} }
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch bookings');
         }
@@ -75,11 +67,15 @@ export const bookingsSlice = createSlice({
             })
             .addCase(fetchBookings.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.bookings = action.payload.bookings;
-                state.pagination.page = Number(action.payload.pagination.page);
-                state.pagination.limit = Number(action.payload.pagination.limit);
-                state.pagination.total = Number(action.payload.pagination.total);
-                state.pagination.totalPages = Number(action.payload.pagination.pages);
+                state.bookings = action.payload.data;
+                if (action.payload.pagination) {
+                    state.pagination = {
+                        ...state.pagination,
+                        ...action.payload.pagination,
+                        // Match common naming variations
+                        pages: action.payload.pagination.pages || state.pagination.pages
+                    };
+                }
             })
             .addCase(fetchBookings.rejected, (state, action) => {
                 state.status = 'failed';

@@ -72,6 +72,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const companyId = user?.company_id?.toString();
 
+  // ✅ FIX: Add dependency tracking to prevent unnecessary refetches
   useEffect(() => {
     if (companyId && !company) {
       dispatch(fetchCompanyProfile(companyId));

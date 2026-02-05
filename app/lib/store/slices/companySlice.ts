@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
+import { apiClient } from '../../services/api-client';
 
 // Define types based on backend structure
 export interface Company {
@@ -35,24 +36,7 @@ export const fetchCompanyProfile = createAsyncThunk(
     'company/fetchProfile',
     async (companyId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            };
-
-            const customFetch = async (url: string, options: RequestInit) => {
-                const res = await fetch(url, options);
-                if (!res.ok) {
-                    throw new Error(`Request failed with status ${res.status}`);
-                }
-                return res.json();
-            }
-
-            const rawCompanyData = await customFetch(`${API_URL}/companies/${companyId}`, { headers });
+            const rawCompanyData = await apiClient.getCompany(companyId);
             const rawCompany = rawCompanyData.data || rawCompanyData;
 
             const companyObj: Company = {

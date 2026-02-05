@@ -31,19 +31,20 @@ export default function EmployeesPage() {
   const status = useAppSelector(selectEmployeesStatus);
   const loading = status === 'loading';
 
+  const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
+
   useEffect(() => {
-    if (company?.id) {
-      dispatch(fetchEmployees(company.id.toString()));
-    }
-  }, [dispatch, company?.id]);
+    if (!company?.id) return;
+
+    if (company.id.toString() === lastFetchedParams && status !== 'idle') return;
+
+    setLastFetchedParams(company.id.toString());
+    dispatch(fetchEmployees(company.id.toString()));
+  }, [dispatch, company?.id, lastFetchedParams, status]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");
-
-  if (loading) {
-    return <TablePageSkeleton />;
-  }
 
   if (!company) {
     return (
@@ -126,98 +127,101 @@ export default function EmployeesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50/50">
-              {employees.map((e) => {
-                const isEditing = editingId === e.id;
-                return (
-                  <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}>
-                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{e.employee_id || "—"}</td>
-                    <td className="px-6 py-4 font-bold text-slate-700">{e.full_name}</td>
-                    <td className="px-6 py-4">
-                      {isEditing ? (
-                        <TextInput
-                          value={editPhone}
-                          onChange={(ev) => setEditPhone(ev.target.value)}
-                          placeholder="Phone"
-                        />
-                      ) : (
-                        <span className="text-slate-600 font-medium">{e.phone || "—"}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {isEditing ? (
-                        <TextInput
-                          value={editEmail}
-                          onChange={(ev) => setEditEmail(ev.target.value)}
-                          placeholder="Email"
-                        />
-                      ) : (
-                        <span className="text-slate-600">{e.email || "—"}</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">{e.department || "—"}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${e.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${e.status === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-                        {e.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isEditing ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => saveEdit(e)}
-                              className="inline-flex h-8 items-center justify-center rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={cancelEdit}
-                              className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => startEdit(e)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Edit Details"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeactivate(e)}
-                              className={`p-1.5 rounded-lg transition-colors ${e.status === 'active' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
-                              title={e.status === "active" ? "Deactivate User" : "Activate User"}
-                            >
-                              {e.status === "active" ? (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {employees.length === 0 ? (
+              {loading && employees.length === 0 ? (
+                <TableSkeleton columns={7} rows={8} />
+              ) : employees.length === 0 && !loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                     No employees found. Employees are uploaded by Cort Super Admin.
                   </td>
                 </tr>
-              ) : null}
+              ) : (
+                employees.map((e) => {
+                  const isEditing = editingId === e.id;
+                  return (
+                    <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}>
+                      <td className="px-6 py-4 font-mono text-xs text-slate-500">{e.employee_id || "—"}</td>
+                      <td className="px-6 py-4 font-bold text-slate-700">{e.full_name}</td>
+                      <td className="px-6 py-4">
+                        {isEditing ? (
+                          <TextInput
+                            value={editPhone}
+                            onChange={(ev) => setEditPhone(ev.target.value)}
+                            placeholder="Phone"
+                          />
+                        ) : (
+                          <span className="text-slate-600 font-medium">{e.phone || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {isEditing ? (
+                          <TextInput
+                            value={editEmail}
+                            onChange={(ev) => setEditEmail(ev.target.value)}
+                            placeholder="Email"
+                          />
+                        ) : (
+                          <span className="text-slate-600">{e.email || "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">{e.department || "—"}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${e.status.toLowerCase() === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${e.status.toLowerCase() === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                          {e.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => saveEdit(e)}
+                                className="inline-flex h-8 items-center justify-center rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEdit(e)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Edit Details"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeactivate(e)}
+                                className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                title={e.status.toLowerCase() === "active" ? "Deactivate User" : "Activate User"}
+                              >
+                                {e.status.toLowerCase() === "active" ? (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                )}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -225,5 +229,3 @@ export default function EmployeesPage() {
     </div>
   );
 }
-
-

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
+import { apiClient } from '../../services/api-client';
 
 export type Employee = {
     id: string;
@@ -28,20 +29,8 @@ export const fetchEmployees = createAsyncThunk(
     'employee/fetchEmployees',
     async (companyId: string, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            };
-
-            const res = await fetch(`${API_URL}/employees/company/${companyId}`, { headers });
-            if (!res.ok) throw new Error('Failed to fetch employees');
-
-            const data = await res.json();
-            return data.data?.data || [];
+            const response = await apiClient.getEmployeesByCompany(companyId);
+            return response.data?.data || response.data || response || [];
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch employees');
         }
@@ -52,25 +41,8 @@ export const updateEmployee = createAsyncThunk(
     'employee/updateEmployee',
     async ({ employeeId, data }: { employeeId: string; data: Partial<Employee> }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            };
-
-            const res = await fetch(`${API_URL}/employees/${employeeId}`, {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify(data),
-            });
-
-            if (!res.ok) throw new Error('Failed to update employee');
-
-            const resData = await res.json();
-            return resData; // Assuming it returns the updated employee or confirmation
+            const response = await apiClient.updateEmployee(employeeId, data as any);
+            return response.data || response;
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to update employee');
         }
@@ -81,23 +53,8 @@ export const deactivateEmployee = createAsyncThunk(
     'employee/deactivateEmployee',
     async ({ employeeId, isActive }: { employeeId: string; isActive: boolean }, { rejectWithValue }) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            };
-
-            const res = await fetch(`${API_URL}/employees/${employeeId}/${isActive ? 'activate' : 'deactivate'}`, {
-                method: 'POST',
-                headers,
-            });
-
-            if (!res.ok) throw new Error(`Failed to ${isActive ? 'activate' : 'deactivate'} employee`);
-
-            return { employeeId, status: isActive ? 'active' : 'inactive' };
+            await apiClient.toggleEmployeeStatus(employeeId, isActive);
+            return { employeeId, status: isActive ? 'ACTIVE' : 'INACTIVE' };
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to deactivate employee');
         }

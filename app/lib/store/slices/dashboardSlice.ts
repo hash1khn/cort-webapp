@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
+import { apiClient } from '../../services/api-client';
 
 // Reuse types from CompanyStore initially, can be moved to shared types later
 export type DashboardStats = {
@@ -27,33 +28,38 @@ interface DashboardState {
     stats: DashboardStats | null;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: DashboardState = {
     stats: null,
     status: 'idle',
     error: null,
+    lastFetched: null,
 };
+
+// Cache valid for 5 minutes
+const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 export const fetchDashboardStats = createAsyncThunk(
     'dashboard/fetchStats',
-    async (companyId: string, { rejectWithValue }) => {
+    async (companyId: string, { rejectWithValue, getState }) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-            const res = await fetch(`${API_URL}/companies/${companyId}/dashboard-stats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!res.ok) throw new Error('Failed to fetch dashboard stats');
-
-            const data = await res.json();
-            return data.data || data;
+            const state = getState() as any;
+            const dashboardState = state.dashboard;
+            
+            // ✅ FIX: Check if data is cached and still valid
+            if (
+                dashboardState.stats &&
+                dashboardState.lastFetched &&
+                Date.now() - dashboardState.lastFetched < CACHE_DURATION_MS
+            ) {
+                // Return cached data without making API call
+                return dashboardState.stats;
+            }
+            
+            const response = await apiClient.getCompanyDashboardStats(companyId);
+            return response.data || response;
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch stats');
         }
@@ -63,7 +69,12 @@ export const fetchDashboardStats = createAsyncThunk(
 export const dashboardSlice = createSlice({
     name: 'dashboard',
     initialState,
-    reducers: {},
+    reducers: {
+        // ✅ FIX: Allow manual cache clearing for refreshes
+        clearDashboardCache: (state) => {
+            state.lastFetched = null;
+        }
+    },
     extraReducers: (builder) => {
         builder
             .addCase(fetchDashboardStats.pending, (state) => {
@@ -72,6 +83,7 @@ export const dashboardSlice = createSlice({
             .addCase(fetchDashboardStats.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 state.stats = action.payload;
+                state.lastFetched = Date.now(); // ✅ FIX: Track when data was fetched
             })
             .addCase(fetchDashboardStats.rejected, (state, action) => {
                 state.status = 'failed';
@@ -79,6 +91,8 @@ export const dashboardSlice = createSlice({
             });
     },
 });
+
+export const { clearDashboardCache } = dashboardSlice.actions;
 
 export const selectDashboardStats = (state: RootState) => state.dashboard.stats;
 export const selectDashboardStatus = (state: RootState) => state.dashboard.status;

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { formatDateTime } from "@/app/lib/utils";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import {
@@ -42,33 +43,38 @@ export default function ChauffeurReportsPage() {
   // Debounce and update Redux filters
   useEffect(() => {
     const timer = setTimeout(() => {
-      dispatch(setFilters({ startDate, endDate }));
+      if (startDate !== savedFilters.startDate || endDate !== savedFilters.endDate) {
+        dispatch(setFilters({ startDate, endDate }));
+      }
     }, 500);
     return () => clearTimeout(timer);
-  }, [startDate, endDate, dispatch]);
+  }, [startDate, endDate, savedFilters.startDate, savedFilters.endDate, dispatch]);
+
+  // Track last fetched params to avoid duplicates
+  const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
 
   // Fetch reports when company or Redux filters change
   useEffect(() => {
     if (!company?.id) return;
 
-    // Only fetch if we don't have reports or filters actually changed from saved
-    const filtersChanged =
-      savedFilters.startDate !== startDate ||
-      savedFilters.endDate !== endDate ||
-      reports.length === 0;
+    const currentParams = JSON.stringify({ startDate: savedFilters.startDate, endDate: savedFilters.endDate });
+    if (currentParams === lastFetchedParams && status !== 'idle') return;
 
-    if (filtersChanged && status !== 'loading') {
-      dispatch(fetchChauffeurReports({
-        companyId: company.id,
-        startDate: savedFilters.startDate || undefined,
-        endDate: savedFilters.endDate || undefined,
-      }));
-    }
-  }, [dispatch, company?.id, savedFilters.startDate, savedFilters.endDate, reports.length, status]);
+    setLastFetchedParams(currentParams);
+    dispatch(fetchChauffeurReports({
+      companyId: company.id,
+      startDate: savedFilters.startDate || undefined,
+      endDate: savedFilters.endDate || undefined,
+    }));
+  }, [dispatch, company?.id, savedFilters.startDate, savedFilters.endDate, lastFetchedParams, status]);
 
   if (!company) {
     // If company is loading, shell might cover it, or we can show skeleton.
-    return <TablePageSkeleton />;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-sm text-slate-500">No company selected</div>
+      </div>
+    );
   }
 
   if (!company.services_enabled?.chauffeur_enabled) {
@@ -154,9 +160,9 @@ export default function ChauffeurReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50/50">
-              {isLoading ? (
+              {isLoading && reports.length === 0 ? (
                 <TableSkeleton columns={11} rows={8} />
-              ) : reports.length === 0 ? (
+              ) : reports.length === 0 && !isLoading ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
@@ -177,13 +183,7 @@ export default function ChauffeurReportsPage() {
                     className="group transition-colors border-b border-transparent hover:bg-slate-50/80 cursor-pointer"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-slate-600 font-medium font-mono text-xs">
-                      {report.completed_at
-                        ? new Date(report.completed_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })
-                        : "-"}
+                      {report.completed_at ? formatDateTime(report.completed_at) : "-"}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-700">
                       #{report.id}

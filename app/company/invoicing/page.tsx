@@ -19,11 +19,16 @@ export default function CompanyInvoicingPage() {
     // We can keep local error for download if needed, but fetch error is global
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
+    const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
+
     useEffect(() => {
-        if (user?.company_id) {
-            dispatch(fetchInvoices(user.company_id));
-        }
-    }, [dispatch, user?.company_id]);
+        if (!user?.company_id) return;
+
+        if (user.company_id.toString() === lastFetchedParams && status !== 'idle') return;
+
+        setLastFetchedParams(user.company_id.toString());
+        dispatch(fetchInvoices(user.company_id));
+    }, [dispatch, user?.company_id, lastFetchedParams, status]);
 
     const downloadPdf = async (id: number, invoiceNumber: string) => {
         if (downloadingId) return;
@@ -76,9 +81,9 @@ export default function CompanyInvoicingPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50/50">
-                            {isLoading ? (
+                            {isLoading && invoices.length === 0 ? (
                                 <TableSkeleton columns={6} rows={8} />
-                            ) : invoices.length === 0 ? (
+                            ) : invoices.length === 0 && !isLoading ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-400">

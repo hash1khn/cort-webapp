@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
@@ -9,6 +9,7 @@ import Map from "../../../admin/ui/Map";
 import { useGeocodeMapsAutocomplete } from "../../../hooks/useGeocodeMapsAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import { pakistaniCars } from "../../../lib/data/pakistaniCars";
+import { apiClient } from "../../../lib/services/api-client";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -197,19 +198,14 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 : new Date(scheduledDateTime).toISOString();
 
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) throw new Error('No auth_token found');
-
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
             const apiData = {
-                booking_type: packageType.includes('monthly') ? 'MONTHLY' : 'SPOT',
+                booking_type: packageType.includes('monthly') ? 'MONTHLY' : 'SPOT' as any,
                 vehicle_model: vehicleModel === "Other" ? customVehicleModel : vehicleModel,
-                package_selected: transformPackageType(packageType),
-                trip_type: transformTripType(tripType),
+                package_selected: transformPackageType(packageType) as any,
+                trip_type: transformTripType(tripType) as any,
                 pickup_location: {
-                    latitude: pickupLat, // Ensure separate fields
-                    longitude: pickupLng, // Ensure separate fields
+                    latitude: pickupLat!,
+                    longitude: pickupLng!,
                 },
                 pickup_address: pickupAddress,
                 scheduled_for: scheduledAt,
@@ -218,19 +214,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 service_category: serviceCategory,
             };
 
-            const response = await fetch(`${API_URL}/companies/${company.id}/chauffeur-bookings`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(apiData),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create booking');
-            }
+            await apiClient.createChauffeurBooking(Number(company.id), apiData);
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
             onSuccess();
@@ -242,7 +226,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     }
 
     // Helpers
-    const transformPackageType = (pkg: string): string => {
+    const transformPackageType = useCallback((pkg: string): string => {
         const pkgMap: Record<string, string> = {
             '5hr': 'HOURS_5',
             '10hr': 'HOURS_10',
@@ -251,14 +235,14 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             'monthly_24hr': 'HOURS_24',
         };
         return pkgMap[pkg] || 'HOURS_10';
-    };
+    }, []);
 
-    const transformTripType = (tripType: string): string => {
+    const transformTripType = useCallback((tripType: string): string => {
         return tripType === 'in_city' ? 'IN_CITY' : 'OUT_STATION';
-    };
+    }, []);
 
     // Get min datetime for scheduled bookings (now)
-    const minDateTime = new Date().toISOString().slice(0, 16);
+    const minDateTime = useMemo(() => new Date().toISOString().slice(0, 16), []);
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
