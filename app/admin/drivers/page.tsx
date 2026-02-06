@@ -366,7 +366,7 @@ export default function DriversPage() {
     const actionStatus = useAppSelector(selectAdminDriversActionStatus);
     const savedFilters = useAppSelector(selectDriverFilters);
 
-    const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">(savedFilters.activeTab as any || "ALL");
+    const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">("ALL");
 
     // Modal States
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -379,15 +379,8 @@ export default function DriversPage() {
     const [rejectingDriverId, setRejectingDriverId] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState("");
 
-    const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery);
-    const [debouncedSearch, setDebouncedSearch] = useState(savedFilters.searchQuery);
-
-    // Sync with Redux
-    useEffect(() => {
-        setSearchQuery(savedFilters.searchQuery);
-        setDebouncedSearch(savedFilters.searchQuery);
-        setActiveTab(savedFilters.activeTab as any);
-    }, [savedFilters]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
     // Debounce search query
     useEffect(() => {
@@ -397,18 +390,10 @@ export default function DriversPage() {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    // Load drivers when filters change
     useEffect(() => {
-        const filtersChanged =
-            activeTab !== savedFilters.activeTab ||
-            debouncedSearch !== savedFilters.searchQuery;
-
-        if (status === 'idle' || filtersChanged) {
-            if (status === 'succeeded' && !filtersChanged) {
-                return;
-            }
-            loadDrivers();
-        }
-    }, [activeTab, debouncedSearch, status, savedFilters]);
+        loadDrivers();
+    }, [activeTab, debouncedSearch]);
 
     const loadDrivers = async () => {
         const params: QueryDriverParams & { activeTab?: string } = { limit: 100, search: debouncedSearch, activeTab };

@@ -54,13 +54,7 @@ export const fetchAdminDrivers = createAsyncThunk(
     async (params: QueryDriverParams & { activeTab?: string } = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getDrivers(params);
-            return {
-                data: response.data,
-                filters: {
-                    searchQuery: params.search || "",
-                    activeTab: params.activeTab || "ALL"
-                }
-            };
+            return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch drivers');
         }
@@ -72,13 +66,7 @@ export const fetchPendingChauffeurs = createAsyncThunk(
     async (params: QueryDriverParams = {}, { rejectWithValue }) => {
         try {
             const response = await apiClient.getPendingChauffeurs(params);
-            return {
-                data: response.data,
-                filters: {
-                    searchQuery: params.search || "",
-                    activeTab: "PENDING_CHAUFFEUR"
-                }
-            };
+            return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch pending chauffeurs');
         }
@@ -158,10 +146,10 @@ const adminDriversSlice = createSlice({
             })
             .addCase(fetchAdminDrivers.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.data = action.payload.data.data;
-                state.filters = action.payload.filters;
-                if (action.payload.data.pagination) {
-                    state.pagination = action.payload.data.pagination;
+                state.data = action.payload.data;
+                // Don't update filters from API response - maintain component state
+                if (action.payload.pagination) {
+                    state.pagination = action.payload.pagination;
                 }
             })
             .addCase(fetchAdminDrivers.rejected, (state, action) => {
@@ -175,10 +163,10 @@ const adminDriversSlice = createSlice({
             })
             .addCase(fetchPendingChauffeurs.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.data = action.payload.data.data;
-                state.filters = action.payload.filters;
-                if (action.payload.data.pagination) {
-                    state.pagination = action.payload.data.pagination;
+                state.data = action.payload.data;
+                // Don't update filters from API response - maintain component state
+                if (action.payload.pagination) {
+                    state.pagination = action.payload.pagination;
                 }
             })
             .addCase(fetchPendingChauffeurs.rejected, (state, action) => {
