@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { CompanyShell } from "./ui/CompanyShell";
 import { Provider } from "react-redux";
 import { store } from "../lib/store/store";
@@ -9,8 +10,15 @@ import { useAuth } from "../lib/contexts/auth-context";
 
 export default function CompanyLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { loading } = useAuth();
+  const router = useRouter();
+  const { loading, isAuthenticated } = useAuth();
   const isLoginPage = pathname === "/login" || pathname === "/company/login";
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated && !isLoginPage) {
+      router.replace("/company/login");
+    }
+  }, [loading, isAuthenticated, isLoginPage, router]);
 
   // Show loading while auth is being initialized
   if (loading && !isLoginPage) {
