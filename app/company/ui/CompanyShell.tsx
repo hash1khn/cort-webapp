@@ -129,28 +129,28 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className={cx("flex flex-col gap-6 transition-all duration-300", collapsed ? "items-center py-8 px-2" : "items-center px-6 py-10")}>
               {/* Logo Area */}
-              <div className={cx("transition-all duration-300 flex items-center justify-center mb-2")}>
-                {collapsed ? (
-                  <img
-                    src="/cort-app-icon.svg"
-                    alt="Cort"
-                    className="h-14 w-14"
-                  />
-                ) : (
-                  <img
-                    src="/logo.svg"
-                    alt="Cort"
-                    className="h-14 w-auto"
-                  />
-                )}
+              <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
+                <img
+                  src="/cort-app-icon.svg"
+                  alt="Cort"
+                  className={cx("absolute h-14 w-14 object-contain transition-all duration-300", collapsed ? "opacity-100 scale-100" : "opacity-0 scale-90")}
+                />
+                <img
+                  src="/logo.svg"
+                  alt="Cort"
+                  className={cx("absolute h-14 w-auto object-contain transition-all duration-300", collapsed ? "opacity-0 scale-90" : "opacity-100 scale-100")}
+                />
               </div>
             </div>
 
             <nav className="px-3 mt-2 space-y-6">
               {getNavGroups(servicesEnabled).map((group, groupIndex) => (
                 <div key={groupIndex}>
-                  {group.title && !collapsed && (
-                    <div className="px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  {group.title && (
+                    <div className={cx(
+                      "px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
+                      collapsed ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-5"
+                    )}>
                       {group.title}
                     </div>
                   )}
@@ -177,8 +177,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                           <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
 
                           <span className={cx(
-                            "whitespace-nowrap transition-all duration-300 origin-left",
-                            collapsed ? "opacity-0 w-0 hidden scale-90" : "opacity-100 w-auto scale-100"
+                            "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
+                            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
                           )}>
                             {item.label}
                           </span>
@@ -209,7 +209,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
 
-                <div className={cx("flex flex-col overflow-hidden transition-all duration-200", collapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100")}>
+                <div className={cx(
+                  "flex flex-col overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
+                  collapsed ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+                )}>
                   <span className="truncate text-xs font-semibold text-gray-900">
                     {user?.email}
                   </span>

@@ -7,20 +7,28 @@ export type DashboardStats = {
     employees: {
         total: number;
         active: number;
+        departmentUsage: { name: string; percentage: number }[];
     };
     chauffeur: {
         totalBookings: number;
-        activeRides: number;
         completedThisMonth: number;
         totalSpend: number;
+        spendTrend: string;
         totalSavings: number;
-        spotBookings: { total: number; hr5: number; hr10: number; hr24: number };
-        monthlyBookings: { total: number; hr10Daily: number; hr24Daily: number };
+        completedTrend: string;
+        unassignedBookings: number;
         topPassengers: { name: string; trips: number }[];
+    };
+    shuttle: {
+        totalRoutes: number;
+        monthlyTrips: number;
     };
     alerts: {
         upcomingBookings: number;
-        budgetUsed: number;
+    };
+    seasonality: {
+        highDemandDay: string;
+        lowDemandDay: string;
     };
 };
 
@@ -47,7 +55,7 @@ export const fetchDashboardStats = createAsyncThunk(
         try {
             const state = getState() as any;
             const dashboardState = state.dashboard;
-            
+
             // ✅ FIX: Check if data is cached and still valid
             if (
                 dashboardState.stats &&
@@ -57,7 +65,7 @@ export const fetchDashboardStats = createAsyncThunk(
                 // Return cached data without making API call
                 return dashboardState.stats;
             }
-            
+
             const response = await apiClient.getCompanyDashboardStats(companyId);
             return response.data || response;
         } catch (err) {

@@ -16,12 +16,12 @@ import {
     Star,
     Activity
 } from 'lucide-react';
-import { DashboardData } from '../lib/mockData';
+import { DashboardData } from '../types';
 
 // --- Shared Components ---
 
 export const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl rounded-3xl p-6 h-full ${className}`}>
+    <div className={`bg-white border border-slate-100 shadow-sm rounded-3xl p-6 h-full ${className}`}>
         {children}
     </div>
 );
@@ -139,10 +139,8 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
 };
 
 export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'] }) => {
-    if (!data.isAllClear) return null;
-
     return (
-        <Card className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-none flex items-center justify-between shadow-lg">
+        <Card className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-none flex items-center justify-between shadow-lg h-full">
             <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
                     <CheckCircle className="w-8 h-8 text-white" />
@@ -151,7 +149,7 @@ export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'
                     <div className="font-bold text-xl">You are all caught up!</div>
                     <div className="text-emerald-100 text-sm flex gap-3 mt-1">
                         <span className="opacity-80">No pending approvals</span>
-                        <span className="opacity-80">No delayed rides</span>
+                        <span className="opacity-80">System healthy</span>
                     </div>
                 </div>
             </div>
@@ -162,7 +160,7 @@ export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'
 export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDelivered'] }) => {
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-            <div className="bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Total Savings</div>
                     <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
@@ -176,36 +174,39 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
-                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Time Saved</div>
-                    <Clock className="w-4 h-4 text-blue-500" />
+                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
+                    <Activity className="w-4 h-4 text-blue-500" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.idleTimeReduced}</div>
-                    <div className="text-xs text-slate-400 mt-1">Idle time reduction</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">
+                        <span className="text-2xl text-slate-400 font-normal mr-1">PKR</span>
+                        {(data.avgTripCost / 1000).toFixed(1)}k
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Per completed ride</div>
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
-                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Routes Optimized</div>
+                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Active Routes</div>
                     <MapPin className="w-4 h-4 text-emerald-500" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.routesOptimized}</div>
-                    <div className="text-xs text-slate-400 mt-1">Faster routes identified</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.activeRoutes}</div>
+                    <div className="text-xs text-slate-400 mt-1">Currently operational</div>
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-md p-5 rounded-3xl border border-white/40 shadow-sm flex flex-col justify-between">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
-                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Consolidated</div>
+                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Shuttle Trips</div>
                     <Car className="w-4 h-4 text-purple-500" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.ridesConsolidated}</div>
-                    <div className="text-xs text-slate-400 mt-1">Single passenger rides merged</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.shuttleTrips}</div>
+                    <div className="text-xs text-slate-400 mt-1">Total runs MTD</div>
                 </div>
             </div>
         </div>
@@ -308,8 +309,8 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
                     <div className="text-slate-800 font-bold text-lg">{seasonality.highDemandDay}</div>
                 </div>
                 <div>
-                    <div className="text-xs text-slate-500 uppercase tracking-wide font-bold">Pattern</div>
-                    <div className="text-slate-800 font-bold text-base leading-tight">{seasonality.monthlyPattern}</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wide font-bold">Quiet Day</div>
+                    <div className="text-slate-800 font-bold text-lg">{seasonality.lowDemandDay}</div>
                 </div>
             </div>
         </Card>

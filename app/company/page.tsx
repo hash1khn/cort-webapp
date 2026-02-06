@@ -8,7 +8,6 @@ import { useAuth } from "../lib/contexts/auth-context";
 import { useState, useEffect } from "react";
 import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
-import { MOCK_DASHBOARD_DATA } from "./lib/mockData";
 import {
   TakingCareSection,
   NothingToDoSection,
@@ -39,39 +38,91 @@ export default function CompanyDashboardPage() {
     }
   }, [dispatch, companyId]);
 
-  // Merge real data with mock structure
+  // Calculate services breakdown (percentages)
+  const totalServices = (dashboardStats?.chauffeur.totalBookings || 0) + (dashboardStats?.shuttle.monthlyTrips || 0);
+  const chauffeurPct = totalServices > 0 ? Math.round(((dashboardStats?.chauffeur.totalBookings || 0) / totalServices) * 100) : 0;
+  const shuttlePct = totalServices > 0 ? Math.round(((dashboardStats?.shuttle.monthlyTrips || 0) / totalServices) * 100) : 0;
+
+  // Generate real insights
+  const generateInsights = () => {
+    if (!dashboardStats) return [];
+    const insights = [];
+    if (dashboardStats.chauffeur.spendTrend.startsWith('-')) {
+      insights.push(`Spending is down ${dashboardStats.chauffeur.spendTrend.replace('-', '')} compared to last month.`);
+    } else if (dashboardStats.chauffeur.spendTrend !== "0%") {
+      insights.push(`Spending is up ${dashboardStats.chauffeur.spendTrend.replace('+', '')} due to increased demand.`);
+    }
+
+    if (dashboardStats.employees.departmentUsage.length > 0) {
+      insights.push(`${dashboardStats.employees.departmentUsage[0].name} is the most active department (${dashboardStats.employees.departmentUsage[0].percentage}%).`);
+    }
+
+    if (dashboardStats.chauffeur.topPassengers.length > 0) {
+      insights.push(`${dashboardStats.chauffeur.topPassengers[0].name} has the most rides this month.`);
+    } else {
+      insights.push("Start booking rides to see top passenger insights.");
+    }
+    return insights;
+  };
+
+  // Transform API data to DashboardData interface
   const data = dashboardStats ? {
-    ...MOCK_DASHBOARD_DATA,
     takingCare: {
-      ...MOCK_DASHBOARD_DATA.takingCare,
+      unassignedBookings: dashboardStats.chauffeur.unassignedBookings || 0,
       ridesCompleted: dashboardStats.chauffeur.completedThisMonth,
+      completedTrend: dashboardStats.chauffeur.completedTrend || "0%",
+    },
+    nothingToDo: {
+      pendingApprovals: dashboardStats.chauffeur.unassignedBookings || 0,
+      delayedRides: 0,
+      unresolvedIssues: 0,
+      isAllClear: (dashboardStats.chauffeur.unassignedBookings || 0) === 0,
     },
     valueDelivered: {
-      ...MOCK_DASHBOARD_DATA.valueDelivered,
       estimatedSavings: dashboardStats.chauffeur.totalSavings || 0,
+      activeRoutes: dashboardStats.shuttle.totalRoutes || 0,
+      shuttleTrips: dashboardStats.shuttle.monthlyTrips || 0,
+      avgTripCost: dashboardStats.chauffeur.completedThisMonth > 0
+        ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.chauffeur.completedThisMonth)
+        : 0,
     },
     cost: {
-      ...MOCK_DASHBOARD_DATA.cost,
       totalSpendMTD: dashboardStats.chauffeur.totalSpend,
+      spendTrend: dashboardStats.chauffeur.spendTrend || "0%",
       costPerEmployee: dashboardStats.employees.active > 0
         ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.employees.active)
         : 0,
     },
     employeeUsage: {
-      ...MOCK_DASHBOARD_DATA.employeeUsage,
       activeEmployees: dashboardStats.employees.active,
       totalEmployees: dashboardStats.employees.total,
+      avgRidesPerEmployee: dashboardStats.employees.active > 0
+        ? parseFloat((dashboardStats.chauffeur.totalBookings / dashboardStats.employees.active).toFixed(1))
+        : 0,
+      departmentUsage: dashboardStats.employees.departmentUsage || [],
       topRider: dashboardStats.chauffeur.topPassengers[0] ? {
         name: dashboardStats.chauffeur.topPassengers[0].name,
         rides: dashboardStats.chauffeur.topPassengers[0].trips,
         department: "N/A"
-      } : MOCK_DASHBOARD_DATA.employeeUsage.topRider,
+      } : { name: "N/A", rides: 0, department: "N/A" },
+    },
+    smartInsights: generateInsights(),
+    seasonality: {
+      highDemandDay: dashboardStats.seasonality?.highDemandDay || "Analysis Pending",
+      lowDemandDay: dashboardStats.seasonality?.lowDemandDay || "Analysis Pending",
+    },
+    adminHealth: {
+      registeredVsActiveRatio: dashboardStats.employees.total > 0 ? parseFloat((dashboardStats.employees.active / dashboardStats.employees.total).toFixed(2)) : 0,
+      deptAdoptionRate: dashboardStats.employees.departmentUsage.length > 0 ? 100 : 0, // Simple placeholder logic
+      bookingVsActualRatio: 1,
     },
     services: {
-      ...MOCK_DASHBOARD_DATA.services,
-      chauffeur: dashboardStats.chauffeur.totalBookings,
+      chauffeur: chauffeurPct,
+      shuttles: shuttlePct,
+      events: 0,
+      airport: 0,
     }
-  } : MOCK_DASHBOARD_DATA;
+  } : null;
 
   // Real data overrides where possible (example)
   const today = new Date();
@@ -95,7 +146,7 @@ export default function CompanyDashboardPage() {
     );
   }
 
-  if (!company) {
+  if (!company || !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-sm text-slate-500">No company data available</div>
