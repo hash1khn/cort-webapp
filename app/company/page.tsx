@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
 import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from "../lib/store/slices/dashboardSlice";
 import { selectCompany } from "../lib/store/slices/companySlice";
@@ -28,7 +29,14 @@ export default function CompanyDashboardPage() {
   const status = useAppSelector(selectDashboardStatus);
   const loading = status === 'loading';
   const error = status === 'failed' ? 'Failed to load stats' : null;
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [authLoading, isAuthenticated, router]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const companyId = user?.company_id?.toString();
 
