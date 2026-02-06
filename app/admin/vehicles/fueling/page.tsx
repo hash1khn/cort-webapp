@@ -242,11 +242,11 @@ export default function FuelingPage() {
                 <div className="grid gap-4 sm:grid-cols-3">
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL FUEL COST</div>
-                        <div className="mt-2 text-2xl font-bold text-navy">PKR {stats.total_fuel_cost.toFixed(2)}</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {Number(stats.total_fuel_cost).toFixed(2)}</div>
                     </div>
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">AVERAGE FUEL RATE</div>
-                        <div className="mt-2 text-2xl font-bold text-navy">PKR {stats.average_fuel_rate.toFixed(2)}/L</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {Number(stats.average_fuel_rate).toFixed(2)}/L</div>
                     </div>
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL RECORDS</div>
@@ -321,9 +321,9 @@ export default function FuelingPage() {
                                         <div className="font-medium text-ink">{r.vehicles?.plate_number}</div>
                                         <div className="text-xs text-muted">{r.vehicles?.make} {r.vehicles?.model}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-right font-semibold">{r.fuel_litres} L</td>
-                                    <td className="px-4 py-3 text-right">PKR {r.current_fuel_rate.toFixed(2)}</td>
-                                    <td className="px-4 py-3 text-right font-bold text-blue">PKR {r.fuel_cost.toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-right font-semibold">{Number(r.fuel_litres)} L</td>
+                                    <td className="px-4 py-3 text-right">PKR {Number(r.current_fuel_rate).toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-right font-bold text-blue">PKR {Number(r.fuel_cost).toFixed(2)}</td>
                                     <td className="px-4 py-3 text-center">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.billed ? "bg-success/10 text-success" : "bg-orange/10 text-orange"}`}>
                                             {r.billed ? "Billed" : "Pending"}

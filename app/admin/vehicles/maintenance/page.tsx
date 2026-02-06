@@ -366,7 +366,7 @@ export default function MaintenancePage() {
                                         {r.next_service_odometer ? `${r.next_service_odometer.toLocaleString()} km` : '-'}
                                     </td>
                                     <td className="px-4 py-3 text-right font-medium text-blue">
-                                        {r.cost ? `PKR ${r.cost.toFixed(2)}` : '-'}
+                                        {r.cost ? `PKR ${Number(r.cost).toFixed(2)}` : '-'}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
