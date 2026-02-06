@@ -15,6 +15,8 @@ import adminInvoicingReducer from './slices/adminInvoicingSlice';
 import adminPricingReducer from './slices/adminPricingSlice';
 import adminVendorsReducer from './slices/adminVendorsSlice';
 import adminReportsReducer from './slices/adminReportsSlice';
+import vendorContractsReducer from './slices/vendorContractsSlice';
+import superAdminDashboardReducer from './slices/superAdminDashboardSlice';
 
 export const store = configureStore({
     reducer: {
@@ -33,6 +35,8 @@ export const store = configureStore({
         adminPricing: adminPricingReducer,
         adminVendors: adminVendorsReducer,
         adminReports: adminReportsReducer,
+        vendorContracts: vendorContractsReducer,
+        superAdminDashboard: superAdminDashboardReducer,
     },
 });
 

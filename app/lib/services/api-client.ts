@@ -218,6 +218,57 @@ export interface VendorResponse {
     message: string;
 }
 
+// -- VENDOR CONTRACTS --
+
+export enum ContractStatus {
+    ACTIVE = 'ACTIVE',
+    ENDED = 'ENDED',
+    PAID = 'PAID',
+    PENDING_PAYMENT = 'PENDING_PAYMENT',
+}
+
+export interface CreateVendorContractRequest {
+    vendor_id: number;
+    vehicle_id: number;
+    month: string; // YYYY-MM format
+    total_payable: number;
+    status?: ContractStatus;
+    payment_date?: string;
+    notes?: string;
+}
+
+export interface UpdateVendorContractRequest extends Partial<CreateVendorContractRequest> { }
+
+export interface QueryVendorContractParams {
+    month?: string;
+    vendor_id?: number;
+    vehicle_id?: number;
+    status?: ContractStatus;
+    page?: number;
+    limit?: number;
+}
+
+export interface VendorContract {
+    id: number;
+    vendor_id: number;
+    vehicle_id: number;
+    month: string;
+    total_payable: number;
+    status: ContractStatus;
+    payment_date: string | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    vendors?: Vendor;
+    vehicles?: Vehicle;
+}
+
+export interface VendorContractResponse {
+    data: VendorContract;
+    statusCode: number;
+    message: string;
+}
+
 export interface VehicleResponse {
     data: Vehicle;
     statusCode: number;
@@ -1231,6 +1282,62 @@ class ApiClient {
         });
     }
 
+    // ===== VENDOR CONTRACTS =====
+
+    /**
+     * Get all vendor contracts
+     */
+    async getAllVendorContracts(params: QueryVendorContractParams = {}): Promise<PaginatedResponse<VendorContract>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.month) query.append('month', params.month);
+        if (params.vendor_id) query.append('vendor_id', params.vendor_id.toString());
+        if (params.vehicle_id) query.append('vehicle_id', params.vehicle_id.toString());
+        if (params.status) query.append('status', params.status);
+
+        const queryString = query.toString();
+        const endpoint = `/vendors/contracts/list${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<VendorContract>>(endpoint);
+    }
+
+    /**
+     * Get vendor contract by ID
+     */
+    async getVendorContractById(id: number): Promise<VendorContractResponse> {
+        return this.request<VendorContractResponse>(`/vendors/contracts/${id}`);
+    }
+
+    /**
+     * Create vendor contract
+     */
+    async createVendorContract(data: CreateVendorContractRequest): Promise<VendorContractResponse> {
+        return this.request<VendorContractResponse>('/vendors/contracts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Update vendor contract
+     */
+    async updateVendorContract(id: number, data: UpdateVendorContractRequest): Promise<VendorContractResponse> {
+        return this.request<VendorContractResponse>(`/vendors/contracts/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    /**
+     * Delete vendor contract
+     */
+    async deleteVendorContract(id: number): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/vendors/contracts/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
     /**
      * Get drivers
      */
@@ -1699,6 +1806,31 @@ class ApiClient {
     async getUpcomingMaintenance(): Promise<UpcomingMaintenanceResponse> {
         return this.request<UpcomingMaintenanceResponse>('/vehicle-maintenance/upcoming');
     }
+
+    // --- Dashboard ---
+    async getSuperAdminDashboardStats(startDate?: string, endDate?: string) {
+        let query = '';
+        if (startDate && endDate) {
+            query = `?startDate=${startDate}&endDate=${endDate}`;
+        }
+        return this.request<{
+            totalRevenue: { current: number; previous: number; percentageChange: number; trend: string };
+            totalCOGS: { current: number; previous: number; percentageChange: number; trend: string };
+            grossProfit: { current: number; previous: number; percentageChange: number; trend: string };
+            netMargin: { current: number; previous: number; percentageChange: number; trend: string };
+            ridesBreakdown: { name: string; value: number }[];
+            expensesBreakdown: { name: string; value: number }[];
+            fuelExpenses: { name: string; value: number }[];
+            repairExpenses: { name: string; value: number }[];
+            oilMaintenanceExpenses: { name: string; value: number }[];
+            revenueByClient: { name: string; value: number }[];
+            profitPerRide: number;
+            costPerRide: number;
+            totalReceivables: number;
+            totalPayables: number;
+            alerts: any[];
+        }>(`/admin/reports/dashboard${query}`);
+    }
 }
 
 export interface ChauffeurReport {
@@ -1742,6 +1874,7 @@ export interface ChauffeurReport {
 export interface ReportQueryParams {
     startDate?: string;
     endDate?: string;
+
 }
 
 export const apiClient = new ApiClient();
