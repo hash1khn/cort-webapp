@@ -172,6 +172,7 @@ export default function BookingsPage() {
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Passenger</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Package</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Pickup</th>
+                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">City</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Scheduled</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Action</th>
@@ -179,10 +180,10 @@ export default function BookingsPage() {
             </thead>
             <tbody className="divide-y divide-slate-50/50">
               {isLoading && bookings.length === 0 ? (
-                <TableSkeleton columns={8} rows={8} />
+                <TableSkeleton columns={9} rows={8} />
               ) : bookings.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center">
+                  <td colSpan={9} className="p-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
                       <span className="bg-slate-50 p-4 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -216,6 +217,9 @@ export default function BookingsPage() {
                         <div className="max-w-[200px] truncate text-slate-500" title={booking.pickup_address || "No address"}>
                           {booking.pickup_address || "-"}
                         </div>
+                      </td>
+                      <td className="px-4 py-4 text-slate-600 font-medium">
+                        {booking.city || "—"}
                       </td>
                       <td className="px-4 py-4 text-slate-600 font-medium">
                         {formatDateTime(booking.scheduled_for)}
@@ -331,6 +335,10 @@ export default function BookingsPage() {
                     <div>
                       <div className="text-[10px] text-slate-400 uppercase font-bold">Requested Model</div>
                       <div className="text-sm font-bold text-slate-800 mt-1">{selectedBooking.vehicle_model || "Any"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase font-bold">City</div>
+                      <div className="text-sm font-bold text-slate-800 mt-1">{selectedBooking.city || "—"}</div>
                     </div>
                     <div className="col-span-2 pt-2 border-t border-slate-200/50">
                       <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Pickup Address</div>

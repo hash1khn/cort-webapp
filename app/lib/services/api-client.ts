@@ -506,6 +506,7 @@ export interface CreateChauffeurBookingRequest {
     scheduled_for: string; // ISO 8601 datetime
     internal_cost_center_code?: string;
     service_category?: string;
+    city?: string;
 }
 
 export interface ChauffeurBooking {
@@ -522,6 +523,7 @@ export interface ChauffeurBooking {
     status: TripStatus;
     fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
     internal_cost_center_code: string | null;
+    city?: string; // City of the booking
     service_category?: string;
     pickup_address?: string; // Human readable address
     created_at: string;
@@ -1845,6 +1847,7 @@ class ApiClient {
 
 export interface ChauffeurReport {
     id: number;
+    city?: string;
     completed_at: string;
     total_duration_minutes: number;
     total_distance_km: number;

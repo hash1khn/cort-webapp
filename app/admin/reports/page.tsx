@@ -144,6 +144,7 @@ export default function AdminReportsPage() {
                         <thead className="bg-zinc-50 text-xs font-medium uppercase text-muted">
                             <tr>
                                 <th className="px-4 py-3">Date</th>
+                                <th className="px-4 py-3">City</th>
                                 <th className="px-4 py-3">Company</th>
                                 <th className="px-4 py-3">Passenger</th>
                                 <th className="px-4 py-3">Vehicle</th>
@@ -156,19 +157,19 @@ export default function AdminReportsPage() {
                         <tbody className="divide-y divide-border">
                             {isReportsLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         Loading reports...
                                     </td>
                                 </tr>
                             ) : status === 'failed' ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-red-500">
                                         {error || "Failed to load reports. Please try again."}
                                     </td>
                                 </tr>
                             ) : reports.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         No reports found for the selected period.
                                     </td>
                                 </tr>
@@ -186,6 +187,9 @@ export default function AdminReportsPage() {
                                                     hour12: false
                                                 })
                                                 : "-"}
+                                        </td>
+                                        <td className="px-4 py-3 text-navy">
+                                            {report.city || "—"}
                                         </td>
                                         <td className="px-4 py-3 font-medium text-navy">
                                             {report.company?.name || "Unknown"}

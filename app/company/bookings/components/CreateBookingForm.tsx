@@ -94,6 +94,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [pickupLng, setPickupLng] = useState<number | undefined>();
     const [destinationCities, setDestinationCities] = useState<string[]>([]);
     const [cityInput, setCityInput] = useState("");
+    const [bookingCity, setBookingCity] = useState(""); // City for the booking itself
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -114,6 +115,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             (vehicleModel === "Other" ? customVehicleModel.length > 0 : vehicleModel.length > 0) &&
             (timeType === "now" || scheduledDateTime.length > 0) &&
             pickupAddress.length > 0 &&
+            bookingCity.length > 0 &&
             pickupLat !== undefined &&
             pickupLng !== undefined;
 
@@ -212,6 +214,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 passenger_id: passengerId,
                 destination_cities: tripType === "out_station" ? destinationCities : [],
                 service_category: serviceCategory,
+                city: bookingCity,
             };
 
             await apiClient.createChauffeurBooking(Number(company.id), apiData);
@@ -256,6 +259,15 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <option value="Chauffeur Ride">Chauffeur Ride</option>
                         <option value="Airport Transfer">Airport Transfer</option>
                     </Select>
+                </Field>
+
+                <Field label="City" required>
+                    <TextInput
+                        value={bookingCity}
+                        onChange={(e) => setBookingCity(e.target.value)}
+                        placeholder="Enter city (e.g. Karachi)"
+                        required
+                    />
                 </Field>
 
                 <Field label="Passenger" required>

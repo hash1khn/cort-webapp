@@ -147,6 +147,7 @@ export default function ChauffeurReportsPage() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">City</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Booking ID</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Passenger</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle</th>
@@ -161,10 +162,10 @@ export default function ChauffeurReportsPage() {
             </thead>
             <tbody className="divide-y divide-slate-50/50">
               {isLoading && reports.length === 0 ? (
-                <TableSkeleton columns={11} rows={8} />
+                <TableSkeleton columns={12} rows={8} />
               ) : reports.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400">
                       <span className="bg-slate-50 p-4 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,6 +185,9 @@ export default function ChauffeurReportsPage() {
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-slate-600 font-medium font-mono text-xs">
                       {report.completed_at ? formatDateTime(report.completed_at) : "-"}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 font-medium text-xs">
+                      {report.city || "—"}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-700">
                       #{report.id}

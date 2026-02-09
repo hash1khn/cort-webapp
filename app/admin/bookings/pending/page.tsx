@@ -357,6 +357,7 @@ export default function BookingsPage() {
                   <th className="px-4 py-3 text-left">Company</th>
                   <th className="px-4 py-3 text-left">Passenger</th>
                   <th className="px-4 py-3 text-left">Request</th>
+                  <th className="px-4 py-3 text-left">City</th>
                   <th className="px-4 py-3 text-left">Pickup Address</th>
                   <th className="px-4 py-3 text-left">Assigned Driver</th>
                   <th className="px-4 py-3 text-left">Assigned Vehicle</th>
@@ -366,7 +367,7 @@ export default function BookingsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {isLoading && bookings.length === 0 ? (
-                  <tr><td colSpan={8} className="p-4 text-center">Loading...</td></tr>
+                  <tr><td colSpan={9} className="p-4 text-center">Loading...</td></tr>
                 ) : bookings.map((b) => {
                   const isSelected = selectedBookingId === b.id;
                   const driver = b.users_chauffeur_bookings_driver_idTousers;
@@ -396,6 +397,9 @@ export default function BookingsPage() {
                       <td className="px-4 py-4">
                         <div className="text-ink font-medium">{b.vehicle_model || "Any Model"}</div>
                         <div className="text-[11px] text-muted">{b.package_selected.replace(/_/g, " ")}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-medium text-ink">{b.city || "—"}</div>
                       </td>
                       <td className="px-4 py-4">
                         <div className="max-w-[150px] truncate text-sm text-ink" title={b.pickup_address || "No address"}>
@@ -526,6 +530,10 @@ export default function BookingsPage() {
                     <div>
                       <div className="text-[10px] text-muted uppercase">Requested Model</div>
                       <div className="text-sm font-medium text-ink">{selectedBooking.vehicle_model || "Any"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">City</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.city || "—"}</div>
                     </div>
                     <div className="col-span-2">
                       <div className="text-[10px] text-muted uppercase">Pickup Address</div>
