@@ -85,6 +85,18 @@ export const downloadInvoicePdf = createAsyncThunk(
     }
 );
 
+export const sendInvoiceEmail = createAsyncThunk(
+    'adminInvoicing/sendInvoiceEmail',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            await apiClient.sendInvoiceEmail(id);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to send invoice email');
+        }
+    }
+);
+
 // Slice
 const adminInvoicingSlice = createSlice({
     name: 'adminInvoicing',
@@ -138,6 +150,17 @@ const adminInvoicingSlice = createSlice({
                 state.actionStatus = 'succeeded';
             })
             .addCase(downloadInvoicePdf.rejected, (state) => {
+                state.actionStatus = 'failed';
+            })
+
+            // Send Email
+            .addCase(sendInvoiceEmail.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(sendInvoiceEmail.fulfilled, (state) => {
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(sendInvoiceEmail.rejected, (state) => {
                 state.actionStatus = 'failed';
             });
     },

@@ -10,7 +10,8 @@ import {
   selectAdminInvoices,
   selectAdminInvoiceStats,
   selectAdminInvoicingStatus,
-  selectAdminInvoicingActionStatus
+  selectAdminInvoicingActionStatus,
+  sendInvoiceEmail
 } from "../../lib/store/slices/adminInvoicingSlice";
 import Pagination from "../../components/ui/Pagination";
 
@@ -22,11 +23,28 @@ export default function InvoicingPage() {
   const actionStatus = useAppSelector(selectAdminInvoicingActionStatus);
 
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
 
   useEffect(() => {
     dispatch(fetchAdminInvoices());
     dispatch(fetchInvoiceStats());
   }, [dispatch]);
+
+  const handleSendEmail = async (id: number, invoiceNumber: string) => {
+    if (sendingEmailId) return;
+    if (!confirm(`Send invoice #${invoiceNumber} via email?`)) return;
+
+    setSendingEmailId(id);
+    try {
+      await dispatch(sendInvoiceEmail(id)).unwrap();
+      alert(`Invoice #${invoiceNumber} sent successfully.`);
+    } catch (e: any) {
+      console.error("Failed to send email", e);
+      alert(`Failed to send email: ${e}`);
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
 
   const downloadPdf = async (id: number, invoiceNumber: string) => {
     if (downloadingId) return;
@@ -167,21 +185,46 @@ export default function InvoicingPage() {
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => downloadPdf(inv.id, inv.invoice_number)}
-                        disabled={downloadingId === inv.id}
-                        className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
-                      >
-                        {downloadingId === inv.id ? (
-                          <>
-                            <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => downloadPdf(inv.id, inv.invoice_number)}
+                          disabled={downloadingId === inv.id}
+                          className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                          title="Download PDF"
+                        >
+                          {downloadingId === inv.id ? (
+                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Downloading...
-                          </>
-                        ) : 'Download PDF'}
-                      </button>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" x2="12" y1="15" y2="3" />
+                            </svg>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleSendEmail(inv.id, inv.invoice_number)}
+                          disabled={sendingEmailId === inv.id}
+                          className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                          title="Send Email to Company"
+                        >
+                          {sendingEmailId === inv.id ? (
+                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect width="20" height="16" x="2" y="4" rx="2" />
+                              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

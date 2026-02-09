@@ -1716,6 +1716,12 @@ class ApiClient {
         return this.downloadPdf(`/invoices/${id}/pdf`, `invoice-${invoiceNumber}.pdf`);
     }
 
+    async sendInvoiceEmail(id: number): Promise<any> {
+        return this.request<any>(`/invoices/${id}/send-email`, {
+            method: 'POST',
+        });
+    }
+
     async updateInvoiceStatus(id: number, status: string): Promise<any> {
         return this.request<any>(`/invoices/${id}/status`, {
             method: 'PATCH',
