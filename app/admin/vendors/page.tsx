@@ -12,8 +12,10 @@ import {
     selectAdminVendorsActionStatus,
     selectAdminVendorsError,
     selectVendorFilters,
-    resetActionStatus
+    resetActionStatus,
+    selectAdminVendorsPagination,
 } from "../../lib/store/slices/adminVendorsSlice";
+import Pagination from "../../components/ui/Pagination";
 import { Vendor, CreateVendorRequest } from "../../lib/services/api-client";
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -32,6 +34,7 @@ export default function VendorsPage() {
     const actionStatus = useAppSelector(selectAdminVendorsActionStatus);
     const error = useAppSelector(selectAdminVendorsError);
     const savedFilters = useAppSelector(selectVendorFilters);
+    const pagination = useAppSelector(selectAdminVendorsPagination);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -53,12 +56,13 @@ export default function VendorsPage() {
         const filtersChanged = debouncedSearch !== savedFilters.search;
 
         if (status === 'idle' || filtersChanged) {
-            if (status === 'succeeded' && !filtersChanged) {
-                return;
-            }
-            dispatch(fetchAdminVendors({ limit: 100, search: debouncedSearch }));
+            dispatch(fetchAdminVendors({ limit: 10, page: 1, search: debouncedSearch }));
         }
     }, [dispatch, debouncedSearch, status, savedFilters]);
+
+    const handlePageChange = (page: number) => {
+        dispatch(fetchAdminVendors({ limit: 10, page, search: debouncedSearch }));
+    };
 
     // Handle action updates
     useEffect(() => {
@@ -196,65 +200,76 @@ export default function VendorsPage() {
                 </button>
             </div>
 
-            <div className="rounded-xl border border-border bg-white overflow-hidden">
+            <div className="rounded-xl border border-border bg-white overflow-hidden flex flex-col">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="text-sm text-muted">Loading vendors...</div>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Vendor Name</th>
-                                    <th className="px-4 py-3 text-left">Contact</th>
-                                    <th className="px-4 py-3 text-left">Phone / Email</th>
-                                    <th className="px-4 py-3 text-center">Vehicles</th>
-                                    <th className="px-4 py-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {vendors.map((v) => (
-                                    <tr key={v.id} className="hover:bg-surface/50">
-                                        <td className="px-4 py-3 font-medium text-ink">{v.name}</td>
-                                        <td className="px-4 py-3 text-ink">{v.contact_person || "-"}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-ink">{v.phone}</div>
-                                            <div className="text-xs text-muted">{v.email}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center rounded-full bg-blue/10 px-2.5 py-0.5 text-xs font-medium text-blue">
-                                                {v._count?.vehicles || 0}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => startEdit(v)}
-                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(v)}
-                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {!isLoading && vendors.length === 0 && (
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                                            No vendors found.
-                                        </td>
+                                        <th className="px-4 py-3 text-left">Vendor Name</th>
+                                        <th className="px-4 py-3 text-left">Contact</th>
+                                        <th className="px-4 py-3 text-left">Phone / Email</th>
+                                        <th className="px-4 py-3 text-center">Vehicles</th>
+                                        <th className="px-4 py-3 text-right">Actions</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {vendors.map((v) => (
+                                        <tr key={v.id} className="hover:bg-surface/50">
+                                            <td className="px-4 py-3 font-medium text-ink">{v.name}</td>
+                                            <td className="px-4 py-3 text-ink">{v.contact_person || "-"}</td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-ink">{v.phone}</div>
+                                                <div className="text-xs text-muted">{v.email}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="inline-flex items-center rounded-full bg-blue/10 px-2.5 py-0.5 text-xs font-medium text-blue">
+                                                    {v._count?.vehicles || 0}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => startEdit(v)}
+                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(v)}
+                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {!isLoading && vendors.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                                                No vendors found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        <div className="border-t border-border">
+                            <Pagination
+                                currentPage={pagination.page}
+                                totalPages={pagination.pages}
+                                onPageChange={handlePageChange}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 

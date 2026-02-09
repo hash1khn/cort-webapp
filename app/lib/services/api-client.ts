@@ -1652,6 +1652,8 @@ class ApiClient {
      */
     async getChauffeurReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
         const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
         if (params.startDate) query.append('startDate', params.startDate);
         if (params.endDate) query.append('endDate', params.endDate);
 
@@ -1666,6 +1668,8 @@ class ApiClient {
      */
     async getAllChauffeurReports(params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
         const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
         if (params.startDate) query.append('startDate', params.startDate);
         if (params.endDate) query.append('endDate', params.endDate);
 
@@ -1872,9 +1876,10 @@ export interface ChauffeurReport {
 }
 
 export interface ReportQueryParams {
+    page?: number;
+    limit?: number;
     startDate?: string;
     endDate?: string;
-
 }
 
 export const apiClient = new ApiClient();

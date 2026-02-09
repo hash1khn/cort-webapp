@@ -452,5 +452,6 @@ export const selectUpcomingMaintenance = (state: RootState) => state.adminVehicl
 export const selectMaintenanceStatus = (state: RootState) => state.adminVehicles.maintenanceStatus;
 export const selectMaintenanceActionStatus = (state: RootState) => state.adminVehicles.maintenanceActionStatus;
 export const selectMaintenanceFilters = (state: RootState) => state.adminVehicles.maintenanceFilters;
+export const selectAdminVehiclesPagination = (state: RootState) => state.adminVehicles.pagination;
 
 export default adminVehiclesSlice.reducer;

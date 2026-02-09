@@ -166,5 +166,6 @@ export const selectAdminVendorsStatus = (state: RootState) => state.adminVendors
 export const selectAdminVendorsActionStatus = (state: RootState) => state.adminVendors.actionStatus;
 export const selectAdminVendorsError = (state: RootState) => state.adminVendors.error;
 export const selectVendorFilters = (state: RootState) => state.adminVendors.filters;
+export const selectAdminVendorsPagination = (state: RootState) => state.adminVendors.pagination;
 
 export default adminVendorsSlice.reducer;

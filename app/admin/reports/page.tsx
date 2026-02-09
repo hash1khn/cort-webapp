@@ -7,8 +7,10 @@ import {
     selectAdminReports,
     selectAdminReportsStatus,
     selectAdminReportsError,
-    selectAdminReportsFilters
+    selectAdminReportsFilters,
+    selectAdminReportsPagination
 } from "../../lib/store/slices/adminReportsSlice";
+import Pagination from "../../components/ui/Pagination";
 
 export default function AdminReportsPage() {
     const dispatch = useAppDispatch();
@@ -16,6 +18,7 @@ export default function AdminReportsPage() {
     const status = useAppSelector(selectAdminReportsStatus);
     const error = useAppSelector(selectAdminReportsError);
     const savedFilters = useAppSelector(selectAdminReportsFilters);
+    const pagination = useAppSelector(selectAdminReportsPagination);
 
     const [startDate, setStartDate] = useState<string>(savedFilters.startDate);
     const [endDate, setEndDate] = useState<string>(savedFilters.endDate);
@@ -50,6 +53,8 @@ export default function AdminReportsPage() {
                 dispatch(fetchAdminReports({
                     startDate: startDate || undefined,
                     endDate: endDate || undefined,
+                    limit: 10,
+                    page: 1
                 }));
             }, 500); // 500ms debounce to avoid spamming while typing date? Date inputs usually atomic changes.
 
@@ -64,6 +69,17 @@ export default function AdminReportsPage() {
         dispatch(fetchAdminReports({
             startDate: startDate || undefined,
             endDate: endDate || undefined,
+            limit: 10,
+            page: pagination.page
+        }));
+    };
+
+    const handlePageChange = (page: number) => {
+        dispatch(fetchAdminReports({
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+            limit: 10,
+            page
         }));
     };
 
@@ -210,6 +226,15 @@ export default function AdminReportsPage() {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="border-t border-border">
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.totalPages}
+                        onPageChange={handlePageChange}
+                    />
                 </div>
             </div>
         </div >

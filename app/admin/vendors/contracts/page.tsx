@@ -123,19 +123,8 @@ export default function VendorContractsPage() {
                     setFormData(prev => ({ ...prev, vendor_id: vehicle.vendor_id }));
                 }
 
-                // 2. Auto-calculate total payable if rent_per_day exists and month is valid
-                if (vehicle.rent_per_day && formData.month && !editingContract) {
-                    const [yearStr, monthStr] = formData.month.split('-');
-                    const year = parseInt(yearStr);
-                    const month = parseInt(monthStr);
+                // 2. Auto-calculate total payable logic removed as per request
 
-                    if (!isNaN(year) && !isNaN(month)) {
-                        const daysInMonth = new Date(year, month, 0).getDate();
-                        const dailyRate = Number(vehicle.rent_per_day);
-                        const total = dailyRate * daysInMonth;
-                        setFormData(prev => ({ ...prev, total_payable: total }));
-                    }
-                }
             }
         }
     }, [formData.vehicle_id, formData.month, vehicles, editingContract]);

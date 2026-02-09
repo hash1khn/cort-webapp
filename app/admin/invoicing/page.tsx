@@ -12,6 +12,7 @@ import {
   selectAdminInvoicingStatus,
   selectAdminInvoicingActionStatus
 } from "../../lib/store/slices/adminInvoicingSlice";
+import Pagination from "../../components/ui/Pagination";
 
 export default function InvoicingPage() {
   const dispatch = useAppDispatch();
@@ -58,6 +59,20 @@ export default function InvoicingPage() {
 
   const isInvoicesLoading = status === 'loading';
 
+  // Client-side pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+
+  const paginatedInvoices = invoices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -96,7 +111,7 @@ export default function InvoicingPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-left text-sm">
             <thead className="bg-zinc-50 text-xs font-medium uppercase text-muted">
@@ -124,7 +139,7 @@ export default function InvoicingPage() {
                   </td>
                 </tr>
               ) : (
-                invoices.map((inv) => (
+                paginatedInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-zinc-50/50">
                     <td className="px-4 py-3 font-medium text-navy">{inv.invoice_number}</td>
                     <td className="px-4 py-3 text-navy">{inv.companies?.name || "Unknown"}</td>
@@ -174,6 +189,17 @@ export default function InvoicingPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {invoices.length > 0 && (
+          <div className="border-t border-border">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

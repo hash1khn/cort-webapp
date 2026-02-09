@@ -22,8 +22,10 @@ import {
     selectAdminDriversError,
     selectAdminDriversActionStatus,
     selectDriverFilters,
-    resetDriversActionStatus
+    resetDriversActionStatus,
+    selectAdminDriversPagination,
 } from "../../lib/store/slices/adminDriversSlice";
+import Pagination from "../../components/ui/Pagination";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -365,6 +367,7 @@ export default function DriversPage() {
     const error = useAppSelector(selectAdminDriversError);
     const actionStatus = useAppSelector(selectAdminDriversActionStatus);
     const savedFilters = useAppSelector(selectDriverFilters);
+    const pagination = useAppSelector(selectAdminDriversPagination);
 
     const [activeTab, setActiveTab] = useState<"ALL" | "SHUTTLE" | "CHAUFFEUR" | "PENDING_CHAUFFEUR">("ALL");
 
@@ -395,8 +398,8 @@ export default function DriversPage() {
         loadDrivers();
     }, [activeTab, debouncedSearch]);
 
-    const loadDrivers = async () => {
-        const params: QueryDriverParams & { activeTab?: string } = { limit: 100, search: debouncedSearch, activeTab };
+    const loadDrivers = async (page = 1) => {
+        const params: QueryDriverParams & { activeTab?: string } = { limit: 10, page, search: debouncedSearch, activeTab };
 
         if (activeTab === "PENDING_CHAUFFEUR") {
             // For pending chauffeurs logic
@@ -408,6 +411,9 @@ export default function DriversPage() {
         }
     };
 
+    const handlePageChange = (page: number) => {
+        loadDrivers(page);
+    };
 
     const handleCreateNew = () => {
         setEditingDriver(null);
@@ -586,7 +592,7 @@ export default function DriversPage() {
             </div>
 
             {/* Drivers Table */}
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-[#f8fafc] text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
@@ -697,6 +703,15 @@ export default function DriversPage() {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="border-t border-slate-100">
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        onPageChange={handlePageChange}
+                    />
                 </div>
             </div>
 

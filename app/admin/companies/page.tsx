@@ -14,7 +14,9 @@ import {
   selectAdminCompaniesStatus,
   selectAdminCompaniesError,
   selectAdminCompaniesActionStatus,
+  selectAdminCompaniesPagination,
 } from "../../lib/store/slices/adminCompaniesSlice";
+import Pagination from "../../components/ui/Pagination";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -541,6 +543,7 @@ export default function CompaniesPage() {
   const status = useAppSelector(selectAdminCompaniesStatus);
   const error = useAppSelector(selectAdminCompaniesError);
   const actionStatus = useAppSelector(selectAdminCompaniesActionStatus);
+  const pagination = useAppSelector(selectAdminCompaniesPagination);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -552,8 +555,12 @@ export default function CompaniesPage() {
   const [passwordResetCompany, setPasswordResetCompany] = useState<Company | null>(null);
 
   useEffect(() => {
-    dispatch(fetchAdminCompanies({ limit: 100 }));
+    dispatch(fetchAdminCompanies({ limit: 10, page: 1 }));
   }, [dispatch]);
+
+  const handlePageChange = (page: number) => {
+    dispatch(fetchAdminCompanies({ limit: 10, page }));
+  };
 
   const handleCreateNew = () => {
     setEditingCompany(null);
@@ -586,8 +593,8 @@ export default function CompaniesPage() {
       }
       setIsModalOpen(false);
       setEditingCompany(null);
-      // Refresh list to ensure consistency, though optimized update is in place
-      dispatch(fetchAdminCompanies({ limit: 100 }));
+      // Refresh list to ensure consistency
+      dispatch(fetchAdminCompanies({ limit: 10, page: pagination.page }));
     } catch (err: any) {
       console.error("Failed to save company:", err);
       alert(err.message || "Failed to save company");
@@ -634,7 +641,7 @@ export default function CompaniesPage() {
 
 
       {/* Companies Table */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#f8fafc] text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
@@ -729,6 +736,15 @@ export default function CompaniesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="border-t border-slate-100">
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       </div>
 

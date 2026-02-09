@@ -196,5 +196,6 @@ export const selectAdminCompaniesStatus = (state: RootState) => state.adminCompa
 export const selectAdminCompaniesError = (state: RootState) => state.adminCompanies.error;
 export const selectAdminCompaniesActionStatus = (state: RootState) => state.adminCompanies.actionStatus;
 export const selectAdminCompaniesActionError = (state: RootState) => state.adminCompanies.actionError;
+export const selectAdminCompaniesPagination = (state: RootState) => state.adminCompanies.pagination;
 
 export default adminCompaniesSlice.reducer;
