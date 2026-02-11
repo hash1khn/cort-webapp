@@ -4,7 +4,10 @@ import {
     ChauffeurBooking,
     Vehicle,
     Driver,
-    QueryChauffeurBookingParams
+    QueryChauffeurBookingParams,
+    PaymentTransaction,
+    PaymentSummary,
+    AddPaymentRequest
 } from '../../services/api-client';
 import { RootState } from '../store';
 
@@ -22,6 +25,9 @@ interface AdminBookingsState {
         page: number;
         limit: number;
     };
+    paymentHistory: PaymentTransaction[];
+    paymentSummary: PaymentSummary | null;
+    paymentLoading: boolean;
 }
 
 const initialState: AdminBookingsState = {
@@ -38,6 +44,9 @@ const initialState: AdminBookingsState = {
         page: 1,
         limit: 10,
     },
+    paymentHistory: [],
+    paymentSummary: null,
+    paymentLoading: false,
 };
 
 // Async Thunks
@@ -150,6 +159,42 @@ export const generateTripInvoice = createAsyncThunk(
     }
 );
 
+export const addPayment = createAsyncThunk(
+    'adminBookings/addPayment',
+    async ({ bookingId, data }: { bookingId: number; data: AddPaymentRequest }, { rejectWithValue }) => {
+        try {
+            const response: any = await apiClient.addPayment(bookingId, data);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to add payment');
+        }
+    }
+);
+
+export const fetchPaymentHistory = createAsyncThunk(
+    'adminBookings/fetchPaymentHistory',
+    async (bookingId: number, { rejectWithValue }) => {
+        try {
+            const response: any = await apiClient.getPaymentHistory(bookingId);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch payment history');
+        }
+    }
+);
+
+export const fetchPaymentSummary = createAsyncThunk(
+    'adminBookings/fetchPaymentSummary',
+    async (bookingId: number, { rejectWithValue }) => {
+        try {
+            const response: any = await apiClient.getPaymentSummary(bookingId);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch payment summary');
+        }
+    }
+);
+
 // Slice
 const adminBookingsSlice = createSlice({
     name: 'adminBookings',
@@ -212,7 +257,26 @@ const adminBookingsSlice = createSlice({
 
             .addCase(generateTripInvoice.pending, (state) => { state.actionStatus = 'loading'; })
             .addCase(generateTripInvoice.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
-            .addCase(generateTripInvoice.rejected, (state) => { state.actionStatus = 'failed'; });
+            .addCase(generateTripInvoice.rejected, (state) => { state.actionStatus = 'failed'; })
+
+            // Payment actions
+            .addCase(addPayment.pending, (state) => { state.paymentLoading = true; })
+            .addCase(addPayment.fulfilled, (state) => { state.paymentLoading = false; })
+            .addCase(addPayment.rejected, (state) => { state.paymentLoading = false; })
+
+            .addCase(fetchPaymentHistory.pending, (state) => { state.paymentLoading = true; })
+            .addCase(fetchPaymentHistory.fulfilled, (state, action) => {
+                state.paymentHistory = action.payload;
+                state.paymentLoading = false;
+            })
+            .addCase(fetchPaymentHistory.rejected, (state) => { state.paymentLoading = false; })
+
+            .addCase(fetchPaymentSummary.pending, (state) => { state.paymentLoading = true; })
+            .addCase(fetchPaymentSummary.fulfilled, (state, action) => {
+                state.paymentSummary = action.payload;
+                state.paymentLoading = false;
+            })
+            .addCase(fetchPaymentSummary.rejected, (state) => { state.paymentLoading = false; });
     },
 });
 
@@ -225,5 +289,8 @@ export const selectAdminBookingsPagination = (state: RootState) => state.adminBo
 export const selectAvailableVehicles = (state: RootState) => state.adminBookings.availableVehicles;
 export const selectAvailableDrivers = (state: RootState) => state.adminBookings.availableDrivers;
 export const selectAdminActionStatus = (state: RootState) => state.adminBookings.actionStatus;
+export const selectPaymentHistory = (state: RootState) => state.adminBookings.paymentHistory;
+export const selectPaymentSummary = (state: RootState) => state.adminBookings.paymentSummary;
+export const selectPaymentLoading = (state: RootState) => state.adminBookings.paymentLoading;
 
 export default adminBookingsSlice.reducer;

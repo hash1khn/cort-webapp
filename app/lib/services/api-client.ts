@@ -564,6 +564,37 @@ export interface ChauffeurBookingResponse {
     message: string;
 }
 
+// -- PAYMENT TRACKING --
+
+export interface PaymentTransaction {
+    id: number;
+    booking_id: number;
+    amount: string;
+    payment_type: 'PARTIAL' | 'FINAL';
+    payment_method?: string;
+    payment_date: string;
+    notes?: string;
+    users_received_by?: {
+        full_name: string;
+        email: string;
+    };
+}
+
+export interface PaymentSummary {
+    booking_id: number;
+    invoice_amount: string;
+    total_paid: string;
+    amount_remaining: string;
+    payment_status: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID';
+}
+
+export interface AddPaymentRequest {
+    amount: number;
+    payment_type?: 'PARTIAL' | 'FINAL';
+    payment_method?: string;
+    notes?: string;
+}
+
 // -- FUEL RECORDS --
 
 export enum MaintenanceType {
@@ -964,11 +995,23 @@ class ApiClient {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        // Try to get filename from Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition');
+        console.log(contentDisposition)
+        let finalFilename = filename;
+
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+            if (filenameMatch && filenameMatch[1]) {
+                finalFilename = filenameMatch[1];
+            }
+        }
+
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = finalFilename;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -1600,6 +1643,25 @@ class ApiClient {
     async completeTrip(id: number): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/complete`, {
             method: 'PATCH',
+        });
+    }
+
+    async addPayment(bookingId: number, data: AddPaymentRequest) {
+        return this.request(`/admin/bookings/${bookingId}/payments`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getPaymentHistory(bookingId: number) {
+        return this.request(`/admin/bookings/${bookingId}/payments`, {
+            method: 'GET',
+        });
+    }
+
+    async getPaymentSummary(bookingId: number) {
+        return this.request(`/admin/bookings/${bookingId}/payment-summary`, {
+            method: 'GET',
         });
     }
 

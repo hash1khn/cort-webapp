@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { DriverType, ChauffeurBooking } from "../../../lib/services/api-client";
+import { DriverType, ChauffeurBooking, PaymentTransaction, PaymentSummary } from "../../../lib/services/api-client";
 import Map, { type MapMarker } from "../../ui/Map";
 import Modal from "../../../company/bookings/components/Modal";
 import Pagination from "../../../components/ui/Pagination";
@@ -16,11 +16,16 @@ import {
   endTrip,
   completeTrip,
   generateTripInvoice,
+  addPayment,
+  fetchPaymentHistory,
+  fetchPaymentSummary,
   selectAdminBookings,
   selectAvailableVehicles,
   selectAvailableDrivers,
   selectAdminBookingsStatus,
-  selectAdminBookingsPagination
+  selectAdminBookingsPagination,
+  selectPaymentHistory,
+  selectPaymentSummary
 } from "../../../lib/store/slices/adminBookingsSlice";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -98,6 +103,221 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
   );
 }
 
+// Payment Form Component
+function PaymentForm({ bookingId, onSuccess }: { bookingId: number; onSuccess: () => void }) {
+  const dispatch = useAppDispatch();
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!amount || parseFloat(amount) <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await dispatch(addPayment({
+        bookingId,
+        data: {
+          amount: parseFloat(amount),
+          payment_type: "PARTIAL",
+          payment_method: paymentMethod,
+          notes: notes || undefined,
+        }
+      })).unwrap();
+
+      alert("Payment recorded successfully!");
+      setAmount("");
+      setNotes("");
+      onSuccess();
+    } catch (error: any) {
+      alert("Failed to record payment: " + error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-blue/5 border border-blue/20 rounded-lg p-4">
+      <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+        Record Payment
+      </h4>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-ink block mb-1">
+            Amount (PKR) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full h-10 px-3 rounded-md border border-border bg-white text-sm outline-none focus:ring-2 focus:ring-blue/40"
+            placeholder="Enter amount"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-ink block mb-1">
+            Payment Method
+          </label>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            className="w-full h-10 px-3 rounded-md border border-border bg-white text-sm outline-none focus:ring-2 focus:ring-blue/40"
+          >
+            <option value="CASH">Cash</option>
+            <option value="BANK_TRANSFER">Bank Transfer</option>
+            <option value="CARD">Card</option>
+            <option value="CHEQUE">Cheque</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-ink block mb-1">
+            Notes (Optional)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full px-3 py-2 rounded-md border border-border bg-white text-sm outline-none focus:ring-2 focus:ring-blue/40"
+            rows={2}
+            placeholder="Add notes about this payment..."
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full h-10 rounded-md bg-blue px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {isSubmitting ? "Recording..." : "Record Payment"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Payment Summary Card Component
+function PaymentSummaryCard({ summary }: { summary: PaymentSummary | null }) {
+  if (!summary) return null;
+
+  const invoiceAmount = parseFloat(summary.invoice_amount);
+  const totalPaid = parseFloat(summary.total_paid);
+  const remaining = parseFloat(summary.amount_remaining);
+
+  const percentPaid = invoiceAmount > 0 ? (totalPaid / invoiceAmount) * 100 : 0;
+
+  return (
+    <div className="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider">
+          Payment Status
+        </h4>
+        <span className={cx(
+          "text-[10px] font-bold px-2 py-0.5 rounded-full",
+          summary.payment_status === 'FULLY_PAID' ? "bg-green-600/10 text-green-700" :
+            summary.payment_status === 'PARTIALLY_PAID' ? "bg-yellow/10 text-yellow" :
+              "bg-red-500/10 text-red-600"
+        )}>
+          {summary.payment_status.replace(/_/g, " ")}
+        </span>
+      </div>
+
+      <div className="space-y-2 mb-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted">Invoice Total:</span>
+          <span className="font-bold text-ink">PKR {invoiceAmount.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted">Amount Paid:</span>
+          <span className="font-semibold text-green-600">PKR {totalPaid.toLocaleString()}</span>
+        </div>
+        <div className="h-px bg-border my-2"></div>
+        <div className="flex justify-between text-sm">
+          <span className="font-semibold text-ink">Balance Due:</span>
+          <span className="font-bold text-lg text-orange">
+            PKR {remaining.toLocaleString()}
+          </span>
+        </div>
+      </div>
+
+      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-green-500 to-blue-500 h-full transition-all duration-500"
+          style={{ width: `${Math.min(percentPaid, 100)}%` }}
+        />
+      </div>
+      <div className="text-right text-[10px] text-muted mt-1">
+        {percentPaid.toFixed(1)}% paid
+      </div>
+    </div>
+  );
+}
+
+// Payment History List Component
+function PaymentHistoryList({ payments }: { payments: PaymentTransaction[] }) {
+  if (!payments || payments.length === 0) {
+    return (
+      <div className="text-center py-6 text-sm text-muted">
+        No payments recorded yet
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+        Payment History ({payments.length})
+      </h4>
+      <div className="max-h-64 overflow-y-auto space-y-2">
+        {payments.map((payment) => (
+          <div
+            key={payment.id}
+            className="flex items-center justify-between bg-surface/30 p-3 rounded-md border border-border"
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-ink">
+                  PKR {parseFloat(payment.amount).toLocaleString()}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue/10 text-blue font-medium">
+                  {payment.payment_method || "N/A"}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted mt-0.5">
+                {new Date(payment.payment_date).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+                {payment.users_received_by && (
+                  <span> • By: {payment.users_received_by.full_name}</span>
+                )}
+              </div>
+              {payment.notes && (
+                <div className="text-xs text-muted italic mt-1">
+                  {payment.notes}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function BookingsPage() {
   const dispatch = useAppDispatch();
   const bookings = useAppSelector(selectAdminBookings);
@@ -105,6 +325,8 @@ export default function BookingsPage() {
   const pagination = useAppSelector(selectAdminBookingsPagination);
   const availableCars = useAppSelector(selectAvailableVehicles);
   const availableDrivers = useAppSelector(selectAvailableDrivers);
+  const paymentHistory = useAppSelector(selectPaymentHistory);
+  const paymentSummary = useAppSelector(selectPaymentSummary);
 
   const [isLoading, setIsLoading] = useState(true); // Local loading state for initial load or debounce
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
@@ -151,6 +373,12 @@ export default function BookingsPage() {
     loadData();
   }, [currentPage]);
 
+  // Load payment data for a booking
+  const loadPaymentData = (bookingId: number) => {
+    dispatch(fetchPaymentHistory(bookingId));
+    dispatch(fetchPaymentSummary(bookingId));
+  };
+
   // Handle opening modal and fetching resources
   const onOpenBookingModal = (booking: ChauffeurBooking) => {
     setSelectedBookingId(booking.id);
@@ -163,6 +391,11 @@ export default function BookingsPage() {
       // Currently forcing refresh to ensure availability is up to date
       dispatch(fetchAvailableVehicles({ limit: 100 }));
       dispatch(fetchAvailableDrivers({ limit: 100, driver_type: DriverType.CHAUFFEUR }));
+    }
+
+    // Load payment data for non-pending bookings
+    if (booking.status !== 'PENDING') {
+      loadPaymentData(booking.id);
     }
   };
 
@@ -652,6 +885,37 @@ export default function BookingsPage() {
                   >
                     Approve & Assign
                   </button>
+                </div>
+              )}
+
+
+              {/* Payment Tracking Section - Only show for active/completed trips */}
+              {selectedBooking.status !== 'PENDING' && selectedBooking.status !== 'CANCELLED' && (
+                <div className="space-y-4 mt-6">
+                  <h4 className="text-xs font-semibold text-muted uppercase tracking-wider border-b border-border pb-1">
+                    Payment Tracking
+                  </h4>
+
+                  {/* Show summary if trip is completed */}
+                  {selectedBooking.status === 'COMPLETED' && paymentSummary && (
+                    <PaymentSummaryCard summary={paymentSummary} />
+                  )}
+
+                  {/* Payment form - show for IN_PROGRESS, ENDED, or COMPLETED trips, but hide if fully paid */}
+                  {(selectedBooking.status === 'IN_PROGRESS' ||
+                    selectedBooking.status === 'ENDED' ||
+                    selectedBooking.status === 'COMPLETED') &&
+                    paymentSummary?.payment_status !== 'FULLY_PAID' && (
+                      <PaymentForm
+                        bookingId={selectedBooking.id}
+                        onSuccess={() => loadPaymentData(selectedBooking.id)}
+                      />
+                    )}
+
+                  {/* Payment history */}
+                  {paymentHistory.length > 0 && (
+                    <PaymentHistoryList payments={paymentHistory} />
+                  )}
                 </div>
               )}
 
