@@ -11,6 +11,11 @@ export function middleware(request: NextRequest) {
 
     // Check if we are on the Admin domain
     if (hostname && hostname.includes(ADMIN_DOMAIN)) {
+        // Redirect root to login
+        if (pathname === "/") {
+            return NextResponse.rewrite(new URL("/admin/login", request.url));
+        }
+
         // Determine the new URL path
         // We want to serve content from /admin/* without showing /admin in the URL
         // So admin.cort.com.pk/dashboard servers /admin/dashboard
@@ -26,6 +31,11 @@ export function middleware(request: NextRequest) {
 
     // Check if we are on the Portal/Company domain
     if (hostname && hostname.includes(PORTAL_DOMAIN)) {
+        // Redirect root to login
+        if (pathname === "/") {
+            return NextResponse.rewrite(new URL("/company/login", request.url));
+        }
+
         // Similar logic for company portal
         if (!pathname.startsWith("/company")) {
             return NextResponse.rewrite(new URL(`/company${pathname}`, request.url));
