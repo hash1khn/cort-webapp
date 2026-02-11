@@ -728,7 +728,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 class ApiClient {
     private baseUrl: string;
     private isRefreshing = false;
-    private refreshSubscribers: ((token: string) => void)[] = [];
+    private refreshSubscribers: { resolve: (token: string) => void; reject: (error: any) => void }[] = [];
 
     constructor() {
         this.baseUrl = API_URL;
@@ -821,143 +821,29 @@ class ApiClient {
      * Add callback to be executed after token refresh
      */
     private onRefreshed(token: string) {
-        this.refreshSubscribers.forEach((callback) => callback(token));
+        this.refreshSubscribers.forEach(({ resolve }) => resolve(token));
+        this.refreshSubscribers = [];
+    }
+
+    /**
+     * Add callback to be executed after token refresh failure
+     */
+    private onRefreshFailed(error: any) {
+        this.refreshSubscribers.forEach(({ reject }) => reject(error));
         this.refreshSubscribers = [];
     }
 
     /**
      * Add subscriber to wait for token refresh
      */
-    private subscribeTokenRefresh(callback: (token: string) => void) {
-        this.refreshSubscribers.push(callback);
+    private subscribeTokenRefresh(resolve: (token: string) => void, reject: (error: any) => void) {
+        this.refreshSubscribers.push({ resolve, reject });
     }
 
     /**
-     * Make HTTP request with automatic token attachment and refreshing
+     * Helper to parse and handle API responses
      */
-    private async request<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<T> {
-        let token = this.getToken();
-        let headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...(options.headers as Record<string, string>),
-        };
-
-        // Add authorization header if token exists
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        let response = await fetch(`${this.baseUrl}${endpoint}`, {
-            ...options,
-            headers,
-        });
-
-        // Handle 401 Unauthorized - Try to refresh token
-        if (response.status === 401 && !endpoint.includes('/auth/login')) {
-            if (!this.isRefreshing) {
-                this.isRefreshing = true;
-                const newToken = await this.refreshToken();
-                this.isRefreshing = false;
-
-                if (newToken) {
-                    this.onRefreshed(newToken);
-                } else {
-                    // unexpected logout if refresh fails
-                    // Let the error propagate so the app can handle it (e.g. redirect to login)
-                }
-            }
-
-            // Return a promise that resolves when the token is refreshed
-            if (this.isRefreshing || this.getToken()) { // Check if we have a valid token now
-                return new Promise((resolve, reject) => {
-                    this.subscribeTokenRefresh(async (newToken) => {
-                        // Update header with new token
-                        headers['Authorization'] = `Bearer ${newToken}`;
-                        try {
-                            // Retry original request
-                            const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, {
-                                ...options,
-                                headers,
-                            });
-
-                            // Handle non-JSON responses for retry
-                            const contentType = retryResponse.headers.get('content-type');
-                            if (!contentType || !contentType.includes('application/json')) {
-                                if (!retryResponse.ok) {
-                                    reject(new Error(`HTTP error! status: ${retryResponse.status}`));
-                                    return;
-                                }
-                                resolve({} as T);
-                                return;
-                            }
-
-                            const retryData = await retryResponse.json();
-                            if (!retryResponse.ok) {
-                                reject(new Error(retryData.message || `HTTP error! status: ${retryResponse.status}`));
-                                return;
-                            }
-                            resolve(retryData);
-                        } catch (err) {
-                            reject(err);
-                        }
-                    });
-                    // If refresh failed and no new token, we might not call subscribers. 
-                    // But here we rely on the fact that if refreshToken returns null, it likely won't call subscribers.
-                    // However, above logic: if refreshToken fails, returns null. 
-                    // Wait, if refreshToken fails, it doesn't call onRefreshed. Subscribers hang? 
-                    // Need to handle failure case.
-                });
-            }
-        }
-
-        // RE-CHECK: The logic above is slightly flawed for handling the queue. 
-        // If multiple requests fail with 401:
-        // 1. First one sets isRefreshing = true, calls refreshToken.
-        // 2. Others enter the block. isRefreshing is true. They subscribe.
-        // 3. First one finishes. Calls onRefreshed. Subscribers run. 
-        // 4. First one needs to run its own retry too? 
-        // Actually, the first one should also just retry. 
-
-        // Let's refine the logic. 
-        if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh-token')) {
-            if (this.isRefreshing) {
-                return new Promise((resolve, reject) => {
-                    this.subscribeTokenRefresh(async (newToken) => {
-                        headers['Authorization'] = `Bearer ${newToken}`;
-                        try {
-                            const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
-                            // duplicate logic for parsing... ideally extract fetch logic
-                            const contentType = retryResponse.headers.get('content-type');
-                            if (!contentType || !contentType.includes('application/json')) {
-                                if (!retryResponse.ok) reject(new Error(`HTTP error! status: ${retryResponse.status}`));
-                                else resolve({} as T);
-                                return;
-                            }
-                            const retryData = await retryResponse.json();
-                            if (!retryResponse.ok) reject(new Error(retryData.message));
-                            else resolve(retryData);
-                        } catch (e) { reject(e); }
-                    });
-                });
-            }
-
-            this.isRefreshing = true;
-            const newToken = await this.refreshToken();
-            this.isRefreshing = false;
-
-            if (newToken) {
-                this.onRefreshed(newToken);
-                // Retry current request
-                headers['Authorization'] = `Bearer ${newToken}`;
-                response = await fetch(`${this.baseUrl}${endpoint}`, { ...options, headers });
-            }
-            // If refresh fails, we fall through to return error from original 401 response or new response
-        }
-
-        // Handle non-JSON responses
+    private async parseResponse<T>(response: Response): Promise<T> {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             if (!response.ok) {
@@ -968,13 +854,76 @@ class ApiClient {
 
         const data = await response.json();
 
-        // Handle error responses
         if (!response.ok) {
             const errorMessage = data.message || `HTTP error! status: ${response.status}`;
             throw new Error(errorMessage);
         }
 
         return data;
+    }
+
+    /**
+     * Make HTTP request with automatic token attachment and refreshing
+     */
+    private async request<T>(
+        endpoint: string,
+        options: RequestInit = {}
+    ): Promise<T> {
+        const token = this.getToken();
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...(options.headers as Record<string, string>),
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            ...options,
+            headers,
+        });
+
+        // Handle 401 Unauthorized - Try to refresh token
+        // Skip for login which specifically handles 401 for invalid credentials
+        // And skip for refresh-token itself to avoid infinite loops
+        if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh-token')) {
+            if (this.isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    this.subscribeTokenRefresh(
+                        async (newToken) => {
+                            try {
+                                resolve(await this.request(endpoint, options));
+                            } catch (e) {
+                                reject(e);
+                            }
+                        },
+                        (err) => reject(err)
+                    );
+                });
+            }
+
+            this.isRefreshing = true;
+            try {
+                const newToken = await this.refreshToken();
+                this.isRefreshing = false;
+
+                if (newToken) {
+                    this.onRefreshed(newToken);
+                    return this.request(endpoint, options);
+                } else {
+                    const error = new Error('Session expired');
+                    this.onRefreshFailed(error);
+                    throw error;
+                }
+            } catch (err) {
+                this.isRefreshing = false;
+                this.onRefreshFailed(err);
+                throw err;
+            }
+        }
+
+        return this.parseResponse<T>(response);
     }
 
     /**

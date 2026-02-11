@@ -32,8 +32,7 @@ export const pakistaniCars = [
     "Xpeng X9", "GWM Tank 500", "Honri Ve", "Gugo Box",
 
     // --- Luxury Brands (BMW, Audi, Mercedes) ---
-    "Audi", "BMW 3 Series", "BMW 5 Series",
-    "BMW 7 Series",
+    "Audi", "BMW",
     "Mercedes",
 
     // --- Other Popular Locals & Imports ---
