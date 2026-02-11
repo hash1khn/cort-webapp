@@ -22,7 +22,7 @@ export default function CompanyLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute
       allowedRoles={[UserRole.COMPANY_ADMIN, UserRole.EMPLOYEE, UserRole.SUPER_ADMIN]}
-      redirectTo="/login"
+      redirectTo="/company/login"
     >
       <Provider store={store}>
         <CompanyShell>{children}</CompanyShell>
