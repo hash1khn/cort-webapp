@@ -48,34 +48,45 @@ const Sparkline = ({ data = [40, 30, 45, 50, 42, 55, 60], color = "#6366f1" }: {
 };
 
 const DonutChart = ({ data }: { data: { label: string; value: number; color: string }[] }) => {
-    const total = data.reduce((acc, curr) => acc + curr.value, 0);
+    const total = data.reduce((acc, curr) => acc + (curr.value || 0), 0);
     let currentOffset = 0;
 
     return (
         <div className="relative w-32 h-32 flex items-center justify-center">
             <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
-                {data.map((item, i) => {
-                    const percentage = (item.value / total) * 100;
-                    const circumference = 2 * Math.PI * 40; // r=40
-                    const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
-                    const strokeDashoffset = -currentOffset;
-                    currentOffset += (percentage / 100) * circumference;
+                {total === 0 ? (
+                    <circle
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        stroke="#e2e8f0"
+                        strokeWidth="12"
+                    />
+                ) : (
+                    data.map((item, i) => {
+                        const percentage = total > 0 ? (item.value / total) * 100 : 0;
+                        const circumference = 2 * Math.PI * 40; // r=40
+                        const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+                        const strokeDashoffset = -currentOffset;
+                        currentOffset += (percentage / 100) * circumference;
 
-                    return (
-                        <circle
-                            key={i}
-                            cx="50"
-                            cy="50"
-                            r="40"
-                            fill="transparent"
-                            stroke={item.color}
-                            strokeWidth="12"
-                            strokeDasharray={strokeDasharray}
-                            strokeDashoffset={strokeDashoffset}
-                            className="transition-all duration-500 hover:opacity-80"
-                        />
-                    );
-                })}
+                        return (
+                            <circle
+                                key={i}
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="transparent"
+                                stroke={item.color}
+                                strokeWidth="12"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                                className="transition-all duration-500 hover:opacity-80"
+                            />
+                        );
+                    })
+                )}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold text-slate-800">{total}</span>

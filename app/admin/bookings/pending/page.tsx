@@ -499,6 +499,22 @@ export default function BookingsPage() {
   }
 
   const handleStatusChange = async (b: ChauffeurBooking, newStatus: string) => {
+    // 1. BLOCK "ASSIGNED" manual selection
+    if (newStatus === 'ASSIGNED') {
+      alert("⚠️ Cannot manually switch to 'ASSIGNED'.\n\nPlease click on the booking row to open the details modal, then select a vehicle and driver to Assign.");
+      // Force UI refresh or just return to prevent API call
+      // Since select value is controlled by `b.status` (from props/redux), we just return. 
+      // The UI might momentarily show the new value until next render, but since we don't dispatch, it reverts or stays.
+      // To strictly revert visual change immediately if local state wasn't used: 
+      // In this component, `value={b.status}` comes from Redux store `bookings` array. 
+      // Since we don't update Redux, it will snap back on next render/store update or stay as is.
+      // However, React controlled inputs with creating a change event might be tricky if not updated.
+      // Easiest is to just return. The user will see it didn't change (or it snaps back).
+      loadData(); // Re-fetch to ensure UI sync
+      return;
+    }
+
+    // 2. Trip Flow Triggers
     if (newStatus === 'IN_PROGRESS') {
       if (!confirm("Start this trip? This will create a trip log.")) return;
       try {
@@ -515,6 +531,11 @@ export default function BookingsPage() {
     }
 
     if (newStatus === 'COMPLETED') {
+      if (b.status !== 'ENDED') {
+        alert("⚠️ Trip must be in status 'ENDED' before it can be 'COMPLETED'.\n\nPlease select 'ENDED' first to enter trip details (mileage, tolls, etc.).");
+        loadData();
+        return;
+      }
       if (!confirm("Complete this trip? This will calculate financials and generate the invoice.")) return;
       try {
         await dispatch(completeTrip(b.id)).unwrap();
@@ -523,8 +544,22 @@ export default function BookingsPage() {
       return;
     }
 
-    // Default status update
-    if (!confirm(`Change status to ${newStatus}?`)) return;
+    // 3. WARN for CANCELLED (Potentially unsafe/missing email)
+    if (newStatus === 'CANCELLED') {
+      if (!confirm("⚠️ Are you sure you want to CANCEL this booking?\n\nNote: This action only updates the status and does NOT currently send a cancellation email to the customer.")) return;
+      try {
+        await dispatch(updateBookingStatus({ id: b.id, status: newStatus })).unwrap();
+        loadData();
+      } catch (e: any) { alert("Failed: " + e); }
+      return;
+    }
+
+    // 4. Default for ARRIVED or others
+    const confirmMessage = newStatus === 'ARRIVED'
+      ? "Mark driver as ARRIVED at pickup location?"
+      : `Change status to ${newStatus}?`;
+
+    if (!confirm(confirmMessage)) return;
     try {
       await dispatch(updateBookingStatus({ id: b.id, status: newStatus })).unwrap();
       loadData();
