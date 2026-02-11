@@ -12,7 +12,7 @@ import { UserRole } from "../lib/types/auth-types";
 
 export default function CompanyLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname === "/company/login";
+  const isLoginPage = pathname === "/login" || pathname === "/company/login" || pathname === "/";
 
   // Login pages don't need protection
   if (isLoginPage) {
