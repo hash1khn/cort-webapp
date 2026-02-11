@@ -97,7 +97,7 @@ function CredentialsModal({
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900">{email}</code>
+              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900 break-all">{email}</code>
               <button
                 onClick={() => handleCopy(email)}
                 className="p-2 text-slate-400 hover:text-[#0c225e]"
@@ -110,7 +110,7 @@ function CredentialsModal({
           <div>
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
             <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900 font-mono">
+              <code className="flex-1 rounded bg-slate-100 px-3 py-2 text-sm text-slate-900 font-mono break-all">
                 {password || "• • • • • • • •"}
               </code>
               {password && (
@@ -235,6 +235,7 @@ const initialFormData: CompanyFormData = {
   name: "",
   prefix: "", // Added prefix
   email: "",
+  auth_email: "", // Added auth_email
   password: "", // Added password
   contact_person: "",
   ntn_number: "",
@@ -260,6 +261,7 @@ function CompanyForm({
       ? {
         name: company.name,
         email: company.email,
+        auth_email: "", // Not returned from server usually, but can be added if needed
         contact_person: company.contact_person || "",
         ntn_number: company.ntn_number || "",
         address: company.address || "",
@@ -276,7 +278,21 @@ function CompanyForm({
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const handleChange = (field: keyof CompanyFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+
+      // If prefix is changing AND user is creating a new company
+      // AND auth_email hasn't been manually deviated from the previous prefix pattern
+      if (field === "prefix" && !company) {
+        // If auth_email is either empty or was previously synced with prefix
+        const currentAuthPrefix = (prev.auth_email || "").replace("@cort.com.pk", "");
+        if (!prev.auth_email || currentAuthPrefix === prev.prefix) {
+          next.auth_email = value ? `${value}@cort.com.pk` : "";
+        }
+      }
+
+      return next;
+    });
   };
 
   const generatePassword = () => {
@@ -346,16 +362,44 @@ function CompanyForm({
             />
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
-            placeholder="admin@acmecorp.com"
-            disabled={isSaving}
-          />
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+              Company Email <span className="text-slate-400 font-normal"></span>
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+              placeholder="admin@acmecorp.com"
+              disabled={isSaving}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+              Auth Email <span className="text-slate-400 font-normal"></span>
+            </label>
+            <div className="flex">
+              <input
+                type="text"
+                value={(formData.auth_email || "").replace("@cort.com.pk", "")}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleChange("auth_email", val ? `${val}@cort.com.pk` : "");
+                }}
+                className="flex-1 min-w-0 rounded-l-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                placeholder="e.g. admin-name"
+                disabled={isSaving || !!company}
+              />
+              <span className="flex-shrink-0 inline-flex items-center px-3 rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 text-slate-500 text-sm font-medium whitespace-nowrap">
+                @cort.com.pk
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Final Login ID: {formData.auth_email || "(Defaults to Notification Email if empty)"}
+            </p>
+          </div>
         </div>
 
         {/* Password Field - Only show when creating new company */}
@@ -471,7 +515,7 @@ function CompanyForm({
 
         <div className="pt-2 border-t border-gray-100">
           <label className="block text-xs font-semibold uppercase text-slate-500 mb-2">Services</label>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
               <input
                 type="checkbox"
@@ -587,7 +631,7 @@ export default function CompaniesPage() {
         // Type assertion here because result might be loose typed from thunk
         const created = result as unknown as { generatedPassword?: string };
         setCreatedCredentials({
-          email: data.email,
+          email: data.auth_email || data.email, // Show the auth email in credentials
           password: created.generatedPassword || data.password
         });
       }
@@ -643,7 +687,7 @@ export default function CompaniesPage() {
       {/* Companies Table */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm min-w-[700px]">
             <thead className="bg-[#f8fafc] text-xs uppercase font-semibold text-slate-500 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4">Company Name</th>

@@ -11,6 +11,7 @@ export interface CreateCompanyRequest {
     is_shuttle_enabled?: boolean;
     is_chauffeur_enabled?: boolean;
     prefix?: string;
+    auth_email?: string;
 }
 
 export interface UpdateCompanyRequest extends Partial<CreateCompanyRequest> {
