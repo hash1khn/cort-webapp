@@ -449,7 +449,7 @@ export default function BookingsPage() {
 
     try {
       await dispatch(endTrip({ id: selectedBooking.id, data })).unwrap();
-      alert("Trip ended successfully!");
+      alert("Trip completed and invoice generated successfully!");
       setShowEndTripModal(false);
       setSelectedBookingId(null);
       loadData();
