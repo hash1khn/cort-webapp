@@ -140,7 +140,8 @@ export interface CreateVehicleRequest {
     owner_company_id?: number;
     is_available_for_pooling?: boolean;
     vendor_id?: number;
-    rent_per_day?: number;
+    rent_per_day_city?: number;
+    rent_per_day_outstation?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
@@ -171,7 +172,8 @@ export interface Vehicle {
     created_at?: string;
     updated_at?: string;
     vendor_id?: number | null;
-    rent_per_day?: number | null;
+    rent_per_day_city?: number;
+    rent_per_day_outstation?: number;
     companies?: {
         id: number;
         name: string;
@@ -272,6 +274,72 @@ export interface VendorContractResponse {
 
 export interface VehicleResponse {
     data: Vehicle;
+    statusCode: number;
+    message: string;
+}
+
+// -- VENDOR LOGS --
+
+export interface QueryVendorLogsParams {
+    page?: number;
+    limit?: number;
+    vendor_id?: number;
+    start_date?: string;
+    end_date?: string;
+    payment_status?: string;
+}
+
+export interface VendorStats {
+    total_rides: number;
+    total_cost: number;
+    total_outstanding: number;
+}
+
+export interface VendorStatsResponse {
+    data: VendorStats;
+    statusCode: number;
+    message: string;
+}
+
+export interface VendorLog {
+    booking_id: number;
+    start_time: string;
+    end_time: string;
+    start_odometer: number;
+    end_odometer: number;
+    total_distance_km: number;
+    total_duration_minutes: number;
+    vendor_cost: number;
+    vendor_payment_status: string;
+    chauffeur_bookings?: {
+        id: number;
+        trip_type: string;
+        vehicles?: {
+            plate_number: string;
+            make: string;
+            model: string;
+            vendors?: {
+                name: string;
+            }
+        };
+        users_chauffeur_bookings_passenger_idTousers?: {
+            full_name: string;
+        }
+    }
+}
+
+export interface VendorLogsResponse {
+    data: {
+        data: VendorLog[];
+        pagination: {
+            total: number;
+            pages: number;
+            page: number;
+            limit: number;
+            hasNext: boolean;
+            hasPrev: boolean;
+        };
+    };
     statusCode: number;
     message: string;
 }
@@ -1331,6 +1399,26 @@ class ApiClient {
         return this.request<{ message: string }>(`/vendors/contracts/${id}`, {
             method: 'DELETE',
         });
+    }
+
+    // -- VENDOR LOGS --
+
+    async getVendorLogs(params: QueryVendorLogsParams): Promise<VendorLogsResponse> {
+        const queryParams = new URLSearchParams();
+        if (params.page) queryParams.append('page', params.page.toString());
+        if (params.limit) queryParams.append('limit', params.limit.toString());
+        if (params.vendor_id) queryParams.append('vendor_id', params.vendor_id.toString());
+        if (params.start_date) queryParams.append('start_date', params.start_date);
+        if (params.end_date) queryParams.append('end_date', params.end_date);
+        if (params.payment_status) queryParams.append('payment_status', params.payment_status);
+
+        return this.request<VendorLogsResponse>(`/vendors/logs/list?${queryParams.toString()}`);
+    }
+
+    async getVendorStats(vendor_id?: number): Promise<VendorStatsResponse> {
+        const queryParams = new URLSearchParams();
+        if (vendor_id) queryParams.append('vendor_id', vendor_id.toString());
+        return this.request<VendorStatsResponse>(`/vendors/stats/summary?${queryParams.toString()}`);
     }
 
     /**

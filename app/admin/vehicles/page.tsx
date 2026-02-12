@@ -52,7 +52,8 @@ const initialVehicleFormData: VehicleFormData = {
     ownership: OwnershipType.OWNED,
     fuel_avg_city: 0,
     fuel_avg_highway: 0,
-    rent_per_day: 0,
+    rent_per_day_city: 0,
+    rent_per_day_outstation: 0,
     is_available_for_pooling: false,
     vendor_id: undefined,
 };
@@ -81,7 +82,8 @@ function VehicleFormInline({
                 fuel_avg_city: vehicle.fuel_avg_city,
                 fuel_avg_highway: vehicle.fuel_avg_highway,
                 owner_company_id: vehicle.owner_company_id || undefined,
-                rent_per_day: vehicle.rent_per_day || 0,
+                rent_per_day_city: vehicle.rent_per_day_city || 0,
+                rent_per_day_outstation: vehicle.rent_per_day_outstation || 0,
                 is_available_for_pooling: vehicle.is_available_for_pooling,
                 vendor_id: vehicle.vendor_id || vehicle.vendors?.id || undefined,
             }
@@ -213,7 +215,7 @@ function VehicleFormInline({
 
             {
                 formData.ownership === OwnershipType.PARTNER && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4 border-t border-slate-100 pt-4 mt-4">
                         <div>
                             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Vendor</label>
                             <select
@@ -228,19 +230,32 @@ function VehicleFormInline({
                                 ))}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day</label>
-                            <input
-                                type="number"
-                                value={formData.rent_per_day || 0}
-                                onChange={(e) => handleChange("rent_per_day", parseFloat(e.target.value) || 0)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
-                                disabled={isSaving}
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day (City)</label>
+                                <input
+                                    type="number"
+                                    value={formData.rent_per_day_city || 0}
+                                    onChange={(e) => handleChange("rent_per_day_city", parseFloat(e.target.value) || 0)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                                    disabled={isSaving}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day (Outstation)</label>
+                                <input
+                                    type="number"
+                                    value={formData.rent_per_day_outstation || 0}
+                                    onChange={(e) => handleChange("rent_per_day_outstation", parseFloat(e.target.value) || 0)}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                                    disabled={isSaving}
+                                />
+                            </div>
                         </div>
                     </div>
                 )
             }
+
 
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
@@ -258,7 +273,7 @@ function VehicleFormInline({
                 >
                     {isSaving ? "Saving..." : "Save Vehicle"}
                 </button>
-            </div>
+            </div >
         </div >
     );
 }
