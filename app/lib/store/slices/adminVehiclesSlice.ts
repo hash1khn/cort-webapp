@@ -236,6 +236,18 @@ export const deleteFuelRecord = createAsyncThunk(
     }
 );
 
+export const markFuelRecordsAsPaid = createAsyncThunk(
+    'adminVehicles/markFuelRecordsAsPaid',
+    async (ids: number[], { rejectWithValue }) => {
+        try {
+            const response = await apiClient.markFuelRecordsAsPaid({ ids });
+            return { ids, message: response.message };
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to mark records as paid');
+        }
+    }
+);
+
 // --- Maintenance Thunks ---
 
 export const fetchMaintenanceRecords = createAsyncThunk(
@@ -399,6 +411,16 @@ export const adminVehiclesSlice = createSlice({
             .addCase(deleteFuelRecord.fulfilled, (state, action) => {
                 state.fuelRecords = state.fuelRecords.filter(r => r.id !== action.payload);
             })
+
+            .addCase(markFuelRecordsAsPaid.pending, (state) => { state.fuelActionStatus = 'loading'; })
+            .addCase(markFuelRecordsAsPaid.fulfilled, (state, action) => {
+                state.fuelActionStatus = 'succeeded';
+                // Update local state
+                state.fuelRecords = state.fuelRecords.map(record =>
+                    action.payload.ids.includes(record.id) ? { ...record, billed: true } : record
+                );
+            })
+            .addCase(markFuelRecordsAsPaid.rejected, (state, action) => { state.fuelActionStatus = 'failed'; })
 
             // --- Maintenance ---
             .addCase(fetchMaintenanceRecords.pending, (state) => { state.maintenanceStatus = 'loading'; })

@@ -684,6 +684,10 @@ export interface CreateFuelRecordRequest {
     billed?: boolean;
 }
 
+export interface BulkPayFuelRequest {
+    ids: number[];
+}
+
 export interface UpdateFuelRecordRequest extends Partial<CreateFuelRecordRequest> { }
 
 export interface QueryFuelRecordParams {
@@ -1868,6 +1872,13 @@ class ApiClient {
     async deleteFuelRecord(id: number): Promise<{ data: { message: string }; statusCode: number; message: string }> {
         return this.request(`/vehicle-fuel/${id}`, {
             method: 'DELETE',
+        });
+    }
+
+    async markFuelRecordsAsPaid(data: BulkPayFuelRequest): Promise<{ message: string }> {
+        return this.request<{ message: string }>('/vehicle-fuel/bulk-pay', {
+            method: 'POST',
+            body: JSON.stringify(data),
         });
     }
 

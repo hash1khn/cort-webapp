@@ -9,6 +9,7 @@ import {
     updateFuelRecord,
     deleteFuelRecord,
     fetchAdminVehicles,
+    markFuelRecordsAsPaid,
     selectFuelRecords,
     selectFuelStats,
     selectFuelStatus,
@@ -24,16 +25,6 @@ import {
     UpdateFuelRecordRequest,
     QueryFuelRecordParams,
 } from "../../../lib/services/api-client";
-
-// Debounce helper
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-}
 
 export default function FuelingPage() {
     const dispatch = useAppDispatch();
@@ -55,6 +46,9 @@ export default function FuelingPage() {
     const [filterBilled, setFilterBilled] = useState<boolean | "ALL">(savedFilters.filterBilled);
     const [startDate, setStartDate] = useState(savedFilters.startDate);
     const [endDate, setEndDate] = useState(savedFilters.endDate);
+
+    // Bulk Selection State
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
@@ -104,6 +98,7 @@ export default function FuelingPage() {
     useEffect(() => {
         if (actionStatus === 'succeeded') {
             closeModal();
+            setSelectedIds([]); // Clear selection on success
             dispatch(resetFuelActionStatus());
             loadData(); // Re-fetch to update list and stats
         } else if (actionStatus === 'failed') {
@@ -130,11 +125,37 @@ export default function FuelingPage() {
         dispatch(deleteFuelRecord(record.id));
     };
 
+    const handleBulkPay = () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm(`Mark ${selectedIds.length} records as Paid?`)) return;
+        dispatch(markFuelRecordsAsPaid(selectedIds));
+    };
+
+    const toggleSelectAll = (checked: boolean) => {
+        if (checked) {
+            // Only select UNPAID records
+            const unpaidIds = records
+                .filter(r => !r.billed)
+                .map(r => r.id);
+            setSelectedIds(unpaidIds);
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const toggleSelectId = (id: number, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(mid => mid !== id));
+        }
+    };
+
     const startCreate = () => {
         setSelectedRecord(null);
         setFormData({
             date: new Date().toISOString().split('T')[0],
-            billed: false,
+            // billed: false // Default handled by backend
         });
         setModalMode("create");
         setIsModalOpen(true);
@@ -207,15 +228,20 @@ export default function FuelingPage() {
                     placeholder="280.00"
                 />
             </label>
-            <label className="flex items-center gap-2">
-                <input
-                    type="checkbox"
-                    checked={formData.billed || false}
-                    onChange={(e) => setFormData({ ...formData, billed: e.target.checked })}
-                    className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
-                />
-                <span className="text-sm font-medium text-ink">Mark as Billed</span>
-            </label>
+
+            {/* Removed "Mark as Billed" checkbox for creation */}
+            {modalMode === "edit" && (
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={formData.billed || false}
+                        onChange={(e) => setFormData({ ...formData, billed: e.target.checked })}
+                        className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
+                    />
+                    <span className="text-sm font-medium text-ink">Paid</span>
+                </label>
+            )}
+
             {formData.fuel_litres && formData.current_fuel_rate && (
                 <div className="col-span-full rounded-lg border border-border bg-blue/5 p-4">
                     <div className="text-xs font-semibold tracking-wider text-muted">CALCULATED COST</div>
@@ -229,6 +255,10 @@ export default function FuelingPage() {
 
     const isLoading = status === 'loading';
     const isSubmitting = actionStatus === 'loading';
+
+    // Count unpaid records for select all logic
+    const unpaidRecordsCount = records.filter(r => !r.billed).length;
+    const isAllSelected = unpaidRecordsCount > 0 && selectedIds.length === unpaidRecordsCount;
 
     return (
         <div className="flex flex-col gap-6">
@@ -274,8 +304,8 @@ export default function FuelingPage() {
                     className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
                 >
                     <option value="ALL">All Status</option>
-                    <option value="true">Billed</option>
-                    <option value="false">Not Billed</option>
+                    <option value="true">Paid</option>
+                    <option value="false">Unpaid</option>
                 </select>
                 <input
                     type="date"
@@ -291,9 +321,21 @@ export default function FuelingPage() {
                     className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
                     placeholder="End Date"
                 />
+
+                {/* Bulk Action Button */}
+                {selectedIds.length > 0 && (
+                    <button
+                        onClick={handleBulkPay}
+                        disabled={isSubmitting}
+                        className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-success px-4 text-sm font-semibold text-white hover:opacity-95"
+                    >
+                        Mark {selectedIds.length} as Paid
+                    </button>
+                )}
+
                 <button
                     onClick={startCreate}
-                    className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+                    className={`${selectedIds.length === 0 ? "ml-auto" : ""} inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95`}
                 >
                     Add Fuel Record
                 </button>
@@ -304,6 +346,14 @@ export default function FuelingPage() {
                     <table className="min-w-full text-sm">
                         <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
                             <tr>
+                                <th className="px-4 py-3 text-center">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
+                                        checked={isAllSelected}
+                                        onChange={(e) => toggleSelectAll(e.target.checked)}
+                                    />
+                                </th>
                                 <th className="px-4 py-3 text-left">Date</th>
                                 <th className="px-4 py-3 text-left">Vehicle</th>
                                 <th className="px-4 py-3 text-right">Litres</th>
@@ -316,6 +366,16 @@ export default function FuelingPage() {
                         <tbody className="divide-y divide-border">
                             {records.map((r) => (
                                 <tr key={r.id} className="hover:bg-surface/50">
+                                    <td className="px-4 py-3 text-center">
+                                        {!r.billed && (
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
+                                                checked={selectedIds.includes(r.id)}
+                                                onChange={(e) => toggleSelectId(r.id, e.target.checked)}
+                                            />
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3 font-medium text-ink">{new Date(r.date).toLocaleDateString()}</td>
                                     <td className="px-4 py-3">
                                         <div className="font-medium text-ink">{r.vehicles?.plate_number}</div>
@@ -326,7 +386,7 @@ export default function FuelingPage() {
                                     <td className="px-4 py-3 text-right font-bold text-blue">PKR {Number(r.fuel_cost).toFixed(2)}</td>
                                     <td className="px-4 py-3 text-center">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.billed ? "bg-success/10 text-success" : "bg-orange/10 text-orange"}`}>
-                                            {r.billed ? "Billed" : "Pending"}
+                                            {r.billed ? "Paid" : "Unpaid"}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
@@ -349,14 +409,14 @@ export default function FuelingPage() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
                                         No fuel records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>
