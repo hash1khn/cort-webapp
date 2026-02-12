@@ -14,6 +14,7 @@ export interface SuperAdminDashboardStats {
     totalReceivables: number;
     totalPayables: number;
     alerts: any[];
+    totalUnassignedBookings: number;
 }
 
 export interface MetricComparison {

@@ -93,6 +93,19 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Unassigned Bookings Banner */}
+      {stats && (
+        <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-navy">Total Unassigned Bookings</h2>
+            <p className="text-muted text-sm">Action required for these bookings</p>
+          </div>
+          <div className="text-3xl font-bold text-red-600">
+            {stats.totalUnassignedBookings || 0}
+          </div>
+        </div>
+      )}
+
       {/* Metrics Grid */}
       {stats && (
         <>
