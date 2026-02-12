@@ -157,8 +157,16 @@ const adminInvoicingSlice = createSlice({
             .addCase(sendInvoiceEmail.pending, (state) => {
                 state.actionStatus = 'loading';
             })
-            .addCase(sendInvoiceEmail.fulfilled, (state) => {
+            .addCase(sendInvoiceEmail.fulfilled, (state, action) => {
                 state.actionStatus = 'succeeded';
+                // Optimistically update status to UNPAID if it was DRAFT
+                const index = state.invoices.findIndex(inv => inv.id === action.meta.arg);
+                if (index !== -1 && state.invoices[index].status === 'DRAFT') {
+                    state.invoices[index].status = 'UNPAID';
+                    // Also update stats: Move from DRAFT (ignored) to UNPAID (Collectable)
+                    // Note: DRAFT is not in stats, UNPAID adds to totalCollectable
+                    state.stats.totalCollectable += state.invoices[index].total_amount;
+                }
             })
             .addCase(sendInvoiceEmail.rejected, (state) => {
                 state.actionStatus = 'failed';
