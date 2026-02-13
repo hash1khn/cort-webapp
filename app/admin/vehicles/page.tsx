@@ -591,14 +591,6 @@ export default function VehiclesPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
-    // Sync with Redux
-    useEffect(() => {
-        setSearch(savedFilters.search);
-        setDebouncedSearch(savedFilters.search);
-        setCategory(savedFilters.category);
-        setOwnership(savedFilters.ownership);
-    }, [savedFilters]);
-
     // Debounce search
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -607,34 +599,44 @@ export default function VehiclesPage() {
         return () => clearTimeout(handler);
     }, [search]);
 
+    // Primary Data Fetching Effect
     useEffect(() => {
         const filtersChanged =
             debouncedSearch !== savedFilters.search ||
             category !== savedFilters.category ||
             ownership !== savedFilters.ownership;
 
-        if (status === 'idle' || filtersChanged) {
-            if (status === 'succeeded' && !filtersChanged) {
-                return;
+        const shouldFetch = status === 'idle' || filtersChanged;
+
+        if (shouldFetch) {
+            // If filters changed, reset to page 1
+            if (filtersChanged && pagination.page !== 1) {
+                handlePageChange(1);
+            } else {
+                // Otherwise fetch current page/filters
+                const params: QueryVehicleParams = {
+                    limit: 10,
+                    page: pagination.page,
+                    search: debouncedSearch || undefined,
+                };
+                if (category) (params as any).category = category;
+                if (ownership) (params as any).ownership = ownership;
+
+                dispatch(fetchAdminVehicles(params));
             }
-
-            const params: QueryVehicleParams = {
-                limit: 100,
-                search: debouncedSearch || undefined,
-            };
-            if (category) (params as any).category = category;
-            if (ownership) (params as any).ownership = ownership;
-
-            dispatch(fetchAdminVehicles(params));
         }
-    }, [dispatch, debouncedSearch, category, ownership, status, savedFilters]);
-
-    useEffect(() => {
-        dispatch(fetchAdminVehicles({ limit: 10, page: 1, search: debouncedSearch }));
-    }, [dispatch, debouncedSearch]);
+    }, [dispatch, debouncedSearch, category, ownership, status, pagination.page, savedFilters.search, savedFilters.category, savedFilters.ownership]);
 
     const handlePageChange = (page: number) => {
-        dispatch(fetchAdminVehicles({ limit: 10, page, search: debouncedSearch }));
+        const params: QueryVehicleParams = {
+            limit: 10,
+            page,
+            search: debouncedSearch || undefined,
+        };
+        if (category) (params as any).category = category;
+        if (ownership) (params as any).ownership = ownership;
+
+        dispatch(fetchAdminVehicles(params));
     };
 
     const handleCreateNew = () => {
@@ -649,7 +651,8 @@ export default function VehiclesPage() {
 
     const handleDelete = async (id: number) => {
         if (window.confirm("Are you sure you want to delete this vehicle?")) {
-            dispatch(deleteAdminVehicle(id));
+            await dispatch(deleteAdminVehicle(id)).unwrap();
+            handlePageChange(pagination.page);
         }
     };
 
@@ -675,7 +678,7 @@ export default function VehiclesPage() {
             }
             setIsModalOpen(false);
             setEditingVehicle(null);
-            dispatch(fetchAdminVehicles({ limit: 100 }));
+            handlePageChange(pagination.page);
         } catch (err: any) {
             console.error("Failed to save vehicle:", err);
             alert(err.message || "Failed to save vehicle");
@@ -859,6 +862,12 @@ export default function VehiclesPage() {
                         </tbody>
                     </table>
                 </div>
+
+                <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                />
             </div>
 
             <ModalContainer
