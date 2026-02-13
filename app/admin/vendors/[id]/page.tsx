@@ -13,9 +13,10 @@ import {
     selectVendorLogs,
     selectVendorStats,
     selectVendorLogsStatus,
-    selectVendorLogsPagination
+    selectVendorLogsPagination,
+    createVendorPayment
 } from '../../../lib/store/slices/vendorLogsSlice';
-import { ArrowLeft, Calendar, Filter, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Filter, CheckCircle, DollarSign, X } from 'lucide-react';
 
 export default function VendorDetailsPage() {
     const params = useParams();
@@ -40,7 +41,7 @@ export default function VendorDetailsPage() {
         payment_status: ''
     });
 
-    const [selectedLogIds, setSelectedLogIds] = useState<number[]>([]);
+
 
     useEffect(() => {
         if (vendorId) {
@@ -56,37 +57,41 @@ export default function VendorDetailsPage() {
 
     const handleFilterChange = (key: string, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
-        setSelectedLogIds([]); // Clear selection on filter change
     };
 
-    const handleSelectLog = (bookingId: number) => {
-        setSelectedLogIds(prev =>
-            prev.includes(bookingId)
-                ? prev.filter(id => id !== bookingId)
-                : [...prev, bookingId]
-        );
+    // Payment Modal State
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<{ id: number; cost: number; paid: number } | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentNotes, setPaymentNotes] = useState('');
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
+    const openPaymentModal = (bookingId: number, cost: number, paid: number = 0) => {
+        setSelectedBookingForPayment({ id: bookingId, cost, paid });
+        setPaymentAmount((cost - paid).toString()); // Default to remaining amount
+        setPaymentNotes('');
+        setIsPaymentModalOpen(true);
     };
 
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            // Select all UNPAID logs on current page
-            const unpaidIds = logs
-                .filter(log => log.vendor_payment_status !== 'PAID')
-                .map(log => log.booking_id);
-            setSelectedLogIds(unpaidIds);
-        } else {
-            setSelectedLogIds([]);
-        }
+    const closePaymentModal = () => {
+        setIsPaymentModalOpen(false);
+        setSelectedBookingForPayment(null);
+        setPaymentAmount('');
+        setPaymentNotes('');
     };
 
-    const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+    const handleSubmitPayment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedBookingForPayment || !paymentAmount) return;
 
-    const handleMarkAsPaid = async () => {
-        if (selectedLogIds.length === 0 || isMarkingPaid) return;
-
-        setIsMarkingPaid(true);
+        setIsSubmittingPayment(true);
         try {
-            await dispatch(markVendorLogsAsPaid(selectedLogIds));
+            await dispatch(createVendorPayment({
+                booking_id: selectedBookingForPayment.id,
+                amount: parseFloat(paymentAmount),
+                notes: paymentNotes,
+                payment_method: 'CASH' // Default or add selector
+            })).unwrap();
 
             // Refresh logs and stats
             dispatch(fetchVendorStats(vendorId));
@@ -96,11 +101,12 @@ export default function VendorDetailsPage() {
                 limit: logsPagination.limit,
                 ...filters
             }));
-            setSelectedLogIds([]);
+            closePaymentModal();
         } catch (error) {
-            console.error('Failed to mark logs as paid:', error);
+            console.error('Failed to create payment:', error);
+            // Show error notification if possible
         } finally {
-            setIsMarkingPaid(false);
+            setIsSubmittingPayment(false);
         }
     };
 
@@ -175,31 +181,14 @@ export default function VendorDetailsPage() {
                         >
                             <option value="">All Statuses</option>
                             <option value="PAID">Paid</option>
+                            <option value="PARTIALLY_PAID">Partially Paid</option>
                             <option value="UNPAID">Unpaid</option>
                         </select>
                     </div>
                 </div>
 
                 {/* Only visible when rows are selected */}
-                {selectedLogIds.length > 0 && (
-                    <button
-                        onClick={handleMarkAsPaid}
-                        disabled={isMarkingPaid}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-transparent animate-in fade-in slide-in-from-right-4"
-                    >
-                        {isMarkingPaid ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Processing...
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle className="w-4 h-4" />
-                                Mark {selectedLogIds.length > 0 ? selectedLogIds.length : ''} as Paid
-                            </>
-                        )}
-                    </button>
-                )}
+
             </div>
 
             {/* Logs Table */}
@@ -208,23 +197,13 @@ export default function VendorDetailsPage() {
                     <table className="min-w-full text-left text-sm">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 w-10">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-slate-300 text-primary focus:ring-primary/20"
-                                        onChange={handleSelectAll}
-                                        checked={logs.length > 0 && logs
-                                            .filter(l => l.vendor_payment_status !== 'PAID')
-                                            .every(l => selectedLogIds.includes(l.booking_id))
-                                        }
-                                    />
-                                </th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Date/Time</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Booking ID</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Passenger</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Vehicle</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Vendor Cost</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-center">Status</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -243,20 +222,10 @@ export default function VendorDetailsPage() {
                             ) : (
                                 logs.map((log) => {
                                     const isPaid = log.vendor_payment_status === 'PAID';
-                                    const isSelected = selectedLogIds.includes(log.booking_id);
 
                                     return (
-                                        <tr key={log.booking_id} className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}>
-                                            <td className="px-6 py-4">
-                                                {!isPaid && (
-                                                    <input
-                                                        type="checkbox"
-                                                        className="rounded border-slate-300 text-primary focus:ring-primary/20"
-                                                        checked={isSelected}
-                                                        onChange={() => handleSelectLog(log.booking_id)}
-                                                    />
-                                                )}
-                                            </td>
+                                        <tr key={log.booking_id} className="hover:bg-slate-50 transition-colors">
+
                                             <td className="px-6 py-4 text-slate-600">
                                                 {new Date(log.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                                             </td>
@@ -282,6 +251,20 @@ export default function VendorDetailsPage() {
                                                     {log.vendor_payment_status || 'UNPAID'}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 text-right">
+                                                {!isPaid && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openPaymentModal(log.booking_id, Number(log.vendor_cost), 0);
+                                                        }}
+                                                        className="text-blue-600 hover:text-blue-800 font-medium text-sm inline-flex items-center gap-1"
+                                                    >
+                                                        <DollarSign className="w-4 h-4" />
+                                                        Pay
+                                                    </button>
+                                                )}
+                                            </td>
                                         </tr>
                                     );
                                 })
@@ -299,6 +282,79 @@ export default function VendorDetailsPage() {
                     </div>
                 )}
             </div>
+
+            {/* Payment Modal */}
+            {isPaymentModalOpen && selectedBookingForPayment && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                            <h3 className="text-lg font-semibold text-slate-900">Record Payment</h3>
+                            <button onClick={closePaymentModal} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmitPayment} className="p-4 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Booking ID</label>
+                                <div className="text-slate-900 font-semibold">#{selectedBookingForPayment.id}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Total Cost</label>
+                                <div className="text-slate-900">PKR {selectedBookingForPayment.cost.toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Amount</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">PKR</span>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="1"
+                                        max={selectedBookingForPayment.cost} // Limit to total cost for now
+                                        step="0.01"
+                                        value={paymentAmount}
+                                        onChange={(e) => setPaymentAmount(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (Optional)</label>
+                                <textarea
+                                    value={paymentNotes}
+                                    onChange={(e) => setPaymentNotes(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none h-24"
+                                    placeholder="Enter payment details..."
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={closePaymentModal}
+                                    className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingPayment}
+                                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isSubmittingPayment ? (
+                                        <>
+                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        'Record Payment'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

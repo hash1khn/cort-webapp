@@ -142,6 +142,8 @@ export interface CreateVehicleRequest {
     vendor_id?: number;
     rent_per_day_city?: number;
     rent_per_day_outstation?: number;
+    overnight_rate?: number;
+    vendor_overtime_rate?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
@@ -174,6 +176,8 @@ export interface Vehicle {
     vendor_id?: number | null;
     rent_per_day_city?: number;
     rent_per_day_outstation?: number;
+    overnight_rate?: number;
+    vendor_overtime_rate?: number;
     companies?: {
         id: number;
         name: string;
@@ -656,6 +660,33 @@ export interface PaymentSummary {
     total_paid: string;
     amount_remaining: string;
     payment_status: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID';
+}
+
+export interface BulkPayVendorLogsDto {
+    ids: number[];
+}
+
+export interface CreateVendorPaymentRequest {
+    booking_id: number;
+    amount: number;
+    payment_method?: string;
+    notes?: string;
+}
+
+export interface VendorPaymentTransaction {
+    id: number;
+    booking_id: number;
+    amount: number;
+    payment_type: string;
+    payment_method?: string;
+    notes?: string;
+    payment_date: string;
+    created_at: string;
+    created_by?: string;
+    users?: {
+        full_name: string;
+        email: string;
+    };
 }
 
 export interface AddPaymentRequest {
@@ -1430,7 +1461,19 @@ class ApiClient {
         return this.request<{ message: string; updatedCount: number }>('/vendors/logs/bulk-pay', {
             method: 'POST',
             body: JSON.stringify({ ids })
+
         });
+    }
+
+    async createVendorPayment(data: CreateVendorPaymentRequest): Promise<VendorPaymentTransaction> {
+        return this.request<VendorPaymentTransaction>('/vendors/payments', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getVendorPaymentHistory(bookingId: number): Promise<VendorPaymentTransaction[]> {
+        return this.request<VendorPaymentTransaction[]>(`/vendors/payments/${bookingId}`);
     }
 
     /**

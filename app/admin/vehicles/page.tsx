@@ -56,6 +56,8 @@ const initialVehicleFormData: VehicleFormData = {
     rent_per_day_outstation: 0,
     is_available_for_pooling: false,
     vendor_id: undefined,
+    overnight_rate: 0,
+    vendor_overtime_rate: 0,
 };
 
 function VehicleFormInline({
@@ -84,6 +86,8 @@ function VehicleFormInline({
                 owner_company_id: vehicle.owner_company_id || undefined,
                 rent_per_day_city: vehicle.rent_per_day_city || 0,
                 rent_per_day_outstation: vehicle.rent_per_day_outstation || 0,
+                overnight_rate: vehicle.overnight_rate || 0,
+                vendor_overtime_rate: vehicle.vendor_overtime_rate || 0,
                 is_available_for_pooling: vehicle.is_available_for_pooling,
                 vendor_id: vehicle.vendor_id || vehicle.vendors?.id || undefined,
             }
@@ -249,6 +253,26 @@ function VehicleFormInline({
                                     onChange={(e) => handleChange("rent_per_day_outstation", parseFloat(e.target.value) || 0)}
                                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
                                     disabled={isSaving}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Overnight Rate (PKR)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    value={formData.overnight_rate}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, overnight_rate: parseFloat(e.target.value) || 0 }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-700">Vendor Overtime Rate (PKR/hr)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                    value={formData.vendor_overtime_rate}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, vendor_overtime_rate: parseFloat(e.target.value) || 0 }))}
                                 />
                             </div>
                         </div>
@@ -513,9 +537,33 @@ export default function VehiclesPage() {
                                         {vehicle.year}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <Badge color={vehicle.ownership === "OWNED" ? "blue" : "purple"}>
-                                            {vehicle.ownership}
-                                        </Badge>
+                                        <div className="flex flex-col items-start gap-1">
+                                            <Badge color={vehicle.ownership === "OWNED" ? "blue" : "purple"}>
+                                                {vehicle.ownership}
+                                            </Badge>
+                                            {vehicle.ownership === "PARTNER" && (
+                                                <div className="mt-1 flex flex-col gap-0.5 text-xs text-slate-500">
+                                                    {vehicle.vendors && (
+                                                        <div className="font-semibold text-slate-700">
+                                                            {vehicle.vendors.name}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex gap-2">
+                                                        <span title="City Rent">
+                                                            City: <span className="font-medium text-slate-700">{vehicle.rent_per_day_city?.toLocaleString() ?? 0}</span>
+                                                        </span>
+                                                        <span title="Outstation Rent">
+                                                            Out: <span className="font-medium text-slate-700">{vehicle.rent_per_day_outstation?.toLocaleString() ?? 0}</span>
+                                                        </span>
+                                                    </div>
+                                                    {vehicle.overnight_rate ? (
+                                                        <div title="Overnight Rate">
+                                                            Night: <span className="font-medium text-slate-700">{vehicle.overnight_rate?.toLocaleString()}</span>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">

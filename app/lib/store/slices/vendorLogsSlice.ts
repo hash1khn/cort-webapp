@@ -3,7 +3,8 @@ import {
     apiClient,
     QueryVendorLogsParams,
     VendorLog,
-    VendorStats
+    VendorStats,
+    CreateVendorPaymentRequest
 } from '../../services/api-client';
 import { RootState } from '../store';
 
@@ -75,6 +76,18 @@ export const markVendorLogsAsPaid = createAsyncThunk(
             return response;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to mark logs as paid');
+        }
+    }
+);
+
+export const createVendorPayment = createAsyncThunk(
+    'vendorLogs/createVendorPayment',
+    async (data: CreateVendorPaymentRequest, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.createVendorPayment(data);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to create vendor payment');
         }
     }
 );
