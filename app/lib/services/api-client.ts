@@ -144,6 +144,8 @@ export interface CreateVehicleRequest {
     rent_per_day_outstation?: number;
     overnight_rate?: number;
     vendor_overtime_rate?: number;
+    vendor_rent_5hr?: number;
+    vendor_rent_10hr?: number;
 }
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
@@ -178,6 +180,8 @@ export interface Vehicle {
     rent_per_day_outstation?: number;
     overnight_rate?: number;
     vendor_overtime_rate?: number;
+    vendor_rent_5hr?: number;
+    vendor_rent_10hr?: number;
     companies?: {
         id: number;
         name: string;
