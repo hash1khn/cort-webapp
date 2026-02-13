@@ -656,7 +656,20 @@ export default function VehiclesPage() {
     const handleSave = async (data: VehicleFormData) => {
         try {
             if (editingVehicle) {
-                await dispatch(updateAdminVehicle({ id: editingVehicle.id, data })).unwrap();
+                // If editing, sanitise data to exclude driver fields to avoid backend validation errors
+                // as driver updates should be handled separately or ignored during vehicle edit.
+                const {
+                    driver_full_name,
+                    driver_email,
+                    driver_phone,
+                    driver_password,
+                    driver_cnic_number,
+                    driver_license_number,
+                    driver_type,
+                    ...vehicleData
+                } = data;
+
+                await dispatch(updateAdminVehicle({ id: editingVehicle.id, data: vehicleData })).unwrap();
             } else {
                 await dispatch(createAdminVehicle(data)).unwrap();
             }
