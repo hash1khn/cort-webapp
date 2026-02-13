@@ -49,8 +49,25 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
   const [distance, setDistance] = useState("0");
   const [toll, setToll] = useState("0");
   const [parking, setParking] = useState("0");
+  const [useManualEndTime, setUseManualEndTime] = useState(false);
+  const [manualEndTime, setManualEndTime] = useState("");
 
   if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    const data: any = {
+      total_distance_km: parseFloat(distance),
+      expense_toll: parseFloat(toll),
+      expense_parking: parseFloat(parking)
+    };
+
+    // Add end_time if manual time is enabled and provided
+    if (useManualEndTime && manualEndTime) {
+      data.end_time = new Date(manualEndTime).toISOString();
+    }
+
+    onSubmit(data);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
@@ -84,14 +101,38 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
               onChange={(e) => setParking(e.target.value)}
             />
           </div>
+
+          {/* Manual End Time Option */}
+          <div className="border-t border-border pt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useManualEndTime}
+                onChange={(e) => setUseManualEndTime(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-xs font-semibold uppercase text-muted">Set Manual End Time</span>
+            </label>
+
+            {useManualEndTime && (
+              <div className="mt-2">
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-md border border-border p-2 text-sm"
+                  value={manualEndTime}
+                  onChange={(e) => setManualEndTime(e.target.value)}
+                />
+                <p className="mt-1 text-[10px] text-muted">
+                  Leave empty to use current time
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 justify-end mt-6">
             <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
             <button
-              onClick={() => onSubmit({
-                total_distance_km: parseFloat(distance),
-                expense_toll: parseFloat(toll),
-                expense_parking: parseFloat(parking)
-              })}
+              onClick={handleSubmit}
               className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
             >
               End Trip

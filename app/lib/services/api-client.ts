@@ -1730,7 +1730,7 @@ class ApiClient {
         });
     }
 
-    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number }): Promise<ChauffeurBookingResponse> {
+    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, end_time?: string }): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
             method: 'PATCH',
             body: JSON.stringify(data),
