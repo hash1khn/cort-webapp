@@ -14,7 +14,8 @@ import {
     Calendar,
     ShieldCheck,
     Star,
-    Activity
+    Activity,
+    FileText
 } from 'lucide-react';
 import { DashboardData } from '../types';
 
@@ -224,6 +225,30 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
     );
 };
 
+export const OutstandingAmountRow = ({ amount }: { amount: number }) => {
+    return (
+        <Card className="flex items-center justify-between border-l-4 border-l-orange-500 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+                <FileText size={100} className="text-orange-500" />
+            </div>
+            <div className="relative z-10 flex items-center gap-6">
+                <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
+                    <FileText className="w-8 h-8" />
+                </div>
+                <div>
+                    <div className="text-slate-500 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
+                    <div className="text-xs text-slate-400 flex items-center gap-1">Total unpaid & overdue invoices <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1"></span></div>
+                </div>
+            </div>
+            <div className="relative z-10 text-4xl font-black text-slate-800 tracking-tight">
+                <span className="text-2xl text-slate-400 font-normal mr-2">PKR</span>
+                {amount ? (amount / 1000).toLocaleString() + 'k' : '0'}
+            </div>
+        </Card>
+    )
+}
+
+
 export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] }) => {
     const budget = 1500000; // Mock budget for bullet graph
     const percentageUsed = Math.min((data.totalSpendMTD / budget) * 100, 100);
@@ -271,6 +296,8 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
                         <div className="text-4xl font-extrabold text-slate-900 tracking-tight">PKR {data.costPerEmployee.toLocaleString()}</div>
                         <div className="text-xs text-slate-400 mt-2">Average spend across {data.costPerEmployee > 5000 ? 'active' : 'all'} employees</div>
                     </div>
+
+
                     <div className="mt-4 bg-slate-50 rounded-xl p-4 border border-slate-100">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">

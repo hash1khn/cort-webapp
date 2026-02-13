@@ -17,7 +17,9 @@ import {
   SmartInsightsSection,
   AdoptionHealthSection,
   ServiceUsageSection,
-  PremiumTeaser
+
+  PremiumTeaser,
+  OutstandingAmountRow
 } from "./components/DashboardComponents";
 import DashboardSkeleton from "./components/DashboardSkeleton";
 
@@ -209,6 +211,11 @@ export default function CompanyDashboardPage() {
       {/* Value Delivered - Hero Row */}
       <div className="w-full">
         <ValueDeliveredSection data={data.valueDelivered} />
+      </div>
+
+      {/* Outstanding Amount Row */}
+      <div className="w-full">
+        <OutstandingAmountRow amount={dashboardStats?.chauffeur.outstandingAmount || 0} />
       </div>
 
       {/* 2. Main Analytics Grid */}
