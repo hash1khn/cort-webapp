@@ -146,7 +146,16 @@ export interface CreateVehicleRequest {
     vendor_overtime_rate?: number;
     vendor_rent_5hr?: number;
     vendor_rent_10hr?: number;
+    // Driver fields (required when ownership=PARTNER)
+    driver_full_name?: string;
+    driver_email?: string;
+    driver_phone?: string;
+    driver_password?: string;
+    driver_cnic_number?: string;
+    driver_license_number?: string;
+    driver_type?: DriverType;
 }
+
 
 export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
 
@@ -190,6 +199,17 @@ export interface Vehicle {
         id: number;
         name: string;
     };
+    drivers_profile?: Array<{
+        driver_type: DriverType;
+        cnic_number: string | null;
+        license_number: string | null;
+        users?: {
+            id: string;
+            email: string;
+            full_name: string;
+            phone: string | null;
+        };
+    }>;
 }
 
 // -- VENDORS --
