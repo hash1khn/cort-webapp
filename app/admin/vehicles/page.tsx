@@ -800,19 +800,38 @@ export default function VehiclesPage() {
                                                             {vehicle.vendors.name}
                                                         </div>
                                                     )}
-                                                    <div className="flex gap-2">
-                                                        <span title="City Rent">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <span title="City Rent" className="whitespace-nowrap">
                                                             City: <span className="font-medium text-slate-700">{vehicle.rent_per_day_city?.toLocaleString() ?? 0}</span>
                                                         </span>
-                                                        <span title="Outstation Rent">
+                                                        <span title="Outstation Rent" className="whitespace-nowrap">
                                                             Out: <span className="font-medium text-slate-700">{vehicle.rent_per_day_outstation?.toLocaleString() ?? 0}</span>
                                                         </span>
                                                     </div>
-                                                    {vehicle.overnight_rate ? (
-                                                        <div title="Overnight Rate">
-                                                            Night: <span className="font-medium text-slate-700">{vehicle.overnight_rate?.toLocaleString()}</span>
-                                                        </div>
-                                                    ) : null}
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {vehicle.overnight_rate ? (
+                                                            <span title="Overnight Rate" className="whitespace-nowrap">
+                                                                Night: <span className="font-medium text-slate-700">{vehicle.overnight_rate?.toLocaleString()}</span>
+                                                            </span>
+                                                        ) : null}
+                                                        {vehicle.vendor_overtime_rate ? (
+                                                            <span title="Overtime Rate" className="whitespace-nowrap">
+                                                                OT: <span className="font-medium text-slate-700">{vehicle.vendor_overtime_rate?.toLocaleString()}</span>
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {vehicle.vendor_rent_5hr ? (
+                                                            <span title="5h Fixed Rent" className="whitespace-nowrap">
+                                                                5h: <span className="font-medium text-slate-700">{vehicle.vendor_rent_5hr?.toLocaleString()}</span>
+                                                            </span>
+                                                        ) : null}
+                                                        {vehicle.vendor_rent_10hr ? (
+                                                            <span title="10h Fixed Rent" className="whitespace-nowrap">
+                                                                10h: <span className="font-medium text-slate-700">{vehicle.vendor_rent_10hr?.toLocaleString()}</span>
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
