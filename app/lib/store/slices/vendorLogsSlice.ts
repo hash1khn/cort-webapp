@@ -67,6 +67,18 @@ export const fetchVendorStats = createAsyncThunk(
     }
 );
 
+export const markVendorLogsAsPaid = createAsyncThunk(
+    'vendorLogs/markVendorLogsAsPaid',
+    async (ids: number[], { rejectWithValue }) => {
+        try {
+            const response = await apiClient.markVendorLogsAsPaid(ids);
+            return response;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to mark logs as paid');
+        }
+    }
+);
+
 const vendorLogsSlice = createSlice({
     name: 'vendorLogs',
     initialState,
@@ -105,6 +117,16 @@ const vendorLogsSlice = createSlice({
             // Fetch Stats
             .addCase(fetchVendorStats.fulfilled, (state, action) => {
                 state.stats = action.payload;
+            })
+
+            // Mark Vendor Logs as Paid
+            .addCase(markVendorLogsAsPaid.fulfilled, (state, action) => {
+                const ids = action.meta.arg;
+                state.logs = state.logs.map(log =>
+                    ids.includes(log.booking_id)
+                        ? { ...log, vendor_payment_status: 'PAID' }
+                        : log
+                );
             });
     },
 });

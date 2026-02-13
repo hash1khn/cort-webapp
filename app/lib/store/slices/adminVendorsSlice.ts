@@ -22,6 +22,7 @@ interface AdminVendorsState {
         page: number;
         limit: number;
     };
+
 }
 
 const initialState: AdminVendorsState = {
@@ -39,6 +40,7 @@ const initialState: AdminVendorsState = {
         page: 1,
         limit: 10,
     },
+
 };
 
 // Async Thunks
@@ -95,6 +97,8 @@ export const deleteAdminVendor = createAsyncThunk(
         }
     }
 );
+
+
 
 const adminVendorsSlice = createSlice({
     name: 'adminVendors',
@@ -155,7 +159,10 @@ const adminVendorsSlice = createSlice({
             // Delete
             .addCase(deleteAdminVendor.fulfilled, (state, action) => {
                 state.vendors = state.vendors.filter(v => v.id !== action.payload);
-            });
+            })
+
+        // Vendor Logs
+
     },
 });
 
@@ -167,5 +174,6 @@ export const selectAdminVendorsActionStatus = (state: RootState) => state.adminV
 export const selectAdminVendorsError = (state: RootState) => state.adminVendors.error;
 export const selectVendorFilters = (state: RootState) => state.adminVendors.filters;
 export const selectAdminVendorsPagination = (state: RootState) => state.adminVendors.pagination;
+
 
 export default adminVendorsSlice.reducer;

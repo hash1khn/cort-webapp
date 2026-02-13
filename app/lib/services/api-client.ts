@@ -324,6 +324,7 @@ export interface VendorLog {
         };
         users_chauffeur_bookings_passenger_idTousers?: {
             full_name: string;
+            phone?: string;
         }
     }
 }
@@ -1423,6 +1424,13 @@ class ApiClient {
         const queryParams = new URLSearchParams();
         if (vendor_id) queryParams.append('vendor_id', vendor_id.toString());
         return this.request<VendorStatsResponse>(`/vendors/stats/summary?${queryParams.toString()}`);
+    }
+
+    async markVendorLogsAsPaid(ids: number[]) {
+        return this.request<{ message: string; updatedCount: number }>('/vendors/logs/bulk-pay', {
+            method: 'POST',
+            body: JSON.stringify({ ids })
+        });
     }
 
     /**

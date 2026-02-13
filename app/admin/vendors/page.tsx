@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
     fetchAdminVendors,
@@ -28,6 +29,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function VendorsPage() {
+    const router = useRouter();
     const dispatch = useAppDispatch();
     const vendors = useAppSelector(selectAdminVendors);
     const status = useAppSelector(selectAdminVendorsStatus);
@@ -234,6 +236,12 @@ export default function VendorsPage() {
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => router.push(`/admin/vendors/${v.id}`)}
+                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-blue hover:bg-surface"
+                                                    >
+                                                        View
+                                                    </button>
                                                     <button
                                                         onClick={() => startEdit(v)}
                                                         className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
