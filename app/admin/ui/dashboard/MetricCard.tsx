@@ -55,7 +55,7 @@ export function MetricCard({ label, metric, type = "number", prefix = "", suffix
                         <TrendIcon className="h-3 w-3" />
                         <span>{Math.abs(percentageChange).toFixed(1)}%</span>
                     </div>
-                    <span className="text-xs text-muted">vs last period</span>
+                    <span className="text-xs text-muted">vs {prefix}{formatValue(metric.previous)}{suffix} last period</span>
                 </div>
             )}
         </div>
