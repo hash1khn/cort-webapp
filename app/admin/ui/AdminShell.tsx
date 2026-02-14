@@ -19,6 +19,7 @@ const nav = [
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/expenses", label: "Expenses" },
   { href: "/admin/invoicing", label: "Invoicing" },
 ];
 

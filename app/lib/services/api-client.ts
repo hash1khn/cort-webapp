@@ -993,7 +993,7 @@ class ApiClient {
     /**
      * Make HTTP request with automatic token attachment and refreshing
      */
-    private async request<T>(
+    public async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
@@ -2091,3 +2091,84 @@ export interface Invoice {
         name: string;
     }
 }
+
+// -- EXPENSES --
+
+export enum ExpenseCategory {
+    MARKETING = 'MARKETING',
+    INTEREST = 'INTEREST',
+    RENT = 'RENT',
+    LOGISTICS = 'LOGISTICS',
+    OFFICE_ACCESSORIES = 'OFFICE_ACCESSORIES',
+    TRAVELLING = 'TRAVELLING',
+    BANK_CHARGES = 'BANK_CHARGES',
+    ENTERTAINMENT = 'ENTERTAINMENT',
+    MISC = 'MISC',
+}
+
+export interface Expense {
+    id: number;
+    category: ExpenseCategory;
+    amount: number;
+    date: string;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateExpenseRequest {
+    category: ExpenseCategory;
+    amount: number;
+    date: string;
+    description?: string;
+}
+
+export interface ExpenseFilterParams {
+    startDate?: string;
+    endDate?: string;
+    category?: ExpenseCategory;
+    page?: number;
+    limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+    data: {
+        data: T[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            pages: number;
+            hasNext: boolean;
+            hasPrev: boolean;
+        };
+    };
+    status: number;
+    message: string;
+}
+
+export const ExpensesApi = {
+    getAll: async (params?: ExpenseFilterParams) => {
+        const query = new URLSearchParams();
+        if (params?.startDate) query.append('startDate', params.startDate);
+        if (params?.endDate) query.append('endDate', params.endDate);
+        if (params?.category) query.append('category', params.category);
+        if (params?.page) query.append('page', String(params.page));
+        if (params?.limit) query.append('limit', String(params.limit));
+
+        return apiClient.request<PaginatedResponse<Expense>>(`/expenses?${query.toString()}`);
+    },
+
+    create: async (data: CreateExpenseRequest) => {
+        return apiClient.request<Expense>('/expenses', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    delete: async (id: number) => {
+        return apiClient.request<void>(`/expenses/${id}`, {
+            method: 'DELETE',
+        });
+    },
+};
