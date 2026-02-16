@@ -300,13 +300,65 @@ export default function ChauffeurReportsPage() {
               </div>
             </div>
 
+            {/* Trip Breakdown (Daily Logs) */}
+            {selectedReport.daily_logs && selectedReport.daily_logs.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Trip Breakdown
+                </h4>
+                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="bg-slate-50 font-bold text-slate-400 uppercase tracking-tight">
+                      <tr>
+                        <th className="px-4 py-2.5 border-b border-slate-100">Date</th>
+                        <th className="px-4 py-2.5 border-b border-slate-100">Type</th>
+                        <th className="px-4 py-2.5 border-b border-slate-100 text-right">Hours</th>
+                        <th className="px-4 py-2.5 border-b border-slate-100 text-right">Full Day</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {[...selectedReport.daily_logs].sort((a, b) => new Date(a.log_date).getTime() - new Date(b.log_date).getTime()).map((log, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-4 py-2.5 font-medium text-slate-700">
+                            {new Date(log.log_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              weekday: 'short'
+                            })}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {log.trip_type === 'OUT_STATION' ? (
+                              <span className="text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded text-[10px]">OUTSTATION</span>
+                            ) : (
+                              <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded text-[10px]">IN CITY</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono text-slate-600">
+                            {log.hours_used ? parseFloat(log.hours_used.toString()).toFixed(1) : (log.is_full_day ? "24.0" : "0.0")}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {log.is_full_day ? (
+                              <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded uppercase">Yes</span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px] font-bold bg-slate-50 px-2 py-0.5 rounded uppercase">No</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Cost Breakdown */}
             <div>
               <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                 Cost Breakdown
               </h4>
-              <div className="bg-white border boundary-slate-200 rounded-lg overflow-hidden">
+              <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-slate-50">
                     <tr className="hover:bg-slate-50/50">

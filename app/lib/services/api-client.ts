@@ -2096,6 +2096,7 @@ export interface ChauffeurReport {
         outstation_allowance: number;
         overtime: number;
     };
+    daily_logs?: ChauffeurTripDailyLog[];
 }
 
 export interface ReportQueryParams {
