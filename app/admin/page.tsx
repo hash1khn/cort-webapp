@@ -16,6 +16,9 @@ export default function AdminDashboardPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  // Track which button triggered the load
+  const [loadingAction, setLoadingAction] = useState<'filter' | 'refresh' | null>(null);
+
   useEffect(() => {
     // Initial fetch if no stats
     if (!stats && !loading && !error) {
@@ -31,8 +34,15 @@ export default function AdminDashboardPage() {
     }
   }, [dateRange]);
 
+  // Reset loading action when loading finishes
+  useEffect(() => {
+    if (!loading) {
+      setLoadingAction(null);
+    }
+  }, [loading]);
 
-  const handleRefresh = () => {
+  const handleRefreshData = (action: 'filter' | 'refresh') => {
+    setLoadingAction(action);
     const params = (startDate && endDate) ? { startDate, endDate } : undefined;
     dispatch(setDateRange({ startDate: startDate || '', endDate: endDate || '' }));
     dispatch(fetchDashboardStats(params));
@@ -47,7 +57,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="p-6 text-center">
         <div className="text-red-600 mb-4">Error loading dashboard: {error}</div>
-        <button onClick={handleRefresh} className="px-4 py-2 bg-navy text-white rounded-md">Retry</button>
+        <button onClick={() => handleRefreshData('refresh')} className="px-4 py-2 bg-navy text-white rounded-md">Retry</button>
       </div>
     );
   }
@@ -85,10 +95,37 @@ export default function AdminDashboardPage() {
             className="h-10 rounded-md border border-border px-3 text-sm"
           />
           <button
-            onClick={handleRefresh}
-            className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95"
+            onClick={() => handleRefreshData('filter')}
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Apply Filter
+            {loading && loadingAction === 'filter' ? (
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : null}
+            <span>{loading && loadingAction === 'filter' ? 'Loading...' : 'Apply Filter'}</span>
+          </button>
+          <button
+            onClick={() => handleRefreshData('refresh')}
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-semibold text-navy hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh Data"
+          >
+            {loading && loadingAction === 'refresh' ? (
+              <svg className="animate-spin h-4 w-4 text-navy" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 21h5v-5" />
+              </svg>
+            )}
           </button>
         </div>
       </div>
