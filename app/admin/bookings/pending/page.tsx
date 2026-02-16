@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { DriverType, ChauffeurBooking, PaymentTransaction, PaymentSummary } from "../../../lib/services/api-client";
+import { DriverType, ChauffeurBooking, PaymentTransaction, PaymentSummary, TripType } from "../../../lib/services/api-client";
 import Map, { type MapMarker } from "../../ui/Map";
 import Modal from "../../../company/bookings/components/Modal";
 import Pagination from "../../../components/ui/Pagination";
@@ -45,14 +45,67 @@ function formatDateTime(iso: string) {
   });
 }
 
-function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void }) {
+function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void; booking: ChauffeurBooking | null }) {
   const [distance, setDistance] = useState("0");
   const [toll, setToll] = useState("0");
   const [parking, setParking] = useState("0");
   const [useManualEndTime, setUseManualEndTime] = useState(false);
   const [manualEndTime, setManualEndTime] = useState("");
+  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+  const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && booking) {
+      const startDate = booking.chauffeur_trip_logs?.start_time
+        ? new Date(booking.chauffeur_trip_logs.start_time)
+        : new Date(booking.scheduled_for);
+
+      const endDate = (useManualEndTime && manualEndTime)
+        ? new Date(manualEndTime)
+        : new Date();
+
+      const days: any[] = [];
+      let currentDate = new Date(startDate);
+      // Reset time to start of day for iteration comparison
+      // But keep start/end range logic if needed. 
+      // Simplified: Just list every calendar day involved.
+      const loopEnd = new Date(endDate);
+
+      // Align to start of day
+      currentDate.setHours(0, 0, 0, 0);
+      loopEnd.setHours(0, 0, 0, 0); // Inclusive of last day
+
+      while (currentDate <= loopEnd) {
+        // Find existing log if already set in state (preserve user edits when end time changes)
+        // Note: For simplicity here, just generating fresh or preserving based on index/date key?
+        // Better to use a key based on date string.
+        const dateStr = currentDate.toISOString().split('T')[0];
+
+        // Default values
+        const isOutstation = booking.trip_type === TripType.OUT_STATION;
+        const defaultHours = booking.package_selected === 'HOURS_24' ? 0 : (booking.package_selected === 'HOURS_5' ? 5 : 10);
+
+        days.push({
+          id: dateStr,
+          date: new Date(currentDate),
+          trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
+          is_full_day: booking.package_selected === 'HOURS_24',
+          hours_used: defaultHours > 0 ? defaultHours.toString() : ''
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      setDailyLogs(days);
+    }
+  }, [isOpen, booking, manualEndTime, useManualEndTime]);
 
   if (!isOpen) return null;
+
+  const updateLog = (index: number, field: string, value: any) => {
+    const newLogs = [...dailyLogs];
+    newLogs[index] = { ...newLogs[index], [field]: value };
+    setDailyLogs(newLogs);
+  };
 
   const handleSubmit = () => {
     const data: any = {
@@ -61,9 +114,18 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
       expense_parking: parseFloat(parking)
     };
 
-    // Add end_time if manual time is enabled and provided
     if (useManualEndTime && manualEndTime) {
       data.end_time = new Date(manualEndTime).toISOString();
+    }
+
+    // Include Daily Logs
+    if (dailyLogs.length > 0) {
+      data.daily_logs = dailyLogs.map(log => ({
+        date: log.date.toISOString(),
+        trip_type: log.trip_type,
+        is_full_day: log.is_full_day,
+        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+      }));
     }
 
     onSubmit(data);
@@ -71,73 +133,161 @@ function EndTripModal({ isOpen, onClose, onSubmit }: { isOpen: boolean; onClose:
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-navy mb-4">End Trip & Enter Details</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold uppercase text-muted">Total Distance (KM)</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase text-muted">Toll Expenses</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
-              value={toll}
-              onChange={(e) => setToll(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase text-muted">Parking Expenses</label>
-            <input
-              type="number"
-              className="mt-1 w-full rounded-md border border-border p-2 text-sm"
-              value={parking}
-              onChange={(e) => setParking(e.target.value)}
-            />
-          </div>
 
-          {/* Manual End Time Option */}
-          <div className="border-t border-border pt-4">
-            <label className="flex items-center gap-2 cursor-pointer">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted">Total Distance (KM)</label>
               <input
-                type="checkbox"
-                checked={useManualEndTime}
-                onChange={(e) => setUseManualEndTime(e.target.checked)}
-                className="rounded border-border"
+                type="number"
+                className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+                value={distance}
+                onChange={(e) => setDistance(e.target.value)}
               />
-              <span className="text-xs font-semibold uppercase text-muted">Set Manual End Time</span>
-            </label>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted">Toll Expenses</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+                value={toll}
+                onChange={(e) => setToll(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted">Parking Expenses</label>
+              <input
+                type="number"
+                className="mt-1 w-full rounded-md border border-border p-2 text-sm"
+                value={parking}
+                onChange={(e) => setParking(e.target.value)}
+              />
+            </div>
+          </div>
 
-            {useManualEndTime && (
-              <div className="mt-2">
+          <div className="space-y-4">
+            {/* Manual End Time Option */}
+            <div className="border border-border rounded-md p-3">
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
                 <input
-                  type="datetime-local"
-                  className="w-full rounded-md border border-border p-2 text-sm"
-                  value={manualEndTime}
-                  onChange={(e) => setManualEndTime(e.target.value)}
+                  type="checkbox"
+                  checked={useManualEndTime}
+                  onChange={(e) => setUseManualEndTime(e.target.checked)}
+                  className="rounded border-border"
                 />
-                <p className="mt-1 text-[10px] text-muted">
-                  Leave empty to use current time
-                </p>
-              </div>
-            )}
-          </div>
+                <span className="text-xs font-semibold uppercase text-muted">Set Manual End Time</span>
+              </label>
 
-          <div className="flex gap-3 justify-end mt-6">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
-            <button
-              onClick={handleSubmit}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
-            >
-              End Trip
-            </button>
+              {useManualEndTime && (
+                <div>
+                  <input
+                    type="datetime-local"
+                    className="w-full rounded-md border border-border p-2 text-sm"
+                    value={manualEndTime}
+                    onChange={(e) => setManualEndTime(e.target.value)}
+                  />
+                  <p className="mt-1 text-[10px] text-muted">
+                    Leave empty to use current time
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+
+        {/* Daily Breakdown Section */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setShowDailyBreakdown(!showDailyBreakdown)}
+            className="flex items-center gap-2 text-xs font-semibold text-blue hover:text-blue/80 mb-2 transition-colors"
+          >
+            <span>{showDailyBreakdown ? "Hide" : "Show"} Daily Breakdown</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`transition-transform ${showDailyBreakdown ? "rotate-180" : ""}`}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          {showDailyBreakdown && (
+            <div className="border border-border rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-surface/50 px-3 py-2 border-b border-border">
+                <h4 className="text-sm font-semibold text-navy">Daily Breakdown</h4>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-surface text-xs font-semibold text-muted text-left">
+                  <tr>
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Type</th>
+                    <th className="px-3 py-2 w-24">Hours</th>
+                    <th className="px-3 py-2 text-center w-20">Full Day</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {dailyLogs.map((log, idx) => (
+                    <tr key={idx}>
+                      <td className="px-3 py-2 font-medium">
+                        {log.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          className="w-full rounded border border-border p-1 text-xs"
+                          value={log.trip_type}
+                          onChange={(e) => updateLog(idx, 'trip_type', e.target.value)}
+                        >
+                          <option value={TripType.IN_CITY}>In City</option>
+                          <option value={TripType.OUT_STATION}>Outstation</option>
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          className="w-full rounded border border-border p-1 text-xs"
+                          placeholder="Hrs"
+                          value={log.hours_used}
+                          onChange={(e) => updateLog(idx, 'hours_used', e.target.value)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={log.is_full_day}
+                          onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
+                          className="rounded border-border"
+                          disabled={booking?.package_selected !== 'HOURS_24'}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {dailyLogs.length === 0 && (
+                <div className="p-4 text-center text-xs text-muted">Calculating days...</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
+          >
+            End Trip
+          </button>
         </div>
       </div>
     </div>
@@ -613,6 +763,7 @@ export default function BookingsPage() {
         isOpen={showEndTripModal}
         onClose={() => setShowEndTripModal(false)}
         onSubmit={handleEndTrip}
+        booking={selectedBooking}
       />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -892,6 +1043,51 @@ export default function BookingsPage() {
                           <div className="text-xs font-mono text-muted">{selectedBooking.vehicles.plate_number}</div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Daily Breakdown (Transparency) */}
+                {selectedBooking.chauffeur_trip_daily_logs && selectedBooking.chauffeur_trip_daily_logs.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 border-b border-border pb-1">Trip Breakdown</h4>
+                    <div className="border border-border rounded-lg overflow-hidden bg-white shadow-sm">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-surface font-bold text-muted uppercase tracking-tight">
+                          <tr>
+                            <th className="px-3 py-2 border-b border-border">Date</th>
+                            <th className="px-3 py-2 border-b border-border">Type</th>
+                            <th className="px-3 py-2 border-b border-border text-center">Hours</th>
+                            <th className="px-3 py-2 border-b border-border text-center">Full Day</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {[...selectedBooking.chauffeur_trip_daily_logs].sort((a, b) => new Date(a.log_date).getTime() - new Date(b.log_date).getTime()).map((log) => (
+                            <tr key={log.id} className="hover:bg-surface/50 transition-colors">
+                              <td className="px-3 py-2 font-medium text-ink">
+                                {new Date(log.log_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              </td>
+                              <td className="px-3 py-2 text-muted">
+                                {log.trip_type === 'OUT_STATION' ? (
+                                  <span className="text-orange font-semibold">Outstation</span>
+                                ) : (
+                                  <span className="text-blue/80">In City</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center font-mono text-ink">
+                                {log.hours_used ? parseFloat(log.hours_used.toString()).toFixed(1) : (log.is_full_day ? "24.0" : "0.0")}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                {log.is_full_day ? (
+                                  <span className="text-green-600 text-[10px] font-bold">YES</span>
+                                ) : (
+                                  <span className="text-muted text-[10px]">NO</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}

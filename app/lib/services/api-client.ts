@@ -647,6 +647,34 @@ export interface ChauffeurBooking {
         plate_number: string;
     };
     invoices?: Invoice | null;
+    chauffeur_trip_logs?: ChauffeurTripLog | null;
+    chauffeur_trip_daily_logs?: ChauffeurTripDailyLog[] | null;
+}
+
+export interface ChauffeurTripLog {
+    id: number;
+    start_time: string;
+    end_time: string | null;
+    start_odometer: number;
+    end_odometer: number | null;
+    total_distance_km: number | null;
+    total_duration_minutes: number | null;
+}
+
+export interface DailyTripLog {
+    date: string;
+    trip_type: TripType;
+    is_full_day: boolean;
+    hours_used?: number;
+}
+
+export interface ChauffeurTripDailyLog {
+    id: number;
+    booking_id: number;
+    log_date: string;
+    trip_type: TripType;
+    hours_used: number | null;
+    is_full_day: boolean;
 }
 
 export interface QueryChauffeurBookingParams {
@@ -1750,7 +1778,7 @@ class ApiClient {
         });
     }
 
-    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, end_time?: string }): Promise<ChauffeurBookingResponse> {
+    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
             method: 'PATCH',
             body: JSON.stringify(data),
