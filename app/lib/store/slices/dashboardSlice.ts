@@ -19,6 +19,12 @@ export type DashboardStats = {
         unassignedBookings: number;
         outstandingAmount: number;
         topPassengers: { name: string; trips: number }[];
+        outstandingInvoices: {
+            invoice_number: string;
+            total_amount: number;
+            status: string;
+            due_date: string;
+        }[];
     };
     shuttle: {
         totalRoutes: number;

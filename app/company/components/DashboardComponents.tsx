@@ -225,24 +225,62 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
     );
 };
 
-export const OutstandingAmountRow = ({ amount }: { amount: number }) => {
+export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
     return (
-        <Card className="flex items-center justify-between border-l-4 border-l-orange-500 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
+        <Card className="group flex items-center justify-between border-l-4 border-l-orange-500 shadow-sm relative overflow-visible">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                 <FileText size={100} className="text-orange-500" />
             </div>
+
             <div className="relative z-10 flex items-center gap-6">
                 <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
                     <FileText className="w-8 h-8" />
                 </div>
                 <div>
                     <div className="text-slate-500 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-1">Total unpaid & overdue invoices <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1"></span></div>
+                    <div className="group/info text-xs text-slate-400 flex items-center gap-1 relative cursor-default">
+                        Total unpaid & overdue invoices
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1 animate-pulse"></span>
+
+                        {/* Hover Tooltip/List */}
+                        {invoices.length > 0 && (
+                            <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0">
+                                <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 text-slate-600 font-bold text-[10px] uppercase">
+                                    Recent Outstanding Invoices
+                                </div>
+                                <div className="divide-y divide-slate-50 max-h-48 overflow-y-auto">
+                                    {invoices.map((inv, idx) => (
+                                        <div key={idx} className="px-4 py-2 hover:bg-slate-50 transition-colors">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-mono text-[10px] text-slate-700 font-bold">{inv.invoice_number}</span>
+                                                <span className="text-rose-600 font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center mt-0.5">
+                                                <span className="text-[10px] text-slate-400">
+                                                    {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                </span>
+                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-rose-50 text-rose-600' : 'bg-orange-50 text-orange-600'
+                                                    }`}>
+                                                    {inv.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {invoices.length >= 10 && (
+                                    <div className="bg-slate-50 px-4 py-1.5 text-[9px] text-slate-400 text-center border-t border-slate-100">
+                                        Showing top 10 invoices
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+
             <div className="relative z-10 text-4xl font-black text-slate-800 tracking-tight">
                 <span className="text-2xl text-slate-400 font-normal mr-2">PKR</span>
-                {amount ? (amount / 1000).toLocaleString() + 'k' : '0'}
+                {amount.toLocaleString()}
             </div>
         </Card>
     )
