@@ -16,6 +16,7 @@ const nav = [
   { href: "/admin/vendors/logs", label: "↳ Trip Logs" },
   { href: "/admin/drivers", label: "Drivers" },
   { href: "/admin/bookings/pending", label: "Bookings" },
+  { href: "/admin/routes", label: "Routes" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur" },
   { href: "/admin/reports", label: "Reports" },

@@ -1,39 +1,23 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useMap } from "react-leaflet";
-import L from "leaflet";
-import dynamic from "next/dynamic";
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-// Dynamically import to avoid SSR issues
-const MapContainer = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), {
-  ssr: false,
+// Fix for default marker icons in Next.js/Leaflet
+const DefaultIcon = L.icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
 });
-const TileLayer = dynamic(() => import("react-leaflet").then((mod) => mod.TileLayer), {
-  ssr: false,
-});
-const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), {
-  ssr: false,
-});
-const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
-  ssr: false,
-});
-const Polyline = dynamic(() => import("react-leaflet").then((mod) => mod.Polyline), {
-  ssr: false,
-});
-
-// Fix for default marker icons in Next.js
-if (typeof window !== "undefined") {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-}
 
 // Create custom marker icons
-function createCustomIcon(color: string, icon: string = "📍") {
+function createCustomIcon(color: string, icon: string = '📍') {
   const size = 32;
   const svgIcon = `
     <svg width="${size}" height="${size}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -43,7 +27,7 @@ function createCustomIcon(color: string, icon: string = "📍") {
   `;
   return L.divIcon({
     html: svgIcon,
-    className: "custom-marker",
+    className: 'custom-marker',
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
     popupAnchor: [0, -size],
@@ -63,17 +47,22 @@ export type MapPolyline = {
 };
 
 type MapProps = {
-  center?: [number, number]; // [lat, lng] - default: Karachi
-  zoom?: number; // default: 13
+  center?: [number, number];
+  zoom?: number;
   markers?: MapMarker[];
   polylines?: MapPolyline[];
-  height?: string; // CSS height, default: "400px"
+  height?: string;
   onMapClick?: (lat: number, lng: number) => void;
+  onMarkerClick?: (id: string) => void;
   className?: string;
 };
 
 // Component to handle map click events
-function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
+function MapClickHandler({
+  onMapClick,
+}: {
+  onMapClick?: (lat: number, lng: number) => void;
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -83,9 +72,9 @@ function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: numbe
       onMapClick(e.latlng.lat, e.latlng.lng);
     };
 
-    map.on("click", handleClick);
+    map.on('click', handleClick);
     return () => {
-      map.off("click", handleClick);
+      map.off('click', handleClick);
     };
   }, [map, onMapClick]);
 
@@ -97,7 +86,6 @@ function MapResizeHandler() {
   const map = useMap();
 
   useEffect(() => {
-    // Invalidate size on mount to fix rendering issues
     setTimeout(() => {
       map.invalidateSize();
     }, 100);
@@ -118,65 +106,76 @@ function MapReCenter({ center }: { center: [number, number] }) {
 }
 
 export default function Map({
-  center = [24.8607, 67.0011], // Karachi default
+  center = [24.8607, 67.0011],
   zoom = 13,
   markers = [],
   polylines = [],
-  height = "400px",
+  height = '400px',
   onMapClick,
-  className = "",
+  onMarkerClick,
+  className = '',
 }: MapProps) {
-  // Inject custom styles for map
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    const styleId = "leaflet-custom-styles";
-    if (document.getElementById(styleId)) return;
+    setMounted(true);
 
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-      .custom-marker {
-        background: transparent !important;
-        border: none !important;
-      }
-      .custom-popup .leaflet-popup-content-wrapper {
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      }
-      .leaflet-container {
-        font-family: inherit;
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => {
-      const existingStyle = document.getElementById(styleId);
-      if (existingStyle) existingStyle.remove();
-    };
+    // Inject custom styles
+    const styleId = 'leaflet-custom-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .custom-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+          border-radius: 8px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .leaflet-container {
+          font-family: inherit;
+          z-index: 1;
+        }
+      `;
+      document.head.appendChild(style);
+    }
   }, []);
 
-  // Create custom icons for different marker types
   const getMarkerIcon = (marker: MapMarker) => {
-    if (marker.id === "pickup") {
-      return createCustomIcon("#22c55e", "📍"); // Green for pickup
-    } else if (marker.id === "dropoff") {
-      return createCustomIcon("#ef4444", "📍"); // Red for dropoff
-    } else if (marker.id === "driver") {
-      return createCustomIcon("#f47f00", "🚗"); // Orange for driver
+    if (marker.id === 'pickup') {
+      return createCustomIcon('#22c55e', '📍');
+    } else if (marker.id === 'dropoff') {
+      return createCustomIcon('#ef4444', '📍');
+    } else if (marker.id === 'driver') {
+      return createCustomIcon('#f47f00', '🚗');
     } else if (marker.color) {
-      return createCustomIcon(marker.color, "📍");
+      return createCustomIcon(marker.color, '📍');
     }
-    return undefined; // Use default
+    // Return explicit DefaultIcon instead of undefined
+    return DefaultIcon;
   };
 
+  if (!mounted) {
+    return (
+      <div className={`rounded-lg overflow-hidden border border-border shadow-lg bg-gray-100 flex items-center justify-center ${className}`} style={{ height }}>
+        <p className="text-gray-500">Loading Map...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className={`rounded-lg overflow-hidden border border-border shadow-lg ${className}`} style={{ height }}>
+    <div
+      className={`rounded-lg overflow-hidden border border-border shadow-lg ${className}`}
+      style={{ height }}
+    >
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ height: "100%", width: "100%" }}
+        style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
       >
-        {/* Use CartoDB Positron for a cleaner, more modern look */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
@@ -186,32 +185,49 @@ export default function Map({
         <MapResizeHandler />
         <MapReCenter center={center} />
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
-        {markers.map((marker) => {
-          const icon = getMarkerIcon(marker);
+        {markers.map((marker) => (
+          <Marker
+            key={marker.id}
+            position={marker.position}
+            icon={getMarkerIcon(marker)}
+            eventHandlers={{
+              click: () => onMarkerClick?.(marker.id),
+            }}
+          >
+            {marker.label && (
+              <Popup className="custom-popup">{marker.label}</Popup>
+            )}
+          </Marker>
+        ))}
+        {polylines.map((polyline, idx) => {
+          const validPositions = polyline.positions.filter(
+            (pos) =>
+              pos &&
+              pos.length === 2 &&
+              pos[0] !== undefined &&
+              pos[0] !== null &&
+              !isNaN(pos[0]) &&
+              pos[1] !== undefined &&
+              pos[1] !== null &&
+              !isNaN(pos[1])
+          );
+
+          if (validPositions.length < 2) return null;
+
           return (
-            <Marker
-              key={marker.id}
-              position={marker.position}
-              icon={icon}
-            >
-              {marker.label && <Popup className="custom-popup">{marker.label}</Popup>}
-            </Marker>
+            <Polyline
+              key={idx}
+              positions={validPositions}
+              pathOptions={{
+                color: polyline.color || '#f47f00',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10, 5',
+              }}
+            />
           );
         })}
-        {polylines.map((polyline, idx) => (
-          <Polyline
-            key={idx}
-            positions={polyline.positions}
-            pathOptions={{
-              color: polyline.color || "#f47f00", // Cort orange
-              weight: 5,
-              opacity: 0.8,
-              dashArray: "10, 5",
-            }}
-          />
-        ))}
       </MapContainer>
     </div>
   );
 }
-
