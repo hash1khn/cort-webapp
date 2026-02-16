@@ -1785,6 +1785,13 @@ class ApiClient {
         });
     }
 
+    async updateDailyLogs(id: number, data: { daily_logs: DailyTripLog[] }): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/admin/bookings/${id}/daily-logs`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
     async completeTrip(id: number): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/complete`, {
             method: 'PATCH',

@@ -147,6 +147,18 @@ export const completeTrip = createAsyncThunk(
     }
 );
 
+export const updateDailyLogs = createAsyncThunk(
+    'adminBookings/updateDailyLogs',
+    async ({ id, data }: { id: number, data: any }, { rejectWithValue }) => {
+        try {
+            await apiClient.updateDailyLogs(id, data);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to update daily logs');
+        }
+    }
+);
+
 export const generateTripInvoice = createAsyncThunk(
     'adminBookings/generateTripInvoice',
     async (id: number, { rejectWithValue }) => {
@@ -254,6 +266,10 @@ const adminBookingsSlice = createSlice({
             .addCase(completeTrip.pending, (state) => { state.actionStatus = 'loading'; })
             .addCase(completeTrip.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
             .addCase(completeTrip.rejected, (state) => { state.actionStatus = 'failed'; })
+
+            .addCase(updateDailyLogs.pending, (state) => { state.actionStatus = 'loading'; })
+            .addCase(updateDailyLogs.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
+            .addCase(updateDailyLogs.rejected, (state) => { state.actionStatus = 'failed'; })
 
             .addCase(generateTripInvoice.pending, (state) => { state.actionStatus = 'loading'; })
             .addCase(generateTripInvoice.fulfilled, (state) => { state.actionStatus = 'succeeded'; })

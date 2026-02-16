@@ -423,6 +423,51 @@ export default function BookingsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Trip Breakdown Table */}
+                {selectedBooking.chauffeur_trip_daily_logs && selectedBooking.chauffeur_trip_daily_logs.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Trip Breakdown
+                    </h4>
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                          <tr>
+                            <th className="px-4 py-3">Date</th>
+                            <th className="px-4 py-3">Type</th>
+                            <th className="px-4 py-3">Hours</th>
+                            <th className="px-4 py-3 text-center">Full Day</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {selectedBooking.chauffeur_trip_daily_logs.map((log, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-3 font-semibold text-slate-700">
+                                {new Date(log.log_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${log.trip_type === 'OUT_STATION' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                  {log.trip_type.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-medium text-slate-600">{log.hours_used ? Number(log.hours_used).toFixed(1) : '-'}</td>
+                              <td className="px-4 py-3 text-center">
+                                {log.is_full_day ? (
+                                  <span className="text-emerald-500">
+                                    <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-5 border-t border-slate-100">

@@ -16,6 +16,7 @@ import {
   endTrip,
   completeTrip,
   generateTripInvoice,
+  updateDailyLogs,
   addPayment,
   fetchPaymentHistory,
   fetchPaymentSummary,
@@ -64,34 +65,35 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
         ? new Date(manualEndTime)
         : new Date();
 
+      const existingLogDates = new Set(
+        (booking.chauffeur_trip_daily_logs || []).map(log =>
+          new Date(log.log_date).toISOString().split('T')[0]
+        )
+      );
+
       const days: any[] = [];
       let currentDate = new Date(startDate);
-      // Reset time to start of day for iteration comparison
-      // But keep start/end range logic if needed. 
-      // Simplified: Just list every calendar day involved.
       const loopEnd = new Date(endDate);
 
-      // Align to start of day
       currentDate.setHours(0, 0, 0, 0);
-      loopEnd.setHours(0, 0, 0, 0); // Inclusive of last day
+      loopEnd.setHours(0, 0, 0, 0);
 
       while (currentDate <= loopEnd) {
-        // Find existing log if already set in state (preserve user edits when end time changes)
-        // Note: For simplicity here, just generating fresh or preserving based on index/date key?
-        // Better to use a key based on date string.
         const dateStr = currentDate.toISOString().split('T')[0];
 
-        // Default values
-        const isOutstation = booking.trip_type === TripType.OUT_STATION;
-        const defaultHours = booking.package_selected === 'HOURS_24' ? 0 : (booking.package_selected === 'HOURS_5' ? 5 : 10);
+        // ONLY add to modal if NOT already logged in DB
+        if (!existingLogDates.has(dateStr)) {
+          const isOutstation = booking.trip_type === TripType.OUT_STATION;
+          const defaultHours = booking.package_selected === 'HOURS_24' ? 0 : (booking.package_selected === 'HOURS_5' ? 5 : 10);
 
-        days.push({
-          id: dateStr,
-          date: new Date(currentDate),
-          trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
-          is_full_day: booking.package_selected === 'HOURS_24',
-          hours_used: defaultHours > 0 ? defaultHours.toString() : ''
-        });
+          days.push({
+            id: dateStr,
+            date: new Date(currentDate),
+            trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
+            is_full_day: booking.package_selected === 'HOURS_24',
+            hours_used: defaultHours > 0 ? defaultHours.toString() : ''
+          });
+        }
 
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -118,15 +120,22 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
       data.end_time = new Date(manualEndTime).toISOString();
     }
 
-    // Include Daily Logs
-    if (dailyLogs.length > 0) {
-      data.daily_logs = dailyLogs.map(log => ({
-        date: log.date.toISOString(),
-        trip_type: log.trip_type,
-        is_full_day: log.is_full_day,
-        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
-      }));
-    }
+    // Combine existing logs (incremental) with new logs from this modal
+    const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => ({
+      date: new Date(log.log_date).toISOString(),
+      trip_type: log.trip_type,
+      is_full_day: log.is_full_day,
+      hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
+    }));
+
+    const newLogs = dailyLogs.map(log => ({
+      date: log.date.toISOString(),
+      trip_type: log.trip_type,
+      is_full_day: log.is_full_day,
+      hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+    }));
+
+    data.daily_logs = [...existingLogs, ...newLogs];
 
     onSubmit(data);
   };
@@ -287,6 +296,142 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
             className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
           >
             End Trip
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void; booking: ChauffeurBooking | null }) {
+  const [dailyLogs, setDailyLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen && booking) {
+      if (booking.chauffeur_trip_daily_logs && booking.chauffeur_trip_daily_logs.length > 0) {
+        setDailyLogs(booking.chauffeur_trip_daily_logs.map(log => ({
+          id: log.id,
+          date: new Date(log.log_date),
+          trip_type: log.trip_type,
+          is_full_day: log.is_full_day,
+          hours_used: log.hours_used ? log.hours_used.toString() : ''
+        })));
+      } else {
+        const startDate = booking.chauffeur_trip_logs?.start_time
+          ? new Date(booking.chauffeur_trip_logs.start_time)
+          : new Date(booking.scheduled_for);
+
+        const endDate = new Date(); // In progress, so until today
+
+        const days: any[] = [];
+        let currentDate = new Date(startDate);
+        const loopEnd = new Date(endDate);
+
+        currentDate.setHours(0, 0, 0, 0);
+        loopEnd.setHours(0, 0, 0, 0);
+
+        while (currentDate <= loopEnd) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const isOutstation = booking.trip_type === TripType.OUT_STATION;
+          const defaultHours = booking.package_selected === 'HOURS_24' ? 0 : (booking.package_selected === 'HOURS_5' ? 5 : 10);
+
+          days.push({
+            id: dateStr,
+            date: new Date(currentDate),
+            trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
+            is_full_day: booking.package_selected === 'HOURS_24',
+            hours_used: defaultHours > 0 ? defaultHours.toString() : ''
+          });
+
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        setDailyLogs(days);
+      }
+    }
+  }, [isOpen, booking]);
+
+  if (!isOpen) return null;
+
+  const updateLog = (index: number, field: string, value: any) => {
+    const newLogs = [...dailyLogs];
+    newLogs[index] = { ...newLogs[index], [field]: value };
+    setDailyLogs(newLogs);
+  };
+
+  const handleSubmit = () => {
+    const data = {
+      daily_logs: dailyLogs.map(log => ({
+        date: log.date.toISOString(),
+        trip_type: log.trip_type,
+        is_full_day: log.is_full_day,
+        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+      }))
+    };
+    onSubmit(data);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-semibold text-navy mb-4">Manage Daily Logs</h3>
+
+        <div className="border border-border rounded-lg overflow-hidden mb-6">
+          <table className="w-full text-sm">
+            <thead className="bg-surface text-xs font-semibold text-muted text-left">
+              <tr>
+                <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2">Type</th>
+                <th className="px-3 py-2 w-24">Hours</th>
+                <th className="px-3 py-2 text-center w-20">Full Day</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {dailyLogs.map((log, idx) => (
+                <tr key={idx}>
+                  <td className="px-3 py-2 font-medium">
+                    {log.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      className="w-full rounded border border-border p-1 text-xs"
+                      value={log.trip_type}
+                      onChange={(e) => updateLog(idx, 'trip_type', e.target.value)}
+                    >
+                      <option value={TripType.IN_CITY}>In City</option>
+                      <option value={TripType.OUT_STATION}>Outstation</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      className="w-full rounded border border-border p-1 text-xs"
+                      placeholder="Hrs"
+                      value={log.hours_used}
+                      onChange={(e) => updateLog(idx, 'hours_used', e.target.value)}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={log.is_full_day}
+                      onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
+                      className="rounded border-border"
+                      disabled={booking?.package_selected !== 'HOURS_24'}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex gap-3 justify-end pt-4 border-t border-border">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
+          >
+            Save Changes
           </button>
         </div>
       </div>
@@ -524,6 +669,7 @@ export default function BookingsPage() {
   const [selectedCarId, setSelectedCarId] = useState<string>("");
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [showEndTripModal, setShowEndTripModal] = useState(false);
+  const [showDailyLogsModal, setShowDailyLogsModal] = useState(false);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -649,6 +795,19 @@ export default function BookingsPage() {
     }
   }
 
+  async function handleUpdateDailyLogs(data: any) {
+    if (!selectedBooking) return;
+
+    try {
+      await dispatch(updateDailyLogs({ id: selectedBooking.id, data })).unwrap();
+      alert("Daily logs updated successfully!");
+      setShowDailyLogsModal(false);
+      loadData();
+    } catch (error: any) {
+      alert(error || "Failed to update daily logs");
+    }
+  }
+
   async function handleCompleteTrip() {
     if (!selectedBooking) return;
     if (!confirm("Are you sure you want to COMPLETE this trip? Financials will be calculated.")) return;
@@ -763,6 +922,12 @@ export default function BookingsPage() {
         isOpen={showEndTripModal}
         onClose={() => setShowEndTripModal(false)}
         onSubmit={handleEndTrip}
+        booking={selectedBooking}
+      />
+      <DailyLogsModal
+        isOpen={showDailyLogsModal}
+        onClose={() => setShowDailyLogsModal(false)}
+        onSubmit={handleUpdateDailyLogs}
         booking={selectedBooking}
       />
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1211,6 +1376,13 @@ export default function BookingsPage() {
                     className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95"
                   >
                     End Trip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDailyLogsModal(true)}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue/10 text-blue px-4 text-sm font-semibold hover:bg-blue/20"
+                  >
+                    Manage Daily Logs
                   </button>
                 </div>
               )}
