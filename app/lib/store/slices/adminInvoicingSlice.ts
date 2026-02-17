@@ -12,6 +12,12 @@ interface AdminInvoicingState {
         totalCollected: number;
         totalOverdue: number;
     };
+    pagination: {
+        total: number;
+        pages: number;
+        page: number;
+        limit: number;
+    };
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
@@ -24,6 +30,12 @@ const initialState: AdminInvoicingState = {
         totalCollected: 0,
         totalOverdue: 0,
     },
+    pagination: {
+        total: 0,
+        pages: 0,
+        page: 1,
+        limit: 10,
+    },
     status: 'idle',
     actionStatus: 'idle',
     error: null,
@@ -33,16 +45,10 @@ const initialState: AdminInvoicingState = {
 
 export const fetchAdminInvoices = createAsyncThunk(
     'adminInvoicing/fetchAdminInvoices',
-    async (_, { rejectWithValue }) => {
+    async (params: { page?: number; limit?: number } = {}, { rejectWithValue }) => {
         try {
-            const response = await apiClient.getAllInvoices();
-            // Handle both array response or object with data property
-            if (response && (response as any).data && Array.isArray((response as any).data)) {
-                return (response as any).data;
-            } else if (Array.isArray(response)) {
-                return response;
-            }
-            return [];
+            const response = await apiClient.getAllInvoices(params);
+            return response;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch invoices');
         }
@@ -115,7 +121,8 @@ const adminInvoicingSlice = createSlice({
             })
             .addCase(fetchAdminInvoices.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.invoices = action.payload;
+                state.invoices = action.payload.data.data;
+                state.pagination = action.payload.data.pagination;
             })
             .addCase(fetchAdminInvoices.rejected, (state, action) => {
                 state.status = 'failed';
@@ -177,6 +184,7 @@ const adminInvoicingSlice = createSlice({
 export const { resetActionStatus } = adminInvoicingSlice.actions;
 
 export const selectAdminInvoices = (state: RootState) => state.adminInvoicing.invoices;
+export const selectAdminInvoicingPagination = (state: RootState) => state.adminInvoicing.pagination;
 export const selectAdminInvoiceStats = (state: RootState) => state.adminInvoicing.stats;
 export const selectAdminInvoicingStatus = (state: RootState) => state.adminInvoicing.status;
 export const selectAdminInvoicingError = (state: RootState) => state.adminInvoicing.error;

@@ -1912,8 +1912,17 @@ class ApiClient {
         return this.request('/invoices/pending-trips');
     }
 
-    async getAllInvoices(): Promise<any> {
-        return this.request<any>('/invoices');
+    async getAllInvoices(params: QueryInvoiceParams = {}): Promise<PaginatedResponse<Invoice>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', String(params.page));
+        if (params.limit) query.append('limit', String(params.limit));
+        if (params.status) query.append('status', params.status);
+        if (params.company_id) query.append('company_id', String(params.company_id));
+
+        const queryString = query.toString();
+        const endpoint = `/invoices${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Invoice>>(endpoint);
     }
 
     async getInvoiceStats(): Promise<any> {
@@ -2117,6 +2126,13 @@ export interface ReportQueryParams {
 }
 
 export const apiClient = new ApiClient();
+
+export interface QueryInvoiceParams {
+    page?: number;
+    limit?: number;
+    status?: string;
+    company_id?: number;
+}
 
 export interface Invoice {
     id: number;

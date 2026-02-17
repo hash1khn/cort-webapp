@@ -11,6 +11,7 @@ import {
   selectAdminInvoiceStats,
   selectAdminInvoicingStatus,
   selectAdminInvoicingActionStatus,
+  selectAdminInvoicingPagination,
   sendInvoiceEmail
 } from "../../lib/store/slices/adminInvoicingSlice";
 import Pagination from "../../components/ui/Pagination";
@@ -25,10 +26,13 @@ export default function InvoicingPage() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
 
+  const pagination = useAppSelector(selectAdminInvoicingPagination);
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
-    dispatch(fetchAdminInvoices());
+    dispatch(fetchAdminInvoices({ page: currentPage }));
     dispatch(fetchInvoiceStats());
-  }, [dispatch]);
+  }, [dispatch, currentPage]);
 
   const handleSendEmail = async (id: number, invoiceNumber: string) => {
     if (sendingEmailId) return;
@@ -76,20 +80,12 @@ export default function InvoicingPage() {
   };
 
   const isInvoicesLoading = status === 'loading';
-
-  // Client-side pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(invoices.length / itemsPerPage);
-
-  const paginatedInvoices = invoices.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = pagination.pages;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,7 +153,7 @@ export default function InvoicingPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedInvoices.map((inv) => (
+                invoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-zinc-50/50">
                     <td className="px-4 py-3 font-medium text-navy">{inv.invoice_number}</td>
                     <td className="px-4 py-3 text-navy">{inv.companies?.name || "Unknown"}</td>
@@ -234,7 +230,7 @@ export default function InvoicingPage() {
         </div>
 
         {/* Pagination */}
-        {invoices.length > 0 && (
+        {pagination.total > 0 && (
           <div className="border-t border-border">
             <Pagination
               currentPage={currentPage}
