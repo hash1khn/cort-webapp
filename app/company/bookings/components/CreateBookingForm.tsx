@@ -257,7 +257,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         required
                     >
                         <option value="Chauffeur Ride">Chauffeur Ride</option>
-                        <option value="Airport Transfer">Airport Transfer</option>
+                        <option value="Event Shuttle">Event Shuttle</option>
                     </Select>
                 </Field>
 

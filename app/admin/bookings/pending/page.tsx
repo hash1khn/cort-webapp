@@ -46,7 +46,7 @@ function formatDateTime(iso: string) {
   });
 }
 
-function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void; booking: ChauffeurBooking | null }) {
+function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void; booking: ChauffeurBooking | null; loading?: boolean }) {
   const [distance, setDistance] = useState("0");
   const [toll, setToll] = useState("0");
   const [parking, setParking] = useState("0");
@@ -312,9 +312,16 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
           <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90"
+            disabled={loading}
+            className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
-            End Trip
+            {loading && (
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+            {loading ? "Ending..." : "End Trip"}
           </button>
         </div>
       </div>
@@ -695,6 +702,9 @@ export default function BookingsPage() {
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
   const [showEndTripModal, setShowEndTripModal] = useState(false);
   const [showDailyLogsModal, setShowDailyLogsModal] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isStartingTrip, setIsStartingTrip] = useState(false);
+  const [isEndingTrip, setIsEndingTrip] = useState(false);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -772,6 +782,7 @@ export default function BookingsPage() {
       return;
     }
 
+    setIsApproving(true);
     try {
       await dispatch(assignBooking({
         bookingId: selectedBooking.id,
@@ -789,6 +800,8 @@ export default function BookingsPage() {
     } catch (error: any) {
       console.error("Failed to approve booking", error);
       alert(error || "Failed to approve booking");
+    } finally {
+      setIsApproving(false);
     }
   }
 
@@ -796,6 +809,7 @@ export default function BookingsPage() {
     if (!selectedBooking) return;
     if (!confirm("Are you sure you want to START this trip?")) return;
 
+    setIsStartingTrip(true);
     try {
       await dispatch(startTrip(selectedBooking.id)).unwrap();
       alert("Trip started successfully!");
@@ -803,12 +817,15 @@ export default function BookingsPage() {
       loadData();
     } catch (error: any) {
       alert(error || "Failed to start trip");
+    } finally {
+      setIsStartingTrip(false);
     }
   }
 
   async function handleEndTrip(data: any) {
     if (!selectedBooking) return;
 
+    setIsEndingTrip(true);
     try {
       await dispatch(endTrip({ id: selectedBooking.id, data })).unwrap();
       alert("Trip completed and invoice generated successfully!");
@@ -817,6 +834,8 @@ export default function BookingsPage() {
       loadData();
     } catch (error: any) {
       alert(error || "Failed to end trip");
+    } finally {
+      setIsEndingTrip(false);
     }
   }
 
@@ -948,6 +967,7 @@ export default function BookingsPage() {
         onClose={() => setShowEndTripModal(false)}
         onSubmit={handleEndTrip}
         booking={selectedBooking}
+        loading={isEndingTrip}
       />
       <DailyLogsModal
         isOpen={showDailyLogsModal}
@@ -1342,10 +1362,16 @@ export default function BookingsPage() {
                   <button
                     type="button"
                     onClick={handleApprove}
-                    disabled={!selectedCarId || !selectedDriverId}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
+                    disabled={!selectedCarId || !selectedDriverId || isApproving}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
                   >
-                    Approve & Assign
+                    {isApproving && (
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    {isApproving ? "Approving..." : "Approve & Assign"}
                   </button>
                 </div>
               )}
@@ -1386,9 +1412,16 @@ export default function BookingsPage() {
                   <button
                     type="button"
                     onClick={handleStartTrip}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-4 text-sm font-semibold text-white hover:opacity-95"
+                    disabled={isStartingTrip}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
                   >
-                    Start Trip
+                    {isStartingTrip && (
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    {isStartingTrip ? "Starting..." : "Start Trip"}
                   </button>
                 </div>
               )}

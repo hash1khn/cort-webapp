@@ -485,7 +485,7 @@ export const ServiceUsageSection = ({ data }: { data: DashboardData['services'] 
     const chartData = [
         { label: 'Chauffeur', value: data.chauffeur, color: '#3b82f6' }, // blue-500
         { label: 'Shuttle/Bus', value: data.shuttles, color: '#6366f1' }, // indigo-500
-        { label: 'Events/Other', value: data.events + data.airport, color: '#e2e8f0' } // slate-200
+        { label: 'Event Shuttle', value: data.eventShuttle, color: '#e2e8f0' } // slate-200
     ];
 
     return (
@@ -508,8 +508,8 @@ export const ServiceUsageSection = ({ data }: { data: DashboardData['services'] 
                     </div>
                     <div className="flex flex-col items-center">
                         <div className="w-3 h-3 rounded-full bg-slate-200 mb-1"></div>
-                        <div className="text-lg font-bold text-slate-800">{data.events + data.airport}%</div>
-                        <div className="text-[10px] text-slate-400 uppercase font-bold">Other</div>
+                        <div className="text-lg font-bold text-slate-800">{data.eventShuttle}%</div>
+                        <div className="text-[10px] text-slate-400 uppercase font-bold">Event Shuttle</div>
                     </div>
                 </div>
             </div>

@@ -46,6 +46,6 @@ export interface DashboardData {
         chauffeur: number;
         shuttles: number;
         events: number;
-        airport: number;
+        eventShuttle: number;
     };
 }

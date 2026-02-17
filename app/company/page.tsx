@@ -122,7 +122,7 @@ export default function CompanyDashboardPage() {
       chauffeur: chauffeurPct,
       shuttles: shuttlePct,
       events: 0,
-      airport: 0,
+      eventShuttle: 0,
     }
   } : null;
 
