@@ -334,9 +334,10 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
                       <td className="px-3 py-2">
                         <input
                           type="number"
-                          className="w-full rounded border border-border p-1 text-xs"
+                          className="w-full rounded border border-border p-1 text-xs disabled:bg-surface/50"
                           placeholder="Hrs"
                           value={log.hours_used}
+                          disabled={log.is_full_day}
                           onChange={(e) => updateLog(idx, 'hours_used', e.target.value)}
                         />
                       </td>
@@ -344,7 +345,12 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
                         <input
                           type="checkbox"
                           checked={log.is_full_day}
-                          onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            const newLogs = [...dailyLogs];
+                            newLogs[idx] = { ...newLogs[idx], is_full_day: val, hours_used: val ? "0" : newLogs[idx].hours_used };
+                            setDailyLogs(newLogs);
+                          }}
                           className="rounded border-border"
                           disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
                         />
@@ -500,9 +506,10 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
                   <td className="px-3 py-2">
                     <input
                       type="number"
-                      className="w-full rounded border border-border p-1 text-xs"
+                      className="w-full rounded border border-border p-1 text-xs disabled:bg-surface/50"
                       placeholder="Hrs"
                       value={log.hours_used}
+                      disabled={log.is_full_day}
                       onChange={(e) => updateLog(idx, 'hours_used', e.target.value)}
                     />
                   </td>
@@ -510,7 +517,12 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
                     <input
                       type="checkbox"
                       checked={log.is_full_day}
-                      onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
+                      onChange={(e) => {
+                        const val = e.target.checked;
+                        const newLogs = [...dailyLogs];
+                        newLogs[idx] = { ...newLogs[idx], is_full_day: val, hours_used: val ? "0" : newLogs[idx].hours_used };
+                        setDailyLogs(newLogs);
+                      }}
                       className="rounded border-border"
                       disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
                     />
