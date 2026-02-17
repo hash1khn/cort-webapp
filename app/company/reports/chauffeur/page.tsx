@@ -401,6 +401,62 @@ export default function ChauffeurReportsPage() {
                 </table>
               </div>
             </div>
+
+            {/* Receipts Section */}
+            {(selectedReport.breakdown.expense_toll_image_url || selectedReport.breakdown.expense_parking_image_url) && (
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  Expense Receipts
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedReport.breakdown.expense_toll_image_url && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Toll Receipt</p>
+                      <a
+                        href={selectedReport.breakdown.expense_toll_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 hover:border-blue transition-colors group relative"
+                      >
+                        <img
+                          src={selectedReport.breakdown.expense_toll_image_url}
+                          alt="Toll Receipt"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                      </a>
+                    </div>
+                  )}
+                  {selectedReport.breakdown.expense_parking_image_url && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Parking Receipt</p>
+                      <a
+                        href={selectedReport.breakdown.expense_parking_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 hover:border-blue transition-colors group relative"
+                      >
+                        <img
+                          src={selectedReport.breakdown.expense_parking_image_url}
+                          alt="Parking Receipt"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

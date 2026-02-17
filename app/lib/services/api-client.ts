@@ -660,6 +660,8 @@ export interface ChauffeurTripLog {
     end_odometer: number | null;
     total_distance_km: number | null;
     total_duration_minutes: number | null;
+    expense_toll_image_url?: string | null;
+    expense_parking_image_url?: string | null;
 }
 
 export interface DailyTripLog {
@@ -1781,7 +1783,7 @@ class ApiClient {
         });
     }
 
-    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
+    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, expense_toll_image_url?: string, expense_parking_image_url?: string, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
             method: 'PATCH',
             body: JSON.stringify(data),
@@ -2114,6 +2116,8 @@ export interface ChauffeurReport {
         accommodation: number;
         outstation_allowance: number;
         overtime: number;
+        expense_toll_image_url?: string | null;
+        expense_parking_image_url?: string | null;
     };
     daily_logs?: ChauffeurTripDailyLog[];
 }

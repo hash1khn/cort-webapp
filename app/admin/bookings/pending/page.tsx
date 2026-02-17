@@ -28,6 +28,7 @@ import {
   selectPaymentHistory,
   selectPaymentSummary
 } from "../../../lib/store/slices/adminBookingsSlice";
+import { uploadFile } from "../../../lib/supabase";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -54,6 +55,9 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
   const [manualEndTime, setManualEndTime] = useState("");
   const [dailyLogs, setDailyLogs] = useState<any[]>([]);
   const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
+  const [tollImage, setTollImage] = useState<File | null>(null);
+  const [parkingImage, setParkingImage] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (isOpen && booking) {
@@ -117,49 +121,71 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
     setDailyLogs(newLogs);
   };
 
-  const handleSubmit = () => {
-    const data: any = {
-      total_distance_km: parseFloat(distance),
-      expense_toll: parseFloat(toll),
-      expense_parking: parseFloat(parking)
-    };
+  const handleSubmit = async () => {
+    setIsUploading(true);
+    let tollImageUrl = "";
+    let parkingImageUrl = "";
 
-    if (useManualEndTime && manualEndTime) {
-      data.end_time = new Date(manualEndTime).toISOString();
+    try {
+      if (tollImage) {
+        const path = `receipts/toll/${booking?.id}_${Date.now()}_${tollImage.name}`;
+        tollImageUrl = await uploadFile("company-logos", path, tollImage);
+      }
+      if (parkingImage) {
+        const path = `receipts/parking/${booking?.id}_${Date.now()}_${parkingImage.name}`;
+        parkingImageUrl = await uploadFile("company-logos", path, parkingImage);
+      }
+
+      const data: any = {
+        total_distance_km: parseFloat(distance),
+        expense_toll: parseFloat(toll),
+        expense_parking: parseFloat(parking),
+        expense_toll_image_url: tollImageUrl || undefined,
+        expense_parking_image_url: parkingImageUrl || undefined,
+      };
+
+      if (useManualEndTime && manualEndTime) {
+        data.end_time = new Date(manualEndTime).toISOString();
+      }
+
+      // Combine existing logs (incremental) with new logs from this modal
+      const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => {
+        const d = new Date(log.log_date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return {
+          date: `${year}-${month}-${day}`,
+          trip_type: log.trip_type,
+          is_full_day: log.is_full_day,
+          apply_accommodation: log.apply_accommodation,
+          hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
+        };
+      });
+
+      const newLogs = dailyLogs.map(log => {
+        const d = log.date;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return {
+          date: `${year}-${month}-${day}`,
+          trip_type: log.trip_type,
+          is_full_day: log.is_full_day,
+          apply_accommodation: log.apply_accommodation || false,
+          hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+        };
+      });
+
+      data.daily_logs = [...existingLogs, ...newLogs];
+
+      onSubmit(data);
+    } catch (error) {
+      console.error("Upload failed", error);
+      alert("Failed to upload images. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
-
-    // Combine existing logs (incremental) with new logs from this modal
-    const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => {
-      const d = new Date(log.log_date);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return {
-        date: `${year}-${month}-${day}`,
-        trip_type: log.trip_type,
-        is_full_day: log.is_full_day,
-        apply_accommodation: log.apply_accommodation,
-        hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
-      };
-    });
-
-    const newLogs = dailyLogs.map(log => {
-      const d = log.date;
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return {
-        date: `${year}-${month}-${day}`,
-        trip_type: log.trip_type,
-        is_full_day: log.is_full_day,
-        apply_accommodation: log.apply_accommodation || false,
-        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
-      };
-    });
-
-    data.daily_logs = [...existingLogs, ...newLogs];
-
-    onSubmit(data);
   };
 
   return (
@@ -199,6 +225,28 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
           </div>
 
           <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted">Toll Receipt (Optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="mt-1 w-full text-xs text-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue/10 file:text-blue hover:file:bg-blue/20"
+                onChange={(e) => setTollImage(e.target.files?.[0] || null)}
+              />
+              {tollImage && <p className="text-[10px] text-green-600 mt-1">✓ {tollImage.name}</p>}
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted">Parking Receipt (Optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                className="mt-1 w-full text-xs text-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue/10 file:text-blue hover:file:bg-blue/20"
+                onChange={(e) => setParkingImage(e.target.files?.[0] || null)}
+              />
+              {parkingImage && <p className="text-[10px] text-green-600 mt-1">✓ {parkingImage.name}</p>}
+            </div>
+
             {/* Manual End Time Option */}
             <div className="border border-border rounded-md p-3">
               <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -324,16 +372,16 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
           <button onClick={onClose} className="px-4 py-2 text-sm text-muted hover:bg-surface rounded">Cancel</button>
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || isUploading}
             className="px-4 py-2 text-sm font-semibold text-white bg-blue rounded hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
           >
-            {loading && (
+            {(loading || isUploading) && (
               <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             )}
-            {loading ? "Ending..." : "End Trip"}
+            {isUploading ? "Uploading..." : loading ? "Ending..." : "End Trip"}
           </button>
         </div>
       </div>
