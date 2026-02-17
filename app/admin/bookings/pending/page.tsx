@@ -730,6 +730,17 @@ export default function BookingsPage() {
   const [isStartingTrip, setIsStartingTrip] = useState(false);
   const [isEndingTrip, setIsEndingTrip] = useState(false);
 
+  // Auto-fill driver when a vehicle is selected
+  useEffect(() => {
+    if (selectedCarId) {
+      const carId = parseInt(selectedCarId);
+      const assignedDriver = availableDrivers.find(d => d.drivers_profile?.current_vehicle_id === carId);
+      if (assignedDriver) {
+        setSelectedDriverId(assignedDriver.id);
+      }
+    }
+  }, [selectedCarId, availableDrivers]);
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");

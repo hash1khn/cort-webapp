@@ -431,6 +431,7 @@ export interface Driver {
         driver_type: DriverType;
         cnic_number: string | null;
         license_number: string | null;
+        current_vehicle_id: number | null;
         rejection_reason?: string | null;
     };
     created_at: string;
