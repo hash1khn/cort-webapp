@@ -202,12 +202,12 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
 
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
-                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Active Routes</div>
-                    <MapPin className="w-4 h-4 text-emerald-500" />
+                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
+                    <Activity className="w-4 h-4 text-emerald-500" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.activeRoutes}</div>
-                    <div className="text-xs text-slate-400 mt-1">Currently operational</div>
+                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.activeRides}</div>
+                    <div className="text-xs text-emerald-500 font-bold mt-1">In progress</div>
                 </div>
             </div>
 
@@ -329,7 +329,7 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
                 <div className="flex flex-col h-full border-t md:border-t-0 md:border-l border-slate-100 md:pl-8 pt-6 md:pt-0">
                     <div className="flex flex-col">
                         <div className="flex justify-between items-end mb-1">
-                            <div className="text-slate-500 text-sm font-medium">Cost per Employee</div>
+                            <div className="text-slate-500 text-sm font-medium">Cost per Traveler</div>
                         </div>
                         <div className="text-4xl font-extrabold text-slate-900 tracking-tight">PKR {data.costPerEmployee.toLocaleString()}</div>
                         <div className="text-xs text-slate-400 mt-2">Average spend across {data.costPerEmployee > 5000 ? 'active' : 'all'} employees</div>

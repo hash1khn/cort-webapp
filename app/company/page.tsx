@@ -82,8 +82,8 @@ export default function CompanyDashboardPage() {
     },
     valueDelivered: {
       estimatedSavings: dashboardStats.chauffeur.totalSavings || 0,
-      activeRoutes: dashboardStats.shuttle.totalRoutes || 0,
-      shuttleTrips: dashboardStats.shuttle.monthlyTrips || 0,
+      activeRides: dashboardStats.chauffeur.activeRides || 0,
+      shuttleTrips: (dashboardStats.shuttle as any)?.monthlyTrips || 0,
       avgTripCost: dashboardStats.chauffeur.completedThisMonth > 0
         ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.chauffeur.completedThisMonth)
         : 0,

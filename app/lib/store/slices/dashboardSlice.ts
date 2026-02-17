@@ -17,6 +17,7 @@ export type DashboardStats = {
         totalSavings: number;
         completedTrend: string;
         unassignedBookings: number;
+        activeRides: number;
         outstandingAmount: number;
         topPassengers: { name: string; trips: number }[];
         outstandingInvoices: {

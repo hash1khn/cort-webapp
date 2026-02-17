@@ -12,7 +12,7 @@ export interface DashboardData {
     };
     valueDelivered: {
         estimatedSavings: number; // in PKR
-        activeRoutes: number;
+        activeRides: number;
         shuttleTrips: number;
         avgTripCost: number;
     };
