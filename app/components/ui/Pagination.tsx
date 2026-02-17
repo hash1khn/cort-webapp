@@ -10,10 +10,35 @@ interface PaginationProps {
 export default function Pagination({ currentPage, totalPages, onPageChange }: PaginationProps) {
     if (totalPages <= 1) return null;
 
-    const pages = [];
-    for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-    }
+    // Helper to calculate page range with ellipses
+    const getPageRange = () => {
+        const delta = 1; // Number of neighbors to show around current page
+        const range = [];
+        const rangeWithDots = [];
+        let l;
+
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+                range.push(i);
+            }
+        }
+
+        for (const i of range) {
+            if (l) {
+                if (i - l === 2) {
+                    rangeWithDots.push(l + 1);
+                } else if (i - l !== 1) {
+                    rangeWithDots.push('...');
+                }
+            }
+            rangeWithDots.push(i);
+            l = i;
+        }
+
+        return rangeWithDots;
+    };
+
+    const displayPages = getPageRange();
 
     return (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-5 px-2">
@@ -35,42 +60,31 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
                 </button>
 
                 <div className="hidden sm:flex items-center gap-1 px-2">
-                    {pages.map(page => {
-                        // Logic to show limited pages with ellipsis
-                        // Always show first, last, current, and neighbors
-                        const isCurrent = currentPage === page;
-                        const isFirst = page === 1;
-                        const isLast = page === totalPages;
-                        const isNeighbor = Math.abs(currentPage - page) <= 1;
-
-                        // Show ellipsis if gap > 1
-                        const showEllipsisBefore = page === currentPage - 2 && page > 2;
-                        const showEllipsisAfter = page === currentPage + 2 && page < totalPages - 1;
-
-                        if (isFirst || isLast || isNeighbor) {
+                    {displayPages.map((page, idx) => {
+                        if (page === '...') {
                             return (
-                                <button
-                                    key={page}
-                                    onClick={() => onPageChange(page)}
-                                    className={`
-                                        w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all
-                                        ${isCurrent
-                                            ? 'bg-navy text-white shadow-md shadow-navy/20 scale-105'
-                                            : 'text-slate-600 hover:bg-slate-100 hover:text-navy'
-                                        }
-                                    `}
-                                >
-                                    {page}
-                                </button>
-                            );
-                        } else if (showEllipsisBefore || showEllipsisAfter) {
-                            return (
-                                <span key={`ellipsis-${page}`} className="w-8 h-8 flex items-center justify-center text-slate-300">
+                                <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-slate-300">
                                     <MoreHorizontal className="w-4 h-4" />
                                 </span>
                             );
                         }
-                        return null;
+
+                        const isCurrent = currentPage === page;
+                        return (
+                            <button
+                                key={page}
+                                onClick={() => onPageChange(page as number)}
+                                className={`
+                                    w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-all
+                                    ${isCurrent
+                                        ? 'bg-navy text-white shadow-md shadow-navy/20 scale-105'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-navy'
+                                    }
+                                `}
+                            >
+                                {page}
+                            </button>
+                        );
                     })}
                 </div>
 
