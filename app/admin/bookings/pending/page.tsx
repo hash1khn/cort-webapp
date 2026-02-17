@@ -66,9 +66,13 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
         : new Date();
 
       const existingLogDates = new Set(
-        (booking.chauffeur_trip_daily_logs || []).map(log =>
-          new Date(log.log_date).toISOString().split('T')[0]
-        )
+        (booking.chauffeur_trip_daily_logs || []).map(log => {
+          const d = new Date(log.log_date);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })
       );
 
       const days: any[] = [];
@@ -79,7 +83,10 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
       loopEnd.setHours(0, 0, 0, 0);
 
       while (currentDate <= loopEnd) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
 
         // ONLY add to modal if NOT already logged in DB
         if (!existingLogDates.has(dateStr)) {
@@ -121,19 +128,31 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolean;
     }
 
     // Combine existing logs (incremental) with new logs from this modal
-    const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => ({
-      date: new Date(log.log_date).toISOString(),
-      trip_type: log.trip_type,
-      is_full_day: log.is_full_day,
-      hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
-    }));
+    const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => {
+      const d = new Date(log.log_date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return {
+        date: `${year}-${month}-${day}`,
+        trip_type: log.trip_type,
+        is_full_day: log.is_full_day,
+        hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
+      };
+    });
 
-    const newLogs = dailyLogs.map(log => ({
-      date: log.date.toISOString(),
-      trip_type: log.trip_type,
-      is_full_day: log.is_full_day,
-      hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
-    }));
+    const newLogs = dailyLogs.map(log => {
+      const d = log.date;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return {
+        date: `${year}-${month}-${day}`,
+        trip_type: log.trip_type,
+        is_full_day: log.is_full_day,
+        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+      };
+    });
 
     data.daily_logs = [...existingLogs, ...newLogs];
 
@@ -360,12 +379,18 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
 
   const handleSubmit = () => {
     const data = {
-      daily_logs: dailyLogs.map(log => ({
-        date: log.date.toISOString(),
-        trip_type: log.trip_type,
-        is_full_day: log.is_full_day,
-        hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
-      }))
+      daily_logs: dailyLogs.map(log => {
+        const d = log.date;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return {
+          date: `${year}-${month}-${day}`,
+          trip_type: log.trip_type,
+          is_full_day: log.is_full_day,
+          hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
+        };
+      })
     };
     onSubmit(data);
   };
