@@ -98,6 +98,7 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
             date: new Date(currentDate),
             trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
             is_full_day: booking.package_selected === 'HOURS_24',
+            apply_accommodation: false,
             hours_used: defaultHours > 0 ? defaultHours.toString() : ''
           });
         }
@@ -137,6 +138,7 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
         date: `${year}-${month}-${day}`,
         trip_type: log.trip_type,
         is_full_day: log.is_full_day,
+        apply_accommodation: log.apply_accommodation,
         hours_used: log.hours_used ? parseFloat(log.hours_used.toString()) : 0
       };
     });
@@ -150,6 +152,7 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
         date: `${year}-${month}-${day}`,
         trip_type: log.trip_type,
         is_full_day: log.is_full_day,
+        apply_accommodation: log.apply_accommodation || false,
         hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
       };
     });
@@ -261,6 +264,7 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
                     <th className="px-3 py-2">Type</th>
                     <th className="px-3 py-2 w-24">Hours</th>
                     <th className="px-3 py-2 text-center w-20">Full Day</th>
+                    <th className="px-3 py-2 text-center w-20">Accom.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -295,6 +299,14 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
                           onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
                           className="rounded border-border"
                           disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={log.apply_accommodation}
+                          onChange={(e) => updateLog(idx, 'apply_accommodation', e.target.checked)}
+                          className="rounded border-border"
                         />
                       </td>
                     </tr>
@@ -340,6 +352,7 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
           date: new Date(log.log_date),
           trip_type: log.trip_type,
           is_full_day: log.is_full_day,
+          apply_accommodation: log.apply_accommodation,
           hours_used: log.hours_used ? log.hours_used.toString() : ''
         })));
       } else {
@@ -366,6 +379,7 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
             date: new Date(currentDate),
             trip_type: isOutstation ? TripType.OUT_STATION : TripType.IN_CITY,
             is_full_day: booking.package_selected === 'HOURS_24',
+            apply_accommodation: false,
             hours_used: defaultHours > 0 ? defaultHours.toString() : ''
           });
 
@@ -395,6 +409,7 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
           date: `${year}-${month}-${day}`,
           trip_type: log.trip_type,
           is_full_day: log.is_full_day,
+          apply_accommodation: log.apply_accommodation || false,
           hours_used: log.hours_used ? parseFloat(log.hours_used) : 0
         };
       })
@@ -415,6 +430,7 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2 w-24">Hours</th>
                 <th className="px-3 py-2 text-center w-20">Full Day</th>
+                <th className="px-3 py-2 text-center w-20">Accom.</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -449,6 +465,14 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
                       onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
                       className="rounded border-border"
                       disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={log.apply_accommodation}
+                      onChange={(e) => updateLog(idx, 'apply_accommodation', e.target.checked)}
+                      className="rounded border-border"
                     />
                   </td>
                 </tr>

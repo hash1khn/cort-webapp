@@ -666,6 +666,7 @@ export interface DailyTripLog {
     trip_type: TripType;
     is_full_day: boolean;
     hours_used?: number;
+    apply_accommodation?: boolean;
 }
 
 export interface ChauffeurTripDailyLog {
@@ -675,6 +676,7 @@ export interface ChauffeurTripDailyLog {
     trip_type: TripType;
     hours_used: number | null;
     is_full_day: boolean;
+    apply_accommodation: boolean;
 }
 
 export interface QueryChauffeurBookingParams {

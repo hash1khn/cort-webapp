@@ -438,6 +438,7 @@ export default function BookingsPage() {
                             <th className="px-4 py-3">Type</th>
                             <th className="px-4 py-3">Hours</th>
                             <th className="px-4 py-3 text-center">Full Day</th>
+                            <th className="px-4 py-3 text-center">Accom.</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -454,6 +455,15 @@ export default function BookingsPage() {
                               <td className="px-4 py-3 font-medium text-slate-600">{log.hours_used ? Number(log.hours_used).toFixed(1) : '-'}</td>
                               <td className="px-4 py-3 text-center">
                                 {log.is_full_day ? (
+                                  <span className="text-emerald-500">
+                                    <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {log.apply_accommodation ? (
                                   <span className="text-emerald-500">
                                     <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                   </span>
