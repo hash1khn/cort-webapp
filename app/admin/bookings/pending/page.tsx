@@ -294,7 +294,7 @@ function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen:
                           checked={log.is_full_day}
                           onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
                           className="rounded border-border"
-                          disabled={booking?.package_selected !== 'HOURS_24'}
+                          disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
                         />
                       </td>
                     </tr>
@@ -448,7 +448,7 @@ function DailyLogsModal({ isOpen, onClose, onSubmit, booking }: { isOpen: boolea
                       checked={log.is_full_day}
                       onChange={(e) => updateLog(idx, 'is_full_day', e.target.checked)}
                       className="rounded border-border"
-                      disabled={booking?.package_selected !== 'HOURS_24'}
+                      disabled={booking?.package_selected !== 'HOURS_24' && booking?.package_selected !== 'HOURS_10'}
                     />
                   </td>
                 </tr>
