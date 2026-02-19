@@ -159,6 +159,11 @@ export default function CompanyDashboardPage() {
   return (
     <div className="flex flex-col gap-8 pb-12 relative max-w-[1600px] mx-auto">
 
+      {/* CORT Logo Branding - Above Top Row */}
+      <div className="flex justify-center -mb-4">
+        <img src="/logo.svg" alt="Cort" className="h-6 w-auto" />
+      </div>
+
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Welcome Banner - Shrunken/Balanced */}
