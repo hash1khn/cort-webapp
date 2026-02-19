@@ -142,7 +142,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               <div className="space-y-1.5">
-                {group.items.map((item) => {
+                {group.items.map((item, itemIndex) => {
                   const active = item.href === activeHref;
                   const Icon = item.icon;
 
@@ -152,8 +152,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                       href={item.href}
                       title={(collapsed && !isMobile) ? item.label : undefined}
                       onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                      style={isMobile ? { animationDelay: `${(itemIndex + 1 + groupIndex * 3) * 50}ms` } : undefined}
                       className={cx(
                         "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                        isMobile && "animate-fade-slide-up opacity-0",
                         active
                           ? "bg-purple/5 text-purple shadow-sm"
                           : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
@@ -258,10 +260,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-50 flex md:hidden">
             <div
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white animate-in slide-in-from-left duration-300">
+            <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white animate-slide-in-left">
               <div className="absolute right-2 top-2">
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}

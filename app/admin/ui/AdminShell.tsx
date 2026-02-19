@@ -58,15 +58,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 pb-6">
-          {nav.map((item) => {
+          {nav.map((item, index) => {
             const active = item.href === activeHref;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
+                style={{ animationDelay: `${(index + 1) * 50}ms` }}
                 className={cx(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10",
+                  "animate-fade-slide-up opacity-0",
                   active && "bg-white/15 text-white",
                 )}
               >
@@ -124,10 +126,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-50 flex md:hidden">
             <div
-              className="fixed inset-0 bg-navy/80 backdrop-blur-sm transition-opacity"
+              className="fixed inset-0 bg-navy/80 backdrop-blur-sm animate-fade-in"
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="relative flex w-full max-w-xs flex-1 flex-col bg-navy text-white animate-in slide-in-from-left duration-300">
+            <div className="relative flex w-full max-w-xs flex-1 flex-col bg-navy text-white animate-slide-in-left">
               <div className="absolute right-0 top-0 -mr-12 pt-4">
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
