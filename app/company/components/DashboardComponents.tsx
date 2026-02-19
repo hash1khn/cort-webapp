@@ -152,7 +152,7 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
 
 export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'] }) => {
     return (
-        <Card className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-none flex items-center justify-between shadow-lg h-full relative">
+        <Card className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-none flex items-center justify-between shadow-lg h-full">
             <div className="flex items-center gap-4">
                 <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
                     <CheckCircle className="w-8 h-8 text-white" />

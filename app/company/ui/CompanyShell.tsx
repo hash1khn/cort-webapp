@@ -128,28 +128,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className={cx("flex flex-col gap-6 transition-all duration-300", collapsed ? "items-center py-8 px-2" : "items-center px-6 py-10")}>
-              {/* Logo Area - Company Logo */}
+              {/* Logo Area */}
               <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
-                {company?.logo_url ? (
-                  <img
-                    src={company.logo_url}
-                    alt={company.name || 'Company'}
-                    className={cx("h-14 w-14 object-contain rounded-xl transition-all duration-300", collapsed ? "h-10 w-10" : "h-14 w-14")}
-                  />
-                ) : (
-                  <div className="relative h-14 w-full flex items-center justify-center">
-                    <img
-                      src="/cort-app-icon.svg"
-                      alt="Cort"
-                      className={cx("absolute h-14 w-14 object-contain transition-all duration-300", collapsed ? "opacity-100 scale-100" : "opacity-0 scale-90")}
-                    />
-                    <img
-                      src="/logo.svg"
-                      alt="Cort"
-                      className={cx("absolute h-14 w-auto object-contain transition-all duration-300", collapsed ? "opacity-0 scale-90" : "opacity-100 scale-100")}
-                    />
-                  </div>
-                )}
+                <img
+                  src="/cort-app-icon.svg"
+                  alt="Cort"
+                  className={cx("absolute h-14 w-14 object-contain transition-all duration-300", collapsed ? "opacity-100 scale-100" : "opacity-0 scale-90")}
+                />
+                <img
+                  src="/logo.svg"
+                  alt="Cort"
+                  className={cx("absolute h-14 w-auto object-contain transition-all duration-300", collapsed ? "opacity-0 scale-90" : "opacity-100 scale-100")}
+                />
               </div>
             </div>
 
@@ -205,6 +195,20 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="border-t border-gray-100 p-3 mt-auto bg-gray-50/50">
             <div className={cx("flex items-center gap-3 rounded-lg p-2 transition-all duration-300", collapsed ? "justify-center" : "justify-between hover:bg-white hover:shadow-sm")}>
               <div className="flex items-center gap-3 overflow-hidden">
+                {/* Company Logo in Footer */}
+                {company?.logo_url ? (
+                  <img
+                    src={company.logo_url}
+                    alt={company.name || 'Company'}
+                    className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-gray-100"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white ring-1 ring-gray-100 shrink-0">
+                    {/* Fallback to user icon or company initial */}
+                    {company?.name?.[0]?.toUpperCase() || <Users size={14} />}
+                  </div>
+                )}
+
                 <div className={cx(
                   "flex flex-col overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
                   collapsed ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
