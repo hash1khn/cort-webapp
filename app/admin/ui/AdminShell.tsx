@@ -102,15 +102,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-surface text-ink">
       {/* Mobile Header */}
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-white px-4 md:hidden">
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="Cort" className="h-10 w-auto" />
-        </div>
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="rounded-md p-2 text-navy hover:bg-gray-100"
         >
           <Menu size={24} />
         </button>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <img src="/logo.svg" alt="Cort" className="h-10 w-auto" />
+        </div>
+        <div className="w-10" /> {/* Spacer */}
       </header>
 
       <div className="flex min-h-screen">
