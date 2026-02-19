@@ -76,6 +76,21 @@ export const deleteExpense = createAsyncThunk(
     }
 );
 
+export const markExpenseAsPaid = createAsyncThunk(
+    'expenses/markExpenseAsPaid',
+    async (id: number, { rejectWithValue, dispatch, getState }) => {
+        try {
+            await ExpensesApi.markAsPaid(id);
+            // Re-fetch
+            const state = getState() as any;
+            dispatch(fetchExpenses(state.expenses.filters));
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 const expensesSlice = createSlice({
     name: 'expenses',
     initialState,

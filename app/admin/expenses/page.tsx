@@ -7,6 +7,7 @@ import {
     fetchExpenses,
     createExpense,
     deleteExpense,
+    markExpenseAsPaid,
     setFilters,
     setPage,
 } from "../../lib/store/slices/expensesSlice";
@@ -51,6 +52,12 @@ export default function ExpensesPage() {
     const handleDelete = async (id: number) => {
         if (confirm("Are you sure you want to delete this expense?")) {
             await dispatch(deleteExpense(id));
+        }
+    };
+
+    const handleMarkAsPaid = async (id: number) => {
+        if (confirm("Mark this expense as paid?")) {
+            await dispatch(markExpenseAsPaid(id));
         }
     };
 
@@ -127,6 +134,12 @@ export default function ExpensesPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Description
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                Paid At
+                            </th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Amount
                             </th>
@@ -138,21 +151,21 @@ export default function ExpensesPage() {
                     <tbody className="divide-y divide-gray-200 bg-white">
                         {isLoading && (
                             <tr>
-                                <td colSpan={5} className="p-4 text-center text-sm text-gray-500">
+                                <td colSpan={7} className="p-4 text-center text-sm text-gray-500">
                                     Loading expenses...
                                 </td>
                             </tr>
                         )}
                         {error && (
                             <tr>
-                                <td colSpan={5} className="p-4 text-center text-sm text-red-500">
+                                <td colSpan={7} className="p-4 text-center text-sm text-red-500">
                                     {error}
                                 </td>
                             </tr>
                         )}
                         {!isLoading && !expenses?.length && (
                             <tr>
-                                <td colSpan={5} className="p-4 text-center text-sm text-gray-500">
+                                <td colSpan={7} className="p-4 text-center text-sm text-gray-500">
                                     No expenses found.
                                 </td>
                             </tr>
@@ -170,10 +183,29 @@ export default function ExpensesPage() {
                                 <td className="px-6 py-4 text-sm text-gray-500">
                                     {expense.description || "-"}
                                 </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold leading-5 ${expense.payment_status === "PAID"
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                        }`}>
+                                        {expense.payment_status || "UNPAID"}
+                                    </span>
+                                </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    {expense.paid_at ? format(new Date(expense.paid_at), "MMM d, HH:mm") : "-"}
+                                </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
-                                    SR {Number(expense.amount).toLocaleString()}
+                                    {Number(expense.amount).toLocaleString()}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                    {expense.payment_status !== "PAID" && (
+                                        <button
+                                            onClick={() => handleMarkAsPaid(expense.id)}
+                                            className="text-navy hover:text-navy/80 font-semibold"
+                                        >
+                                            Mark as Paid
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => handleDelete(expense.id)}
                                         className="text-red-600 hover:text-red-900 ml-4"

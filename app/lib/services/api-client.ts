@@ -2171,6 +2171,8 @@ export interface Expense {
     amount: number;
     date: string;
     description: string | null;
+    payment_status: string | null;
+    paid_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -2228,6 +2230,12 @@ export const ExpensesApi = {
     delete: async (id: number) => {
         return apiClient.request<void>(`/expenses/${id}`, {
             method: 'DELETE',
+        });
+    },
+
+    markAsPaid: async (id: number) => {
+        return apiClient.request<Expense>(`/expenses/${id}/pay`, {
+            method: 'POST',
         });
     },
 };
