@@ -23,6 +23,7 @@ import {
     CreateMaintenanceRecordRequest,
     UpdateMaintenanceRecordRequest,
     QueryMaintenanceRecordParams,
+    OwnershipType,
 } from "../../../lib/services/api-client";
 
 // Debounce helper
@@ -79,7 +80,8 @@ export default function MaintenancePage() {
     }, [dispatch, filterVehicleId, filterType, startDate, endDate]);
 
     useEffect(() => {
-        dispatch(fetchAdminVehicles({ limit: 100 }));
+        // Fetch only OWNED vehicles for maintenance
+        dispatch(fetchAdminVehicles({ limit: 500, show_all: true, ownership: OwnershipType.OWNED }));
     }, [dispatch]);
 
     useEffect(() => {
@@ -140,10 +142,12 @@ export default function MaintenancePage() {
 
     const startEdit = (record: MaintenanceRecord) => {
         setSelectedRecord(record);
+        // Format date to YYYY-MM-DD for input[type="date"]
+        const formattedDate = record.date ? record.date.split('T')[0] : "";
         setFormData({
             vehicle_id: record.vehicle_id,
             maintenance_type: record.maintenance_type,
-            date: record.date,
+            date: formattedDate,
             odometer_reading: record.odometer_reading,
             cost: record.cost || undefined,
             notes: record.notes || undefined,

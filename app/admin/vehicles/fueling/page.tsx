@@ -24,6 +24,7 @@ import {
     CreateFuelRecordRequest,
     UpdateFuelRecordRequest,
     QueryFuelRecordParams,
+    OwnershipType,
 } from "../../../lib/services/api-client";
 
 export default function FuelingPage() {
@@ -73,8 +74,8 @@ export default function FuelingPage() {
     }, [dispatch, filterVehicleId, filterBilled, startDate, endDate]);
 
     useEffect(() => {
-        // Only fetch vehicles list once
-        dispatch(fetchAdminVehicles({ limit: 100 }));
+        // Only fetch vehicles list once - Include all PARTNER vehicles for Super Admin
+        dispatch(fetchAdminVehicles({ limit: 500, show_all: true, ownership: OwnershipType.OWNED }));
     }, [dispatch]);
 
     useEffect(() => {
@@ -163,9 +164,11 @@ export default function FuelingPage() {
 
     const startEdit = (record: FuelRecord) => {
         setSelectedRecord(record);
+        // Format date to YYYY-MM-DD for input[type="date"]
+        const formattedDate = record.date ? record.date.split('T')[0] : "";
         setFormData({
             vehicle_id: record.vehicle_id,
-            date: record.date,
+            date: formattedDate,
             fuel_litres: record.fuel_litres,
             current_fuel_rate: record.current_fuel_rate,
             billed: record.billed,
