@@ -162,28 +162,28 @@ export default function CompanyDashboardPage() {
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Welcome Banner - Shrunken/Balanced */}
-        <div className="lg:col-span-2 relative rounded-[2rem] bg-slate-900 p-8 shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-800 overflow-hidden flex flex-col justify-center min-h-[220px]">
+        <div className="lg:col-span-2 relative rounded-[2rem] bg-slate-900 p-6 sm:p-8 shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-800 overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px]">
           {/* Luxury Sedan Background with Gradient Mask */}
-          <div className="absolute right-0 top-0 w-3/4 h-full pointer-events-none z-0 mix-blend-lighten">
+          <div className="absolute right-0 top-0 w-full sm:w-3/4 h-full pointer-events-none z-0 mix-blend-lighten">
             <img
               src="/luxury-sedan-banner.png"
               alt="Luxury Sedan"
-              className="w-full h-full object-cover object-right opacity-60"
+              className="w-full h-full object-cover object-right opacity-40 sm:opacity-60"
               style={{ maskImage: 'linear-gradient(to right, transparent, black 60%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 60%)' }}
             />
           </div>
 
-          <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-2 text-gray-400 mb-1">
-                <span className="text-xs font-medium uppercase tracking-wide">
+                <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wide">
                   {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
                 Welcome back, <span className="text-gray-200">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
               </h1>
-              <p className="text-gray-300 max-w-xl text-lg">
+              <p className="text-gray-300 max-w-xl text-base sm:text-lg">
                 You have <span className="text-white font-bold">{todayBookingsCount}</span> upcoming bookings.
               </p>
             </div>
@@ -191,7 +191,7 @@ export default function CompanyDashboardPage() {
             {company?.services_enabled?.chauffeur_enabled && (
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="group relative flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-900 transition-all hover:bg-gray-50 hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap"
+                className="group relative flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-900 transition-all hover:bg-gray-50 hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap w-full sm:w-auto"
               >
                 <svg className="w-4 h-4 text-purple-600 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />

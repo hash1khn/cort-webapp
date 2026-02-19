@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Menu,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 
@@ -70,6 +71,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const company = useAppSelector(selectCompany);
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const companyId = user?.company_id?.toString();
 
   // ✅ FIX: Add dependency tracking to prevent unnecessary refetches
@@ -109,9 +111,132 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   if (isLogin) return <>{children}</>;
 
+  const SidebarContent = ({ isMobile = false }) => (
+    <>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className={cx("flex flex-col gap-6 transition-all duration-300", (collapsed && !isMobile) ? "items-center py-8 px-2" : "items-center px-6 py-10")}>
+          {/* Logo Area */}
+          <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
+            <img
+              src="/cort-app-icon.svg"
+              alt="Cort"
+              className={cx("absolute h-14 w-14 object-contain transition-all duration-300", (collapsed && !isMobile) ? "opacity-100 scale-100" : "opacity-0 scale-90")}
+            />
+            <img
+              src="/logo.svg"
+              alt="Cort"
+              className={cx("absolute h-14 w-auto object-contain transition-all duration-300", (collapsed && !isMobile) ? "opacity-0 scale-90" : "opacity-100 scale-100")}
+            />
+          </div>
+        </div>
+
+        <nav className="px-3 mt-2 space-y-6">
+          {getNavGroups(servicesEnabled).map((group, groupIndex) => (
+            <div key={groupIndex}>
+              {group.title && (
+                <div className={cx(
+                  "px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
+                  (collapsed && !isMobile) ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-5"
+                )}>
+                  {group.title}
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {group.items.map((item) => {
+                  const active = item.href === activeHref;
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={(collapsed && !isMobile) ? item.label : undefined}
+                      onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                      className={cx(
+                        "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
+                        active
+                          ? "bg-purple/5 text-purple shadow-sm"
+                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                      )}
+                    >
+                      {/* Active Indicator Bar - Vertical Line on Left */}
+                      {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-purple" />}
+
+                      <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
+
+                      <span className={cx(
+                        "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
+                        (collapsed && !isMobile) ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
+                      )}>
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      {/* User Profile Footer */}
+      <div className="border-t border-gray-100 p-3 mt-auto bg-gray-50/50">
+        <div className={cx("flex items-center gap-3 rounded-lg p-2 transition-all duration-300", (collapsed && !isMobile) ? "justify-center" : "justify-between hover:bg-white hover:shadow-sm")}>
+          <div className="flex items-center gap-3 overflow-hidden">
+            {/* Company Logo in Footer */}
+            {company?.logo_url ? (
+              <img
+                src={company.logo_url}
+                alt={company.name || 'Company'}
+                className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-gray-100"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white ring-1 ring-gray-100 shrink-0">
+                {company?.name?.[0]?.toUpperCase() || <Users size={14} />}
+              </div>
+            )}
+
+            <div className={cx(
+              "flex flex-col overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
+              (collapsed && !isMobile) ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
+            )}>
+              <span className="truncate text-xs font-semibold text-gray-900">
+                {user?.email}
+              </span>
+              <span className="text-[10px] text-gray-500">Company Account</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            className={cx("shrink-0 rounded-md p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors", (collapsed && !isMobile) ? "hidden" : "block")}
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-surface text-ink font-sans">
+      {/* Mobile Header */}
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6 md:hidden">
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="Cort" className="h-10 w-auto" />
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="rounded-xl p-2.5 text-gray-500 hover:bg-gray-50 active:scale-95 transition-all"
+        >
+          <Menu size={24} />
+        </button>
+      </header>
+
       <div className="flex min-h-screen">
+        {/* Desktop Sidebar */}
         <aside
           className={cx(
             "sticky top-4 h-[calc(100vh-2rem)] hidden shrink-0 border border-gray-100 bg-white text-gray-900 md:flex md:flex-col transition-all duration-300 ease-in-out relative z-20 ml-4 my-4 rounded-3xl shadow-sm",
@@ -125,112 +250,29 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
-
-          <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-            <div className={cx("flex flex-col gap-6 transition-all duration-300", collapsed ? "items-center py-8 px-2" : "items-center px-6 py-10")}>
-              {/* Logo Area */}
-              <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
-                <img
-                  src="/cort-app-icon.svg"
-                  alt="Cort"
-                  className={cx("absolute h-14 w-14 object-contain transition-all duration-300", collapsed ? "opacity-100 scale-100" : "opacity-0 scale-90")}
-                />
-                <img
-                  src="/logo.svg"
-                  alt="Cort"
-                  className={cx("absolute h-14 w-auto object-contain transition-all duration-300", collapsed ? "opacity-0 scale-90" : "opacity-100 scale-100")}
-                />
-              </div>
-            </div>
-
-            <nav className="px-3 mt-2 space-y-6">
-              {getNavGroups(servicesEnabled).map((group, groupIndex) => (
-                <div key={groupIndex}>
-                  {group.title && (
-                    <div className={cx(
-                      "px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
-                      collapsed ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-5"
-                    )}>
-                      {group.title}
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    {group.items.map((item) => {
-                      const active = item.href === activeHref;
-                      const Icon = item.icon;
-
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          title={collapsed ? item.label : undefined}
-                          className={cx(
-                            "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
-                            active
-                              ? "bg-purple/5 text-purple shadow-sm"
-                              : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
-                          )}
-                        >
-                          {/* Active Indicator Bar - Vertical Line on Left */}
-                          {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-purple" />}
-
-                          <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
-
-                          <span className={cx(
-                            "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
-                            collapsed ? "opacity-0 max-w-0" : "opacity-100 max-w-[200px]"
-                          )}>
-                            {item.label}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-          </div>
-
-          {/* User Profile Footer */}
-          <div className="border-t border-gray-100 p-3 mt-auto bg-gray-50/50">
-            <div className={cx("flex items-center gap-3 rounded-lg p-2 transition-all duration-300", collapsed ? "justify-center" : "justify-between hover:bg-white hover:shadow-sm")}>
-              <div className="flex items-center gap-3 overflow-hidden">
-                {/* Company Logo in Footer */}
-                {company?.logo_url ? (
-                  <img
-                    src={company.logo_url}
-                    alt={company.name || 'Company'}
-                    className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-gray-100"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white ring-1 ring-gray-100 shrink-0">
-                    {/* Fallback to user icon or company initial */}
-                    {company?.name?.[0]?.toUpperCase() || <Users size={14} />}
-                  </div>
-                )}
-
-                <div className={cx(
-                  "flex flex-col overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
-                  collapsed ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
-                )}>
-                  <span className="truncate text-xs font-semibold text-gray-900">
-                    {user?.email}
-                  </span>
-                  <span className="text-[10px] text-gray-500">Company Account</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => logout()}
-                className={cx("shrink-0 rounded-md p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors", collapsed ? "hidden" : "block")}
-                title="Sign out"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          </div>
+          <SidebarContent />
         </aside>
+
+        {/* Mobile Sidebar Overlay */}
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white animate-in slide-in-from-left duration-300">
+              <div className="absolute right-2 top-2">
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition-all"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+              </div>
+              <SidebarContent isMobile />
+            </div>
+          </div>
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8">

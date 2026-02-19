@@ -73,60 +73,64 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="text-sm font-medium text-muted">Overview</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
             Super Admin Dashboard
           </h1>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => handleDateChange('start', e.target.value)}
-            className="h-10 rounded-md border border-border px-3 text-sm"
-          />
-          <span className="text-muted">-</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => handleDateChange('end', e.target.value)}
-            className="h-10 rounded-md border border-border px-3 text-sm"
-          />
-          <button
-            onClick={() => handleRefreshData('filter')}
-            disabled={loading}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading && loadingAction === 'filter' ? (
-              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : null}
-            <span>{loading && loadingAction === 'filter' ? 'Loading...' : 'Apply Filter'}</span>
-          </button>
-          <button
-            onClick={() => handleRefreshData('refresh')}
-            disabled={loading}
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-semibold text-navy hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Refresh Data"
-          >
-            {loading && loadingAction === 'refresh' ? (
-              <svg className="animate-spin h-4 w-4 text-navy" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                <path d="M16 21h5v-5" />
-              </svg>
-            )}
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => handleDateChange('start', e.target.value)}
+              className="h-10 flex-1 sm:w-36 rounded-md border border-border px-3 text-sm"
+            />
+            <span className="text-muted">-</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => handleDateChange('end', e.target.value)}
+              className="h-10 flex-1 sm:w-36 rounded-md border border-border px-3 text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => handleRefreshData('filter')}
+              disabled={loading}
+              className="flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading && loadingAction === 'filter' ? (
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : null}
+              <span>{loading && loadingAction === 'filter' ? 'Loading...' : 'Apply Filter'}</span>
+            </button>
+            <button
+              onClick={() => handleRefreshData('refresh')}
+              disabled={loading}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-semibold text-navy hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh Data"
+            >
+              {loading && loadingAction === 'refresh' ? (
+                <svg className="animate-spin h-4 w-4 text-navy" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M16 21h5v-5" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

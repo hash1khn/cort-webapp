@@ -171,7 +171,7 @@ export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'
 
 export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDelivered'] }) => {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Total Savings</div>
@@ -227,60 +227,62 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
 
 export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
     return (
-        <Card className="group flex items-center justify-between border-l-4 border-l-orange-500 shadow-sm relative overflow-visible">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+        <Card className="group border-l-4 border-l-orange-500 shadow-sm relative overflow-visible">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none hidden sm:block">
                 <FileText size={100} className="text-orange-500" />
             </div>
 
-            <div className="relative z-10 flex items-center gap-6">
-                <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
-                    <FileText className="w-8 h-8" />
-                </div>
-                <div>
-                    <div className="text-slate-500 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
-                    <div className="group/info text-xs text-slate-400 flex items-center gap-1 relative cursor-default">
-                        Total unpaid & overdue invoices
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1 animate-pulse"></span>
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
+                        <FileText className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <div className="text-slate-500 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
+                        <div className="group/info text-xs text-slate-400 flex items-center gap-1 relative cursor-default">
+                            Total unpaid & overdue invoices
+                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1 animate-pulse"></span>
 
-                        {/* Hover Tooltip/List */}
-                        {invoices.length > 0 && (
-                            <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0">
-                                <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 text-slate-600 font-bold text-[10px] uppercase">
-                                    Recent Outstanding Invoices
-                                </div>
-                                <div className="divide-y divide-slate-50 max-h-48 overflow-y-auto">
-                                    {invoices.map((inv, idx) => (
-                                        <div key={idx} className="px-4 py-2 hover:bg-slate-50 transition-colors">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-mono text-[10px] text-slate-700 font-bold">{inv.invoice_number}</span>
-                                                <span className="text-rose-600 font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center mt-0.5">
-                                                <span className="text-[10px] text-slate-400">
-                                                    {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                                </span>
-                                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-rose-50 text-rose-600' : 'bg-orange-50 text-orange-600'
-                                                    }`}>
-                                                    {inv.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {invoices.length >= 10 && (
-                                    <div className="bg-slate-50 px-4 py-1.5 text-[9px] text-slate-400 text-center border-t border-slate-100">
-                                        Showing top 10 invoices
+                            {/* Hover Tooltip/List */}
+                            {invoices.length > 0 && (
+                                <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0">
+                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 text-slate-600 font-bold text-[10px] uppercase">
+                                        Recent Outstanding Invoices
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                    <div className="divide-y divide-slate-50 max-h-48 overflow-y-auto">
+                                        {invoices.map((inv, idx) => (
+                                            <div key={idx} className="px-4 py-2 hover:bg-slate-50 transition-colors">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-mono text-[10px] text-slate-700 font-bold">{inv.invoice_number}</span>
+                                                    <span className="text-rose-600 font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center mt-0.5">
+                                                    <span className="text-[10px] text-slate-400">
+                                                        {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                    </span>
+                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-rose-50 text-rose-600' : 'bg-orange-50 text-orange-600'
+                                                        }`}>
+                                                        {inv.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {invoices.length >= 10 && (
+                                        <div className="bg-slate-50 px-4 py-1.5 text-[9px] text-slate-400 text-center border-t border-slate-100">
+                                            Showing top 10 invoices
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="relative z-10 text-4xl font-black text-slate-800 tracking-tight">
-                <span className="text-2xl text-slate-400 font-normal mr-2">PKR</span>
-                {amount.toLocaleString()}
+                <div className="relative z-10 text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
+                    <span className="text-xl sm:text-2xl text-slate-400 font-normal mr-2">PKR</span>
+                    {amount.toLocaleString()}
+                </div>
             </div>
         </Card>
     )
@@ -398,13 +400,13 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
         <Card>
             <SectionTitle><Users className="w-5 h-5 text-indigo-500" /> Employee Adoption</SectionTitle>
 
-            <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+                <div className="flex-1 min-w-[120px]">
                     <div className="text-3xl font-bold text-slate-800">{data.activeEmployees}</div>
                     <div className="text-xs text-slate-500 uppercase font-bold">Active Riders</div>
                 </div>
-                <div className="w-px h-10 bg-slate-200"></div>
-                <div className="flex-1">
+                <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
+                <div className="flex-1 min-w-[120px]">
                     <div className="text-3xl font-bold text-slate-800">{data.avgRidesPerEmployee}</div>
                     <div className="text-xs text-slate-500 uppercase font-bold">Avg Rides/Emp</div>
                 </div>
