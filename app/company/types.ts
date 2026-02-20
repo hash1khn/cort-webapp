@@ -25,7 +25,7 @@ export interface DashboardData {
         activeEmployees: number;
         totalEmployees: number;
         avgRidesPerEmployee: number;
-        topRider: {
+        topPassenger: {
             name: string;
             rides: number;
             department: string;

@@ -102,7 +102,7 @@ export default function CompanyDashboardPage() {
         ? parseFloat((dashboardStats.chauffeur.totalBookings / dashboardStats.employees.active).toFixed(1))
         : 0,
       departmentUsage: dashboardStats.employees.departmentUsage || [],
-      topRider: dashboardStats.chauffeur.topPassengers[0] ? {
+      topPassenger: dashboardStats.chauffeur.topPassengers[0] ? {
         name: dashboardStats.chauffeur.topPassengers[0].name,
         rides: dashboardStats.chauffeur.topPassengers[0].trips,
         department: "N/A"

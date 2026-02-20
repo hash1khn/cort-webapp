@@ -403,7 +403,7 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
             <div className="flex flex-wrap items-center gap-4 mb-6">
                 <div className="flex-1 min-w-[120px]">
                     <div className="text-3xl font-bold text-slate-800">{data.activeEmployees}</div>
-                    <div className="text-xs text-slate-500 uppercase font-bold">Active Riders</div>
+                    <div className="text-xs text-slate-500 uppercase font-bold">Active Passengers</div>
                 </div>
                 <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
                 <div className="flex-1 min-w-[120px]">
@@ -417,8 +417,8 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
                     <Star className="w-5 h-5 fill-indigo-600" />
                 </div>
                 <div>
-                    <div className="text-xs text-indigo-400 font-bold uppercase">Top Rider</div>
-                    <div className="font-bold text-slate-800 text-sm">{data.topRider.name} <span className="font-normal text-slate-500">({data.topRider.rides} rides)</span></div>
+                    <div className="text-xs text-indigo-400 font-bold uppercase">Top Passenger</div>
+                    <div className="font-bold text-slate-800 text-sm">{data.topPassenger.name} <span className="font-normal text-slate-500">({data.topPassenger.rides} rides)</span></div>
                 </div>
             </div>
 
