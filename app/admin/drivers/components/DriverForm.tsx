@@ -1,0 +1,209 @@
+"use client";
+
+import React, { useState, memo } from "react";
+import { CreateDriverRequest, DriverType, DriverStatus } from "../../../lib/services/api-client";
+
+const initialFormData: CreateDriverRequest = {
+    full_name: "",
+    email: "",
+    password: "",
+    phone: "",
+    driver_type: DriverType.SHUTTLE,
+    cnic_number: "",
+    license_number: "",
+};
+
+export const DriverForm = memo(function DriverForm({
+    driver,
+    onSave,
+    onCancel,
+    isSaving,
+}: {
+    driver: any | null;
+    onSave: (data: CreateDriverRequest) => void;
+    onCancel: () => void;
+    isSaving: boolean;
+}) {
+    const [formData, setFormData] = useState<CreateDriverRequest>(
+        driver
+            ? {
+                full_name: driver.full_name,
+                email: driver.email,
+                password: "",
+                phone: driver.phone || "",
+                driver_type: driver.drivers_profile?.driver_type || DriverType.SHUTTLE,
+                cnic_number: driver.drivers_profile?.cnic_number || "",
+                license_number: driver.drivers_profile?.license_number || "",
+                status: driver.status as any,
+            }
+            : initialFormData
+    );
+
+    const handleChange = (field: keyof CreateDriverRequest, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const generatePassword = () => {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let pass = "";
+        for (let i = 0; i < 12; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        handleChange("password", pass);
+    };
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Full Name</label>
+                    <input
+                        type="text"
+                        value={formData.full_name}
+                        onChange={(e) => handleChange("full_name", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                        placeholder="John Doe"
+                        disabled={isSaving}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
+                    <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleChange("email", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                        placeholder="driver@example.com"
+                        disabled={isSaving || !!driver}
+                    />
+                </div>
+
+                {!driver && (
+                    <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+                            Password <span className="text-slate-400 font-normal">(Optional, auto-generated if empty)</span>
+                        </label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={formData.password || ""}
+                                onChange={(e) => handleChange("password", e.target.value)}
+                                className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none font-mono"
+                                placeholder="Leave empty to auto-generate"
+                                disabled={isSaving}
+                            />
+                            <button
+                                type="button"
+                                onClick={generatePassword}
+                                className="px-3 py-2 text-xs font-bold text-[#f47f00] border border-[#f47f00] rounded-lg hover:bg-orange-50 disabled:opacity-50"
+                                disabled={isSaving}
+                            >
+                                Generate
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Type</label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                name="driver_type"
+                                value={DriverType.SHUTTLE}
+                                checked={formData.driver_type === DriverType.SHUTTLE}
+                                onChange={() => handleChange("driver_type", DriverType.SHUTTLE)}
+                                className="accent-[#f47f00]"
+                                disabled={isSaving}
+                            />
+                            <span className="text-sm">Shuttle Driver</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="radio"
+                                name="driver_type"
+                                value={DriverType.CHAUFFEUR}
+                                checked={formData.driver_type === DriverType.CHAUFFEUR}
+                                onChange={() => handleChange("driver_type", DriverType.CHAUFFEUR)}
+                                className="accent-[#f47f00]"
+                                disabled={isSaving}
+                            />
+                            <span className="text-sm">Chauffeur</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Phone</label>
+                        <input
+                            type="text"
+                            value={formData.phone}
+                            onChange={(e) => handleChange("phone", e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                            placeholder="+1234567890"
+                            disabled={isSaving}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">CNIC (Optional)</label>
+                        <input
+                            type="text"
+                            value={formData.cnic_number}
+                            onChange={(e) => handleChange("cnic_number", e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                            placeholder="12345-6789012-3"
+                            disabled={isSaving}
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">License Number (Optional)</label>
+                    <input
+                        type="text"
+                        value={formData.license_number}
+                        onChange={(e) => handleChange("license_number", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
+                        placeholder="ABC123456"
+                        disabled={isSaving}
+                    />
+                </div>
+
+                {driver && (
+                    <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Status</label>
+                        <select
+                            value={formData.status}
+                            onChange={(e) => handleChange("status", e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none bg-white"
+                            disabled={isSaving}
+                        >
+                            <option value={DriverStatus.ACTIVE}>Active</option>
+                            <option value={DriverStatus.INACTIVE}>Inactive</option>
+                            <option value={DriverStatus.SUSPENDED}>Suspended</option>
+                            <option value={DriverStatus.PENDING}>Pending</option>
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button
+                    onClick={onCancel}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                    disabled={isSaving}
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={() => onSave(formData)}
+                    className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
+                    disabled={isSaving}
+                >
+                    {isSaving ? "Saving..." : "Save Driver"}
+                </button>
+            </div>
+        </div>
+    );
+});

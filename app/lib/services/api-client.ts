@@ -1,888 +1,40 @@
 import { LoginRequest, LoginResponse, ProfileResponse, SignupRequest } from '../types/auth-types';
-
-export interface CreateCompanyRequest {
-    name: string;
-    email: string;
-    password?: string;
-    ntn_number?: string;
-    contact_person?: string;
-    address?: string;
-    logo_url?: string;
-    is_shuttle_enabled?: boolean;
-    is_chauffeur_enabled?: boolean;
-    prefix?: string;
-    auth_email?: string;
-}
-
-export interface UpdateCompanyRequest extends Partial<CreateCompanyRequest> {
-    allowed_vehicle_models?: string[];
-}
-
-export interface QueryCompanyParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-
-}
-
-export interface VehicleWhitelist {
-    id: number;
-    company_id: number;
-    allowed_vehicle_model: string;
-}
-
-export interface Company {
-    id: number;
-    name: string;
-    email: string;
-    ntn_number: string | null;
-    contact_person: string | null;
-    address: string | null;
-    logo_url: string | null;
-    is_shuttle_enabled: boolean;
-    is_chauffeur_enabled: boolean;
-    created_at: string;
-    updated_at: string;
-    vehicle_whitelists?: VehicleWhitelist[];
-    _count?: {
-        users: number;
-    };
-    prefix?: string;
-}
-// ... (rest of file) ...
-
-
-export interface CreateEmployeeRequest {
-    full_name: string;
-    email: string;
-    phone: string;
-    company_id: number;
-    password?: string;
-    employee_id?: string;
-    department?: string;
-}
-
-export interface UpdateEmployeeRequest extends Partial<CreateEmployeeRequest> {
-    status?: 'ACTIVE' | 'INACTIVE';
-}
-
-export interface Employee {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    employee_id: string | null;
-    department: string | null;
-    status: string;
-    company_id: number | null;
-    created_at: string;
-}
-
-export interface QueryEmployeeParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-    company_id?: number;
-}
-
-export interface PaginatedResponse<T> {
-    data: {
-        data: T[];
-        pagination: {
-            total: number;
-            pages: number;
-            page: number;
-            limit: number;
-            hasNext: boolean;
-            hasPrev: boolean;
-        };
-    };
-    status: number;
-    message: string;
-}
-
-export interface CompanyResponse {
-    data: Company & { generatedPassword?: string };
-    statusCode: number;
-    message: string;
-}
-
-export interface EmployeeResponse {
-    data: Employee & { generatedPassword?: string };
-    statusCode: number;
-    message: string;
-}
-
-export enum VehicleCategory {
-    SEDAN = 'SEDAN',
-    SUV = 'SUV',
-    VAN = 'VAN',
-    BUS = 'BUS',
-    COASTER = 'COASTER',
-    HIACE = 'HIACE',
-}
-
-export enum OwnershipType {
-    OWNED = 'OWNED',
-    PARTNER = 'PARTNER',
-}
-
-export interface CreateVehicleRequest {
-    plate_number: string;
-    make: string;
-    model: string;
-    year: number;
-    color?: string;
-    category: VehicleCategory;
-    ownership: OwnershipType;
-    fuel_avg_city: number;
-    fuel_avg_highway: number;
-    owner_company_id?: number;
-    is_available_for_pooling?: boolean;
-    vendor_id?: number;
-    rent_per_day_city?: number;
-    rent_per_day_outstation?: number;
-    overnight_rate?: number;
-    vendor_overtime_rate?: number;
-    vendor_rent_5hr?: number;
-    vendor_rent_10hr?: number;
-    // Driver fields (required when ownership=PARTNER)
-    driver_full_name?: string;
-    driver_email?: string;
-    driver_phone?: string;
-    driver_password?: string;
-    driver_cnic_number?: string;
-    driver_license_number?: string;
-    driver_type?: DriverType;
-}
-
-
-export interface UpdateVehicleRequest extends Partial<CreateVehicleRequest> { }
-
-export interface QueryVehicleParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: VehicleCategory;
-    ownership?: OwnershipType;
-    show_all?: boolean;
-    vendor_id?: number;
-}
-
-export interface Vehicle {
-    id: number;
-    plate_number: string;
-    make: string;
-    model: string;
-    year: number;
-    color: string | null;
-    category: VehicleCategory;
-    ownership: OwnershipType;
-    fuel_avg_city: number;
-    fuel_avg_highway: number;
-    owner_company_id: number | null;
-    is_available_for_pooling: boolean;
-    created_at?: string;
-    updated_at?: string;
-    vendor_id?: number | null;
-    rent_per_day_city?: number;
-    rent_per_day_outstation?: number;
-    overnight_rate?: number;
-    vendor_overtime_rate?: number;
-    vendor_rent_5hr?: number;
-    vendor_rent_10hr?: number;
-    companies?: {
-        id: number;
-        name: string;
-    };
-    vendors?: {
-        id: number;
-        name: string;
-    };
-    drivers_profile?: Array<{
-        driver_type: DriverType;
-        cnic_number: string | null;
-        license_number: string | null;
-        users?: {
-            id: string;
-            email: string;
-            full_name: string;
-            phone: string | null;
-        };
-    }>;
-}
-
-// -- VENDORS --
-
-export interface CreateVendorRequest {
-    name: string;
-    contact_person?: string;
-    phone?: string;
-    email?: string;
-    address?: string;
-}
-
-export interface UpdateVendorRequest extends Partial<CreateVendorRequest> { }
-
-export interface QueryVendorParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-}
-
-export interface Vendor {
-    id: number;
-    name: string;
-    contact_person: string | null;
-    phone: string | null;
-    email: string | null;
-    address: string | null;
-    created_at: string;
-    _count?: {
-        vehicles: number;
-    };
-}
-
-export interface VendorResponse {
-    data: Vendor;
-    statusCode: number;
-    message: string;
-}
-
-// -- VENDOR CONTRACTS --
-
-export enum ContractStatus {
-    ACTIVE = 'ACTIVE',
-    ENDED = 'ENDED',
-    PAID = 'PAID',
-    PENDING_PAYMENT = 'PENDING_PAYMENT',
-}
-
-export interface CreateVendorContractRequest {
-    vendor_id: number;
-    vehicle_id: number;
-    month: string; // YYYY-MM format
-    total_payable: number;
-    status?: ContractStatus;
-    payment_date?: string;
-    notes?: string;
-}
-
-export interface UpdateVendorContractRequest extends Partial<CreateVendorContractRequest> { }
-
-export interface QueryVendorContractParams {
-    month?: string;
-    vendor_id?: number;
-    vehicle_id?: number;
-    status?: ContractStatus;
-    page?: number;
-    limit?: number;
-}
-
-export interface VendorContract {
-    id: number;
-    vendor_id: number;
-    vehicle_id: number;
-    month: string;
-    total_payable: number;
-    status: ContractStatus;
-    payment_date: string | null;
-    notes: string | null;
-    created_at: string;
-    updated_at: string;
-    vendors?: Vendor;
-    vehicles?: Vehicle;
-}
-
-export interface VendorContractResponse {
-    data: VendorContract;
-    statusCode: number;
-    message: string;
-}
-
-export interface VehicleResponse {
-    data: Vehicle;
-    statusCode: number;
-    message: string;
-}
-
-// -- VENDOR LOGS --
-
-export interface QueryVendorLogsParams {
-    page?: number;
-    limit?: number;
-    vendor_id?: number;
-    start_date?: string;
-    end_date?: string;
-    payment_status?: string;
-}
-
-export interface VendorStats {
-    total_rides: number;
-    total_cost: number;
-    total_outstanding: number;
-}
-
-export interface VendorStatsResponse {
-    data: VendorStats;
-    statusCode: number;
-    message: string;
-}
-
-export interface VendorLog {
-    booking_id: number;
-    start_time: string;
-    end_time: string;
-    start_odometer: number;
-    end_odometer: number;
-    total_distance_km: number;
-    total_duration_minutes: number;
-    vendor_cost: number;
-    vendor_payment_status: string;
-    chauffeur_bookings?: {
-        id: number;
-        trip_type: string;
-        vehicles?: {
-            plate_number: string;
-            make: string;
-            model: string;
-            vendors?: {
-                name: string;
-            }
-        };
-        users_chauffeur_bookings_passenger_idTousers?: {
-            full_name: string;
-            phone?: string;
-        }
-    }
-}
-
-export interface VendorLogsResponse {
-    data: {
-        data: VendorLog[];
-        pagination: {
-            total: number;
-            pages: number;
-            page: number;
-            limit: number;
-            hasNext: boolean;
-            hasPrev: boolean;
-        };
-    };
-    statusCode: number;
-    message: string;
-}
-
-export enum DriverType {
-    SHUTTLE = 'SHUTTLE',
-    CHAUFFEUR = 'CHAUFFEUR',
-}
-
-export enum DriverStatus {
-    ACTIVE = 'ACTIVE',
-    INACTIVE = 'INACTIVE',
-    SUSPENDED = 'SUSPENDED',
-    DELETED = 'DELETED',
-    PENDING = 'PENDING',
-    REJECTED = 'REJECTED',
-}
-
-export enum DriverStatusAction {
-    APPROVE = 'APPROVE',
-    REJECT = 'REJECT',
-}
-
-export interface CreateDriverRequest {
-    email: string;
-    password?: string;
-    full_name: string;
-    phone?: string;
-    company_id?: number;
-    driver_type: DriverType;
-    cnic_number?: string;
-    license_number?: string;
-    status?: DriverStatus;
-}
-
-export interface UpdateDriverRequest extends Partial<CreateDriverRequest> { }
-
-export interface UpdateDriverStatusRequest {
-    action: DriverStatusAction;
-    reason?: string;
-}
-
-export interface QueryDriverParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-    company_id?: number;
-    driver_type?: DriverType;
-    status?: string;
-}
-
-export interface Driver {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    status: DriverStatus;
-    company_id: number | null;
-    drivers_profile?: {
-        driver_type: DriverType;
-        cnic_number: string | null;
-        license_number: string | null;
-        current_vehicle_id: number | null;
-        rejection_reason?: string | null;
-    };
-    created_at: string;
-    companies?: {
-        id: number;
-        name: string;
-    };
-}
-
-export interface DriverResponse {
-    data: Driver;
-    statusCode: number;
-    message: string;
-}
-
-export interface ChauffeurContractRate {
-    id: number;
-    contract_id: number;
-    vehicle_model: string;
-    cost_per_km: string;
-    rate_spot_5hr: string;
-    rate_spot_10hr: string;
-    rate_spot_24hr: string;
-    rate_monthly_10hr: string;
-    rate_monthly_24hr: string;
-    rate_overtime_per_hr: string;
-    market_cost_per_km?: string;
-    market_rate_spot_5hr?: string;
-    market_rate_spot_10hr?: string;
-    market_rate_spot_24hr?: string;
-    market_rate_monthly_10hr?: string;
-    market_rate_monthly_24hr?: string;
-    market_rate_overtime_per_hr?: string;
-}
-
-export interface ChauffeurContract {
-    id: number;
-    company_id: number;
-    fuel_base_price: string;
-    revision_percentage: string | null;
-    contract_duration?: string | null;
-    created_at?: string | null;
-    allowance_outstation?: string | null;
-    allowance_accommodation?: string | null;
-    companies?: {
-        name: string;
-    };
-    chauffeur_contract_rates?: ChauffeurContractRate[];
-}
-
-export interface CreateChauffeurContractRequest {
-    companyId: number;
-    //  Settings
-    fuelBasePrice?: number;
-    revisionPercentage?: number | null;
-    contractDuration?: string;
-    contractDate?: string;
-
-    // Optional Rate Entry
-    vehicleModel?: string;
-    costPerKm?: number;
-    rateSpot5hr?: number;
-    rateSpot10hr?: number;
-    rateSpot24hr?: number;
-    rateMonthly10hr?: number;
-    rateMonthly24hr?: number;
-    rateOvertimePerHr?: number;
-    marketCostPerKm?: number;
-    marketRateSpot5hr?: number;
-    marketRateSpot10hr?: number;
-    marketRateSpot24hr?: number;
-    marketRateMonthly10hr?: number;
-    marketRateMonthly24hr?: number;
-    marketRateOvertimePerHr?: number;
-    allowanceOutstation?: number;
-    allowanceAccommodation?: number;
-}
-
-export interface UpdateChauffeurContractRequest {
-    // For GLOBAL updates
-    fuelBasePrice?: number;
-    revisionPercentage?: number | null;
-    contractDuration?: string;
-    contractDate?: string;
-
-    // For RATE updates
-    vehicleModel?: string;
-    costPerKm?: number;
-    rateSpot5hr?: number;
-    rateSpot10hr?: number;
-    rateSpot24hr?: number;
-    rateMonthly10hr?: number;
-    rateMonthly24hr?: number;
-    rateOvertimePerHr?: number;
-    marketCostPerKm?: number;
-    marketRateSpot5hr?: number;
-    marketRateSpot10hr?: number;
-    marketRateSpot24hr?: number;
-    marketRateMonthly10hr?: number;
-    marketRateMonthly24hr?: number;
-    marketRateOvertimePerHr?: number;
-    allowanceOutstation?: number;
-    allowanceAccommodation?: number;
-}
-
-export interface ChauffeurContractResponse {
-    data: ChauffeurContract[];
-    statusCode: number;
-    message: string;
-}
-
-export interface SingleChauffeurContractResponse {
-    data: ChauffeurContract;
-    statusCode: number;
-    message: string;
-}
-
-export interface SystemSetting {
-    id: number;
-    key: string;
-    value: string;
-    description: string | null;
-    updated_at: string;
-}
-
-export interface SystemSettingResponse {
-    data: SystemSetting;
-    statusCode: number;
-    message: string;
-}
-
-// -- Chauffeur Bookings --
-
-export enum BookingType {
-    SPOT = 'SPOT',
-    MONTHLY = 'MONTHLY',
-}
-
-export enum PackageType {
-    HOURS_5 = 'HOURS_5',
-    HOURS_10 = 'HOURS_10',
-    HOURS_24 = 'HOURS_24',
-}
-
-export enum TripType {
-    IN_CITY = 'IN_CITY',
-    OUT_STATION = 'OUT_STATION',
-}
-
-export enum TripStatus {
-    PENDING = 'PENDING',
-    ASSIGNED = 'ASSIGNED',
-    ARRIVED = 'ARRIVED',
-    IN_PROGRESS = 'IN_PROGRESS',
-    COMPLETED = 'COMPLETED',
-    CANCELLED = 'CANCELLED',
-    ENDED = 'ENDED',
-}
-
-export interface PickupLocation {
-    latitude: number;
-    longitude: number;
-}
-
-export interface CreateChauffeurBookingRequest {
-    booking_type: BookingType;
-    vehicle_model: string;
-    package_selected: PackageType;
-    trip_type: TripType;
-    pickup_location: PickupLocation;
-    scheduled_for: string; // ISO 8601 datetime
-    internal_cost_center_code?: string;
-    service_category?: string;
-    city?: string;
-}
-
-export interface ChauffeurBooking {
-    id: number;
-    company_id: number;
-    passenger_id: string;
-    driver_id: string | null;
-    vehicle_id: number | null;
-    vehicle_model?: string; // Stored model preference
-    booking_type: BookingType;
-    package_selected: PackageType;
-    trip_type: TripType;
-    scheduled_for: string;
-    status: TripStatus;
-    fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
-    internal_cost_center_code: string | null;
-    city?: string; // City of the booking
-    service_category?: string;
-    pickup_address?: string; // Human readable address
-    created_at: string;
-    companies?: {
-        id: number;
-        name: string;
-        logo_url?: string;
-    };
-    users_chauffeur_bookings_passenger_idTousers?: {
-        id: string;
-        full_name: string;
-        email: string;
-        phone: string | null;
-    };
-    users_chauffeur_bookings_driver_idTousers?: {
-        id: string;
-        full_name: string;
-        phone: string | null;
-    };
-    vehicles?: {
-        id: number;
-        model: string;
-        plate_number: string;
-    };
-    invoices?: Invoice | null;
-    chauffeur_trip_logs?: ChauffeurTripLog | null;
-    chauffeur_trip_daily_logs?: ChauffeurTripDailyLog[] | null;
-}
-
-export interface ChauffeurTripLog {
-    id: number;
-    start_time: string;
-    end_time: string | null;
-    start_odometer: number;
-    end_odometer: number | null;
-    total_distance_km: number | null;
-    total_duration_minutes: number | null;
-    expense_toll_image_url?: string | null;
-    expense_parking_image_url?: string | null;
-}
-
-export interface DailyTripLog {
-    date: string;
-    trip_type: TripType;
-    is_full_day: boolean;
-    hours_used?: number;
-    apply_accommodation?: boolean;
-}
-
-export interface ChauffeurTripDailyLog {
-    id: number;
-    booking_id: number;
-    log_date: string;
-    trip_type: TripType;
-    hours_used: number | null;
-    is_full_day: boolean;
-    apply_accommodation: boolean;
-}
-
-export interface QueryChauffeurBookingParams {
-    page?: number;
-    limit?: number;
-    status?: string;
-    search?: string;
-}
-
-export interface ChauffeurBookingResponse {
-    data: ChauffeurBooking;
-    statusCode: number;
-    message: string;
-}
-
-// -- PAYMENT TRACKING --
-
-export interface PaymentTransaction {
-    id: number;
-    booking_id: number;
-    amount: string;
-    payment_type: 'PARTIAL' | 'FINAL';
-    payment_method?: string;
-    payment_date: string;
-    notes?: string;
-    users_received_by?: {
-        full_name: string;
-        email: string;
-    };
-}
-
-export interface PaymentSummary {
-    booking_id: number;
-    invoice_amount: string;
-    total_paid: string;
-    amount_remaining: string;
-    payment_status: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID';
-}
-
-export interface BulkPayVendorLogsDto {
-    ids: number[];
-}
-
-export interface CreateVendorPaymentRequest {
-    booking_id: number;
-    amount: number;
-    payment_method?: string;
-    notes?: string;
-}
-
-export interface VendorPaymentTransaction {
-    id: number;
-    booking_id: number;
-    amount: number;
-    payment_type: string;
-    payment_method?: string;
-    notes?: string;
-    payment_date: string;
-    created_at: string;
-    created_by?: string;
-    users?: {
-        full_name: string;
-        email: string;
-    };
-}
-
-export interface AddPaymentRequest {
-    amount: number;
-    payment_type?: 'PARTIAL' | 'FINAL';
-    payment_method?: string;
-    notes?: string;
-}
-
-// -- FUEL RECORDS --
-
-export enum MaintenanceType {
-    OIL_CHANGE = 'OIL_CHANGE',
-    TIRE_ROTATION = 'TIRE_ROTATION',
-    BRAKE_SERVICE = 'BRAKE_SERVICE',
-    GENERAL_INSPECTION = 'GENERAL_INSPECTION',
-    REPAIR = 'REPAIR',
-    OTHER = 'OTHER',
-}
-
-export interface CreateFuelRecordRequest {
-    vehicle_id: number;
-    date: string; // ISO date format YYYY-MM-DD
-    fuel_litres: number;
-    current_fuel_rate: number;
-    fuel_cost?: number; // Auto-calculated if not provided
-    billed?: boolean;
-}
-
-export interface BulkPayFuelRequest {
-    ids: number[];
-}
-
-export interface UpdateFuelRecordRequest extends Partial<CreateFuelRecordRequest> { }
-
-export interface QueryFuelRecordParams {
-    page?: number;
-    limit?: number;
-    vehicle_id?: number;
-    start_date?: string;
-    end_date?: string;
-    billed?: boolean;
-}
-
-export interface FuelRecord {
-    id: number;
-    vehicle_id: number;
-    date: string;
-    fuel_litres: number;
-    current_fuel_rate: number;
-    fuel_cost: number;
-    billed: boolean;
-    created_at: string;
-    updated_at: string;
-    vehicles?: {
-        id: number;
-        plate_number: string;
-        make: string;
-        model: string;
-    };
-}
-
-export interface FuelRecordResponse {
-    data: FuelRecord;
-    statusCode: number;
-    message: string;
-}
-
-export interface FuelStatsResponse {
-    data: {
-        total_fuel_cost: number;
-        average_fuel_rate: number;
-        total_records: number;
-    };
-    statusCode: number;
-    message: string;
-}
-
-// -- MAINTENANCE RECORDS --
-
-export interface CreateMaintenanceRecordRequest {
-    vehicle_id: number;
-    maintenance_type: MaintenanceType;
-    date: string; // ISO date format YYYY-MM-DD
-    odometer_reading: number;
-    next_service_odometer?: number; // Auto-calculated for oil changes
-    cost?: number;
-    notes?: string;
-}
-
-export interface UpdateMaintenanceRecordRequest extends Partial<CreateMaintenanceRecordRequest> { }
-
-export interface QueryMaintenanceRecordParams {
-    page?: number;
-    limit?: number;
-    vehicle_id?: number;
-    maintenance_type?: MaintenanceType;
-    start_date?: string;
-    end_date?: string;
-}
-
-export interface MaintenanceRecord {
-    id: number;
-    vehicle_id: number;
-    maintenance_type: MaintenanceType;
-    date: string;
-    odometer_reading: number;
-    next_service_odometer: number | null;
-    cost: number | null;
-    notes: string | null;
-    created_at: string;
-    updated_at: string;
-    vehicles?: {
-        id: number;
-        plate_number: string;
-        make: string;
-        model: string;
-    };
-}
-
-export interface MaintenanceRecordResponse {
-    data: MaintenanceRecord;
-    statusCode: number;
-    message: string;
-}
-
-export interface UpcomingMaintenanceResponse {
-    data: {
-        vehicle_id: number;
-        plate_number: string;
-        make: string;
-        model: string;
-        last_oil_change_date: string;
-        last_oil_change_odometer: number;
-        next_service_odometer: number;
-    }[];
-    statusCode: number;
-    message: string;
-}
+import {
+    PaginatedResponse,
+    // Companies
+    CreateCompanyRequest, QueryCompanyParams, Company, CompanyResponse, UpdateCompanyRequest,
+    // Employees
+    CreateEmployeeRequest, QueryEmployeeParams, Employee, EmployeeResponse, UpdateEmployeeRequest,
+    // Vehicles
+    CreateVehicleRequest, QueryVehicleParams, Vehicle, VehicleResponse, UpdateVehicleRequest,
+    // Vendors
+    CreateVendorRequest, QueryVendorParams, Vendor, VendorResponse, UpdateVendorRequest,
+    CreateVendorContractRequest, QueryVendorContractParams, VendorContract, VendorContractResponse, UpdateVendorContractRequest,
+    QueryVendorLogsParams, VendorLogsResponse, VendorStatsResponse, CreateVendorPaymentRequest, VendorPaymentTransaction,
+    // Drivers
+    CreateDriverRequest, QueryDriverParams, Driver, DriverResponse, UpdateDriverRequest, UpdateDriverStatusRequest,
+    // Pricing / Contracts
+    ChauffeurContractResponse, CreateChauffeurContractRequest, SingleChauffeurContractResponse, UpdateChauffeurContractRequest,
+    SystemSettingResponse,
+    // Bookings
+    CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams,
+    DailyTripLog, AddPaymentRequest,
+    // Fleet
+    CreateFuelRecordRequest, QueryFuelRecordParams, FuelRecord, FuelRecordResponse, UpdateFuelRecordRequest,
+    BulkPayFuelRequest, FuelStatsResponse,
+    CreateMaintenanceRecordRequest, QueryMaintenanceRecordParams, MaintenanceRecord, MaintenanceRecordResponse,
+    UpdateMaintenanceRecordRequest, UpcomingMaintenanceResponse,
+    // Reports
+    ChauffeurReport, ReportQueryParams,
+    // Invoices
+    QueryInvoiceParams, Invoice,
+    // Expenses
+    Expense, CreateExpenseRequest, ExpenseFilterParams,
+} from './types';
+
+// Re-export all types for backward compatibility
+export * from './types';
+export type { LoginRequest, LoginResponse, ProfileResponse, SignupRequest } from '../types/auth-types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -936,9 +88,6 @@ class ApiClient {
         localStorage.removeItem('refresh_token');
     }
 
-    /**
-     * Make HTTP request with automatic token attachment
-     */
     /**
      * Request a new access token using the refresh token
      */
@@ -1129,19 +278,14 @@ class ApiClient {
         document.body.removeChild(a);
     }
 
-    /**
-     * Login user with email and password
-     */
-    /**
-     * Login user with email and password
-     */
+    // ===== AUTH =====
+
     async login(credentials: LoginRequest): Promise<LoginResponse> {
         const response = await this.request<LoginResponse>('/auth/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
         });
 
-        // Store tokens after successful login
         if (response.data?.session?.access_token) {
             this.setToken(response.data.session.access_token);
             if (response.data.session.refresh_token) {
@@ -1152,16 +296,12 @@ class ApiClient {
         return response;
     }
 
-    /**
-     * Signup new user
-     */
     async signup(data: SignupRequest): Promise<LoginResponse> {
         const response = await this.request<LoginResponse>('/auth/signup', {
             method: 'POST',
             body: JSON.stringify(data),
         });
 
-        // Store tokens after successful signup
         if (response.data?.session?.access_token) {
             this.setToken(response.data.session.access_token);
             if (response.data.session.refresh_token) {
@@ -1172,18 +312,12 @@ class ApiClient {
         return response;
     }
 
-    /**
-     * Get current user profile
-     */
     async getProfile(): Promise<ProfileResponse> {
         return this.request<ProfileResponse>('/auth/profile', {
             method: 'GET',
         });
     }
 
-    /**
-     * Logout user (client-side only, clears token)
-     */
     async logout(): Promise<void> {
         try {
             await this.request<void>('/auth/logout', { method: 'POST' });
@@ -1194,23 +328,16 @@ class ApiClient {
         }
     }
 
-    /**
-     * Check if user is authenticated (has valid token)
-     */
     isAuthenticated(): boolean {
         return !!this.getToken();
     }
 
-    /**
-     * Get current auth token
-     */
     getAuthToken(): string | null {
         return this.getToken();
     }
 
-    /**
-     * Get list of companies
-     */
+    // ===== COMPANIES =====
+
     async getCompanies(params: QueryCompanyParams = {}): Promise<PaginatedResponse<Company>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1223,16 +350,10 @@ class ApiClient {
         return this.request<PaginatedResponse<Company>>(endpoint);
     }
 
-    /**
-     * Get single company by ID
-     */
     async getCompany(id: number | string): Promise<CompanyResponse> {
         return this.request<CompanyResponse>(`/companies/${id}`);
     }
 
-    /**
-     * Create a new company
-     */
     async createCompany(data: CreateCompanyRequest): Promise<CompanyResponse> {
         return this.request<CompanyResponse>('/companies/create', {
             method: 'POST',
@@ -1240,9 +361,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update a company
-     */
     async updateCompany(id: number | string, data: UpdateCompanyRequest): Promise<CompanyResponse> {
         return this.request<CompanyResponse>(`/companies/update/${id}`, {
             method: 'PATCH',
@@ -1250,9 +368,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Reset company password
-     */
     async resetCompanyPassword(id: number, password: string): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/companies/${id}/password`, {
             method: 'PATCH',
@@ -1260,18 +375,14 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete a company
-     */
     async deleteCompany(id: number): Promise<void> {
         await this.request<void>(`/companies/delete/${id}`, {
             method: 'DELETE',
         });
     }
 
-    /**
-     * Get employees
-     */
+    // ===== EMPLOYEES =====
+
     async getEmployees(params: QueryEmployeeParams = {}): Promise<PaginatedResponse<Employee>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1285,9 +396,6 @@ class ApiClient {
         return this.request<PaginatedResponse<Employee>>(endpoint);
     }
 
-    /**
-     * Create Employee
-     */
     async createEmployee(data: CreateEmployeeRequest): Promise<EmployeeResponse> {
         return this.request<EmployeeResponse>('/employees/create', {
             method: 'POST',
@@ -1295,9 +403,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update Employee
-     */
     async updateEmployee(id: string, data: UpdateEmployeeRequest): Promise<EmployeeResponse> {
         return this.request<EmployeeResponse>(`/employees/${id}`, {
             method: 'PATCH',
@@ -1305,9 +410,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Bulk Create Employees
-     */
     async bulkCreateEmployees(employees: CreateEmployeeRequest[]): Promise<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }> {
         return this.request<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }>('/employees/bulk-create', {
             method: 'POST',
@@ -1315,9 +417,8 @@ class ApiClient {
         });
     }
 
-    /**
-     * Get vehicles
-     */
+    // ===== VEHICLES =====
+
     async getVehicles(params: QueryVehicleParams = {}): Promise<PaginatedResponse<Vehicle>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1334,9 +435,6 @@ class ApiClient {
         return this.request<PaginatedResponse<Vehicle>>(endpoint);
     }
 
-    /**
-     * Get available vehicles (not in active booking)
-     */
     async getAvailableVehicles(params: QueryVehicleParams = {}): Promise<PaginatedResponse<Vehicle>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1351,16 +449,10 @@ class ApiClient {
         return this.request<PaginatedResponse<Vehicle>>(endpoint);
     }
 
-    /**
-     * Get single vehicle
-     */
     async getVehicle(id: number): Promise<VehicleResponse> {
         return this.request<VehicleResponse>(`/vehicles/${id}`);
     }
 
-    /**
-     * Create vehicle
-     */
     async createVehicle(data: CreateVehicleRequest): Promise<VehicleResponse> {
         return this.request<VehicleResponse>('/vehicles/create', {
             method: 'POST',
@@ -1368,9 +460,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update vehicle
-     */
     async updateVehicle(id: number, data: UpdateVehicleRequest): Promise<VehicleResponse> {
         return this.request<VehicleResponse>(`/vehicles/update/${id}`, {
             method: 'PATCH',
@@ -1378,18 +467,14 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete vehicle
-     */
     async deleteVehicle(id: number): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/vehicles/delete/${id}`, {
             method: 'DELETE',
         });
     }
 
-    /**
-     * Get vendors
-     */
+    // ===== VENDORS =====
+
     async getVendors(params: QueryVendorParams = {}): Promise<PaginatedResponse<Vendor>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1402,16 +487,10 @@ class ApiClient {
         return this.request<PaginatedResponse<Vendor>>(endpoint);
     }
 
-    /**
-     * Get single vendor
-     */
     async getVendor(id: number): Promise<VendorResponse> {
         return this.request<VendorResponse>(`/vendors/${id}`);
     }
 
-    /**
-     * Create vendor
-     */
     async createVendor(data: CreateVendorRequest): Promise<VendorResponse> {
         return this.request<VendorResponse>('/vendors', {
             method: 'POST',
@@ -1419,9 +498,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update vendor
-     */
     async updateVendor(id: number, data: UpdateVendorRequest): Promise<VendorResponse> {
         return this.request<VendorResponse>(`/vendors/${id}`, {
             method: 'PATCH',
@@ -1429,9 +505,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete vendor
-     */
     async deleteVendor(id: number): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/vendors/${id}`, {
             method: 'DELETE',
@@ -1440,9 +513,6 @@ class ApiClient {
 
     // ===== VENDOR CONTRACTS =====
 
-    /**
-     * Get all vendor contracts
-     */
     async getAllVendorContracts(params: QueryVendorContractParams = {}): Promise<PaginatedResponse<VendorContract>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1458,16 +528,10 @@ class ApiClient {
         return this.request<PaginatedResponse<VendorContract>>(endpoint);
     }
 
-    /**
-     * Get vendor contract by ID
-     */
     async getVendorContractById(id: number): Promise<VendorContractResponse> {
         return this.request<VendorContractResponse>(`/vendors/contracts/${id}`);
     }
 
-    /**
-     * Create vendor contract
-     */
     async createVendorContract(data: CreateVendorContractRequest): Promise<VendorContractResponse> {
         return this.request<VendorContractResponse>('/vendors/contracts', {
             method: 'POST',
@@ -1475,9 +539,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update vendor contract
-     */
     async updateVendorContract(id: number, data: UpdateVendorContractRequest): Promise<VendorContractResponse> {
         return this.request<VendorContractResponse>(`/vendors/contracts/${id}`, {
             method: 'PATCH',
@@ -1485,16 +546,13 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete vendor contract
-     */
     async deleteVendorContract(id: number): Promise<{ message: string }> {
         return this.request<{ message: string }>(`/vendors/contracts/${id}`, {
             method: 'DELETE',
         });
     }
 
-    // -- VENDOR LOGS --
+    // ===== VENDOR LOGS =====
 
     async getVendorLogs(params: QueryVendorLogsParams): Promise<VendorLogsResponse> {
         const queryParams = new URLSearchParams();
@@ -1533,9 +591,8 @@ class ApiClient {
         return this.request<VendorPaymentTransaction[]>(`/vendors/payments/${bookingId}`);
     }
 
-    /**
-     * Get drivers
-     */
+    // ===== DRIVERS =====
+
     async getDrivers(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1551,16 +608,11 @@ class ApiClient {
         return this.request<PaginatedResponse<Driver>>(endpoint);
     }
 
-    /**
-     * Get pending chauffeur drivers
-     */
     async getPendingChauffeurs(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.search) query.append('search', params.search);
-        // Note: status=PENDING and driver_type=CHAUFFEUR are handled by the backend endpoint logic or default logic if passed
-        // The backend endpoint /drivers/pending-chauffeurs might override these internally, but passing them is fine.
 
         const queryString = query.toString();
         const endpoint = `/drivers/pending-chauffeurs${queryString ? `?${queryString}` : ''}`;
@@ -1568,11 +620,6 @@ class ApiClient {
         return this.request<PaginatedResponse<Driver>>(endpoint);
     }
 
-
-
-    /**
-     * Get available drivers (not in active booking)
-     */
     async getAvailableDrivers(params: QueryDriverParams = {}): Promise<PaginatedResponse<Driver>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1586,16 +633,10 @@ class ApiClient {
         return this.request<PaginatedResponse<Driver>>(endpoint);
     }
 
-    /**
-     * Get single driver
-     */
     async getDriver(id: string): Promise<DriverResponse> {
         return this.request<DriverResponse>(`/drivers/${id}`);
     }
 
-    /**
-     * Create driver
-     */
     async createDriver(data: CreateDriverRequest): Promise<DriverResponse> {
         return this.request<DriverResponse>('/drivers', {
             method: 'POST',
@@ -1603,9 +644,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update driver
-     */
     async updateDriver(id: string, data: UpdateDriverRequest): Promise<DriverResponse> {
         return this.request<DriverResponse>(`/drivers/${id}`, {
             method: 'PATCH',
@@ -1613,9 +651,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update driver status (Approve/Reject)
-     */
     async updateDriverStatus(id: string, data: UpdateDriverStatusRequest): Promise<DriverResponse> {
         return this.request<DriverResponse>(`/drivers/${id}/status`, {
             method: 'PATCH',
@@ -1623,27 +658,18 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete driver
-     */
     async deleteDriver(id: string): Promise<void> {
         await this.request<void>(`/drivers/${id}`, {
             method: 'DELETE',
         });
     }
 
-    // -- Chauffeur Contracts --
+    // ===== CHAUFFEUR CONTRACTS =====
 
-    /**
-     * Get chauffeur contracts for a company
-     */
     async getChauffeurContracts(companyId: number): Promise<ChauffeurContractResponse> {
         return this.request<ChauffeurContractResponse>(`/contracts/chauffeur?companyId=${companyId}`);
     }
 
-    /**
-     * Create chauffeur contract
-     */
     async createChauffeurContract(data: CreateChauffeurContractRequest): Promise<SingleChauffeurContractResponse> {
         return this.request<SingleChauffeurContractResponse>('/contracts/chauffeur', {
             method: 'POST',
@@ -1651,9 +677,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update chauffeur contract
-     */
     async updateChauffeurContract(id: number, data: UpdateChauffeurContractRequest): Promise<SingleChauffeurContractResponse> {
         return this.request<SingleChauffeurContractResponse>(`/contracts/chauffeur/${id}`, {
             method: 'PATCH',
@@ -1661,18 +684,12 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete chauffeur contract
-     */
     async deleteChauffeurContract(id: number): Promise<void> {
         await this.request<void>(`/contracts/chauffeur/${id}`, {
             method: 'DELETE',
         });
     }
 
-    /**
-     * Update specific rate entry
-     */
     async updateChauffeurRate(id: number, data: UpdateChauffeurContractRequest): Promise<void> {
         await this.request<void>(`/contracts/chauffeur/rate/${id}`, {
             method: 'PATCH',
@@ -1680,19 +697,12 @@ class ApiClient {
         });
     }
 
-    /**
-     * Delete specific rate entry
-     */
     async deleteChauffeurRate(id: number): Promise<void> {
         await this.request<void>(`/contracts/chauffeur/rate/${id}`, {
             method: 'DELETE',
         });
     }
 
-    /**
-     * Preview how rates would be adjusted based on fuel price
-     * Super admin can view adjustments after changing fuel price
-     */
     async previewRateAdjustments(newFuelPrice: number, companyId?: number): Promise<any> {
         const query = new URLSearchParams();
         query.append('newFuelPrice', newFuelPrice.toString());
@@ -1701,26 +711,16 @@ class ApiClient {
         return this.request<any>(`/contracts/chauffeur/preview-adjustments?${query.toString()}`);
     }
 
-    /**
-     * Get adjusted billing rate for a booking
-     * Used during invoice generation
-     */
     async getAdjustedBillingRate(bookingId: number): Promise<any> {
         return this.request<any>(`/contracts/chauffeur/billing-rate/${bookingId}`);
     }
 
-    // -- System Settings --
+    // ===== SYSTEM SETTINGS =====
 
-    /**
-     * Get system setting by key
-     */
     async getSystemSetting(key: string): Promise<SystemSettingResponse> {
         return this.request<SystemSettingResponse>(`/system-settings/${key}`);
     }
 
-    /**
-     * Update system setting
-     */
     async updateSystemSetting(key: string, value: string): Promise<SystemSettingResponse> {
         return this.request<SystemSettingResponse>(`/system-settings/${key}`, {
             method: 'PUT',
@@ -1728,11 +728,8 @@ class ApiClient {
         });
     }
 
-    // -- Company Chauffeur Bookings --
+    // ===== CHAUFFEUR BOOKINGS =====
 
-    /**
-     * Get all bookings (Admin)
-     */
     async getAllBookings(params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1741,15 +738,11 @@ class ApiClient {
         if (params.search) query.append('search', params.search);
 
         const queryString = query.toString();
-        // Correct string interpolation for template literal
         const endpoint = `/admin/bookings${queryString ? `?${queryString}` : ''}`;
 
         return this.request<PaginatedResponse<ChauffeurBooking>>(endpoint);
     }
 
-    /**
-     * Create a chauffeur booking for a company
-     */
     async createChauffeurBooking(companyId: number, data: CreateChauffeurBookingRequest): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings`, {
             method: 'POST',
@@ -1757,9 +750,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Assign driver and vehicle to a booking (Admin)
-     */
     async assignBooking(id: number, vehicleId: number, driverId: string): Promise<void> {
         return this.request<void>(`/admin/bookings/${id}/assign`, {
             method: 'PATCH',
@@ -1767,9 +757,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Update booking status (Admin)
-     */
     async updateBookingStatus(id: number, status: string): Promise<void> {
         return this.request<void>(`/admin/bookings/${id}/status`, {
             method: 'PATCH',
@@ -1822,9 +809,6 @@ class ApiClient {
         });
     }
 
-    /**
-     * Get all bookings for a company
-     */
     async getCompanyChauffeurBookings(companyId: number, params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1838,39 +822,26 @@ class ApiClient {
         return this.request<PaginatedResponse<ChauffeurBooking>>(endpoint);
     }
 
-    /**
-     * Get single booking for a company
-     */
     async getCompanyChauffeurBooking(companyId: number, bookingId: number): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings/${bookingId}`);
     }
 
-    /**
-     * Get company dashboard stats
-     */
     async getCompanyDashboardStats(companyId: string | number): Promise<any> {
         return this.request<any>(`/companies/${companyId}/dashboard-stats`);
     }
 
-    /**
-     * Get employees for a specific company
-     */
     async getEmployeesByCompany(companyId: string | number): Promise<any> {
         return this.request<any>(`/employees/company/${companyId}`);
     }
 
-    /**
-     * Activate or deactivate employee
-     */
     async toggleEmployeeStatus(id: string, activate: boolean): Promise<any> {
         return this.request<any>(`/employees/${id}/${activate ? 'activate' : 'deactivate'}`, {
             method: 'POST',
         });
     }
 
-    /**
-     * Get chauffeur reports for a company
-     */
+    // ===== REPORTS =====
+
     async getChauffeurReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1884,9 +855,6 @@ class ApiClient {
         return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
     }
 
-    /**
-     * Get all chauffeur reports (Superadmin)
-     */
     async getAllChauffeurReports(params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
@@ -1900,9 +868,8 @@ class ApiClient {
         return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
     }
 
-    /**
-     * Invoices
-     */
+    // ===== INVOICES =====
+
     async generateTripInvoice(bookingId: number) {
         return this.request('/invoices/generate', {
             method: 'POST',
@@ -1935,9 +902,6 @@ class ApiClient {
         return this.request<any>(`/companies/${companyId}/invoices`);
     }
 
-    /**
-     * Contracts
-     */
     async getMyContract(): Promise<any> {
         return this.request<any>('/contracts/my-contract');
     }
@@ -1959,9 +923,8 @@ class ApiClient {
         });
     }
 
-    /**
-     * Vehicle Fuel Records
-     */
+    // ===== FUEL RECORDS =====
+
     async getFuelRecords(params: QueryFuelRecordParams = {}): Promise<PaginatedResponse<FuelRecord>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', String(params.page));
@@ -2010,9 +973,8 @@ class ApiClient {
         return this.request<FuelStatsResponse>('/vehicle-fuel/stats');
     }
 
-    /**
-     * Vehicle Maintenance Records
-     */
+    // ===== MAINTENANCE RECORDS =====
+
     async getMaintenanceRecords(params: QueryMaintenanceRecordParams = {}): Promise<PaginatedResponse<MaintenanceRecord>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', String(params.page));
@@ -2054,7 +1016,8 @@ class ApiClient {
         return this.request<UpcomingMaintenanceResponse>('/vehicle-maintenance/upcoming');
     }
 
-    // --- Dashboard ---
+    // ===== DASHBOARD =====
+
     async getSuperAdminDashboardStats(startDate?: string, endDate?: string) {
         let query = '';
         if (startDate && endDate) {
@@ -2080,133 +1043,7 @@ class ApiClient {
     }
 }
 
-export interface ChauffeurReport {
-    id: number;
-    city?: string;
-    completed_at: string;
-    total_duration_minutes: number;
-    total_distance_km: number;
-    total_cost: number;
-    company?: {
-        id: number;
-        name: string;
-    } | null;
-    passenger: {
-        full_name: string;
-        email: string;
-        employee_id: string;
-    } | null;
-    driver: {
-        full_name: string;
-    } | null;
-    vehicle: {
-        make: string;
-        model: string;
-        plate_number: string;
-    } | null;
-    route: {
-        pickup: string;
-        dropoff: string;
-    };
-    breakdown: {
-        service_charge: number;
-        fuel_cost: number;
-        toll: number;
-        parking: number;
-        accommodation: number;
-        outstation_allowance: number;
-        overtime: number;
-        expense_toll_image_url?: string | null;
-        expense_parking_image_url?: string | null;
-    };
-    daily_logs?: ChauffeurTripDailyLog[];
-}
-
-export interface ReportQueryParams {
-    page?: number;
-    limit?: number;
-    startDate?: string;
-    endDate?: string;
-}
-
 export const apiClient = new ApiClient();
-
-export interface QueryInvoiceParams {
-    page?: number;
-    limit?: number;
-    status?: string;
-    company_id?: number;
-}
-
-export interface Invoice {
-    id: number;
-    invoice_number: string;
-    billing_month: string;
-    total_amount: number;
-    pdf_url?: string;
-    generated_at: string;
-    status: string;
-    companies?: {
-        name: string;
-    }
-}
-
-// -- EXPENSES --
-
-export enum ExpenseCategory {
-    MARKETING = 'MARKETING',
-    INTEREST = 'INTEREST',
-    RENT = 'RENT',
-    LOGISTICS = 'LOGISTICS',
-    OFFICE_ACCESSORIES = 'OFFICE_ACCESSORIES',
-    TRAVELLING = 'TRAVELLING',
-    BANK_CHARGES = 'BANK_CHARGES',
-    ENTERTAINMENT = 'ENTERTAINMENT',
-    MISC = 'MISC',
-}
-
-export interface Expense {
-    id: number;
-    category: ExpenseCategory;
-    amount: number;
-    date: string;
-    description: string | null;
-    payment_status: string | null;
-    paid_at: string | null;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface CreateExpenseRequest {
-    category: ExpenseCategory;
-    amount: number;
-    date: string;
-    description?: string;
-}
-
-export interface ExpenseFilterParams {
-    startDate?: string;
-    endDate?: string;
-    category?: ExpenseCategory;
-    page?: number;
-    limit?: number;
-}
-
-export interface PaginatedResponse<T> {
-    data: {
-        data: T[];
-        pagination: {
-            page: number;
-            limit: number;
-            total: number;
-            pages: number;
-            hasNext: boolean;
-            hasPrev: boolean;
-        };
-    };
-    status: number;
-    message: string;
-}
 
 export const ExpensesApi = {
     getAll: async (params?: ExpenseFilterParams) => {

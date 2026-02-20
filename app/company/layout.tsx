@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { CompanyShell } from "./ui/CompanyShell";
 import { Provider } from "react-redux";
-import { store } from "../lib/store/store";
+import { companyStore } from "../lib/store/company-store";
 import { useAuth } from "../lib/contexts/auth-context";
 import { ProtectedRoute } from "../lib/components/protected-route";
 import { UserRole } from "../lib/types/auth-types";
@@ -24,7 +24,7 @@ export default function CompanyLayout({ children }: { children: ReactNode }) {
       allowedRoles={[UserRole.COMPANY_ADMIN, UserRole.EMPLOYEE, UserRole.SUPER_ADMIN]}
       redirectTo="/company/login"
     >
-      <Provider store={store}>
+      <Provider store={companyStore}>
         <CompanyShell>{children}</CompanyShell>
       </Provider>
     </ProtectedRoute>
