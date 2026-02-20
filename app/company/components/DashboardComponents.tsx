@@ -15,7 +15,8 @@ import {
     ShieldCheck,
     Star,
     Activity,
-    FileText
+    FileText,
+    Settings
 } from 'lucide-react';
 import { DashboardData } from '../types';
 
@@ -289,13 +290,30 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
 }
 
 
-export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] }) => {
-    const budget = 1500000; // Mock budget for bullet graph
+export const CostVisibilitySection = ({
+    data,
+    onEditBudget
+}: {
+    data: DashboardData['cost'];
+    onEditBudget?: () => void;
+}) => {
+    const budget = data.budget || 1500000;
     const percentageUsed = Math.min((data.totalSpendMTD / budget) * 100, 100);
 
     return (
         <Card>
-            <SectionTitle><CreditCard className="w-5 h-5 text-purple-500" /> Cost Visibility</SectionTitle>
+            <div className="flex justify-between items-center mb-4">
+                <SectionTitle><CreditCard className="w-5 h-5 text-purple-500" /> Cost Visibility</SectionTitle>
+                {onEditBudget && (
+                    <button
+                        onClick={onEditBudget}
+                        className="text-xs flex items-center gap-1 text-slate-500 hover:text-indigo-600 font-bold transition-colors bg-slate-50 hover:bg-indigo-50 px-2 py-1 rounded-md"
+                    >
+                        <Settings className="w-3 h-3" /> Edit Budget
+                    </button>
+                )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
                 <div className="flex flex-col gap-6">
                     <div>
@@ -322,8 +340,8 @@ export const CostVisibilitySection = ({ data }: { data: DashboardData['cost'] })
                             <div style={{ width: `${percentageUsed}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${percentageUsed > 90 ? 'bg-rose-500' : 'bg-slate-800'}`}></div>
                         </div>
                         <div className="text-[10px] text-slate-400 flex justify-between uppercase font-medium">
-                            <span>0k</span>
-                            <span>1.5M Goal</span>
+                            <span>0</span>
+                            <span>{(budget / 1000).toLocaleString()}k Goal</span>
                         </div>
                     </div>
                 </div>

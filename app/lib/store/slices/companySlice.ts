@@ -12,6 +12,7 @@ export interface Company {
         shuttle_enabled: boolean;
         chauffeur_enabled: boolean;
     };
+    monthly_budget: number;
     vehicle_whitelists?: Array<{
         id: number;
         company_id: number;
@@ -48,6 +49,7 @@ export const fetchCompanyProfile = createAsyncThunk(
                     shuttle_enabled: rawCompany.is_shuttle_enabled || false,
                     chauffeur_enabled: rawCompany.is_chauffeur_enabled || false,
                 },
+                monthly_budget: rawCompany.monthly_budget || 1500000,
                 vehicle_whitelists: rawCompany.vehicle_whitelists || [],
             };
 

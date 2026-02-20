@@ -8,6 +8,7 @@ import { useAuth } from "../lib/contexts/auth-context";
 import { useState, useEffect } from "react";
 import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
+import EditBudgetForm from "./components/EditBudgetForm";
 import {
   TakingCareSection,
   NothingToDoSection,
@@ -32,6 +33,7 @@ export default function CompanyDashboardPage() {
   const error = status === 'failed' ? 'Failed to load stats' : null;
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const companyId = user?.company_id?.toString();
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function CompanyDashboardPage() {
       costPerEmployee: dashboardStats.employees.active > 0
         ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.employees.active)
         : 0,
+      budget: dashboardStats.monthlyBudget || 1500000,
     },
     employeeUsage: {
       activeEmployees: dashboardStats.employees.active,
@@ -236,7 +239,10 @@ export default function CompanyDashboardPage() {
 
         {/* Cost Visibility */}
         <div className="lg:col-span-2">
-          <CostVisibilitySection data={data.cost} />
+          <CostVisibilitySection
+            data={data.cost}
+            onEditBudget={() => setIsBudgetModalOpen(true)}
+          />
         </div>
 
         {/* Smart Insights */}
@@ -264,6 +270,19 @@ export default function CompanyDashboardPage() {
         <CreateBookingForm
           onSuccess={() => setIsModalOpen(false)}
           onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isBudgetModalOpen}
+        onClose={() => setIsBudgetModalOpen(false)}
+        title="Edit Monthly Budget"
+      >
+        <EditBudgetForm
+          companyId={companyId!}
+          currentBudget={data.cost.budget}
+          onSuccess={() => setIsBudgetModalOpen(false)}
+          onCancel={() => setIsBudgetModalOpen(false)}
         />
       </Modal>
     </div>

@@ -38,6 +38,7 @@ export type DashboardStats = {
         highDemandDay: string;
         lowDemandDay: string;
     };
+    monthlyBudget?: number;
 };
 
 interface DashboardState {

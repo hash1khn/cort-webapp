@@ -20,6 +20,7 @@ export interface DashboardData {
         totalSpendMTD: number; // in PKR
         spendTrend: string; // e.g. "+5%"
         costPerEmployee: number; // in PKR
+        budget: number; // in PKR
     };
     employeeUsage: {
         activeEmployees: number;

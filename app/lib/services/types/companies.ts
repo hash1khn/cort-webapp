@@ -10,6 +10,7 @@ export interface CreateCompanyRequest {
     is_chauffeur_enabled?: boolean;
     prefix?: string;
     auth_email?: string;
+    monthly_budget?: number;
 }
 
 export interface UpdateCompanyRequest extends Partial<CreateCompanyRequest> {
@@ -41,6 +42,7 @@ export interface Company {
     created_at: string;
     updated_at: string;
     vehicle_whitelists?: VehicleWhitelist[];
+    monthly_budget?: number;
     _count?: {
         users: number;
     };
