@@ -2,6 +2,22 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { BreakdownItem } from '../../../lib/types/admin-dashboard';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const RADIAN = Math.PI / 180;
+
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    // adjusted radius to center the text better within the thicker slice
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    if (percent < 0.05) return null; // Don't show label for very small slices
+
+    return (
+        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight="bold">
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+    );
+};
 
 interface DashboardChartsProps {
     ridesBreakdown: BreakdownItem[];
@@ -12,6 +28,9 @@ export function DashboardCharts({ ridesBreakdown, expensesBreakdown }: Dashboard
     // Data check
     const hasRides = ridesBreakdown && ridesBreakdown.some(i => i.value > 0);
     const hasExpenses = expensesBreakdown && expensesBreakdown.some(i => i.value > 0);
+
+    const totalRides = hasRides ? ridesBreakdown.reduce((sum, item) => sum + item.value, 0) : 0;
+    const totalExpenses = hasExpenses ? expensesBreakdown.reduce((sum, item) => sum + item.value, 0) : 0;
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
@@ -26,10 +45,12 @@ export function DashboardCharts({ ridesBreakdown, expensesBreakdown }: Dashboard
                                     data={ridesBreakdown}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
+                                    labelLine={false}
+                                    label={renderCustomizedLabel}
+                                    innerRadius={40}
+                                    outerRadius={90}
+                                    paddingAngle={8}
                                     fill="#8884d8"
-                                    paddingAngle={5}
                                     dataKey="value"
                                     nameKey="name"
                                 >
@@ -38,7 +59,10 @@ export function DashboardCharts({ ridesBreakdown, expensesBreakdown }: Dashboard
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    formatter={(value: any) => [value, 'Trips']}
+                                    formatter={(value: any) => {
+                                        const percent = totalRides > 0 ? ((Number(value) / totalRides) * 100).toFixed(1) : '0';
+                                        return [`${value} (${percent}%)`, 'Trips'];
+                                    }}
                                     contentStyle={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                 />
                                 <Legend
@@ -67,10 +91,12 @@ export function DashboardCharts({ ridesBreakdown, expensesBreakdown }: Dashboard
                                     data={expensesBreakdown}
                                     cx="50%"
                                     cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
+                                    labelLine={false}
+                                    label={renderCustomizedLabel}
+                                    innerRadius={40}
+                                    outerRadius={90}
+                                    paddingAngle={8}
                                     fill="#8884d8"
-                                    paddingAngle={5}
                                     dataKey="value"
                                     nameKey="name"
                                 >
@@ -79,10 +105,11 @@ export function DashboardCharts({ ridesBreakdown, expensesBreakdown }: Dashboard
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    formatter={(value: any) => [
-                                        new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(value),
-                                        'Cost'
-                                    ]}
+                                    formatter={(value: any) => {
+                                        const percent = totalExpenses > 0 ? ((Number(value) / totalExpenses) * 100).toFixed(1) : '0';
+                                        const formattedValue = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(value);
+                                        return [`${formattedValue} (${percent}%)`, 'Cost'];
+                                    }}
                                     contentStyle={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                 />
                                 <Legend
