@@ -11,6 +11,7 @@ import superAdminDashboardReducer from './slices/superAdminDashboardSlice';
 import vendorLogsReducer from './slices/vendorLogsSlice';
 import expensesReducer from './slices/expensesSlice';
 import adminRoutesReducer from './slices/adminRoutesSlice';
+import employeesReducer from './slices/employeeSlice';
 
 export const adminStore = configureStore({
     reducer: {
@@ -26,6 +27,7 @@ export const adminStore = configureStore({
         vendorLogs: vendorLogsReducer,
         expenses: expensesReducer,
         adminRoutes: adminRoutesReducer,
+        employees: employeesReducer,
     },
 });
 
