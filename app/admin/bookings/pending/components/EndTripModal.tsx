@@ -8,6 +8,7 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [distance, setDistance] = useState("0");
     const [toll, setToll] = useState("0");
     const [parking, setParking] = useState("0");
+    const [vendorCost, setVendorCost] = useState("");
     const [useManualEndTime, setUseManualEndTime] = useState(false);
     const [manualEndTime, setManualEndTime] = useState("");
     const [dailyLogs, setDailyLogs] = useState<any[]>([]);
@@ -15,6 +16,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [tollImage, setTollImage] = useState<File | null>(null);
     const [parkingImage, setParkingImage] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+
+    const isPartnerVehicle = booking?.vehicles?.ownership === 'PARTNER';
 
     useEffect(() => {
         if (isOpen && booking) {
@@ -100,6 +103,11 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                 expense_parking_image_url: parkingImageUrl || undefined,
             };
 
+            // Include manual vendor cost if entered (partner shuttle lump-sum)
+            if (isPartnerVehicle && vendorCost !== "" && parseFloat(vendorCost) >= 0) {
+                data.vendor_cost = parseFloat(vendorCost);
+            }
+
             if (useManualEndTime && manualEndTime) {
                 data.end_time = new Date(manualEndTime).toISOString();
             }
@@ -162,6 +170,20 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                             <label className="text-xs font-semibold uppercase text-muted">Parking Expenses</label>
                             <input type="number" className="mt-1 w-full rounded-md border border-border p-2 text-sm" value={parking} onChange={(e) => setParking(e.target.value)} />
                         </div>
+                        {isPartnerVehicle && (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                                <label className="text-xs font-semibold uppercase text-amber-700">Vendor Cost (Lumpsum)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Enter total vendor cost"
+                                    className="mt-1 w-full rounded-md border border-amber-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    value={vendorCost}
+                                    onChange={(e) => setVendorCost(e.target.value)}
+                                />
+                                <p className="mt-1 text-[10px] text-amber-600">Manually enter the agreed vendor cost. This overrides auto-calculation.</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-4">

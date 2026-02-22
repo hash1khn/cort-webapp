@@ -98,6 +98,19 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const EVENT_SHUTTLE_SEATER_OPTIONS = [
+        "7 Seater",
+        "14 Seater AC",
+        "14 Seater Non-AC",
+        "24 Seater",
+        "32 Seater Non-AC",
+        "48 Seater",
+        "62 Seater AC",
+        "62 Seater Non-AC",
+    ];
+
+    const isEventShuttle = serviceCategory === "Event Shuttle";
+
     // Initialize geocode.maps.co autocomplete
     const geocodeMapsKey = process.env.NEXT_PUBLIC_GEOCODE_MAPS_API_KEY || "";
     const { suggestions, isLoading: isLoadingSuggestions, search, clearSuggestions, error: searchError } = useGeocodeMapsAutocomplete({
@@ -109,10 +122,16 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     }, [employees]);
 
     const canSubmit = useMemo(() => {
+        const vehicleModelValid = isEventShuttle
+            ? vehicleModel.length > 0
+            : (vehicleModel === "Other" ? customVehicleModel.length > 0 : vehicleModel.length > 0);
+
+        // For Event Shuttle, passenger is optional (group booking — falls back to auth user)
+        const passengerValid = isEventShuttle ? true : passengerId.length > 0;
+
         const basicFields =
-            passengerId.length > 0 &&
-            passengerId.length > 0 &&
-            (vehicleModel === "Other" ? customVehicleModel.length > 0 : vehicleModel.length > 0) &&
+            passengerValid &&
+            vehicleModelValid &&
             (timeType === "now" || scheduledDateTime.length > 0) &&
             pickupAddress.length > 0 &&
             bookingCity.length > 0 &&
@@ -124,7 +143,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         }
 
         return basicFields;
-    }, [passengerId, vehicleModel, customVehicleModel, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
+    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -200,7 +219,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 : new Date(scheduledDateTime).toISOString();
 
         try {
-            const apiData = {
+            const apiData: any = {
                 booking_type: packageType.includes('monthly') ? 'MONTHLY' : 'SPOT' as any,
                 vehicle_model: vehicleModel === "Other" ? customVehicleModel : vehicleModel,
                 package_selected: transformPackageType(packageType) as any,
@@ -211,11 +230,15 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 },
                 pickup_address: pickupAddress,
                 scheduled_for: scheduledAt,
-                passenger_id: passengerId,
                 destination_cities: tripType === "out_station" ? destinationCities : [],
                 service_category: serviceCategory,
                 city: bookingCity,
             };
+
+            // For Chauffeur Ride, passenger is required; for Event Shuttle it's optional (group booking)
+            if (passengerId) {
+                apiData.passenger_id = passengerId;
+            }
 
             await apiClient.createChauffeurBooking(Number(company.id), apiData);
 
@@ -270,49 +293,67 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     />
                 </Field>
 
-                <Field label="Passenger" required>
+                <Field label="Passenger" required={!isEventShuttle}>
                     <Select
                         value={passengerId}
                         onChange={(e) => setPassengerId(e.target.value)}
-                        required
+                        required={!isEventShuttle}
                         autoFocus
                     >
-                        <option value="">Select employee</option>
+                        <option value="">{isEventShuttle ? "— None (group booking)" : "Select employee"}</option>
                         {activeEmployees.map((e) => (
                             <option key={e.id} value={e.id}>
                                 {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''} {e.department ? `- ${e.department}` : ''}
                             </option>
                         ))}
                     </Select>
+                    {isEventShuttle && (
+                        <div className="mt-1 text-xs text-slate-400 font-medium">
+                            Optional — shuttle serves multiple employees. Leave blank to assign to booking creator.
+                        </div>
+                    )}
                 </Field>
 
-                <Field label="Car Type" required>
-                    <Select
-                        value={vehicleModel}
-                        onChange={(e) => setVehicleModel(e.target.value)}
-                        required
-                        disabled={allowedVehicleModels.length === 0}
-                    >
-                        <option value="">
-                            {allowedVehicleModels.length === 0
-                                ? "No vehicles whitelisted"
-                                : "Select vehicle"}
-                        </option>
-                        {allowedVehicleModels.map((model) => (
-                            <option key={model} value={model}>
-                                {model}
+                <Field label={isEventShuttle ? "Seater Type" : "Car Type"} required>
+                    {isEventShuttle ? (
+                        <Select
+                            value={vehicleModel}
+                            onChange={(e) => setVehicleModel(e.target.value)}
+                            required
+                        >
+                            <option value="">Select seater type</option>
+                            {EVENT_SHUTTLE_SEATER_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </Select>
+                    ) : (
+                        <Select
+                            value={vehicleModel}
+                            onChange={(e) => setVehicleModel(e.target.value)}
+                            required
+                            disabled={allowedVehicleModels.length === 0}
+                        >
+                            <option value="">
+                                {allowedVehicleModels.length === 0
+                                    ? "No vehicles whitelisted"
+                                    : "Select vehicle"}
                             </option>
-                        ))}
-                        <option value="Other">Other (Special Request)</option>
-                    </Select>
-                    {allowedVehicleModels.length === 0 && (
+                            {allowedVehicleModels.map((model) => (
+                                <option key={model} value={model}>
+                                    {model}
+                                </option>
+                            ))}
+                            <option value="Other">Other (Special Request)</option>
+                        </Select>
+                    )}
+                    {!isEventShuttle && allowedVehicleModels.length === 0 && (
                         <div className="mt-1 text-xs text-rose-500 font-medium">
                             No vehicles whitelisted. Contact Super Admin.
                         </div>
                     )}
                 </Field>
 
-                {vehicleModel === "Other" && (
+                {!isEventShuttle && vehicleModel === "Other" && (
                     <Field label="Specify Vehicle Model" required>
                         <AutocompleteInput
                             value={customVehicleModel}

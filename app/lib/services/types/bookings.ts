@@ -111,6 +111,7 @@ export interface ChauffeurBooking {
         id: number;
         model: string;
         plate_number: string;
+        ownership?: 'OWNED' | 'PARTNER';
     };
     invoices?: Invoice | null;
     chauffeur_trip_logs?: ChauffeurTripLog | null;
