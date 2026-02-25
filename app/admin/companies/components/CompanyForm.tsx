@@ -318,6 +318,12 @@ export const CompanyForm = memo(function CompanyForm({
                     onClick={async () => {
                         try {
                             let finalData = { ...formData };
+                            if (!finalData.auth_email || company) {
+                                delete (finalData as any).auth_email;
+                            }
+                            if (!finalData.password || company) {
+                                delete (finalData as any).password;
+                            }
                             if (logoFile) {
                                 setIsUploadingLogo(true);
                                 const fileName = `${Date.now()}-${logoFile.name}`;
