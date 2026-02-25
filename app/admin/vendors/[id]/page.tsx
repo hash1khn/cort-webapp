@@ -16,7 +16,8 @@ import {
     selectVendorLogsPagination,
     createVendorPayment
 } from '../../../lib/store/slices/vendorLogsSlice';
-import { ArrowLeft, Calendar, Filter, CheckCircle, DollarSign, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Filter, DollarSign, X } from 'lucide-react';
+import Pagination from '../../../components/ui/Pagination';
 
 export default function VendorDetailsPage() {
     const params = useParams();
@@ -295,15 +296,21 @@ export default function VendorDetailsPage() {
                         </tbody>
                     </table>
                 </div>
-                {/* Pagination (Simple for now) */}
-                {logsPagination.total > logsPagination.limit && (
-                    <div className="p-4 border-t border-slate-200 flex justify-center">
-                        {/* Implement pagination controls if needed */}
-                        <div className="text-sm text-slate-500">
-                            Showing page {logsPagination.page} of {logsPagination.pages}
-                        </div>
-                    </div>
-                )}
+                {/* Pagination */}
+                <div className="border-t border-slate-200">
+                    <Pagination
+                        currentPage={logsPagination.page}
+                        totalPages={logsPagination.pages}
+                        onPageChange={(page) => {
+                            dispatch(fetchVendorLogs({
+                                vendor_id: vendorId,
+                                page,
+                                limit: logsPagination.limit,
+                                ...filters
+                            }));
+                        }}
+                    />
+                </div>
             </div>
 
             {/* Payment Modal */}
