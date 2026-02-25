@@ -303,4 +303,8 @@
 //   );
 // }
 
+export default function OpsShuttlePageDisabled() {
+  return <div className="p-6">Shuttle Operations (Disabled)</div>;
+}
+
 

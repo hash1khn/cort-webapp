@@ -352,4 +352,8 @@
 //   );
 // }
 
+export default function OpsChauffeurPageDisabled() {
+  return <div className="p-6">Chauffeur Operations (Disabled)</div>;
+}
+
 
