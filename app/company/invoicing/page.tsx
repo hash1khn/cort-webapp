@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
-import { fetchInvoices, selectInvoices, selectInvoicesStatus, selectInvoicesError } from "../../lib/store/slices/invoiceSlice";
+import { fetchInvoices, selectInvoices, selectInvoicesPagination, selectInvoicesStatus, selectInvoicesError } from "../../lib/store/slices/invoiceSlice";
 import { Card } from "../components/DashboardComponents";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
+import Pagination from "@/app/components/ui/Pagination";
 
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
     const dispatch = useAppDispatch();
     const invoices = useAppSelector(selectInvoices);
+    const pagination = useAppSelector(selectInvoicesPagination);
     const status = useAppSelector(selectInvoicesStatus);
     const errorState = useAppSelector(selectInvoicesError);
     const isLoading = status === 'loading';
@@ -19,16 +21,13 @@ export default function CompanyInvoicingPage() {
     // We can keep local error for download if needed, but fetch error is global
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
-    const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
+    const [page, setPage] = useState(1);
 
     useEffect(() => {
         if (!user?.company_id) return;
 
-        if (user.company_id.toString() === lastFetchedParams && status !== 'idle') return;
-
-        setLastFetchedParams(user.company_id.toString());
-        dispatch(fetchInvoices(user.company_id));
-    }, [dispatch, user?.company_id, lastFetchedParams, status]);
+        dispatch(fetchInvoices({ companyId: user.company_id, params: { page, limit: 10 } }));
+    }, [dispatch, user?.company_id, page]);
 
     const downloadPdf = async (id: number, invoiceNumber: string) => {
         if (downloadingId) return;
@@ -144,8 +143,16 @@ export default function CompanyInvoicingPage() {
                         </tbody>
                     </table>
                 </div>
+                {pagination?.totalPages > 1 && (
+                    <div className="p-4 border-t border-slate-100 flex justify-center">
+                        <Pagination
+                            currentPage={page}
+                            totalPages={pagination.totalPages}
+                            onPageChange={setPage}
+                        />
+                    </div>
+                )}
             </Card>
         </div>
     );
 }
-

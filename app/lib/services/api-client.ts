@@ -898,8 +898,16 @@ class ApiClient {
         return this.request<any>('/invoices/stats');
     }
 
-    async getCompanyInvoices(companyId: number): Promise<any> {
-        return this.request<any>(`/companies/${companyId}/invoices`);
+    async getCompanyInvoices(companyId: number, params: QueryInvoiceParams = {}): Promise<PaginatedResponse<Invoice>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/${companyId}/invoices${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Invoice>>(endpoint);
     }
 
     async getMyContract(): Promise<any> {

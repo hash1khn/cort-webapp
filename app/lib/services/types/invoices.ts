@@ -3,6 +3,7 @@ export interface QueryInvoiceParams {
     limit?: number;
     status?: string;
     company_id?: number;
+    search?: string;
 }
 
 export interface Invoice {
