@@ -160,7 +160,44 @@ export default function AdminDashboardPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Profit per Ride" metric={{ current: stats.profitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
             <MetricCard label="Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-            <MetricCard label="Receivables" metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+
+            <MetricCard
+              label="Receivables"
+              metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
+              type="currency"
+              overlayContent={
+                <div className="flex flex-col bg-white w-full h-full max-h-64 rounded-xl overflow-hidden">
+                  <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    <span className="text-[10px] font-bold text-orange-800 uppercase tracking-wider">Outstanding by Client</span>
+                  </div>
+                  <div className="overflow-y-auto w-full flex-1">
+                    {stats.receivablesByClient && stats.receivablesByClient.length > 0 ? (
+                      <div className="divide-y divide-orange-50">
+                        {stats.receivablesByClient.map((client, i) => {
+                          const max = Math.max(...stats.receivablesByClient.map(c => c.value));
+                          const percent = (client.value / max) * 100;
+                          return (
+                            <div key={i} className="px-4 py-2 hover:bg-orange-50/50 transition-colors relative">
+                              <div className="absolute inset-y-1 left-2 bg-orange-100/40 rounded" style={{ width: `calc(${percent}% - 16px)`, minWidth: '4px' }} />
+                              <div className="flex justify-between items-center relative z-10 w-full gap-4">
+                                <span className="text-xs font-medium text-navy truncate max-w-[140px]">{client.name}</span>
+                                <span className="text-xs font-bold text-slate-800 shrink-0">
+                                  {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(client.value)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-500">No pending receivables</div>
+                    )}
+                  </div>
+                </div>
+              }
+            />
+
             <MetricCard label="Payables" metric={{ current: stats.totalPayables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
           </div>
 
@@ -168,6 +205,7 @@ export default function AdminDashboardPage() {
           <DashboardCharts
             ridesBreakdown={stats.ridesBreakdown}
             expensesBreakdown={stats.expensesBreakdown}
+            revenueBreakdown={stats.revenueBreakdown}
           />
 
           {/* Tables */}
@@ -175,6 +213,7 @@ export default function AdminDashboardPage() {
             revenueByClient={stats.revenueByClient}
             fuelExpenses={stats.fuelExpenses}
             repairExpenses={stats.repairExpenses}
+            overdueInvoices={stats.overdueInvoices}
           />
         </>
       )}

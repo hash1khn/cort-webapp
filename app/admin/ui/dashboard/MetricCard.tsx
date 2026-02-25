@@ -7,9 +7,10 @@ interface MetricCardProps {
     type?: "currency" | "number" | "percentage";
     prefix?: string;
     suffix?: string;
+    overlayContent?: React.ReactNode;
 }
 
-export function MetricCard({ label, metric, type = "number", prefix = "", suffix = "" }: MetricCardProps) {
+export function MetricCard({ label, metric, type = "number", prefix = "", suffix = "", overlayContent }: MetricCardProps) {
     const { current, percentageChange, trend } = metric;
 
     const formatValue = (val: number) => {
@@ -44,7 +45,7 @@ export function MetricCard({ label, metric, type = "number", prefix = "", suffix
             : "bg-red-100";
 
     return (
-        <div className="rounded-xl border border-border bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm relative group">
             <div className="text-xs font-semibold tracking-wider text-muted uppercase">{label}</div>
             <div className="mt-2 text-2xl font-bold text-navy">
                 {prefix}{formatValue(current)}{suffix}
@@ -56,6 +57,13 @@ export function MetricCard({ label, metric, type = "number", prefix = "", suffix
                         <span>{Math.abs(percentageChange).toFixed(1)}%</span>
                     </div>
                     <span className="text-xs text-muted">vs {prefix}{formatValue(metric.previous)}{suffix} last period</span>
+                </div>
+            )}
+            {overlayContent && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 invisible opacity-0 scale-95 transition-all duration-200 group-hover:visible group-hover:opacity-100 group-hover:scale-100 z-50">
+                    <div className="relative bottom-0 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden w-64 md:w-80 max-h-64 flex flex-col">
+                        {overlayContent}
+                    </div>
                 </div>
             )}
         </div>

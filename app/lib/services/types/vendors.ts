@@ -113,12 +113,12 @@ export interface VendorLog {
     booking_id: number;
     start_time: string;
     end_time: string;
-    start_odometer: number;
-    end_odometer: number;
     total_distance_km: number;
     total_duration_minutes: number;
     vendor_cost: number;
     vendor_payment_status: string;
+    vendor_amount_paid?: number;
+    vendor_amount_remaining?: number;
     chauffeur_bookings?: {
         id: number;
         trip_type: string;
@@ -133,7 +133,12 @@ export interface VendorLog {
         users_chauffeur_bookings_passenger_idTousers?: {
             full_name: string;
             phone?: string;
-        }
+        };
+        vendor_payment_transactions?: {
+            amount: number;
+            notes: string;
+            payment_date: string;
+        }[];
     }
 }
 

@@ -201,6 +201,7 @@ export default function VendorDetailsPage() {
                                 <th className="px-6 py-4 font-semibold text-slate-700">Booking ID</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Passenger</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Vehicle</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Description</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Vendor Cost</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-center">Status</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Actions</th>
@@ -209,19 +210,20 @@ export default function VendorDetailsPage() {
                         <tbody className="divide-y divide-slate-100">
                             {logsStatus === 'loading' ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         Loading logs...
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         No logs found matching criteria.
                                     </td>
                                 </tr>
                             ) : (
                                 logs.map((log) => {
-                                    const isPaid = log.vendor_payment_status === 'PAID';
+                                    const statusRaw = log.vendor_payment_status || '';
+                                    const isPaid = ['FULLY_PAID'].includes(statusRaw.toUpperCase());
 
                                     return (
                                         <tr key={log.booking_id} className="hover:bg-slate-50 transition-colors">
@@ -240,8 +242,25 @@ export default function VendorDetailsPage() {
                                                 <div className="text-slate-900">{log.chauffeur_bookings?.vehicles?.model}</div>
                                                 <div className="text-xs text-slate-500">{log.chauffeur_bookings?.vehicles?.plate_number}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-medium text-slate-900">
-                                                {Number(log.vendor_cost).toLocaleString()}
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-900 text-sm max-w-[200px] truncate" title={log.chauffeur_bookings?.vendor_payment_transactions?.[0]?.notes || '-'}>
+                                                    {log.chauffeur_bookings?.vendor_payment_transactions?.[0]?.notes || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="font-medium text-slate-900">
+                                                    PKR {Number(log.vendor_cost).toLocaleString()}
+                                                </div>
+                                                {log.vendor_amount_paid ? (
+                                                    <>
+                                                        <div className="text-xs text-green-600 mt-1">
+                                                            Paid: PKR {Number(log.vendor_amount_paid).toLocaleString()}
+                                                        </div>
+                                                        <div className="text-xs text-slate-500">
+                                                            Rem: PKR {Number(log.vendor_amount_remaining).toLocaleString()}
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${isPaid
@@ -256,9 +275,13 @@ export default function VendorDetailsPage() {
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            openPaymentModal(log.booking_id, Number(log.vendor_cost), 0);
+                                                            openPaymentModal(
+                                                                log.booking_id,
+                                                                Number(log.vendor_cost),
+                                                                Number(log.vendor_amount_paid || 0)
+                                                            );
                                                         }}
-                                                        className="text-blue-600 hover:text-blue-800 font-medium text-sm inline-flex items-center gap-1"
+                                                        className="text-orange hover:opacity-80 font-medium text-sm inline-flex items-center gap-1"
                                                     >
                                                         <DollarSign className="w-4 h-4" />
                                                         Pay
@@ -284,77 +307,79 @@ export default function VendorDetailsPage() {
             </div>
 
             {/* Payment Modal */}
-            {isPaymentModalOpen && selectedBookingForPayment && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between p-4 border-b border-slate-100">
-                            <h3 className="text-lg font-semibold text-slate-900">Record Payment</h3>
-                            <button onClick={closePaymentModal} className="text-slate-400 hover:text-slate-600">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSubmitPayment} className="p-4 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Booking ID</label>
-                                <div className="text-slate-900 font-semibold">#{selectedBookingForPayment.id}</div>
+            {
+                isPaymentModalOpen && selectedBookingForPayment && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                                <h3 className="text-lg font-semibold text-slate-900">Record Payment</h3>
+                                <button onClick={closePaymentModal} className="text-slate-400 hover:text-slate-600">
+                                    <X className="w-5 h-5" />
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Total Cost</label>
-                                <div className="text-slate-900">PKR {selectedBookingForPayment.cost.toLocaleString()}</div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Payment Amount</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">PKR</span>
-                                    <input
-                                        type="number"
-                                        required
-                                        min="1"
-                                        max={selectedBookingForPayment.cost} // Limit to total cost for now
-                                        step="0.01"
-                                        value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        className="w-full pl-12 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                        placeholder="0.00"
+                            <form onSubmit={handleSubmitPayment} className="p-4 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Booking ID</label>
+                                    <div className="text-slate-900 font-semibold">#{selectedBookingForPayment.id}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Total Cost</label>
+                                    <div className="text-slate-900">PKR {selectedBookingForPayment.cost.toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Amount</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">PKR</span>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="1"
+                                            max={selectedBookingForPayment.cost} // Limit to total cost for now
+                                            step="0.01"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            className="w-full pl-12 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Notes (Optional)</label>
+                                    <textarea
+                                        value={paymentNotes}
+                                        onChange={(e) => setPaymentNotes(e.target.value)}
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none h-24"
+                                        placeholder="Enter payment details..."
                                     />
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (Optional)</label>
-                                <textarea
-                                    value={paymentNotes}
-                                    onChange={(e) => setPaymentNotes(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none h-24"
-                                    placeholder="Enter payment details..."
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={closePaymentModal}
-                                    className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmittingPayment}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {isSubmittingPayment ? (
-                                        <>
-                                            <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Saving...
-                                        </>
-                                    ) : (
-                                        'Record Payment'
-                                    )}
-                                </button>
-                            </div>
-                        </form>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={closePaymentModal}
+                                        className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmittingPayment}
+                                        className="px-4 py-2 bg-orange text-white rounded-lg font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        {isSubmittingPayment ? (
+                                            <>
+                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            'Record Payment'
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

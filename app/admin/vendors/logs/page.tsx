@@ -181,13 +181,25 @@ export default function VendorLogsPage() {
                                         <td className="px-4 py-3 text-right text-ink">
                                             {log.total_distance_km ? `${Number(log.total_distance_km).toFixed(1)} km` : '-'}
                                         </td>
-                                        <td className="px-4 py-3 text-right font-medium text-ink">
-                                            Rs. {Number(log.vendor_cost).toLocaleString()}
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="font-medium text-ink">
+                                                Rs. {Number(log.vendor_cost).toLocaleString()}
+                                            </div>
+                                            {log.vendor_amount_paid ? (
+                                                <>
+                                                    <div className="text-xs text-green-600 mt-1">
+                                                        Paid: Rs. {Number(log.vendor_amount_paid).toLocaleString()}
+                                                    </div>
+                                                    <div className="text-xs text-muted">
+                                                        Rem: Rs. {Number(log.vendor_amount_remaining).toLocaleString()}
+                                                    </div>
+                                                </>
+                                            ) : null}
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${log.vendor_payment_status === 'PAID' ? 'bg-green-100 text-green-800' :
-                                                    log.vendor_payment_status === 'PARTIALLY_PAID' ? 'bg-blue/10 text-blue' :
-                                                        'bg-orange/10 text-orange'
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${['PAID', 'FULLY_PAID'].includes(String(log.vendor_payment_status).toUpperCase()) ? 'bg-green-100 text-green-800' :
+                                                log.vendor_payment_status === 'PARTIALLY_PAID' ? 'bg-blue/10 text-blue' :
+                                                    'bg-orange/10 text-orange'
                                                 }`}>
                                                 {log.vendor_payment_status?.replace('_', ' ') || 'UNPAID'}
                                             </span>

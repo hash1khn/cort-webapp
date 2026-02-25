@@ -15,6 +15,18 @@ export interface SuperAdminDashboardStats {
     totalPayables: number;
     alerts: any[];
     totalUnassignedBookings: number;
+    receivablesByClient: BreakdownItem[];
+    overdueInvoices: OverdueInvoice[];
+    revenueBreakdown: BreakdownItem[];
+}
+
+export interface OverdueInvoice {
+    id: number;
+    invoice_number: string;
+    company_name: string;
+    total_amount: number;
+    generated_at: string;
+    status: string;
 }
 
 export interface MetricComparison {
