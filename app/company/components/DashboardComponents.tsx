@@ -7,6 +7,7 @@ import {
     TrendingUp,
     Users,
     Car,
+    Bus,
     MapPin,
     Clock,
     CreditCard,
@@ -204,7 +205,14 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
-                    <Activity className="w-4 h-4 text-emerald-500" />
+                    {data.activeRides > 0 ? (
+                        <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                    ) : (
+                        <span className="inline-flex rounded-full h-3 w-3 bg-slate-200"></span>
+                    )}
                 </div>
                 <div>
                     <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.activeRides}</div>
@@ -215,7 +223,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Shuttle Trips</div>
-                    <Car className="w-4 h-4 text-purple-500" />
+                    <Bus className="w-4 h-4 text-purple-500" />
                 </div>
                 <div>
                     <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.shuttleTrips}</div>
