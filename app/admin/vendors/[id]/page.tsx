@@ -181,7 +181,7 @@ export default function VendorDetailsPage() {
                             onChange={(e) => handleFilterChange('payment_status', e.target.value)}
                         >
                             <option value="">All Statuses</option>
-                            <option value="PAID">Paid</option>
+                            <option value="FULLY_PAID">Fully Paid</option>
                             <option value="PARTIALLY_PAID">Partially Paid</option>
                             <option value="UNPAID">Unpaid</option>
                         </select>

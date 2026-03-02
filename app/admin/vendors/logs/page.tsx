@@ -123,7 +123,7 @@ export default function VendorLogsPage() {
                     >
                         <option value="">All Statuses</option>
                         <option value="UNPAID">Unpaid</option>
-                        <option value="PAID">Paid</option>
+                        <option value="FULLY_PAID">Paid</option>
                         <option value="PARTIALLY_PAID">Partially Paid</option>
                     </select>
                 </div>
