@@ -160,7 +160,7 @@ export default function CompanyDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-12 relative max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-6 pb-12 relative max-w-[1600px] mx-auto">
 
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* 2. Main Analytics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-max">
 
         {/* We're Taking Care of This */}
         <div className="lg:col-span-1">
