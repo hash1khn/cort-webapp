@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 interface ModalProps {
@@ -11,6 +11,27 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+    const [isMounted, setIsMounted] = useState(isOpen);
+    const [isClosing, setIsClosing] = useState(false);
+
+    // Handle mount/unmount with close animation
+    useEffect(() => {
+        if (isOpen) {
+            setIsMounted(true);
+            setIsClosing(false);
+            return;
+        }
+
+        if (isMounted) {
+            setIsClosing(true);
+            const timeout = setTimeout(() => {
+                setIsMounted(false);
+                setIsClosing(false);
+            }, 380); // match CSS animation duration
+            return () => clearTimeout(timeout);
+        }
+    }, [isOpen, isMounted]);
+
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
@@ -19,11 +40,11 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         return () => window.removeEventListener("keydown", handleEsc);
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
+    if (!isMounted) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all max-h-[90vh] flex flex-col ring-1 ring-slate-900/5">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 modal-overlay ${isClosing ? "modal-overlay-closing" : ""}`}>
+            <div className={`w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all max-h-[90vh] flex flex-col ring-1 ring-slate-900/5 modal-panel ${isClosing ? "modal-panel-closing" : ""}`}>
                 <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5 bg-white">
                     <h3 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h3>
                     <button

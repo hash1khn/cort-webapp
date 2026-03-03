@@ -96,6 +96,68 @@
         }
     }
 
+    /* Premium dashboard entrance animation */
+    @keyframes dashboard-enter {
+        0% {
+            opacity: 0;
+            transform: translateY(12px) scale(0.98);
+            filter: blur(4px);
+        }
+
+        60% {
+            opacity: 1;
+            transform: translateY(0) scale(1.01);
+            filter: blur(0);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+        }
+    }
+
+    /* Modal growing out from trigger corner */
+    @keyframes modal-from-button {
+        0% {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.9);
+            filter: blur(4px);
+        }
+
+        60% {
+            opacity: 1;
+            transform: translateY(0) scale(1.02);
+            filter: blur(0);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+        }
+    }
+
+    @keyframes modal-from-button-out {
+        0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+        }
+
+        40% {
+            opacity: 1;
+            transform: translateY(-4px) scale(1.02);
+            filter: blur(1px);
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.9);
+            filter: blur(4px);
+        }
+    }
+
     --animate-slide-in-left: slide-in-left 0.3s ease-out;
     --animate-fade-in: fade-in 0.2s ease-out;
     --animate-fade-slide-up: fade-slide-up 0.4s ease-out forwards;
@@ -104,6 +166,59 @@
 body {
     background: var(--background);
     color: var(--foreground);
+}
+
+/* Company dashboard entrance/stagger animations */
+.dashboard-section {
+    opacity: 0;
+    transform-origin: 50% 60%;
+    will-change: opacity, transform, filter;
+    animation: dashboard-enter 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+.dashboard-section-delay-1 {
+    animation-delay: 0.08s;
+}
+
+.dashboard-section-delay-2 {
+    animation-delay: 0.16s;
+}
+
+.dashboard-section-delay-3 {
+    animation-delay: 0.24s;
+}
+
+.dashboard-section-delay-4 {
+    animation-delay: 0.32s;
+}
+
+.dashboard-section-delay-5 {
+    animation-delay: 0.4s;
+}
+
+/* Modal open animation */
+.modal-overlay {
+    animation: fade-in 0.22s ease-out forwards;
+}
+
+.modal-panel {
+    transform-origin: 80% 10%;
+    animation: modal-from-button 0.38s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* Closing state overrides */
+.modal-overlay-closing {
+    animation: fade-in 0.18s ease-in reverse forwards;
+}
+
+.modal-panel-closing {
+    animation: modal-from-button-out 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@media (max-width: 768px) {
+    .modal-panel {
+        transform-origin: center;
+    }
 }
 
 /* A few sensible defaults for form controls in Tailwind v4 */

@@ -24,7 +24,7 @@ import { DashboardData } from '../types';
 // --- Shared Components ---
 
 export const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`bg-white border border-slate-100 shadow-sm rounded-3xl p-6 h-full ${className}`}>
+    <div className={`bg-white border border-slate-100 shadow-sm rounded-3xl p-6 h-full transition-transform duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md ${className}`}>
         {children}
     </div>
 );

@@ -163,7 +163,7 @@ export default function CompanyDashboardPage() {
     <div className="flex flex-col gap-6 pb-12 relative max-w-[1600px] mx-auto">
 
       {/* Welcome Header */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dashboard-section dashboard-section-delay-1">
         {/* Welcome Banner - Shrunken/Balanced */}
         <div className="lg:col-span-2 relative rounded-[2rem] bg-slate-900 p-6 sm:p-8 shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-800 overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px]">
           {/* Luxury Sedan Background with Gradient Mask */}
@@ -212,7 +212,7 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* Outstanding Amount Row */}
-      <div className="w-full">
+      <div className="w-full dashboard-section dashboard-section-delay-2">
         <OutstandingAmountRow
           amount={dashboardStats?.chauffeur.outstandingAmount || 0}
           invoices={dashboardStats?.chauffeur.outstandingInvoices || []}
@@ -220,7 +220,7 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* Value Delivered - Hero Row */}
-      <div className="w-full">
+      <div className="w-full dashboard-section dashboard-section-delay-3">
         <ValueDeliveredSection data={data.valueDelivered} />
       </div>
 
@@ -228,17 +228,17 @@ export default function CompanyDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-max">
 
         {/* We're Taking Care of This */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-2">
           <TakingCareSection data={data.takingCare} />
         </div>
 
         {/* Employee Usage - Wider card */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
           <EmployeeUsageSection data={data.employeeUsage} />
         </div>
 
         {/* Cost Visibility */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 dashboard-section dashboard-section-delay-4">
           <CostVisibilitySection
             data={data.cost}
             onEditBudget={() => setIsBudgetModalOpen(true)}
@@ -246,15 +246,15 @@ export default function CompanyDashboardPage() {
         </div>
 
         {/* Smart Insights */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 dashboard-section dashboard-section-delay-5">
           <SmartInsightsSection insights={data.smartInsights} seasonality={data.seasonality} />
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-4">
           <ServiceUsageSection data={data.services} />
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
           <AdoptionHealthSection data={data.adminHealth} />
         </div>
       </div>
