@@ -6,6 +6,7 @@ import { fetchDashboardStats, setDateRange } from "../lib/store/slices/superAdmi
 import { MetricCard } from "./ui/dashboard/MetricCard";
 import { DashboardCharts } from "./ui/dashboard/DashboardCharts";
 import { DashboardTables } from "./ui/dashboard/DashboardTables";
+import { FuelPriceAlert } from "./components/FuelPriceAlert";
 import { RootState } from "../lib/store/store";
 
 export default function AdminDashboardPage() {
@@ -72,6 +73,9 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Fuel Price Alert */}
+      <FuelPriceAlert />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
