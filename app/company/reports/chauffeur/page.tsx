@@ -72,7 +72,7 @@ export default function ChauffeurReportsPage() {
     // If company is loading, shell might cover it, or we can show skeleton.
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
       </div>
     );
   }
@@ -81,10 +81,10 @@ export default function ChauffeurReportsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center flex flex-col items-center justify-center py-12">
-          <div className="text-lg font-bold text-slate-800">
+          <div className="text-lg font-bold text-[var(--cort-navy)]">
             Chauffeur Service Disabled
           </div>
-          <div className="mt-2 text-sm text-slate-500">
+          <div className="mt-2 text-sm text-[var(--text-muted)]">
             Chauffeur service is not enabled for your company. Please contact Cort
             Super Admin.
           </div>
@@ -97,47 +97,47 @@ export default function ChauffeurReportsPage() {
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
             <span className="text-xs font-medium uppercase tracking-wide">Financial Reporting</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">
             Chauffeur Reports
           </h1>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="flex items-center gap-2 bg-white/50 p-1 rounded-xl border border-slate-200 backdrop-blur-sm">
+          <div className="flex items-center gap-2 bg-white/50 p-1 rounded-xl border border-[var(--border-light)] backdrop-blur-sm">
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-slate-600 focus:ring-0"
+              className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--cort-navy)] focus:ring-0"
               placeholder="Start Date"
             />
-            <span className="text-slate-300">/</span>
+            <span className="text-[var(--text-muted)]">/</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-slate-600 focus:ring-0"
+              className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--cort-navy)] focus:ring-0"
               placeholder="End Date"
             />
           </div>
           <button
             type="button"
-            className="group relative flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-slate-800 hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
+            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
             onClick={() => {
               alert("Export to CSV coming soon");
             }}
           >
-            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             Export CSV
           </button>
         </div>
       </div>
 
       <Card className="min-h-[500px] overflow-hidden !p-0">
-        <div className="border-b border-slate-100 bg-slate-50/50 p-4">
-          <div className="mt-1 text-sm font-medium text-slate-600">
+        <div className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/50 p-4">
+          <div className="mt-1 text-sm font-medium text-[var(--cort-navy)]">
             Comprehensive completed trips report with detailed cost breakdown
           </div>
         </div>
@@ -145,29 +145,29 @@ export default function ChauffeurReportsPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">City</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Booking ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Passenger</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Vehicle</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Route</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Dur (min)</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Dist (km)</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Svc Chg</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Fuel</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Extras</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Total (PKR)</th>
+              <tr className="border-b border-[var(--border-light)]">
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">City</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Booking ID</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Passenger</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Vehicle</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Route</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Dur (min)</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Dist (km)</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Svc Chg</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Fuel</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Extras</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Total (PKR)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50/50">
+            <tbody className="divide-y divide-[var(--border-light)]/50">
               {isLoading && reports.length === 0 ? (
                 <TableSkeleton columns={12} rows={8} />
               ) : reports.length === 0 && !isLoading ? (
                 <tr>
                   <td colSpan={12} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-400">
-                      <span className="bg-slate-50 p-4 rounded-full mb-3">
+                    <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
+                      <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
@@ -181,7 +181,7 @@ export default function ChauffeurReportsPage() {
                   <tr
                     key={report.id}
                     onClick={() => setSelectedReport(report)}
-                    className="group transition-colors border-b border-transparent hover:bg-slate-50/80 cursor-pointer"
+                    className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80 cursor-pointer"
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-slate-600 font-medium font-mono text-xs">
                       {report.completed_at ? formatDateTime(report.completed_at) : "-"}

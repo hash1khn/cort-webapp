@@ -17,7 +17,7 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cx(
-        "h-9 rounded-lg border border-indigo-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700 shadow-sm",
+        "h-9 rounded-lg border border-[var(--border-light)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--cort-navy)] shadow-sm",
         props.className,
       )}
     />
@@ -49,7 +49,7 @@ export default function EmployeesPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
       </div>
     );
   }
@@ -91,22 +91,22 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
             <span className="text-xs font-medium uppercase tracking-wide">Roster Management</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Employees</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Employees</h1>
         </div>
       </div>
 
       <Card className="min-h-[500px] overflow-hidden !p-0">
-        <div className="border-b border-slate-100 bg-slate-50/50 p-5">
+        <div className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/50 p-5">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600">
+            <div className="p-2 bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-lg text-[var(--cort-orange)]">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-slate-700">Read-Only Roster</div>
-              <div className="text-sm text-slate-500 mt-0.5 leading-relaxed max-w-3xl">
+              <div className="text-sm font-bold text-[var(--cort-navy)]">Read-Only Roster</div>
+              <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
                 This roster is synced from the Cort Admin portal. You can update contact details or deactivate status, but main record creation happens centrally.
               </div>
             </div>
@@ -116,22 +116,22 @@ export default function EmployeesPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Employee ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Full Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+              <tr className="border-b border-[var(--border-light)]">
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Employee ID</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Full Name</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Phone</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Email</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Department</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50/50">
+            <tbody className="divide-y divide-[var(--border-light)]/50">
               {loading && employees.length === 0 ? (
                 <TableSkeleton columns={7} rows={8} />
               ) : employees.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     No employees found. Employees are uploaded by Cort Super Admin.
                   </td>
                 </tr>
@@ -139,9 +139,9 @@ export default function EmployeesPage() {
                 employees.map((e) => {
                   const isEditing = editingId === e.id;
                   return (
-                    <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-500">{e.employee_id || "—"}</td>
-                      <td className="px-6 py-4 font-bold text-slate-700">{e.full_name}</td>
+                    <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
+                      <td className="px-6 py-4 font-mono text-xs text-[var(--text-muted)]">{e.employee_id || "—"}</td>
+                      <td className="px-6 py-4 font-bold text-[var(--cort-navy)]">{e.full_name}</td>
                       <td className="px-6 py-4">
                         {isEditing ? (
                           <TextInput
@@ -150,7 +150,7 @@ export default function EmployeesPage() {
                             placeholder="Phone"
                           />
                         ) : (
-                          <span className="text-slate-600 font-medium">{e.phone || "—"}</span>
+                          <span className="text-[var(--cort-navy)] font-medium">{e.phone || "—"}</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -161,7 +161,7 @@ export default function EmployeesPage() {
                             placeholder="Email"
                           />
                         ) : (
-                          <span className="text-slate-600">{e.email || "—"}</span>
+                          <span className="text-[var(--cort-navy)]">{e.email || "—"}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-slate-500">{e.department || "—"}</td>
@@ -180,14 +180,14 @@ export default function EmployeesPage() {
                               <button
                                 type="button"
                                 onClick={() => saveEdit(e)}
-                                className="inline-flex h-8 items-center justify-center rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--cort-orange)] px-3 text-xs font-bold text-white shadow-sm hover:bg-[var(--cort-orange-hover)] transition-colors"
                               >
                                 Save
                               </button>
                               <button
                                 type="button"
                                 onClick={cancelEdit}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-light)] bg-white px-3 text-xs font-bold text-[var(--cort-navy)] hover:bg-[var(--surface-subtle)] transition-colors"
                               >
                                 Cancel
                               </button>
@@ -197,7 +197,7 @@ export default function EmployeesPage() {
                               <button
                                 type="button"
                                 onClick={() => startEdit(e)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/10 rounded-lg transition-colors"
                                 title="Edit Details"
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -205,7 +205,7 @@ export default function EmployeesPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeactivate(e)}
-                                className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50' : 'text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50'}`}
                                 title={e.status.toLowerCase() === "active" ? "Deactivate User" : "Activate User"}
                               >
                                 {e.status.toLowerCase() === "active" ? (

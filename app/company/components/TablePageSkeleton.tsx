@@ -15,14 +15,14 @@ export default function TablePageSkeleton() {
             </div>
 
             <Card className="min-h-[500px] !p-0 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex gap-4">
+                <div className="p-5 border-b border-[var(--border-light)] flex gap-4">
                     <Skeleton className="h-11 w-64 rounded-xl" />
                     <Skeleton className="h-11 w-48 rounded-xl" />
                 </div>
                 <div className="p-0">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-slate-100">
+                            <tr className="border-b border-[var(--border-light)]">
                                 {[1, 2, 3, 4, 5, 6].map(i => (
                                     <th key={i} className="px-6 py-4">
                                         <Skeleton className="h-4 w-24" />

@@ -48,19 +48,19 @@ export default function CompanyInvoicingPage() {
     } */
 
     if (errorState) {
-        return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-xl m-6 border border-rose-200">{errorState}</div>;
+        return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-2xl m-6 border border-rose-200">{errorState}</div>;
     }
 
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <div>
-                <div className="flex items-center gap-2 text-slate-400 mb-1">
+                <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
                     <span className="text-xs font-medium uppercase tracking-wide">Financials</span>
                 </div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+                <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">
                     Data & Billing
                 </h1>
-                <p className="mt-2 text-slate-500 max-w-2xl">
+                <p className="mt-2 text-[var(--text-muted)] max-w-2xl">
                     Track your monthly service usage, view generated invoices, and manage payment settlements.
                 </p>
             </div>
@@ -68,25 +68,25 @@ export default function CompanyInvoicingPage() {
             <Card className="min-h-[500px] overflow-hidden !p-0">
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
-                        <thead className="bg-slate-50/50">
-                            <tr className="border-b border-slate-100">
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Invoice #</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Billing Month</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Generated At</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Total Amount</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                        <thead className="bg-[var(--surface-subtle)]/50">
+                            <tr className="border-b border-[var(--border-light)]">
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Invoice #</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Billing Month</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Generated At</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Total Amount</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Actions</th>
 
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50/50">
+                        <tbody className="divide-y divide-[var(--border-light)]/50">
                             {isLoading && invoices.length === 0 ? (
                                 <TableSkeleton columns={6} rows={8} />
                             ) : invoices.length === 0 && !isLoading ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center text-slate-400">
-                                            <span className="bg-slate-50 p-4 rounded-full mb-3">
+                                        <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
+                                            <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
@@ -97,14 +97,14 @@ export default function CompanyInvoicingPage() {
                                 </tr>
                             ) : (
                                 invoices.map((inv) => (
-                                    <tr key={inv.id} className="group hover:bg-slate-50/80 transition-colors border-b border-transparent">
-                                        <td className="px-6 py-4 font-bold text-slate-700 font-mono">#{inv.invoice_number}</td>
-                                        <td className="px-6 py-4 font-medium text-slate-900">{inv.billing_month}</td>
-                                        <td className="px-6 py-4 text-slate-500">
+                                    <tr key={inv.id} className="group hover:bg-[var(--surface-subtle)]/80 transition-colors border-b border-transparent">
+                                        <td className="px-6 py-4 font-bold text-[var(--cort-navy)] font-mono">#{inv.invoice_number}</td>
+                                        <td className="px-6 py-4 font-medium text-[var(--cort-navy)]">{inv.billing_month}</td>
+                                        <td className="px-6 py-4 text-[var(--text-muted)]">
                                             {new Date(inv.generated_at).toLocaleDateString()}
                                         </td>
-                                        <td className="px-6 py-4 text-right font-bold text-slate-900 text-base">
-                                            <span className="text-slate-400 text-xs font-normal mr-1">PKR</span>
+                                        <td className="px-6 py-4 text-right font-bold text-[var(--cort-navy)] text-base">
+                                            <span className="text-[var(--text-muted)] text-xs font-normal mr-1">PKR</span>
                                             {Number(inv.total_amount).toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4">
@@ -123,7 +123,7 @@ export default function CompanyInvoicingPage() {
                                             <button
                                                 onClick={() => downloadPdf(inv.id, inv.invoice_number)}
                                                 disabled={downloadingId === inv.id}
-                                                className="text-blue-600 hover:text-blue-800 font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                                                className="text-[var(--cort-orange)] hover:text-[var(--cort-orange-hover)] font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
                                             >
                                                 {downloadingId === inv.id ? (
                                                     <>
@@ -144,7 +144,7 @@ export default function CompanyInvoicingPage() {
                     </table>
                 </div>
                 {pagination?.totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-100 flex justify-center">
+                    <div className="p-4 border-t border-[var(--border-light)] flex justify-center">
                         <Pagination
                             currentPage={page}
                             totalPages={pagination.totalPages}

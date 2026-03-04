@@ -97,7 +97,7 @@ export default function BookingsPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-500">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
       </div>
     );
   }
@@ -106,17 +106,17 @@ export default function BookingsPage() {
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
             <span className="text-xs font-medium uppercase tracking-wide">Overview</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Bookings</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Bookings</h1>
         </div>
         {company.services_enabled.chauffeur_enabled && (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="group relative flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-slate-800 hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
+            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
           >
-            <svg className="w-4 h-4 text-indigo-400 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
             <span>New Booking</span>
@@ -132,11 +132,11 @@ export default function BookingsPage() {
               <input
                 type="text"
                 placeholder="Search passenger, plate number..."
-                className="w-full h-11 pl-10 pr-4 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                className="w-full h-11 pl-10 pr-4 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all placeholder:text-[var(--text-muted)]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <svg className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3.5 top-3.5 w-4 h-4 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -144,7 +144,7 @@ export default function BookingsPage() {
           <div className="w-[200px]">
             <div className="relative">
               <select
-                className="w-full h-11 pl-3 pr-10 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none text-slate-600 font-medium"
+                className="w-full h-11 pl-3 pr-10 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/50 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all appearance-none text-[var(--cort-navy)] font-medium"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -156,7 +156,7 @@ export default function BookingsPage() {
                 <option value="COMPLETED">Completed</option>
                 <option value="CANCELLED">Cancelled</option>
               </select>
-              <svg className="absolute right-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute right-3.5 top-3.5 w-4 h-4 text-[var(--text-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
@@ -166,26 +166,26 @@ export default function BookingsPage() {
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">ID</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Service</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Passenger</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Package</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Pickup</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">City</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Scheduled</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Action</th>
+              <tr className="border-b border-[var(--border-light)]">
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">ID</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Service</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Passenger</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Package</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Pickup</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">City</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Scheduled</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50/50">
+            <tbody className="divide-y divide-[var(--border-light)]/50">
               {isLoading && bookings.length === 0 ? (
                 <TableSkeleton columns={9} rows={8} />
               ) : bookings.length === 0 && !isLoading ? (
                 <tr>
                   <td colSpan={9} className="p-12 text-center">
-                    <div className="flex flex-col items-center justify-center text-slate-400">
-                      <span className="bg-slate-50 p-4 rounded-full mb-3">
+                    <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
+                      <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
@@ -201,27 +201,27 @@ export default function BookingsPage() {
                     <tr
                       key={booking.id}
                       onClick={() => !isPending && setSelectedBooking(booking)}
-                      className={`group transition-colors border-b border-transparent hover:bg-slate-50/80 ${isPending ? "cursor-default" : "cursor-pointer"}`}
+                      className={`group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80 ${isPending ? "cursor-default" : "cursor-pointer"}`}
                     >
-                      <td className="px-4 py-4 font-bold text-slate-700">#{booking.id}</td>
+                      <td className="px-4 py-4 font-bold text-[var(--cort-navy)]">#{booking.id}</td>
                       <td className="px-4 py-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--surface-subtle)] text-[var(--cort-navy)] text-xs font-medium border border-[var(--border-light)]">
                           {booking.service_category || "Standard"}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-medium text-slate-700">
+                      <td className="px-4 py-4 font-medium text-[var(--cort-navy)]">
                         {getPassengerName(booking)}
                       </td>
-                      <td className="px-4 py-4 text-slate-500 capitalize">{booking.package_selected.replace(/_/g, " ")}</td>
+                      <td className="px-4 py-4 text-[var(--text-muted)] capitalize">{booking.package_selected.replace(/_/g, " ")}</td>
                       <td className="px-4 py-4">
-                        <div className="max-w-[200px] truncate text-slate-500" title={booking.pickup_address || "No address"}>
+                        <div className="max-w-[200px] truncate text-[var(--text-muted)]" title={booking.pickup_address || "No address"}>
                           {booking.pickup_address || "-"}
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-slate-600 font-medium">
+                      <td className="px-4 py-4 text-[var(--cort-navy)] font-medium">
                         {booking.city || "—"}
                       </td>
-                      <td className="px-4 py-4 text-slate-600 font-medium">
+                      <td className="px-4 py-4 text-[var(--cort-navy)] font-medium">
                         {formatDateTime(booking.scheduled_for)}
                       </td>
                       <td className="px-4 py-4">
@@ -245,7 +245,7 @@ export default function BookingsPage() {
                         })()}
                       </td>
                       <td className="px-4 py-4 text-right">
-                        <button className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-indigo-600 hover:shadow-sm">
+                        <button className="p-2 hover:bg-white rounded-full transition-colors text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:shadow-sm">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -291,9 +291,9 @@ export default function BookingsPage() {
 
 
               {/* Status Header */}
-              <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl text-white shadow-lg shadow-slate-900/10">
+              <div className="flex items-center justify-between bg-[var(--cort-navy)] p-5 rounded-2xl text-white shadow-lg">
                 <div>
-                  <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Current Status</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider font-bold mb-1">Current Status</div>
                   <div className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold border ${selectedBooking.status === 'PENDING' ? "bg-amber-500/20 text-amber-200 border-amber-500/30" :
                     selectedBooking.status === 'COMPLETED' ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" :
                       selectedBooking.status === 'CANCELLED' ? "bg-rose-500/20 text-rose-200 border-rose-500/30" :
@@ -308,7 +308,7 @@ export default function BookingsPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Scheduled For</div>
+                  <div className="text-xs text-white/70 uppercase tracking-wider font-bold mb-1">Scheduled For</div>
                   <div className="text-lg font-bold text-white tracking-tight">{formatDateTime(selectedBooking.scheduled_for)}</div>
                 </div>
               </div>
@@ -316,33 +316,33 @@ export default function BookingsPage() {
               <div className="space-y-8">
                 {/* Trip Details */}
                 <div>
-                  <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                    <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Trip Details
+                  <h4 className="text-sm font-bold text-[var(--cort-navy)] uppercase tracking-wide mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Trip Details
                   </h4>
-                  <div className="grid grid-cols-2 gap-y-6 gap-x-8 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-8 bg-[var(--surface-subtle)]/50 p-5 rounded-2xl border border-[var(--border-light)]">
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Trip Type</div>
-                      <div className="text-sm font-bold text-slate-800 capitalize mt-1">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Trip Type</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] capitalize mt-1">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Service Category</div>
-                      <div className="text-sm font-bold text-slate-800 mt-1">{selectedBooking.service_category || "—"}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Service Category</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] mt-1">{selectedBooking.service_category || "—"}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Package</div>
-                      <div className="text-sm font-bold text-slate-800 capitalize mt-1">{selectedBooking.package_selected.replace(/_/g, " ")}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Package</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] capitalize mt-1">{selectedBooking.package_selected.replace(/_/g, " ")}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">Requested Model</div>
-                      <div className="text-sm font-bold text-slate-800 mt-1">{selectedBooking.vehicle_model || "Any"}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Requested Model</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] mt-1">{selectedBooking.vehicle_model || "Any"}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400 uppercase font-bold">City</div>
-                      <div className="text-sm font-bold text-slate-800 mt-1">{selectedBooking.city || "—"}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">City</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] mt-1">{selectedBooking.city || "—"}</div>
                     </div>
-                    <div className="col-span-2 pt-2 border-t border-slate-200/50">
-                      <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Pickup Address</div>
-                      <div className="flex items-start gap-2 text-sm font-medium text-slate-700 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="col-span-2 pt-2 border-t border-[var(--border-light)]/50">
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold mb-1">Pickup Address</div>
+                      <div className="flex items-start gap-2 text-sm font-medium text-[var(--cort-navy)] bg-white p-3 rounded-xl border border-[var(--border-light)] shadow-sm">
                         <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         {selectedBooking.pickup_address || "—"}
                       </div>
@@ -352,16 +352,16 @@ export default function BookingsPage() {
 
                 {/* Passenger Info */}
                 <div>
-                  <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                    <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Passenger
+                  <h4 className="text-sm font-bold text-[var(--cort-navy)] uppercase tracking-wide mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Passenger
                   </h4>
-                  <div className="flex items-center gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                  <div className="flex items-center gap-4 bg-[var(--surface-subtle)]/50 p-4 rounded-2xl border border-[var(--border-light)]">
+                    <div className="w-10 h-10 rounded-full bg-[var(--cort-orange)]/10 flex items-center justify-center text-[var(--cort-orange)] font-bold text-sm">
                       {selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name?.charAt(0) || "P"}
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-slate-900">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown Passenger"}</div>
-                      <div className="text-xs text-slate-500">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.email || "No email provided"}</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)]">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown Passenger"}</div>
+                      <div className="text-xs text-[var(--text-muted)]">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.email || "No email provided"}</div>
                     </div>
                   </div>
                 </div>
@@ -369,28 +369,28 @@ export default function BookingsPage() {
                 {/* Assignment (Driver & Vehicle) - Read Only */}
                 {selectedBooking.status !== 'PENDING' && (
                   <div>
-                    <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Assignment
+                    <h4 className="text-sm font-bold text-[var(--cort-navy)] uppercase tracking-wide mb-4 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Assignment
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Driver Card */}
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                      <div className="bg-white p-4 rounded-2xl border border-[var(--border-light)] shadow-sm relative overflow-hidden group hover:border-[var(--cort-orange)]/30 transition-all">
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <svg className="w-16 h-16 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                          <svg className="w-16 h-16 text-[var(--cort-orange)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         </div>
                         <div className="flex items-start gap-4 relative z-10">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-light)] flex items-center justify-center text-[var(--text-muted)] shrink-0">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                           </div>
                           <div className="flex-1 space-y-3">
                             <div>
-                              <div className="text-[10px] text-slate-400 uppercase font-bold">Driver Name</div>
-                              <div className="text-sm font-bold text-slate-900">{selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "—"}</div>
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Driver Name</div>
+                              <div className="text-sm font-bold text-[var(--cort-navy)]">{selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "—"}</div>
                             </div>
                             {selectedBooking.users_chauffeur_bookings_driver_idTousers?.phone && (
                               <div>
-                                <div className="text-[10px] text-slate-400 uppercase font-bold">Driver Contact</div>
-                                <div className="text-sm font-medium text-slate-700">{selectedBooking.users_chauffeur_bookings_driver_idTousers.phone}</div>
+                                <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Driver Contact</div>
+                                <div className="text-sm font-medium text-[var(--cort-navy)]">{selectedBooking.users_chauffeur_bookings_driver_idTousers.phone}</div>
                               </div>
                             )}
                           </div>
@@ -398,23 +398,23 @@ export default function BookingsPage() {
                       </div>
 
                       {/* Vehicle Card */}
-                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:border-indigo-200 transition-all">
+                      <div className="bg-white p-4 rounded-2xl border border-[var(--border-light)] shadow-sm relative overflow-hidden group hover:border-[var(--cort-orange)]/30 transition-all">
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                          <svg className="w-16 h-16 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2" /></svg>
+                          <svg className="w-16 h-16 text-[var(--cort-orange)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2" /></svg>
                         </div>
                         <div className="flex items-start gap-4 relative z-10">
-                          <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-light)] flex items-center justify-center text-[var(--text-muted)] shrink-0">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 012-2h5a2 2 0 012 2" /></svg>
                           </div>
                           <div className="flex-1 space-y-3">
                             <div>
-                              <div className="text-[10px] text-slate-400 uppercase font-bold">Vehicle Model</div>
-                              <div className="text-sm font-bold text-slate-900">{selectedBooking.vehicles ? selectedBooking.vehicles.model : "—"}</div>
+                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Vehicle Model</div>
+                              <div className="text-sm font-bold text-[var(--cort-navy)]">{selectedBooking.vehicles ? selectedBooking.vehicles.model : "—"}</div>
                             </div>
                             {selectedBooking.vehicles && (
                               <div>
-                                <div className="text-[10px] text-slate-400 uppercase font-bold">License Plate</div>
-                                <div className="text-sm font-medium text-slate-700 font-mono">{selectedBooking.vehicles.plate_number}</div>
+                                <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">License Plate</div>
+                                <div className="text-sm font-medium text-[var(--cort-navy)] font-mono">{selectedBooking.vehicles.plate_number}</div>
                               </div>
                             )}
                           </div>
@@ -427,12 +427,12 @@ export default function BookingsPage() {
                 {/* Trip Breakdown Table */}
                 {selectedBooking.chauffeur_trip_daily_logs && selectedBooking.chauffeur_trip_daily_logs.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-4 flex items-center gap-2">
-                      <span className="w-1 h-4 bg-indigo-500 rounded-full"></span> Trip Breakdown
-                    </h4>
-                    <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                    <h4 className="text-sm font-bold text-[var(--cort-navy)] uppercase tracking-wide mb-4 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Trip Breakdown
+                  </h4>
+                    <div className="border border-[var(--border-light)] rounded-2xl overflow-hidden bg-white shadow-sm">
                       <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                        <thead className="bg-[var(--surface-subtle)] text-[var(--text-muted)] font-bold uppercase tracking-wider">
                           <tr>
                             <th className="px-4 py-3">Date</th>
                             <th className="px-4 py-3">Type</th>
@@ -441,7 +441,7 @@ export default function BookingsPage() {
                             <th className="px-4 py-3 text-center">Accom.</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-[var(--border-light)]">
                           {selectedBooking.chauffeur_trip_daily_logs.map((log, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-4 py-3 font-semibold text-slate-700">
@@ -480,11 +480,11 @@ export default function BookingsPage() {
                 )}
               </div>
 
-              <div className="flex justify-end pt-5 border-t border-slate-100">
+              <div className="flex justify-end pt-5 border-t border-[var(--border-light)]">
                 <button
                   type="button"
                   onClick={() => setSelectedBooking(null)}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-8 text-sm font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all hover:border-slate-300"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border-light)] bg-white px-8 text-sm font-bold text-[var(--cort-navy)] hover:bg-[var(--surface-subtle)] shadow-sm transition-all hover:border-[var(--cort-orange)]/30"
                 >
                   Close
                 </button>
