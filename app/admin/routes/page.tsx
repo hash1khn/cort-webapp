@@ -84,8 +84,11 @@ export default function RoutesPage() {
                                 )}
                                 <div className="flex items-center gap-2">
                                     <Truck className="w-4 h-4" />
-                                    <span>Unassigned Vehicle</span>
-                                    {/* TODO: Add vehicle assignment info if available */}
+                                    <span>
+                                        {route.vehicles?.plate_number && route.vehicles?.model
+                                            ? `${route.vehicles.model} (${route.vehicles.plate_number})`
+                                            : 'Unassigned Vehicle'}
+                                    </span>
                                 </div>
                             </div>
 
