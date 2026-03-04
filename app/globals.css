@@ -2,35 +2,58 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-    /* Cort Design System (design.md) */
+    /* PRIMARY PALETTE - 2 Colors Only */
     --cort-navy: #0c225e;
+    --cort-navy-dark: #0a1844;
+    --cort-navy-border: #1a3a5c;
     --cort-orange: #f47f00;
+    --cort-orange-hover: #e67c00;
+
+    /* NEUTRAL PALETTE */
+    --surface-white: #ffffff;
+    --surface-subtle: #f9fafb;
+    --surface-muted: #f3f4f6;
+    --surface-card: #f0f4f8;
+    --border-light: #e5e7eb;
+    --border-dark: #d1d5db;
+    
+    /* TEXT HIERARCHY */
+    --text-primary: #0c225e;      /* Navy */
+    --text-secondary: #374151;    /* Charcoal Gray */
+    --text-muted: #9ca3af;        /* Slate Gray */
+    --text-light: #d1d5db;        /* Light Gray */
+    
+    /* SHADOWS - Premium */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.18);
+    
+    /* BRAND ACCENTS (Status Only) */
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --accent-info: #3b82f6;
+    
+    /* LEGACY - Kept for backwards compatibility */
     --cort-purple: #670e4c;
-    /* Royal Indigo as Primary */
     --cort-blue: #09347d;
     --cort-teal: #6db9ca;
     --cort-red: #d32f2f;
     --cort-green: #388e3c;
 
     --background: #F3F4F6;
-    /* Cool Gray Background */
     --foreground: #111827;
     --surface: #f5f5f5;
     --border: rgba(17, 24, 39, 0.10);
     --muted: rgba(17, 24, 39, 0.65);
 
-    /* Premium Theme Tokens */
     --premium-gold: #D4AF37;
     --premium-dark: #050a14;
     --premium-gradient: linear-gradient(135deg, #0f172a 0%, #000000 100%);
-
-    /* New Premium White/Grey Tokens */
-    --surface-subtle: #f9fafb;
     --glass-border: rgba(0, 0, 0, 0.06);
     --text-main: #1f2937;
-    /* Gray-800 */
-    --text-muted: #6b7280;
-    /* Gray-500 */
 }
 
 @theme inline {
@@ -166,6 +189,11 @@
 body {
     background: var(--background);
     color: var(--foreground);
+}
+
+/* Page transition when changing routes (e.g. sidebar nav) */
+.page-transition-enter {
+    animation: fade-slide-up 0.5s ease-out forwards;
 }
 
 /* Company dashboard entrance/stagger animations */

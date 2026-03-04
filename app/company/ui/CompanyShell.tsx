@@ -135,7 +135,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(
-                  "px-3 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
+                  "px-3 mb-2 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider transition-all duration-300 overflow-hidden whitespace-nowrap",
                   (collapsed && !isMobile) ? "opacity-0 max-h-0 mb-0" : "opacity-100 max-h-5"
                 )}>
                   {group.title}
@@ -157,14 +157,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                         "group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden",
                         isMobile && "animate-fade-slide-up opacity-0",
                         active
-                          ? "bg-purple/5 text-purple shadow-sm"
-                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                          ? "bg-[var(--cort-navy)]/10 text-[var(--cort-navy)] shadow-sm"
+                          : "text-[var(--text-muted)] hover:text-[var(--cort-navy)] hover:bg-[var(--surface-subtle)]"
                       )}
                     >
                       {/* Active Indicator Bar - Vertical Line on Left */}
-                      {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-purple" />}
+                      {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-[var(--cort-orange)]" />}
 
-                      <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-purple" : "group-hover:text-gray-900")} />
+                      <Icon size={20} strokeWidth={active ? 2 : 1.5} className={cx("shrink-0 transition-transform duration-200", active ? "text-[var(--cort-orange)]" : "group-hover:text-[var(--cort-navy)]")} />
 
                       <span className={cx(
                         "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
@@ -181,8 +181,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      {/* User Profile Footer */}
-      <div className="border-t border-gray-100 p-3 mt-auto bg-gray-50/50">
+      {/* User Profile Footer - theme aligned with dashboard */}
+      <div className="border-t border-[var(--border-light)] p-3 mt-auto bg-[var(--surface-muted)]/50">
         <div className={cx("flex items-center gap-3 rounded-lg p-2 transition-all duration-300", (collapsed && !isMobile) ? "justify-center" : "justify-between hover:bg-white hover:shadow-sm")}>
           <div className="flex items-center gap-3 overflow-hidden">
             {/* Company Logo in Footer */}
@@ -190,10 +190,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               <img
                 src={company.logo_url}
                 alt={company.name || 'Company'}
-                className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-gray-100"
+                className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-[var(--border-light)]"
               />
             ) : (
-              <div className="h-8 w-8 rounded-full bg-gray-900 flex items-center justify-center text-xs text-white ring-1 ring-gray-100 shrink-0">
+              <div className="h-8 w-8 rounded-full bg-[var(--cort-navy)] flex items-center justify-center text-xs text-white ring-1 ring-[var(--border-light)] shrink-0">
                 {company?.name?.[0]?.toUpperCase() || <Users size={14} />}
               </div>
             )}
@@ -202,17 +202,17 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               "flex flex-col overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
               (collapsed && !isMobile) ? "max-w-0 opacity-0" : "max-w-[150px] opacity-100"
             )}>
-              <span className="truncate text-xs font-semibold text-gray-900">
+              <span className="truncate text-xs font-semibold text-[var(--cort-navy)]">
                 {user?.email}
               </span>
-              <span className="text-[10px] text-gray-500">Company Account</span>
+              <span className="text-[10px] text-[var(--text-muted)]">Company Account</span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => logout()}
-            className={cx("shrink-0 rounded-md p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors", (collapsed && !isMobile) ? "hidden" : "block")}
+            className={cx("shrink-0 rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--accent-danger)] hover:bg-red-50 transition-colors", (collapsed && !isMobile) ? "hidden" : "block")}
             title="Sign out"
           >
             <LogOut size={16} />
@@ -225,10 +225,10 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-surface text-ink font-sans">
       {/* Mobile Header */}
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6 md:hidden">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[var(--border-light)] bg-white px-6 md:hidden">
         <button
           onClick={() => setIsMobileMenuOpen(true)}
-          className="rounded-xl p-2.5 text-gray-500 hover:bg-gray-50 active:scale-95 transition-all"
+          className="rounded-xl p-2.5 text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] active:scale-95 transition-all"
         >
           <Menu size={24} />
         </button>
@@ -239,17 +239,17 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="flex min-h-screen">
-        {/* Desktop Sidebar */}
+        {/* Desktop Sidebar - colors align with dashboard theme */}
         <aside
           className={cx(
-            "sticky top-4 h-[calc(100vh-2rem)] hidden shrink-0 border border-gray-100 bg-white text-gray-900 md:flex md:flex-col transition-all duration-300 ease-in-out relative z-20 ml-4 my-4 rounded-3xl shadow-sm",
+            "sticky top-4 h-[calc(100vh-2rem)] hidden shrink-0 border border-[var(--border-light)] bg-white text-[var(--cort-navy)] md:flex md:flex-col transition-all duration-300 ease-in-out relative z-20 ml-4 my-4 rounded-[2rem] shadow-sm",
             collapsed ? "w-20" : "w-72"
           )}
         >
           {/* Toggle Button */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="absolute -right-3 top-9 z-50 flex h-6 w-6 items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm hover:text-gray-900 hover:scale-105 transition-all focus:outline-none"
+            className="absolute -right-3 top-9 z-50 flex h-6 w-6 items-center justify-center rounded-full bg-white border border-[var(--border-light)] text-[var(--text-muted)] shadow-sm hover:text-[var(--cort-navy)] hover:scale-105 transition-all focus:outline-none"
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
@@ -260,14 +260,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-50 flex md:hidden">
             <div
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              className="fixed inset-0 bg-[var(--cort-navy)]/60 backdrop-blur-sm animate-fade-in"
               onClick={() => setIsMobileMenuOpen(false)}
             />
             <div className="relative flex w-full max-w-xs flex-1 flex-col bg-white animate-slide-in-left">
               <div className="absolute right-2 top-2">
                 <button
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:scale-95 transition-all"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] active:scale-95 transition-all"
                 >
                   <ChevronLeft size={24} />
                 </button>
@@ -279,7 +279,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8">
-            {children}
+            <div key={pathname} className="page-transition-enter min-h-full">
+              {children}
+            </div>
           </main>
         </div>
       </div>

@@ -164,29 +164,30 @@ export default function CompanyDashboardPage() {
 
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dashboard-section dashboard-section-delay-1">
-        {/* Welcome Banner - Shrunken/Balanced */}
-        <div className="lg:col-span-2 relative rounded-[2rem] bg-slate-900 p-6 sm:p-8 shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-800 overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px]">
-          {/* Luxury Sedan Background with Gradient Mask */}
-          <div className="absolute right-0 top-0 w-full sm:w-3/4 h-full pointer-events-none z-0 mix-blend-lighten">
-            <img
-              src="/luxury-sedan-banner.png"
-              alt="Luxury Sedan"
-              className="w-full h-full object-cover object-right opacity-40 sm:opacity-60"
-              style={{ maskImage: 'linear-gradient(to right, transparent, black 60%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 60%)' }}
-            />
-          </div>
+        {/* Welcome Banner - Premium Background Image (Dark Theme - No Fade) */}
+        <div className="lg:col-span-2 relative rounded-[2rem] bg-[var(--cort-navy)] p-6 sm:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-[var(--cort-navy-border)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all duration-200 group">
 
-          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-gray-400 mb-1">
-                <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wide">
+          {/* Background Image Layer */}
+          <div
+            className="absolute inset-0 bg-no-repeat"
+            style={{
+              backgroundImage: "url('/image.png')",
+              backgroundSize: "cover",
+              backgroundPosition: "center", // Resetting to center to ensure it covers everything smoothly
+            }}
+          ></div>
+
+          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between h-full">
+            <div className="flex flex-col justify-center mt-auto sm:mt-0">
+              <div className="flex items-center gap-2 text-white text-opacity-70 mb-1">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-sm bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
                   {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
-                Welcome back, <span className="text-gray-200">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
+                Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
               </h1>
-              <p className="text-gray-300 max-w-xl text-base sm:text-lg">
+              <p className="text-white text-opacity-80 max-w-xl text-base sm:text-lg">
                 You have <span className="text-white font-bold">{todayBookingsCount}</span> upcoming bookings.
               </p>
             </div>
@@ -194,9 +195,9 @@ export default function CompanyDashboardPage() {
             {company?.services_enabled?.chauffeur_enabled && (
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="group relative flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-slate-900 transition-all hover:bg-gray-50 hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap w-full sm:w-auto"
+                className="group relative flex items-center justify-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap w-full sm:w-auto"
               >
-                <svg className="w-4 h-4 text-purple-600 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>New Booking</span>
@@ -211,8 +212,8 @@ export default function CompanyDashboardPage() {
         </div>
       </div>
 
-      {/* Outstanding Amount Row */}
-      <div className="w-full dashboard-section dashboard-section-delay-2">
+      {/* Outstanding Amount Row - relative z-30 so tooltip appears above Value Delivered section */}
+      <div className="w-full dashboard-section dashboard-section-delay-2 relative z-30">
         <OutstandingAmountRow
           amount={dashboardStats?.chauffeur.outstandingAmount || 0}
           invoices={dashboardStats?.chauffeur.outstandingInvoices || []}
