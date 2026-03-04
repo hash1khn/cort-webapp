@@ -174,10 +174,11 @@ export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'
 export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDelivered'] }) => {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+            {/* Total Savings */}
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Total Savings</div>
-                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <Zap className="w-4 h-4 text-indigo-500" />
                 </div>
                 <div>
                     <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">
@@ -188,13 +189,14 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                 </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+            {/* Avg Trip Cost */}
+            <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-sm flex flex-col justify-between text-slate-50">
                 <div className="flex items-start justify-between">
-                    <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
-                    <Activity className="w-4 h-4 text-blue-500" />
+                    <div className="text-slate-300 text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
+                    <Activity className="w-4 h-4 text-sky-400" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">
+                    <div className="text-5xl font-black text-white tracking-tight mb-2">
                         <span className="text-2xl text-slate-400 font-normal mr-1">PKR</span>
                         {(data.avgTripCost / 1000).toFixed(1)}k
                     </div>
@@ -202,6 +204,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                 </div>
             </div>
 
+            {/* Active Chauffeur Rides */}
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
@@ -214,20 +217,21 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                         <span className="inline-flex rounded-full h-3 w-3 bg-slate-200"></span>
                     )}
                 </div>
-                <div>
+                <div className="mt-2">
                     <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.activeRides}</div>
-                    <div className="text-xs text-emerald-500 font-bold mt-1">In progress</div>
+                    <div className="text-xs text-emerald-600 font-bold mt-1">In progress</div>
                 </div>
             </div>
 
+            {/* Shuttle Trips */}
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
                 <div className="flex items-start justify-between">
                     <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Shuttle Trips</div>
-                    <Bus className="w-4 h-4 text-purple-500" />
+                    <Bus className="w-4 h-4 text-indigo-500" />
                 </div>
                 <div>
-                    <div className="text-5xl font-black text-slate-800 tracking-tight mb-2">{data.shuttleTrips}</div>
-                    <div className="text-xs text-slate-400 mt-1">Total runs MTD</div>
+                    <div className="text-5xl font-black text-slate-900 tracking-tight mb-2">{data.shuttleTrips}</div>
+                    <div className="text-xs text-slate-500 mt-1">Total runs MTD</div>
                 </div>
             </div>
         </div>
@@ -236,21 +240,23 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
 
 export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
     return (
-        <Card className="group border-l-4 border-l-orange-500 shadow-sm relative overflow-visible">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none hidden sm:block">
-                <FileText size={100} className="text-orange-500" />
+        <Card className="group border-l-4 border-l-indigo-500 shadow-sm relative overflow-hidden bg-white">
+            <div className="pointer-events-none hidden sm:block">
+                <div className="absolute inset-y-4 right-0 w-40 flex items-center justify-center opacity-10 transform rotate-12">
+                    <FileText size={120} className="text-slate-300" />
+                </div>
             </div>
 
             <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-4 sm:gap-6">
-                    <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
+                    <div className="p-3 bg-slate-50 rounded-2xl text-indigo-600 shadow-sm">
                         <FileText className="w-8 h-8" />
                     </div>
                     <div>
-                        <div className="text-slate-500 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
-                        <div className="group/info text-xs text-slate-400 flex items-center gap-1 relative cursor-default">
+                        <div className="text-slate-700 text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
+                        <div className="group/info text-xs text-slate-500 flex items-center gap-1 relative cursor-default">
                             Total unpaid & overdue invoices
-                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block ml-1 animate-pulse"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block ml-1 animate-pulse"></span>
 
                             {/* Hover Tooltip/List */}
                             {invoices.length > 0 && (
@@ -383,14 +389,14 @@ export const CostVisibilitySection = ({
 
 export const SmartInsightsSection = ({ insights, seasonality }: { insights: string[], seasonality: DashboardData['seasonality'] }) => {
     return (
-        <Card>
+        <Card className="bg-gradient-to-br from-indigo-50 via-slate-50 to-white border-indigo-100">
             <SectionTitle><span className="flex items-center gap-2"><div className="animate-pulse w-2 h-2 bg-indigo-500 rounded-full"></div> Smart Insights</span></SectionTitle>
 
             <div className="space-y-4">
                 {insights.map((insight, idx) => (
                     <div
                         key={idx}
-                        className="group flex flex-col gap-1 pb-3 border-b border-slate-100 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors"
+                        className="group flex flex-col gap-1 pb-3 border-b border-slate-100 last:border-0 last:pb-0 cursor-pointer hover:bg-indigo-50/60 p-2 -mx-2 rounded-lg transition-colors"
                         title="Click to view details"
                     >
                         <div className="flex justify-between items-start gap-2">
@@ -423,34 +429,37 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
 
 export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUsage'] }) => {
     return (
-        <Card>
+        <Card className="bg-white border border-slate-100 shadow-sm">
             <SectionTitle><Users className="w-5 h-5 text-indigo-500" /> Employee Adoption</SectionTitle>
 
             <div className="flex flex-wrap items-center gap-4 mb-6">
                 <div className="flex-1 min-w-[120px]">
-                    <div className="text-3xl font-bold text-slate-800">{data.activeEmployees}</div>
-                    <div className="text-xs text-slate-500 uppercase font-bold">Active Passengers</div>
+                    <div className="text-3xl font-bold text-slate-50">{data.activeEmployees}</div>
+                    <div className="text-xs text-slate-400 uppercase font-bold">Active Passengers</div>
                 </div>
                 <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
                 <div className="flex-1 min-w-[120px]">
-                    <div className="text-3xl font-bold text-slate-800">{data.avgRidesPerEmployee}</div>
-                    <div className="text-xs text-slate-500 uppercase font-bold">Avg Rides/Emp</div>
+                    <div className="text-3xl font-bold text-slate-50">{data.avgRidesPerEmployee}</div>
+                    <div className="text-xs text-slate-400 uppercase font-bold">Avg Rides/Emp</div>
                 </div>
             </div>
 
-            <div className="bg-indigo-50/50 p-4 rounded-2xl mb-6 border border-indigo-100 flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
-                    <Star className="w-5 h-5 fill-indigo-600" />
+            <div className="bg-indigo-900/50 p-4 rounded-2xl mb-6 border border-indigo-700 flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-500/30 rounded-full flex items-center justify-center text-indigo-300 shrink-0">
+                    <Star className="w-5 h-5 fill-indigo-300" />
                 </div>
                 <div>
-                    <div className="text-xs text-indigo-400 font-bold uppercase">Top Passenger</div>
-                    <div className="font-bold text-slate-800 text-sm">{data.topPassenger.name} <span className="font-normal text-slate-500">({data.topPassenger.rides} rides)</span></div>
+                    <div className="text-[11px] text-indigo-300 font-bold uppercase">Top Passenger</div>
+                    <div className="font-bold text-slate-50 text-sm">
+                        {data.topPassenger.name}{' '}
+                        <span className="font-normal text-slate-400">({data.topPassenger.rides} rides)</span>
+                    </div>
                 </div>
             </div>
 
             {/* Horizontal Stacked Bar Chart for Departments */}
             <div>
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Department Breakdown</div>
+                <div className="text-xs font-bold text-slate-300 uppercase tracking-wide mb-3">Department Breakdown</div>
                 <div className="flex w-full h-8 rounded-lg overflow-hidden my-2">
                     {data.departmentUsage.map((dept, i) => (
                         <div
@@ -480,13 +489,13 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
 
 export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHealth'] }) => {
     return (
-        <Card className="h-full">
+        <Card className="h-full bg-gradient-to-br from-emerald-50 via-slate-50 to-white border-emerald-100">
             <SectionTitle><ShieldCheck className="w-5 h-5 text-emerald-500" /> System Health</SectionTitle>
 
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-slate-600 font-medium">Active Users</div>
-                    <div className="text-sm font-bold text-slate-800">{(data.registeredVsActiveRatio * 100).toFixed(0)}%</div>
+                    <div className="text-sm font-bold text-emerald-700">{(data.registeredVsActiveRatio * 100).toFixed(0)}%</div>
                 </div>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${data.registeredVsActiveRatio * 100}%` }} />
