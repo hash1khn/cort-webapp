@@ -96,14 +96,10 @@ export default function OpsShuttlePage() {
     }
   }, [selectedTripId]);
 
-  const loadPolyline = useCallback(async (tripId: number, driverLat?: number, driverLng?: number) => {
+  const loadPolyline = useCallback(async (tripId: number) => {
     try {
       setPolylineLoading(true);
-      const params = new URLSearchParams();
-      if (driverLat !== undefined) params.set('driverLat', String(driverLat));
-      if (driverLng !== undefined) params.set('driverLng', String(driverLng));
-      const qs = params.toString() ? `?${params.toString()}` : '';
-      const data = await apiClient.request<PolylineResponse>(`/shuttle-trips/${tripId}/polyline${qs}`);
+      const data = await apiClient.request<PolylineResponse>(`/shuttle-trips/${tripId}/polyline`);
       setPolyline(data);
     } catch {
       setPolyline(null);
@@ -122,13 +118,6 @@ export default function OpsShuttlePage() {
       loadPolyline(selectedTripId);
     }
   }, [selectedTripId, loadPolyline]);
-
-  // Re-fetch polyline when driver moves significantly (~50m threshold)
-  useEffect(() => {
-    if (!selectedTripId || !driverCoord) return;
-    loadPolyline(selectedTripId, driverCoord.lat, driverCoord.lng);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverCoord?.lat?.toFixed(4), driverCoord?.lng?.toFixed(4)]);
 
   // ---- Map data -------------------------------------------------------
 
@@ -160,13 +149,28 @@ export default function OpsShuttlePage() {
 
   const mapPolylines: MapPolyline[] = useMemo(() => {
     if (!polyline?.points?.length) return [];
-    return [
-      {
-        positions: polyline.points.map((p) => [p.lat, p.lng] as [number, number]),
-        color: '#0C225E',
-      },
-    ];
-  }, [polyline]);
+
+    let points = polyline.points;
+
+    // Trim already-travelled portion: find the polyline point nearest to the
+    // driver and slice from there forward — no extra API calls needed.
+    if (driverCoord) {
+      let minDist = Infinity;
+      let nearestIdx = 0;
+      for (let i = 0; i < points.length; i++) {
+        const dLat = points[i].lat - driverCoord.lat;
+        const dLng = points[i].lng - driverCoord.lng;
+        const dist = dLat * dLat + dLng * dLng;
+        if (dist < minDist) {
+          minDist = dist;
+          nearestIdx = i;
+        }
+      }
+      points = points.slice(nearestIdx);
+    }
+
+    return [{ positions: points.map((p) => [p.lat, p.lng] as [number, number]), color: '#0C225E' }];
+  }, [polyline, driverCoord]);
 
   const mapCenter = useMemo((): [number, number] => {
     if (driverCoord) return [driverCoord.lat, driverCoord.lng];
@@ -277,7 +281,7 @@ export default function OpsShuttlePage() {
               </div>
               {polylineLoading && (
                 <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" /> Updating route...
+                  <RefreshCw className="w-3 h-3 animate-spin" /> Loading route...
                 </span>
               )}
             </div>

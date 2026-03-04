@@ -94,13 +94,49 @@ function MapResizeHandler() {
   return null;
 }
 
-// Component to handle dynamic centering
+// Component to handle dynamic centering (used only when explicit center is provided)
 function MapReCenter({ center }: { center: [number, number] }) {
   const map = useMap();
 
   useEffect(() => {
     map.flyTo(center, map.getZoom());
   }, [center, map]);
+
+  return null;
+}
+
+// Auto-fit the viewport to cover all markers and polyline points
+function FitBoundsToContent({
+  markers,
+  polylines,
+}: {
+  markers: MapMarker[];
+  polylines: MapPolyline[];
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const coords: [number, number][] = [
+      ...markers.map((m) => m.position),
+      ...polylines.flatMap((p) => p.positions),
+    ];
+
+    if (coords.length === 0) return;
+
+    if (coords.length === 1) {
+      map.setView(coords[0], 14);
+      return;
+    }
+
+    const bounds = L.latLngBounds(coords);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+  // Re-fit whenever content changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // stringify to avoid referential inequality on every render
+    JSON.stringify(markers.map((m) => m.position)),
+    JSON.stringify(polylines.map((p) => p.positions[0])),
+  ]);
 
   return null;
 }
@@ -183,7 +219,10 @@ export default function Map({
           maxZoom={19}
         />
         <MapResizeHandler />
-        <MapReCenter center={center} />
+        {/* Auto-fit when there's content; fall back to explicit center otherwise */}
+        {markers.length > 0 || polylines.length > 0
+          ? <FitBoundsToContent markers={markers} polylines={polylines} />
+          : <MapReCenter center={center} />}
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         {markers.map((marker) => (
           <Marker
