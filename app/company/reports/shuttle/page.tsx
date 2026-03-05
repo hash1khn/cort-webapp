@@ -3,6 +3,7 @@
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { Card } from "../../components/DashboardComponents";
+import { PageHeader } from "../../components/PageLayout";
 
 export default function ShuttleReportsPage() {
   const company = useAppSelector(selectCompany);
@@ -30,14 +31,10 @@ export default function ShuttleReportsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
-            <span className="text-xs font-medium uppercase tracking-wide">Financial Reporting</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Shuttle Reports</h1>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
+      <PageHeader
+        label="Financial Reporting"
+        title="Shuttle Reports"
+        action={
           <button
             type="button"
             disabled
@@ -45,8 +42,8 @@ export default function ShuttleReportsPage() {
           >
             Export CSV
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <Card className="overflow-hidden">
         <div className="mb-4">

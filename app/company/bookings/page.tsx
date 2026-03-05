@@ -10,6 +10,7 @@ import CreateBookingForm from "./components/CreateBookingForm";
 import { ChauffeurBooking } from "../../lib/services/api-client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card } from "../components/DashboardComponents";
+import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS, TABLE_PAGINATION_WRAPPER_CLASS } from "../components/PageLayout";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 import TablePageSkeleton from "../components/TablePageSkeleton";
 import Pagination from "../../components/ui/Pagination";
@@ -104,29 +105,27 @@ export default function BookingsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
-            <span className="text-xs font-medium uppercase tracking-wide">Overview</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Bookings</h1>
-        </div>
-        {company.services_enabled.chauffeur_enabled && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
-          >
-            <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Booking</span>
-          </button>
-        )}
-      </div>
+      <PageHeader
+        label="Overview"
+        title="Bookings"
+        action={
+          company.services_enabled.chauffeur_enabled ? (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
+            >
+              <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Booking</span>
+            </button>
+          ) : undefined
+        }
+      />
 
-      <Card className="min-h-[600px]">
+      <Card className={`min-h-[600px] ${TABLE_CARD_CLASS}`}>
         {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-6">
+        <div className={`flex flex-wrap gap-4 ${TABLE_TOP_BAR_CLASS}`}>
           <div className="flex-1 min-w-[240px]">
             <div className="relative">
               <input
@@ -167,15 +166,15 @@ export default function BookingsPage() {
           <table className="min-w-full text-sm text-left">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">ID</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Service</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Passenger</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Package</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Pickup</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">City</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Scheduled</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Action</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS}`}>ID</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Service</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Passenger</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Package</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Pickup</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>City</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Scheduled</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -183,7 +182,7 @@ export default function BookingsPage() {
                 <TableSkeleton columns={9} rows={8} />
               ) : bookings.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={9} className="p-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,28 +202,28 @@ export default function BookingsPage() {
                       onClick={() => !isPending && setSelectedBooking(booking)}
                       className={`group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80 ${isPending ? "cursor-default" : "cursor-pointer"}`}
                     >
-                      <td className="px-4 py-4 font-bold text-[var(--cort-navy)]">#{booking.id}</td>
-                      <td className="px-4 py-4">
+                      <td className={TABLE_CELL_CLASS + " font-bold text-[var(--cort-navy)]"}>#{booking.id}</td>
+                      <td className={TABLE_CELL_CLASS}>
                         <span className="inline-flex items-center px-2 py-1 rounded-md bg-[var(--surface-subtle)] text-[var(--cort-navy)] text-xs font-medium border border-[var(--border-light)]">
                           {booking.service_category || "Standard"}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-medium text-[var(--cort-navy)]">
+                      <td className={TABLE_CELL_CLASS + " font-medium text-[var(--cort-navy)]"}>
                         {getPassengerName(booking)}
                       </td>
-                      <td className="px-4 py-4 text-[var(--text-muted)] capitalize">{booking.package_selected.replace(/_/g, " ")}</td>
-                      <td className="px-4 py-4">
+                      <td className={TABLE_CELL_CLASS + " text-[var(--text-muted)] capitalize"}>{booking.package_selected.replace(/_/g, " ")}</td>
+                      <td className={TABLE_CELL_CLASS}>
                         <div className="max-w-[200px] truncate text-[var(--text-muted)]" title={booking.pickup_address || "No address"}>
                           {booking.pickup_address || "-"}
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-[var(--cort-navy)] font-medium">
+                      <td className={TABLE_CELL_CLASS + " text-[var(--cort-navy)] font-medium"}>
                         {booking.city || "—"}
                       </td>
-                      <td className="px-4 py-4 text-[var(--cort-navy)] font-medium">
+                      <td className={TABLE_CELL_CLASS + " text-[var(--cort-navy)] font-medium"}>
                         {formatDateTime(booking.scheduled_for)}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className={TABLE_CELL_CLASS}>
                         {(() => {
                           const statusStyles: Record<string, string> = {
                             PENDING: "bg-amber-50 text-amber-700 border-amber-100",
@@ -244,7 +243,7 @@ export default function BookingsPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className={TABLE_CELL_CLASS + " text-right"}>
                         <button className="p-2 hover:bg-white rounded-full transition-colors text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:shadow-sm">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -258,15 +257,17 @@ export default function BookingsPage() {
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            dispatch(setPage(page));
-          }}
-        />
-      </Card >
+        <div className={TABLE_PAGINATION_WRAPPER_CLASS}>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              dispatch(setPage(page));
+            }}
+          />
+        </div>
+      </Card>
 
       <Modal
         isOpen={isModalOpen}

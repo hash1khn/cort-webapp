@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus, updateEmployee, deactivateEmployee } from "../../lib/store/slices/employeeSlice";
 import { Card } from "../components/DashboardComponents";
+import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import TablePageSkeleton from "../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
@@ -89,17 +90,10 @@ export default function EmployeesPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
-            <span className="text-xs font-medium uppercase tracking-wide">Roster Management</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Employees</h1>
-        </div>
-      </div>
+      <PageHeader label="Roster Management" title="Employees" />
 
-      <Card className="min-h-[500px] overflow-hidden !p-0">
-        <div className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/50 p-5">
+      <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
+        <div className={TABLE_TOP_BAR_CLASS}>
           <div className="flex items-start gap-3">
             <div className="p-2 bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-lg text-[var(--cort-orange)]">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -117,13 +111,13 @@ export default function EmployeesPage() {
           <table className="min-w-full text-sm text-left">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Employee ID</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Full Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Email</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Department</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Actions</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Employee ID</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Full Name</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Phone</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Email</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Department</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -131,7 +125,7 @@ export default function EmployeesPage() {
                 <TableSkeleton columns={7} rows={8} />
               ) : employees.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-[var(--text-muted)]">
+                  <td colSpan={7} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>
                     No employees found. Employees are uploaded by Cort Super Admin.
                   </td>
                 </tr>
@@ -140,9 +134,9 @@ export default function EmployeesPage() {
                   const isEditing = editingId === e.id;
                   return (
                     <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
-                      <td className="px-6 py-4 font-mono text-xs text-[var(--text-muted)]">{e.employee_id || "—"}</td>
-                      <td className="px-6 py-4 font-bold text-[var(--cort-navy)]">{e.full_name}</td>
-                      <td className="px-6 py-4">
+                      <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{e.employee_id || "—"}</td>
+                      <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--cort-navy)]`}>{e.full_name}</td>
+                      <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
                             value={editPhone}
@@ -153,7 +147,7 @@ export default function EmployeesPage() {
                           <span className="text-[var(--cort-navy)] font-medium">{e.phone || "—"}</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
                             value={editEmail}
@@ -173,7 +167,7 @@ export default function EmployeesPage() {
                           {e.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className={`${TABLE_CELL_CLASS} text-right`}>
                         <div className="flex items-center justify-end gap-2">
                           {isEditing ? (
                             <>

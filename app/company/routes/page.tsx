@@ -4,6 +4,7 @@ import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { MOCK_ROUTES, MOCK_SHUTTLE_DRIVERS, MOCK_VEHICLES } from "../lib/routesMockData";
 import { Card } from "../components/DashboardComponents";
+import { PageHeader } from "../components/PageLayout";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -40,14 +41,7 @@ export default function RoutesPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
-            <span className="text-xs font-medium uppercase tracking-wide">Route Management</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">Route Roster</h1>
-        </div>
-      </div>
+      <PageHeader label="Route Management" title="Route Roster" />
 
       <Card className="overflow-hidden !p-0">
         <div className="p-6 border-b border-[var(--border-light)]">
