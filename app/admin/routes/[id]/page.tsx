@@ -25,6 +25,7 @@ import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X } from 'lu
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
+import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
@@ -67,7 +68,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     // Load drivers and vehicles for assignment editing
     useEffect(() => {
-        dispatch(fetchAdminDrivers({ limit: 100 }));
+        // Only show shuttle drivers for shuttle routes
+        dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
         dispatch(fetchAdminVehicles({ limit: 100 }));
     }, [dispatch]);
 

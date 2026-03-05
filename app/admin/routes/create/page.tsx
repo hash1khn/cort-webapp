@@ -16,6 +16,7 @@ import { createAdminRoute, selectAdminRoutesActionStatus } from '@/app/lib/store
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
 import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { apiClient } from '@/app/lib/services/api-client';
+import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
@@ -50,7 +51,8 @@ export default function CreateRoutePage() {
 
     useEffect(() => {
         if (companiesStatus === 'idle') dispatch(fetchAdminCompanies({ limit: 100 }));
-        dispatch(fetchAdminDrivers({ limit: 100 }));
+        // Only load shuttle drivers for shuttle routes
+        dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
         dispatch(fetchAdminVehicles({ limit: 100 }));
     }, [dispatch, companiesStatus]);
 
