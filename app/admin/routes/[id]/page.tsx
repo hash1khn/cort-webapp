@@ -13,6 +13,8 @@ import {
     selectAdminRoutesStatus,
     clearCurrentRoute
 } from '@/app/lib/store/slices/adminRoutesSlice';
+import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
+import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { Button } from '@/app/admin/ui/Button';
 import { Card } from '@/app/admin/ui/Card';
 import { Input } from '@/app/admin/ui/Input';
@@ -35,6 +37,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const dispatch = useAppDispatch();
     const route = useAppSelector(selectCurrentRoute);
     const status = useAppSelector(selectAdminRoutesStatus);
+    const drivers = useAppSelector(selectAdminDrivers);
+    const vehicles = useAppSelector(selectAdminVehicles);
 
     const [activeTab, setActiveTab] = useState<'overview' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
@@ -60,6 +64,12 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         if (id) dispatch(fetchAdminRoute(parseInt(id)));
         return () => { dispatch(clearCurrentRoute()); };
     }, [dispatch, id]);
+
+    // Load drivers and vehicles for assignment editing
+    useEffect(() => {
+        dispatch(fetchAdminDrivers({ limit: 100 }));
+        dispatch(fetchAdminVehicles({ limit: 100 }));
+    }, [dispatch]);
 
     useEffect(() => {
         if (route) {
@@ -192,6 +202,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     assigned_driver_id: editForm.assigned_driver_id || undefined,
                 },
             })).unwrap();
+
             setIsEditing(false);
             toast.success('Route details updated');
         } catch {
@@ -303,20 +314,91 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Map */}
-                    <Card className="col-span-2 overflow-hidden" style={{ height: '520px' }}>
-                        <Map
-                            height="100%"
-                            markers={mapMarkers}
-                            polylines={mapPolylines}
-                            onMarkerClick={handleMarkerClick}
-                            onMapClick={handleMapClick}
-                        />
+                <div className="space-y-4">
+                    {/* Route meta (company, vehicle, driver) */}
+                    <Card className="p-4">
+                        <h3 className="font-semibold mb-3">Route Details</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                            <div>
+                                <span className="text-gray-500">Company:</span>{' '}
+                                <span className="font-medium">
+                                    {route.company?.name ?? route.companies?.name ?? 'N/A'}
+                                </span>
+                            </div>
+                            {!isEditing && (
+                                <>
+                                    <div>
+                                        <span className="text-gray-500">Vehicle:</span>{' '}
+                                        <span className="font-medium">
+                                            {route.vehicles?.model && route.vehicles?.plate_number
+                                                ? `${route.vehicles.model} (${route.vehicles.plate_number})`
+                                                : 'Unassigned'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Driver:</span>{' '}
+                                        <span className="font-medium">
+                                            {route.users?.full_name ?? 'Unassigned'}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                            {isEditing && (
+                                <>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 text-xs">Assigned Vehicle</span>
+                                        <select
+                                            className="w-full border rounded-lg p-2 text-sm"
+                                            value={editForm.assigned_vehicle_id}
+                                            onChange={(e) =>
+                                                setEditForm({ ...editForm, assigned_vehicle_id: e.target.value })
+                                            }
+                                        >
+                                            <option value="">None</option>
+                                            {vehicles.map((v) => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.plate_number}
+                                                    {v.model ? ` · ${v.model}` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 text-xs">Assigned Driver</span>
+                                        <select
+                                            className="w-full border rounded-lg p-2 text-sm"
+                                            value={editForm.assigned_driver_id}
+                                            onChange={(e) =>
+                                                setEditForm({ ...editForm, assigned_driver_id: e.target.value })
+                                            }
+                                        >
+                                            <option value="">None</option>
+                                            {drivers.map((d) => (
+                                                <option key={d.id} value={d.id}>
+                                                    {d.full_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </Card>
 
-                    {/* Stops Sidebar */}
-                    <Card className="p-4 flex flex-col" style={{ maxHeight: '520px' }}>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Map */}
+                        <Card className="col-span-2 overflow-hidden" style={{ height: '520px' }}>
+                            <Map
+                                height="100%"
+                                markers={mapMarkers}
+                                polylines={mapPolylines}
+                                onMarkerClick={handleMarkerClick}
+                                onMapClick={handleMapClick}
+                            />
+                        </Card>
+
+                        {/* Stops Sidebar */}
+                        <Card className="p-4 flex flex-col" style={{ maxHeight: '520px' }}>
                         <div className="flex justify-between items-center mb-3 shrink-0">
                             <h3 className="font-semibold flex items-center gap-2">
                                 <MapPin className="w-4 h-4" />
@@ -470,13 +552,14 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                             ))}
                         </div>
 
-                        {savedPolyline.length >= 2 && (
-                            <div className="shrink-0 mt-3 pt-2 border-t flex items-center gap-1.5 text-[10px] text-gray-400">
-                                <div className="w-2 h-2 rounded-full bg-[#0C225E]" />
-                                Road-following route via Google Maps
-                            </div>
-                        )}
-                    </Card>
+                            {savedPolyline.length >= 2 && (
+                                <div className="shrink-0 mt-3 pt-2 border-t flex items-center gap-1.5 text-[10px] text-gray-400">
+                                    <div className="w-2 h-2 rounded-full bg-[#0C225E]" />
+                                    Road-following route via Google Maps
+                                </div>
+                            )}
+                        </Card>
+                    </div>
                 </div>
             )}
 

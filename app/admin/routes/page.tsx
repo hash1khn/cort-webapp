@@ -76,10 +76,13 @@ export default function RoutesPage() {
                                     <MapPin className="w-4 h-4" />
                                     <span>{route.route_stops?.length || 0} Stops</span>
                                 </div>
-                                {route.company && (
+                                {(route.company || route.companies) && (
                                     <div className="flex items-center gap-2">
                                         <User className="w-4 h-4" />
-                                        <span>{route.company.name}</span>
+                                        <span>
+                                            Company:{' '}
+                                            {route.company?.name ?? route.companies?.name}
+                                        </span>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-2">

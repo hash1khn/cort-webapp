@@ -26,6 +26,11 @@ export interface Route {
         id: number;
         name: string;
     };
+    // Some APIs return the related company under "companies"
+    companies?: {
+        id?: number;
+        name: string;
+    };
     assigned_vehicle_id?: number;
     assigned_driver_id?: string;
     vehicles?: {
