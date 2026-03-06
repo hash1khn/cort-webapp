@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
-import { Plus, MapPin, Truck, User } from 'lucide-react';
+import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminRoutes, selectAdminRoutes, selectAdminRoutesStatus } from '@/app/lib/store/slices/adminRoutesSlice';
 
@@ -12,6 +12,7 @@ export default function RoutesPage() {
     const dispatch = useAppDispatch();
     const routes = useAppSelector(selectAdminRoutes);
     const status = useAppSelector(selectAdminRoutesStatus);
+    const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
 
     useEffect(() => {
         if (status === 'idle') {
@@ -19,19 +20,68 @@ export default function RoutesPage() {
         }
     }, [dispatch, status]);
 
+    const companiesWithRoutes = useMemo(() => {
+        const companyMap = new Map<number, { id: number; name: string; routeCount: number }>();
+
+        routes.forEach(route => {
+            const company = route.company ?? route.companies;
+            const companyId = company?.id ?? route.company_id;
+
+            if (companyId) {
+                const existing = companyMap.get(companyId);
+                if (existing) {
+                    existing.routeCount++;
+                } else {
+                    companyMap.set(companyId, {
+                        id: companyId,
+                        name: company?.name ?? `Company #${companyId}`,
+                        routeCount: 1
+                    });
+                }
+            }
+        });
+
+        return Array.from(companyMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [routes]);
+
+    const filteredRoutes = useMemo(() => {
+        if (selectedCompanyId === null) return [];
+        return routes.filter(route => (route.company?.id ?? route.companies?.id ?? route.company_id) === selectedCompanyId);
+    }, [routes, selectedCompanyId]);
+
+    const selectedCompany = useMemo(() => {
+        if (selectedCompanyId === null) return null;
+        return companiesWithRoutes.find(c => c.id === selectedCompanyId);
+    }, [companiesWithRoutes, selectedCompanyId]);
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Route Management</h1>
-                    <p className="text-sm text-gray-500">Manage shuttle routes and stops</p>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                        {selectedCompanyId ? `Routes for ${selectedCompany?.name}` : 'Route Management'}
+                    </h1>
+                    <p className="text-sm text-gray-500">
+                        {selectedCompanyId
+                            ? `Showing all routes assigned to ${selectedCompany?.name}`
+                            : 'Manage shuttle routes and stops by company'
+                        }
+                    </p>
                 </div>
-                <Link href="/admin/routes/create">
-                    <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create New Route
-                    </Button>
-                </Link>
+                <div className="flex gap-2">
+                    {selectedCompanyId && (
+                        <Button variant="outline" onClick={() => setSelectedCompanyId(null)}>
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Companies
+                        </Button>
+                    )}
+                    <Link href="/admin/routes/create">
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create New Route
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {status === 'loading' && (
@@ -60,49 +110,69 @@ export default function RoutesPage() {
             )}
 
             {status === 'succeeded' && routes.length > 0 && (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {routes.map((route) => (
-                        <Card key={route.id} className="p-4 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-semibold text-lg">{route.name}</h3>
-                                <span className={`px-2 py-1 text-xs rounded-full ${route.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                    }`}>
-                                    {route.status}
-                                </span>
-                            </div>
-
-                            <div className="space-y-2 text-sm text-gray-600 mb-4">
-                                <div className="flex items-center gap-2">
-                                    <MapPin className="w-4 h-4" />
-                                    <span>{route.route_stops?.length || 0} Stops</span>
+                <>
+                    {selectedCompanyId === null ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {companiesWithRoutes.map((company) => (
+                                <Card
+                                    key={company.id}
+                                    className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-indigo-500 flex justify-between items-center"
+                                    onClick={() => setSelectedCompanyId(company.id)}
+                                >
+                                    <div>
+                                        <h3 className="font-bold text-xl text-gray-900 mb-1">{company.name}</h3>
+                                        <div className="flex items-center text-gray-500 text-sm">
+                                            <MapPin className="w-4 h-4 mr-1" />
+                                            <span>{company.routeCount} {company.routeCount === 1 ? 'Route' : 'Routes'}</span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-6 h-6 text-gray-300" />
+                                </Card>
+                            ))}
+                            {companiesWithRoutes.length === 0 && (
+                                <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
+                                    <User className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-gray-500 font-medium">No companies with assigned routes found.</p>
                                 </div>
-                                {(route.company || route.companies) && (
-                                    <div className="flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        <span>
-                                            Company:{' '}
-                                            {route.company?.name ?? route.companies?.name}
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            {filteredRoutes.map((route) => (
+                                <Card key={route.id} className="p-4 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="font-semibold text-lg">{route.name}</h3>
+                                        <span className={`px-2 py-1 text-xs rounded-full ${route.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                            {route.status}
                                         </span>
                                     </div>
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <Truck className="w-4 h-4" />
-                                    <span>
-                                        {route.vehicles?.plate_number && route.vehicles?.model
-                                            ? `${route.vehicles.model} (${route.vehicles.plate_number})`
-                                            : 'Unassigned Vehicle'}
-                                    </span>
-                                </div>
-                            </div>
 
-                            <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-                                <Link href={`/admin/routes/${route.id}`}>
-                                    <Button variant="ghost" size="sm">View Details</Button>
-                                </Link>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
+                                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <MapPin className="w-4 h-4" />
+                                            <span>{route.route_stops?.length || 0} Stops</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Truck className="w-4 h-4" />
+                                            <span>
+                                                {route.vehicles?.plate_number && route.vehicles?.model
+                                                    ? `${route.vehicles.model} (${route.vehicles.plate_number})`
+                                                    : 'Unassigned Vehicle'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                                        <Link href={`/admin/routes/${route.id}`}>
+                                            <Button variant="ghost" size="sm">View Details</Button>
+                                        </Link>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
