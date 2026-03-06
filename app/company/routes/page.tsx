@@ -43,6 +43,13 @@ type CompanyRoute = {
   route_stops?: RouteStop[];
   vehicles?: { plate_number: string; model: string } | null;
   users?: { full_name: string; phone: string } | null;
+  employee_route_assignments?: {
+    users?: {
+      full_name: string;
+      email: string;
+      phone: string;
+    };
+  }[];
 };
 
 export default function RoutesPage() {
@@ -141,6 +148,7 @@ export default function RoutesPage() {
               const driver = route.users ?? null;
               const vehicle = route.vehicles ?? null;
               const stops = route.route_stops ?? [];
+              const employees = route.employee_route_assignments?.map(a => a.users).filter(Boolean) || [];
 
               return (
                 <div
@@ -149,14 +157,19 @@ export default function RoutesPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-[var(--cort-navy)]">{route.name}</h3>
-                        <span className="rounded-full bg-[var(--cort-orange)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--cort-orange)]">
-                          Route ID: {route.id}
-                        </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-semibold text-[var(--cort-navy)]">{route.name}</h3>
+                          <span className="rounded-full bg-[var(--cort-orange)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--cort-orange)]">
+                            Route ID: {route.id}
+                          </span>
+                        </div>
+                        <div className="text-xs font-medium text-[var(--text-muted)]">
+                          {employees.length} employee{employees.length !== 1 ? "s" : ""} assigned
+                        </div>
                       </div>
 
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ASSIGNED DRIVER</div>
                           <div className="mt-1 text-sm text-[var(--cort-navy)]">
@@ -192,6 +205,23 @@ export default function RoutesPage() {
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">STOPS</div>
                           <div className="mt-1 text-sm text-[var(--cort-navy)]">
                             {stops.length} stop{stops.length !== 1 ? "s" : ""}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ASSIGNED EMPLOYEES</div>
+                          <div className="mt-1 text-sm text-[var(--cort-navy)]">
+                            {employees.length > 0 ? (
+                              <div className="max-h-24 overflow-y-auto scrollbar-thin">
+                                {employees.map((emp, i) => (
+                                  <div key={i} className="text-xs truncate font-medium border-l-2 border-[var(--cort-orange)] pl-2 mb-1">
+                                    {emp?.full_name}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[var(--text-muted)]">No employees</span>
+                            )}
                           </div>
                         </div>
                       </div>
