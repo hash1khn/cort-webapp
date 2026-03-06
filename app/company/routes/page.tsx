@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader } from "../components/PageLayout";
+import { Button } from "@/app/admin/ui/Button";
+import { Activity } from "lucide-react";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -163,6 +166,12 @@ export default function RoutesPage() {
                           <span className="rounded-full bg-[var(--cort-orange)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--cort-orange)]">
                             Route ID: {route.id}
                           </span>
+                          <Link href={`/company/routes/${route.id}/track`}>
+                            <Button variant="outline" size="sm" className="h-7 py-0 px-2 text-[10px] gap-1 border-[var(--cort-navy)]/20 text-[var(--cort-navy)] hover:bg-[var(--cort-navy)] hover:text-white">
+                              <Activity className="w-3 h-3" />
+                              Track Route
+                            </Button>
+                          </Link>
                         </div>
                         <div className="text-xs font-medium text-[var(--text-muted)]">
                           {employees.length} employee{employees.length !== 1 ? "s" : ""} assigned
