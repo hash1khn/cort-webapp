@@ -3,9 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Bus, MapPin, Navigation, RefreshCw, Radio, ChevronLeft } from 'lucide-react';
-import { Card } from '@/app/admin/ui/Card';
+import { Bus, MapPin, Navigation, RefreshCw, Radio, ChevronLeft, X } from 'lucide-react';
 import { Button } from '@/app/admin/ui/Button';
+import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS } from '@/app/company/components/PageLayout';
+import { Card } from '@/app/company/components/DashboardComponents';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useShuttleTracking } from '@/app/lib/hooks/useShuttleTracking';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
@@ -46,16 +47,6 @@ type PolylineResponse = {
 
 // ---- Helpers ---------------------------------------------------------------
 
-function statusBadge(status: string) {
-    const map: Record<string, string> = {
-        SCHEDULED: 'bg-gray-100 text-gray-600',
-        STARTED: 'bg-blue-100 text-blue-700',
-        IN_PROGRESS: 'bg-orange-100 text-orange-700',
-        COMPLETED: 'bg-green-100 text-green-700',
-        CANCELLED: 'bg-red-100 text-red-600',
-    };
-    return map[status] ?? 'bg-gray-100 text-gray-600';
-}
 
 // ---- Component -------------------------------------------------------------
 
@@ -69,7 +60,6 @@ export default function CompanyRouteTrackingPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
     const [polyline, setPolyline] = useState<PolylineResponse | null>(null);
-    const [polylineLoading, setPolylineLoading] = useState(false);
 
     const { driverCoord, isConnected } = useShuttleTracking(selectedTripId);
 
@@ -90,7 +80,7 @@ export default function CompanyRouteTrackingPage() {
 
             // Fetch trips for this specific route for today
             const data = await apiClient.request<ShuttleTrip[]>(`/shuttle-trips/today?date=${date}&route_id=${routeId}`);
-            const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
+            const list = Array.isArray(data) ? data : ((data as unknown) as { data: ShuttleTrip[] }).data ?? [];
             setTrips(list);
 
             // Select the first trip (usually the active one if available due to backend sorting)
@@ -106,13 +96,10 @@ export default function CompanyRouteTrackingPage() {
 
     const loadPolyline = useCallback(async (tripId: number) => {
         try {
-            setPolylineLoading(true);
             const data = await apiClient.request<PolylineResponse>(`/shuttle-trips/${tripId}/polyline`);
             setPolyline(data);
         } catch {
             setPolyline(null);
-        } finally {
-            setPolylineLoading(false);
         }
     }, []);
 
@@ -157,24 +144,53 @@ export default function CompanyRouteTrackingPage() {
 
     const mapPolylines: MapPolyline[] = useMemo(() => {
         if (!polyline?.points?.length) return [];
-        let points = polyline.points;
+        const allPoints = polyline.points.map((p) => [p.lat, p.lng] as [number, number]);
+
+        const lines: MapPolyline[] = [
+            {
+                positions: allPoints,
+                color: '#0C225E',
+                weight: 4,
+                opacity: 0.2,
+            }
+        ];
 
         if (driverCoord) {
             let minDist = Infinity;
             let nearestIdx = 0;
-            for (let i = 0; i < points.length; i++) {
-                const dLat = points[i].lat - driverCoord.lat;
-                const dLng = points[i].lng - driverCoord.lng;
+            for (let i = 0; i < allPoints.length; i++) {
+                const dLat = allPoints[i][0] - driverCoord.lat;
+                const dLng = allPoints[i][1] - driverCoord.lng;
                 const dist = dLat * dLat + dLng * dLng;
                 if (dist < minDist) {
                     minDist = dist;
                     nearestIdx = i;
                 }
             }
-            points = points.slice(nearestIdx);
+
+            // Slice remaining points
+            const remainingPoints = allPoints.slice(nearestIdx);
+
+            if (remainingPoints.length >= 2) {
+                lines.push({
+                    positions: remainingPoints,
+                    color: '#f47f00',
+                    weight: 6,
+                    opacity: 1,
+                });
+            }
+        } else {
+            // If no driver yet, show the full line as solid orange or navy
+            lines.push({
+                positions: allPoints,
+                color: '#f47f00',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            });
         }
 
-        return [{ positions: points.map((p) => [p.lat, p.lng] as [number, number]), color: '#0C225E' }];
+        return lines;
     }, [polyline, driverCoord]);
 
     const mapCenter = useMemo((): [number, number] => {
@@ -187,131 +203,219 @@ export default function CompanyRouteTrackingPage() {
     // ---- Render ----------------------------------------------------------------
 
     return (
-        <div className="flex flex-col gap-6 h-full p-6">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => router.back()}>
-                        <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <div>
-                        <div className="text-sm font-medium text-gray-400">Route Tracking</div>
-                        <h1 className="mt-1 text-2xl font-bold text-gray-900">
-                            {selectedTrip?.routes?.name || 'Loading Route...'}
-                        </h1>
+        <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 px-4 md:px-6">
+            <PageHeader
+                label="Shuttle Operations"
+                title={selectedTrip?.routes?.name || 'Live Route Status'}
+                description="Monitor real-time shuttle positions, stops, and precision telemetry."
+                action={
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            onClick={() => router.back()}
+                            className="text-muted hover:text-navy font-semibold text-xs flex items-center gap-1"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                            Back
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={loadTrips}
+                            disabled={loading}
+                            className="bg-white border-border shadow-sm hover:border-navy/20 h-10 px-4 rounded-lg text-xs font-semibold"
+                        >
+                            <RefreshCw
+                                className={`w-3.5 h-3.5 mr-2 ${loading ? 'animate-spin' : ''}`}
+                            />
+                            Refresh Data
+                        </Button>
                     </div>
-                </div>
-                <Button variant="outline" onClick={loadTrips} disabled={loading}>
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </Button>
+                }
+            />
+
+            <div className="flex flex-col lg:flex-row gap-6 min-h-[700px]">
+                {/* Left Sidebar - Structured Selection & Info */}
+                <aside className="w-full lg:w-96 shrink-0 flex flex-col gap-6 dashboard-section">
+                    <Card className={`overflow-hidden shadow-sm !p-0 ${TABLE_CARD_CLASS}`}>
+                        <div className={TABLE_TOP_BAR_CLASS}>
+                            <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Today&apos;s Schedule</h2>
+                            <div className="space-y-3 overflow-y-auto max-h-[40vh] pr-1 custom-scrollbar">
+                                {trips.length === 0 && !loading && (
+                                    <div className="p-8 text-center border-2 border-dashed border-border rounded-2xl">
+                                        <Bus className="w-8 h-8 mx-auto mb-2 text-muted/30" />
+                                        <p className="text-xs text-muted">No trips scheduled today.</p>
+                                    </div>
+                                )}
+
+                                {trips.map((trip, idx) => (
+                                    <button
+                                        key={trip.id}
+                                        type="button"
+                                        onClick={() => setSelectedTripId(trip.id)}
+                                        className={`
+                                            w-full text-left rounded-xl border-2 transition-all duration-300
+                                            p-4
+                                            ${selectedTripId === trip.id
+                                                ? 'bg-navy text-white border-navy shadow-md ring-1 ring-navy/20'
+                                                : 'bg-white border-border text-gray-900 hover:border-navy/20 hover:shadow-sm'
+                                            }
+                                        `}
+                                        style={{ animationDelay: `${(idx + 1) * 80}ms` }}
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className={`
+                                                        w-9 h-9 rounded-lg flex items-center justify-center transition-colors
+                                                        ${selectedTripId === trip.id ? 'bg-white/10' : 'bg-orange/5'}
+                                                    `}
+                                                >
+                                                    <Bus
+                                                        className={`w-4 h-4 ${selectedTripId === trip.id ? 'text-white' : 'text-orange'}`}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm tracking-tight">
+                                                        {trip.direction} Trip
+                                                    </p>
+                                                    <p className={`text-[10px] mt-0.5 ${selectedTripId === trip.id ? 'text-white/60' : 'text-muted'}`}>
+                                                        {trip.routes?.vehicles?.plate_number ?? 'No Vehicle'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span
+                                                className={`
+                                                    text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-tighter
+                                                    ${selectedTripId === trip.id ? 'bg-white/20 text-white' : 'bg-surface-muted text-navy'}
+                                                `}
+                                            >
+                                                {trip.status}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Active Trip Details - Sidebar Section */}
+                        <div className="p-5 space-y-6">
+                            {selectedTrip ? (
+                                <>
+                                    <div>
+                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Live Telemetry</h2>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between p-3 rounded-xl bg-surface-subtle border border-border">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-orange/10 flex items-center justify-center">
+                                                        <Navigation className="w-4 h-4 text-orange" />
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-navy">Trip Status</span>
+                                                </div>
+                                                <span className="text-sm font-bold text-orange">{selectedTrip.status}</span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between p-3 rounded-xl bg-surface-subtle border border-border">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center">
+                                                        <Radio className={`w-4 h-4 ${isConnected ? 'text-green-500' : 'text-blue'}`} />
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-navy">Connection</span>
+                                                </div>
+                                                <span className={`text-[10px] font-bold uppercase ${isConnected ? 'text-green-600' : 'text-muted'}`}>
+                                                    {isConnected ? 'High Precision' : 'Awaiting Signals'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Route Info</h2>
+                                        <div className="p-4 rounded-xl bg-navy text-white shadow-xl shadow-navy/10">
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                                                    <MapPin className="w-5 h-5 text-orange" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-white/50 uppercase">Total Stops</p>
+                                                    <p className="text-lg font-bold">{selectedTrip.routes?.route_stops?.length || 0} Scheduled</p>
+                                                </div>
+                                            </div>
+                                            <div className="h-px bg-white/10 w-full mb-4" />
+                                            <div className="flex items-center justify-between text-[11px] font-medium text-white/70">
+                                                <span>Platform Status</span>
+                                                <span className="flex items-center gap-1.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                                    Cloud Integrated
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="py-8 flex flex-col items-center justify-center text-center grayscale opacity-50">
+                                    <MapPin className="w-10 h-10 mb-3 text-muted" />
+                                    <p className="text-xs font-medium text-muted">Select a trip to view telemetry</p>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </aside>
+
+                {/* Main Content Area - Map Framed in Card */}
+                <main className="flex-1 min-h-[500px] lg:min-h-[700px] dashboard-section dashboard-section-delay-1">
+                    <Card className={`w-full h-full overflow-hidden border border-border shadow-sm flex flex-col relative !p-0 ${TABLE_CARD_CLASS}`}>
+                        <div className="flex-1 relative">
+                            <Map
+                                center={mapCenter}
+                                zoom={13}
+                                markers={mapMarkers}
+                                polylines={mapPolylines}
+                                height="100%"
+                                className="w-full h-full border-none shadow-none rounded-none"
+                            />
+
+                            {/* Map Floating Legend */}
+                            {selectedTrip && (
+                                <div className="absolute top-4 left-4 z-10">
+                                    <div className="bg-white/95 border border-border shadow-md p-2 rounded-lg flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5 pr-3 border-r border-border font-bold text-[10px] text-navy">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-orange animate-pulse" />
+                                            Live Driver
+                                        </div>
+                                        <div className="flex items-center gap-1.5 font-bold text-[10px] text-navy/60">
+                                            <div className="w-2.5 h-0.5 bg-navy/20" />
+                                            Planned Route
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                </main>
             </div>
 
+            {/* Error Overlay */}
             {error && (
-                <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-                    {error}
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+                    <div className="bg-white border-2 border-danger text-danger px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-slide-up font-bold text-sm">
+                        <X className="w-4 h-4" />
+                        {error}
+                        <button onClick={() => setError(null)} className="ml-4 text-muted hover:text-danger">
+                            <X className="w-4 h-4 font-bold" />
+                        </button>
+                    </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-[600px]">
-                {/* Trip list & Info */}
-                <div className="lg:col-span-1 flex flex-col gap-4 overflow-y-auto">
-                    {loading && (
-                        <div className="text-center py-12 text-gray-400">
-                            <p>Loading today&apos;s trips...</p>
-                        </div>
-                    )}
-                    {!loading && trips.length === 0 && (
-                        <Card className="p-8 text-center text-gray-400">
-                            <Bus className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                            <p className="text-sm">No trips scheduled for this route today.</p>
-                        </Card>
-                    )}
-
-                    {trips.map((trip) => (
-                        <button
-                            key={trip.id}
-                            type="button"
-                            onClick={() => setSelectedTripId(trip.id)}
-                            className={`w-full text-left rounded-xl border p-4 transition-all ${selectedTripId === trip.id
-                                    ? 'border-[#0C225E] bg-[#0C225E]/5 ring-1 ring-[#0C225E]'
-                                    : 'border-gray-200 bg-white hover:border-gray-300'
-                                }`}
-                        >
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                    <Bus className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="font-semibold text-gray-900 text-sm">
-                                            {trip.direction} Trip
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-0.5">
-                                            {trip.routes?.vehicles?.plate_number ?? 'No vehicle assigned'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusBadge(trip.status)}`}>
-                                    {trip.status}
-                                </span>
-                            </div>
-
-                            {selectedTripId === trip.id && (
-                                <div className={`mt-3 flex items-center gap-1.5 text-xs font-medium ${isConnected ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <Radio className="w-3 h-3" />
-                                    {isConnected ? 'Live tracking active' : 'Connecting...'}
-                                </div>
-                            )}
-                        </button>
-                    ))}
-
-                    {selectedTrip && (
-                        <Card className="p-4 mt-auto">
-                            <div className="text-xs font-semibold text-gray-400 tracking-wider mb-3">ROUTE DETAILS</div>
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <Navigation className="w-4 h-4 text-gray-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">Status</p>
-                                        <p className="text-sm font-medium text-gray-900">{selectedTrip.status}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <MapPin className="w-4 h-4 text-gray-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-400">Total Stops</p>
-                                        <p className="text-sm font-medium text-gray-900">{selectedTrip.routes?.route_stops?.length || 0} Stops</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
-                </div>
-
-                {/* Map */}
-                <div className="lg:col-span-3 flex flex-col gap-3 relative">
-                    <div className="absolute top-4 left-4 z-[10] flex flex-col gap-2">
-                        {selectedTrip && (
-                            <div className="bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow-sm border border-gray-200">
-                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-tight">Active Trip</p>
-                                <p className="text-sm font-bold text-[#0C225E]">{selectedTrip.direction} · {selectedTrip.routes?.vehicles?.plate_number || 'No Vehicle'}</p>
-                            </div>
-                        )}
+            {/* Global Loading Overlay */}
+            {loading && trips.length === 0 && (
+                <div className="fixed inset-0 z-[100] bg-navy/5 backdrop-blur-[2px] flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl border border-border flex flex-col items-center gap-4">
+                        <div className="w-10 h-10 border-4 border-navy border-t-transparent rounded-full animate-spin" />
+                        <p className="text-navy font-bold text-sm uppercase tracking-widest">In Sync</p>
                     </div>
-
-                    <Map
-                        center={mapCenter}
-                        zoom={13}
-                        markers={mapMarkers}
-                        polylines={mapPolylines}
-                        height="100%"
-                        className="flex-1 min-h-[500px]"
-                    />
                 </div>
-            </div>
+            )}
         </div>
     );
 }

@@ -44,6 +44,9 @@ export type MapMarker = {
 export type MapPolyline = {
   positions: [number, number][]; // Array of [lat, lng]
   color?: string;
+  weight?: number;
+  opacity?: number;
+  dashArray?: string;
 };
 
 type MapProps = {
@@ -130,8 +133,8 @@ function FitBoundsToContent({
 
     const bounds = L.latLngBounds(coords);
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-  // Re-fit whenever content changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-fit whenever content changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     // stringify to avoid referential inequality on every render
     JSON.stringify(markers.map((m) => m.position)),
@@ -185,7 +188,24 @@ export default function Map({
     } else if (marker.id === 'dropoff') {
       return createCustomIcon('#ef4444', '📍');
     } else if (marker.id === 'driver') {
-      return createCustomIcon('#f47f00', '🚗');
+      // Premium pulsing driver marker
+      const size = 36;
+      const svgIcon = `
+        <div class="relative flex items-center justify-center">
+          <div class="absolute w-12 h-12 bg-[#f47f00] rounded-full opacity-30 animate-ping"></div>
+          <div class="absolute w-8 h-8 bg-[#f47f00] rounded-full opacity-20 animate-pulse"></div>
+          <div class="relative z-10 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-[#f47f00]">
+            <span class="text-xl">🚗</span>
+          </div>
+        </div>
+      `;
+      return L.divIcon({
+        html: svgIcon,
+        className: 'custom-driver-marker',
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+        popupAnchor: [0, -24],
+      });
     } else if (marker.color) {
       return createCustomIcon(marker.color, '📍');
     }
@@ -259,9 +279,9 @@ export default function Map({
               positions={validPositions}
               pathOptions={{
                 color: polyline.color || '#f47f00',
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '10, 5',
+                weight: polyline.weight || 6,
+                opacity: polyline.opacity || 0.9,
+                dashArray: polyline.dashArray || undefined,
               }}
             />
           );
