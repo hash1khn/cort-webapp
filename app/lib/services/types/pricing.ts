@@ -113,3 +113,45 @@ export interface SystemSettingResponse {
     statusCode: number;
     message: string;
 }
+
+export interface ShuttleContractRoute {
+    id: number;
+    contract_id: number;
+    particulars: string;
+    vehicle_type: string;
+    fixed_cost_per_vehicle: string;
+    fuel_cost_per_vehicle: string;
+    quantity: number;
+}
+
+export interface ShuttleContract {
+    id: number;
+    company_id: number;
+    fuel_base_price: string;
+    revision_percentage: string | null;
+    sst_percentage: string;
+    contract_duration?: string | null;
+    created_at?: string | null;
+    companies?: {
+        name: string;
+    };
+    shuttle_contract_routes?: ShuttleContractRoute[];
+}
+
+export interface CreateShuttleContractRequestRoute {
+    particulars: string;
+    vehicleType: string;
+    fixedCostPerVehicle: number;
+    fuelCostPerVehicle: number;
+    quantity: number;
+}
+
+export interface CreateShuttleContractRequest {
+    companyId: number;
+    fuelBasePrice: number;
+    revisionPercentage?: number | null;
+    sstPercentage?: number;
+    contractDuration?: string;
+    contractDate?: string;
+    routes: CreateShuttleContractRequestRoute[];
+}

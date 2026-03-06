@@ -16,6 +16,9 @@ import {
     // Pricing / Contracts
     ChauffeurContractResponse, CreateChauffeurContractRequest, SingleChauffeurContractResponse, UpdateChauffeurContractRequest,
     SystemSettingResponse,
+    ShuttleContract,
+    ShuttleContractRoute,
+    CreateShuttleContractRequest,
     // Bookings
     CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams,
     DailyTripLog, AddPaymentRequest,
@@ -715,6 +718,19 @@ class ApiClient {
         return this.request<any>(`/contracts/chauffeur/billing-rate/${bookingId}`);
     }
 
+    // ===== SHUTTLE CONTRACTS =====
+
+    async getShuttleContract(companyId: number): Promise<{ data: ShuttleContract | null }> {
+        return this.request<{ data: ShuttleContract | null }>(`/contracts/shuttle/${companyId}`);
+    }
+
+    async createOrUpdateShuttleContract(data: CreateShuttleContractRequest): Promise<{ data: ShuttleContract }> {
+        return this.request<{ data: ShuttleContract }>('/contracts/shuttle', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
     // ===== SYSTEM SETTINGS =====
 
     async getSystemSetting(key: string): Promise<SystemSettingResponse> {
@@ -874,6 +890,13 @@ class ApiClient {
         return this.request('/invoices/generate', {
             method: 'POST',
             body: JSON.stringify({ bookingId })
+        });
+    }
+
+    async generateShuttleInvoice(contractId: number, billingMonth: string) {
+        return this.request('/invoices/generate/shuttle', {
+            method: 'POST',
+            body: JSON.stringify({ contractId, billingMonth }),
         });
     }
 

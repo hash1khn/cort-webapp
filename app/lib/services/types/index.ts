@@ -109,6 +109,9 @@ export type {
     SingleChauffeurContractResponse,
     SystemSetting,
     SystemSettingResponse,
+    ShuttleContractRoute,
+    ShuttleContract,
+    CreateShuttleContractRequest,
 } from './pricing';
 
 // Fleet (Fuel & Maintenance)

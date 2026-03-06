@@ -4,17 +4,22 @@ import {
     Company,
     ChauffeurContract,
     ChauffeurContractRate,
-    CreateChauffeurContractRequest
+    CreateChauffeurContractRequest,
+    ShuttleContract,
+    ShuttleContractRoute,
+    CreateShuttleContractRequest,
 } from '../../services/api-client';
 import { RootState } from '../store';
 
 export type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
+export type ShuttleRouteRow = Partial<ShuttleContractRoute> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
 
 interface AdminPricingState {
     companies: Company[];
     selectedCompanyId: string;
     currentCompany: Company | null;
     contract: ChauffeurContract | null;
+    shuttleContract: ShuttleContract | null;
     globalSettings: {
         fuelBasePrice: string;
         revisionPercentage: string;
@@ -24,6 +29,14 @@ interface AdminPricingState {
         allowanceAccommodation: string;
     };
     rateRows: RateRow[];
+    shuttleSettings: {
+        fuelBasePrice: string;
+        revisionPercentage: string;
+        sstPercentage: string;
+        contractDuration: string;
+        contractDate: string;
+    };
+    shuttleRouteRows: ShuttleRouteRow[];
     systemFuelPrice: string;
 
     // Preview
@@ -42,6 +55,7 @@ const initialState: AdminPricingState = {
     selectedCompanyId: "",
     currentCompany: null,
     contract: null,
+    shuttleContract: null,
     globalSettings: {
         fuelBasePrice: "0",
         revisionPercentage: "",
@@ -51,6 +65,14 @@ const initialState: AdminPricingState = {
         allowanceAccommodation: ""
     },
     rateRows: [],
+    shuttleSettings: {
+        fuelBasePrice: "0",
+        revisionPercentage: "",
+        sstPercentage: "10",
+        contractDuration: "",
+        contractDate: "",
+    },
+    shuttleRouteRows: [],
     systemFuelPrice: "0",
 
     showPreview: false,
@@ -214,6 +236,69 @@ export const savePricingChanges = createAsyncThunk(
     }
 );
 
+export const fetchShuttleContract = createAsyncThunk(
+    'adminPricing/fetchShuttleContract',
+    async (companyId: string, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getShuttleContract(Number(companyId));
+            return {
+                companyId,
+                contract: response.data,
+            };
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch shuttle contract');
+        }
+    },
+);
+
+export const saveShuttleChanges = createAsyncThunk(
+    'adminPricing/saveShuttleChanges',
+    async (_, { getState, rejectWithValue, dispatch }) => {
+        const state = getState() as RootState;
+        const { selectedCompanyId, shuttleSettings, shuttleRouteRows } = state.adminPricing;
+
+        try {
+            const revisionPct =
+                shuttleSettings.revisionPercentage === ''
+                    ? null
+                    : Number(shuttleSettings.revisionPercentage);
+
+            const sstPct =
+                shuttleSettings.sstPercentage === ''
+                    ? undefined
+                    : Number(shuttleSettings.sstPercentage);
+
+            const routes = shuttleRouteRows
+                .filter((row) => !row.isDeleted)
+                .map((row) => ({
+                    particulars: row.particulars || '',
+                    vehicleType: row.vehicle_type || '',
+                    fixedCostPerVehicle: Number(row.fixed_cost_per_vehicle || 0),
+                    fuelCostPerVehicle: Number(row.fuel_cost_per_vehicle || 0),
+                    quantity: Number(row.quantity || 0),
+                }))
+                .filter((r) => r.particulars && r.vehicleType && r.quantity > 0);
+
+            const payload: CreateShuttleContractRequest = {
+                companyId: Number(selectedCompanyId),
+                fuelBasePrice: Number(shuttleSettings.fuelBasePrice || 0),
+                revisionPercentage: revisionPct,
+                sstPercentage: sstPct,
+                contractDuration: shuttleSettings.contractDuration || undefined,
+                contractDate: shuttleSettings.contractDate || undefined,
+                routes,
+            };
+
+            await apiClient.createOrUpdateShuttleContract(payload);
+
+            dispatch(fetchShuttleContract(selectedCompanyId));
+            return;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to save shuttle contract');
+        }
+    },
+);
+
 export const deleteRateRow = createAsyncThunk(
     'adminPricing/deleteRateRow',
     async (index: number, { getState, rejectWithValue, dispatch }) => {
@@ -249,6 +334,9 @@ const adminPricingSlice = createSlice({
         setShowPreview(state, action: PayloadAction<boolean>) {
             state.showPreview = action.payload;
         },
+        setShuttleSettings(state, action: PayloadAction<Partial<AdminPricingState['shuttleSettings']>>) {
+            state.shuttleSettings = { ...state.shuttleSettings, ...action.payload };
+        },
         addRateRow(state) {
             state.rateRows.push({
                 tempId: Date.now().toString(),
@@ -270,11 +358,43 @@ const adminPricingSlice = createSlice({
                 market_rate_overtime_per_hr: "0"
             });
         },
+        addShuttleRouteRow(state) {
+            state.shuttleRouteRows.push({
+                tempId: Date.now().toString(),
+                isNew: true,
+                particulars: "",
+                vehicle_type: "",
+                fixed_cost_per_vehicle: "0",
+                fuel_cost_per_vehicle: "0",
+                quantity: 1,
+            });
+        },
         updateRateRow(state, action: PayloadAction<{ index: number, field: keyof ChauffeurContractRate, value: string }>) {
             const { index, field, value } = action.payload;
             if (state.rateRows[index]) {
                 state.rateRows[index] = { ...state.rateRows[index], [field]: value };
             }
+        },
+        updateShuttleRouteRow(
+            state,
+            action: PayloadAction<{ index: number; field: keyof ShuttleContractRoute | 'quantity'; value: string }>,
+        ) {
+            const { index, field, value } = action.payload;
+            if (state.shuttleRouteRows[index]) {
+                const row = state.shuttleRouteRows[index];
+                if (field === 'quantity') {
+                    state.shuttleRouteRows[index] = {
+                        ...row,
+                        quantity: Number(value || 0),
+                    };
+                } else {
+                    // @ts-ignore - allow updating string fields by key
+                    state.shuttleRouteRows[index] = { ...row, [field]: value };
+                }
+            }
+        },
+        removeShuttleRouteRow(state, action: PayloadAction<number>) {
+            state.shuttleRouteRows = state.shuttleRouteRows.filter((_, index) => index !== action.payload);
         },
         resetActionStatus(state) {
             state.actionStatus = 'idle';
@@ -350,6 +470,52 @@ const adminPricingSlice = createSlice({
                 state.actionStatus = 'failed';
                 state.error = action.payload as string;
             })
+            // Shuttle contract fetch
+            .addCase(fetchShuttleContract.pending, (state) => {
+                state.status = 'loading';
+            })
+            .addCase(fetchShuttleContract.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                state.shuttleContract = action.payload.contract;
+
+                const contract = action.payload.contract;
+                if (contract) {
+                    state.shuttleSettings = {
+                        fuelBasePrice: contract.fuel_base_price,
+                        revisionPercentage: contract.revision_percentage || '',
+                        sstPercentage: contract.sst_percentage || '10',
+                        contractDuration: contract.contract_duration || '',
+                        contractDate: contract.created_at
+                            ? new Date(contract.created_at).toISOString().split('T')[0]
+                            : '',
+                    };
+                    state.shuttleRouteRows = contract.shuttle_contract_routes || [];
+                } else {
+                    state.shuttleSettings = {
+                        fuelBasePrice: '0',
+                        revisionPercentage: '',
+                        sstPercentage: '10',
+                        contractDuration: '',
+                        contractDate: '',
+                    };
+                    state.shuttleRouteRows = [];
+                }
+            })
+            .addCase(fetchShuttleContract.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload as string;
+            })
+            // Shuttle save
+            .addCase(saveShuttleChanges.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(saveShuttleChanges.fulfilled, (state) => {
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(saveShuttleChanges.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
             // Delete Rate
             .addCase(deleteRateRow.fulfilled, (state, action) => {
                 state.rateRows = state.rateRows.filter((_, i) => i !== action.payload);
@@ -362,8 +528,12 @@ export const {
     setGlobalSettings,
     setSystemFuelPriceLocal,
     setShowPreview,
+    setShuttleSettings,
     addRateRow,
+    addShuttleRouteRow,
     updateRateRow,
+    updateShuttleRouteRow,
+    removeShuttleRouteRow,
     resetActionStatus
 } = adminPricingSlice.actions;
 
@@ -372,6 +542,8 @@ export const selectPricingCompanies = (state: RootState) => state.adminPricing.c
 export const selectPricingCurrentCompany = (state: RootState) => state.adminPricing.currentCompany;
 export const selectPricingGlobalSettings = (state: RootState) => state.adminPricing.globalSettings;
 export const selectPricingRateRows = (state: RootState) => state.adminPricing.rateRows;
+export const selectShuttleSettings = (state: RootState) => state.adminPricing.shuttleSettings;
+export const selectShuttleRouteRows = (state: RootState) => state.adminPricing.shuttleRouteRows;
 export const selectPricingStatus = (state: RootState) => state.adminPricing.status;
 export const selectPricingActionStatus = (state: RootState) => state.adminPricing.actionStatus;
 

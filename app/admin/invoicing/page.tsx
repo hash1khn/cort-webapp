@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { apiClient, Company } from "../../lib/services/api-client";
 import {
   fetchAdminInvoices,
   fetchInvoiceStats,
@@ -15,6 +16,7 @@ import {
   sendInvoiceEmail
 } from "../../lib/store/slices/adminInvoicingSlice";
 import Pagination from "../../components/ui/Pagination";
+import { Modal } from "../components/ui/Modal";
 
 export default function InvoicingPage() {
   const dispatch = useAppDispatch();
@@ -25,14 +27,36 @@ export default function InvoicingPage() {
 
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
+  const [isGeneratingShuttle, setIsGeneratingShuttle] = useState(false);
 
   const pagination = useAppSelector(selectAdminInvoicingPagination);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [showShuttleModal, setShowShuttleModal] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
 
   useEffect(() => {
     dispatch(fetchAdminInvoices({ page: currentPage }));
     dispatch(fetchInvoiceStats());
   }, [dispatch, currentPage]);
+
+  // Load companies for shuttle invoice generation
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiClient.getCompanies({ limit: 100 });
+        const companyList = res.data.data;
+        setCompanies(companyList);
+        if (companyList.length > 0 && !selectedCompanyId) {
+          setSelectedCompanyId(String(companyList[0].id));
+        }
+      } catch (e) {
+        console.error("Failed to load companies for shuttle invoices", e);
+      }
+    })();
+  }, [selectedCompanyId]);
 
   const handleSendEmail = async (id: number, invoiceNumber: string) => {
     if (sendingEmailId) return;
@@ -86,6 +110,49 @@ export default function InvoicingPage() {
     setCurrentPage(page);
   };
 
+  const handleGenerateShuttleInvoice = async () => {
+    if (!selectedCompanyId) {
+      alert("Please select a company.");
+      return;
+    }
+    if (!billingMonthRaw) {
+      alert("Please select a billing month.");
+      return;
+    }
+
+    const [year, month] = billingMonthRaw.split("-");
+    if (!year || !month) {
+      alert("Invalid billing month.");
+      return;
+    }
+    const billingMonth = `${Number(month)}/${year}`;
+
+    setIsGeneratingShuttle(true);
+    try {
+      const contractRes = await apiClient.getShuttleContract(Number(selectedCompanyId));
+      const contract = contractRes.data;
+      if (!contract) {
+        alert("No shuttle contract found for the selected company.");
+        return;
+      }
+
+      await apiClient.generateShuttleInvoice(contract.id, billingMonth);
+
+      // Refresh invoices and stats
+      dispatch(fetchAdminInvoices({ page: currentPage }));
+      dispatch(fetchInvoiceStats());
+
+      alert("Shuttle invoice generated successfully.");
+      setShowShuttleModal(false);
+      setBillingMonthRaw("");
+    } catch (e: any) {
+      console.error("Failed to generate shuttle invoice", e);
+      alert(`Failed to generate shuttle invoice: ${e?.message || e}`);
+    } finally {
+      setIsGeneratingShuttle(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,6 +163,12 @@ export default function InvoicingPage() {
             General Ledger
           </h1>
         </div>
+        <button
+          onClick={() => setShowShuttleModal(true)}
+          className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-[#d97000] transition-all"
+        >
+          Generate Shuttle Invoice
+        </button>
       </div>
 
       {/* Financial Stats Cards */}
@@ -240,6 +313,62 @@ export default function InvoicingPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={showShuttleModal}
+        onClose={() => {
+          if (!isGeneratingShuttle) setShowShuttleModal(false);
+        }}
+        title="Generate Shuttle Invoice"
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Company
+            </label>
+            <select
+              value={selectedCompanyId}
+              onChange={(e) => setSelectedCompanyId(e.target.value)}
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+            >
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Billing Month
+            </label>
+            <input
+              type="month"
+              value={billingMonthRaw}
+              onChange={(e) => setBillingMonthRaw(e.target.value)}
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => !isGeneratingShuttle && setShowShuttleModal(false)}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+              disabled={isGeneratingShuttle}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGenerateShuttleInvoice}
+              disabled={isGeneratingShuttle}
+              className="inline-flex items-center justify-center rounded-lg bg-[#0c225e] px-5 py-2 text-sm font-bold text-white hover:bg-[#0a1a4a] disabled:opacity-70"
+            >
+              {isGeneratingShuttle ? "Generating..." : "Generate Invoice"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

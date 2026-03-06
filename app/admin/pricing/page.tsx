@@ -7,11 +7,14 @@ import {
   fetchSystemFuelPrice,
   updateSystemFuelPrice,
   fetchCompanyContractDetails,
+  fetchShuttleContract,
   previewRateAdjustments,
   savePricingChanges,
+  saveShuttleChanges,
   deleteRateRow,
   setSelectedCompanyId,
   setGlobalSettings,
+  setShuttleSettings,
   setSystemFuelPriceLocal,
   setShowPreview,
   addRateRow,
@@ -19,7 +22,12 @@ import {
   resetActionStatus,
   selectPricingCompanies,
   selectPricingCurrentCompany,
-  selectAdminPricingState
+  selectAdminPricingState,
+  selectShuttleSettings,
+  selectShuttleRouteRows,
+  addShuttleRouteRow,
+  updateShuttleRouteRow,
+  removeShuttleRouteRow,
 } from "../../lib/store/slices/adminPricingSlice";
 import { ChauffeurContractRate } from "../../lib/services/api-client";
 
@@ -53,6 +61,8 @@ export default function PricingPage() {
     actionStatus,
     error
   } = useAppSelector(selectAdminPricingState);
+  const shuttleSettings = useAppSelector(selectShuttleSettings);
+  const shuttleRouteRows = useAppSelector(selectShuttleRouteRows);
 
   const [showMarketRates, setShowMarketRates] = useState(false);
 
@@ -66,6 +76,7 @@ export default function PricingPage() {
   useEffect(() => {
     if (selectedCompanyId) {
       dispatch(fetchCompanyContractDetails(selectedCompanyId));
+      dispatch(fetchShuttleContract(selectedCompanyId));
     }
   }, [selectedCompanyId, dispatch]);
 
@@ -104,6 +115,10 @@ export default function PricingPage() {
 
   const handleSave = () => {
     dispatch(savePricingChanges());
+  };
+
+  const handleShuttleSave = () => {
+    dispatch(saveShuttleChanges());
   };
 
   const getSavings = (contractVal: string | number | undefined, marketVal: string | number | undefined) => {
@@ -194,18 +209,23 @@ export default function PricingPage() {
               {previewData.map((item: any, idx: number) => (
                 <div key={idx} className="bg-white rounded-lg p-4 border border-slate-200">
                   <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-bold text-[#0c225e]">{item.company?.name || 'Company'}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-[#0c225e]">{item.company?.name || 'Company'}</h4>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
+                        {item.type === 'shuttle' ? 'Shuttle' : 'Chauffeur'}
+                      </span>
+                    </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.calculation.will_adjust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
                       {item.calculation.will_adjust ? 'Will Adjust' : 'No Adjustment'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                    <div><span className="text-slate-500">Base Fuel Price:</span> <span className="font-semibold">PKR {item.contract.fuel_base_price}</span></div>
-                    <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
+                    <div><span className="text-slate-500">Base Fuel Price:</span> <span className="font-semibold">PKR {Number(item.contract.fuel_base_price).toFixed(0)}</span></div>
+                    <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
                     <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-orange-600">{(Number(item.calculation.percent_change) * 100).toFixed(2)}%</span></div>
                     <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.calculation.multiplier).toFixed(4)}x</span></div>
                   </div>
-                  {item.rates.length > 0 && (
+                  {(item.type !== 'shuttle') && item.rates?.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50">
@@ -222,6 +242,32 @@ export default function PricingPage() {
                               <td className="px-2 py-2 text-right">PKR {Number(rate.base_cost_per_km).toFixed(2)}</td>
                               <td className={`px-2 py-2 text-right font-semibold ${rate.base_cost_per_km !== rate.adjusted_cost_per_km ? 'text-orange-600' : 'text-green-600'}`}>
                                 PKR {Number(rate.adjusted_cost_per_km).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {item.type === 'shuttle' && item.routes?.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-2 py-2 text-left">Particulars</th>
+                            <th className="px-2 py-2 text-left">Vehicle Type</th>
+                            <th className="px-2 py-2 text-right">Base Fuel/Vehicle</th>
+                            <th className="px-2 py-2 text-right">Adjusted Fuel/Vehicle</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.routes.map((route: any, rIdx: number) => (
+                            <tr key={rIdx} className="border-t">
+                              <td className="px-2 py-2">{route.particulars}</td>
+                              <td className="px-2 py-2">{route.vehicle_type}</td>
+                              <td className="px-2 py-2 text-right">PKR {Number(route.base_fuel_cost_per_vehicle).toFixed(2)}</td>
+                              <td className={`px-2 py-2 text-right font-semibold ${Number(route.base_fuel_cost_per_vehicle) !== Number(route.adjusted_fuel_cost_per_vehicle) ? 'text-orange-600' : 'text-green-600'}`}>
+                                PKR {Number(route.adjusted_fuel_cost_per_vehicle).toFixed(2)}
                               </td>
                             </tr>
                           ))}
@@ -455,9 +501,216 @@ export default function PricingPage() {
           ) : null}
 
           {currentCompany.is_shuttle_enabled && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center mt-6">
-              <h3 className="text-lg font-bold text-[#0c225e]">Shuttle Contracts</h3>
-              <p className="text-slate-500 mt-2">Shuttle management coming soon.</p>
+            <div className="flex flex-col gap-6 mt-6">
+              {/* Shuttle Contract Settings */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-6 border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#0c225e]">Shuttle Contract Terms</h2>
+                  <p className="text-sm text-slate-500">
+                    Monthly shuttle contract settings for this company. Fuel cost per vehicle is adjusted using the same
+                    fuel revision logic as chauffeur contracts.
+                  </p>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Input
+                    label="Base Fuel Price (PKR)"
+                    value={shuttleSettings.fuelBasePrice}
+                    onChange={(v: string) => dispatch(setShuttleSettings({ fuelBasePrice: v }))}
+                  />
+                  <Input
+                    label="Revision Threshold (%)"
+                    value={shuttleSettings.revisionPercentage}
+                    onChange={(v: string) => dispatch(setShuttleSettings({ revisionPercentage: v }))}
+                    helperText="Leave empty to always adjust fuel cost with fuel price changes"
+                  />
+                  <Input
+                    label="S.S.T (%)"
+                    value={shuttleSettings.sstPercentage}
+                    onChange={(v: string) => dispatch(setShuttleSettings({ sstPercentage: v }))}
+                    placeholder="10"
+                  />
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
+                    <select
+                      value={shuttleSettings.contractDuration}
+                      onChange={(e) => dispatch(setShuttleSettings({ contractDuration: e.target.value }))}
+                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white"
+                    >
+                      <option value="">Select Duration</option>
+                      <option value="6 Months">6 Months</option>
+                      <option value="1 Year">1 Year</option>
+                      <option value="2 Years">2 Years</option>
+                      <option value="3 Years">3 Years</option>
+                      <option value="5 Years">5 Years</option>
+                    </select>
+                  </label>
+                  <Input
+                    label="Contract Date"
+                    value={shuttleSettings.contractDate}
+                    onChange={(v: string) => dispatch(setShuttleSettings({ contractDate: v }))}
+                    type="date"
+                  />
+                </div>
+              </div>
+
+              {/* Shuttle Route Rates */}
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+                  <div>
+                    <h2 className="text-base font-bold text-[#0c225e]">Shuttle Route Rates</h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Fixed monthly service & fuel cost per vehicle for each shuttle leg.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => dispatch(addShuttleRouteRow())}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      + Add Shuttle Route
+                    </button>
+                    <button
+                      onClick={handleShuttleSave}
+                      disabled={isSaving}
+                      className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#d97000] disabled:opacity-70 transition-all"
+                    >
+                      {isSaving ? "Saving..." : "Save Shuttle Contract"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                      <tr>
+                        <th className="px-6 py-4 min-w-[220px]">Particulars</th>
+                        <th className="px-4 py-4 min-w-[120px]">Vehicle Type</th>
+                        <th className="px-4 py-4 min-w-[140px]">Fixed Cost / Vehicle</th>
+                        <th className="px-4 py-4 min-w-[140px]">Fuel Cost / Vehicle</th>
+                        <th className="px-4 py-4 min-w-[80px] text-center">Qty</th>
+                        <th className="px-4 py-4 w-[50px]"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {shuttleRouteRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                            No shuttle routes configured. Click &quot;Add Shuttle Route&quot; to start.
+                          </td>
+                        </tr>
+                      ) : (
+                        shuttleRouteRows.map((row, idx) => (
+                          <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
+                            <td className="px-6 py-3">
+                              <input
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
+                                value={row.particulars || ""}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "particulars",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder="e.g. Karachi to DFML - BUS"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                value={row.vehicle_type || ""}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "vehicle_type",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder="e.g. BUS, COASTER"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                value={row.fixed_cost_per_vehicle || ""}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "fixed_cost_per_vehicle",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder="30000"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                value={row.fuel_cost_per_vehicle || ""}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "fuel_cost_per_vehicle",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder="20000"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="number"
+                                className="w-20 h-9 rounded border border-slate-200 px-2 text-sm text-center"
+                                value={row.quantity ?? 0}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "quantity",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                min={0}
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => dispatch(removeShuttleRouteRow(idx))}
+                                className="text-red-400 hover:text-red-600 p-1"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </>
