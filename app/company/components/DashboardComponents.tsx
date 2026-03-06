@@ -17,7 +17,8 @@ import {
     Star,
     Activity,
     FileText,
-    Settings
+    Settings,
+    Wallet
 } from 'lucide-react';
 import { DashboardData } from '../types';
 
@@ -250,27 +251,32 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
 
 export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
     return (
-        <Card className="group shadow-sm relative overflow-visible z-20 bg-white">
+        <Card className="group relative overflow-visible z-20 p-5">
             <div className="pointer-events-none hidden sm:block absolute inset-0 overflow-hidden rounded-[2rem]">
                 <div className="absolute inset-y-4 right-0 w-40 flex items-center justify-center opacity-10 transform rotate-12">
-                    <FileText size={120} className="text-[var(--text-muted)]" />
+                    <Wallet size={120} className="text-[var(--text-muted)]" />
                 </div>
             </div>
 
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="flex items-center gap-4 sm:gap-6">
-                    <div className="p-3 bg-[var(--surface-muted)] rounded-2xl text-[var(--cort-navy)] shadow-sm">
-                        <FileText className="w-8 h-8" />
-                    </div>
+            <div className="relative z-10 flex flex-col lg:flex-row justify-between h-full gap-8">
+                {/* Left: Title & Amount */}
+                <div className="flex flex-col justify-between">
                     <div>
-                        <div className="text-[var(--cort-navy)] text-sm font-bold uppercase tracking-wide">Outstanding Balance</div>
-                        <div className="group/info text-xs text-[var(--text-muted)] flex items-center gap-1 relative cursor-default">
-                            Total unpaid & overdue invoices
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-danger)] inline-block ml-1 animate-pulse"></span>
+                        <div className="text-[var(--cort-navy)] text-[11px] font-black uppercase tracking-widest opacity-80 mb-1">Outstanding Balance</div>
+                        <div className="text-5xl font-black text-[var(--accent-danger)] tracking-tight">
+                            <span className="text-2xl text-[var(--text-muted)] font-normal mr-2">PKR</span>
+                            {amount.toLocaleString()}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 lg:mt-6">
+                        <div className="group/info text-xs text-[var(--text-secondary)] flex items-center gap-2 relative cursor-default font-medium">
+                            <span className="opacity-80">Total unpaid & overdue invoices</span>
+                            <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
 
                             {/* Hover Tooltip/List */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-2 w-64 bg-white border border-[var(--border-light)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0">
+                                <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-3 w-64 bg-white border border-[var(--border-light)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
                                     <div className="bg-[var(--surface-muted)] px-4 py-2 border-b border-[var(--border-light)] text-[var(--cort-navy)] font-bold text-[10px] uppercase">
                                         Recent Outstanding Invoices
                                     </div>
@@ -304,9 +310,34 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
                     </div>
                 </div>
 
-                <div className="relative z-10 text-3xl sm:text-4xl font-black text-[var(--accent-danger)] tracking-tight">
-                    <span className="text-xl sm:text-2xl text-[var(--text-muted)] font-normal mr-2">PKR</span>
-                    {amount.toLocaleString()}
+                {/* Center: Breakdown Metrics (Hidden on Mobile) */}
+                <div className="hidden lg:flex items-center gap-12 px-12 border-x border-[var(--border-light)] mx-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Overdue</span>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-black text-[var(--accent-danger)]">{invoices.filter(i => i.status === 'OVERDUE').length}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-bold">Invoices</span>
+                        </div>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Pending</span>
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-black text-[var(--cort-navy)]">{invoices.filter(i => i.status !== 'OVERDUE').length}</span>
+                            <span className="text-xs text-[var(--text-muted)] font-bold">Invoices</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right: Status & Action */}
+                <div className="flex flex-col justify-between items-end">
+                    <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-wider bg-[var(--surface-muted)] px-3 py-1 rounded-full border border-[var(--border-light)]">
+                        Action Required
+                    </div>
+                    {/* Floating premium detail */}
+                    <div className="mt-8 text-right">
+                        <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Last Update</div>
+                        <div className="text-xs font-bold text-[var(--cort-navy)]">Today, {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
                 </div>
             </div>
         </Card>
