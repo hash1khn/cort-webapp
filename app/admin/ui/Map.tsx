@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -39,21 +39,15 @@ export type MapMarker = {
   position: [number, number]; // [lat, lng]
   label?: string;
   color?: string;
+  type?: string;
 };
 
-export type MapPolyline = {
-  positions: [number, number][]; // Array of [lat, lng]
-  color?: string;
-  weight?: number;
-  opacity?: number;
-  dashArray?: string;
-};
+
 
 type MapProps = {
   center?: [number, number];
   zoom?: number;
   markers?: MapMarker[];
-  polylines?: MapPolyline[];
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (id: string) => void;
@@ -108,20 +102,17 @@ function MapReCenter({ center }: { center: [number, number] }) {
   return null;
 }
 
-// Auto-fit the viewport to cover all markers and polyline points
+// Auto-fit the viewport to cover all markers
 function FitBoundsToContent({
   markers,
-  polylines,
 }: {
   markers: MapMarker[];
-  polylines: MapPolyline[];
 }) {
   const map = useMap();
 
   useEffect(() => {
     const coords: [number, number][] = [
       ...markers.map((m) => m.position),
-      ...polylines.flatMap((p) => p.positions),
     ];
 
     if (coords.length === 0) return;
@@ -138,7 +129,6 @@ function FitBoundsToContent({
   }, [
     // stringify to avoid referential inequality on every render
     JSON.stringify(markers.map((m) => m.position)),
-    JSON.stringify(polylines.map((p) => p.positions[0])),
   ]);
 
   return null;
@@ -148,7 +138,6 @@ export default function Map({
   center = [24.8607, 67.0011],
   zoom = 13,
   markers = [],
-  polylines = [],
   height = '400px',
   onMapClick,
   onMarkerClick,
@@ -183,11 +172,13 @@ export default function Map({
   }, []);
 
   const getMarkerIcon = (marker: MapMarker) => {
-    if (marker.id === 'pickup') {
+    const type = marker.type || marker.id;
+
+    if (type === 'pickup') {
       return createCustomIcon('#22c55e', '📍');
-    } else if (marker.id === 'dropoff') {
+    } else if (type === 'dropoff') {
       return createCustomIcon('#ef4444', '📍');
-    } else if (marker.id === 'driver') {
+    } else if (type === 'driver') {
       // Premium pulsing driver marker
       const size = 36;
       const svgIcon = `
@@ -202,6 +193,20 @@ export default function Map({
       return L.divIcon({
         html: svgIcon,
         className: 'custom-driver-marker',
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
+        popupAnchor: [0, -24],
+      });
+    } else if (type === 'chauffeur') {
+      return L.icon({
+        iconUrl: '/car_birdeye.png',
+        iconSize: [38, 38],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20],
+      });
+    } else if (type === 'shuttle') {
+      return L.icon({
+        iconUrl: '/bus_birdeye.png',
         iconSize: [48, 48],
         iconAnchor: [24, 24],
         popupAnchor: [0, -24],
@@ -240,8 +245,8 @@ export default function Map({
         />
         <MapResizeHandler />
         {/* Auto-fit when there's content; fall back to explicit center otherwise */}
-        {markers.length > 0 || polylines.length > 0
-          ? <FitBoundsToContent markers={markers} polylines={polylines} />
+        {markers.length > 0
+          ? <FitBoundsToContent markers={markers} />
           : <MapReCenter center={center} />}
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
         {markers.map((marker) => (
@@ -258,34 +263,7 @@ export default function Map({
             )}
           </Marker>
         ))}
-        {polylines.map((polyline, idx) => {
-          const validPositions = polyline.positions.filter(
-            (pos) =>
-              pos &&
-              pos.length === 2 &&
-              pos[0] !== undefined &&
-              pos[0] !== null &&
-              !isNaN(pos[0]) &&
-              pos[1] !== undefined &&
-              pos[1] !== null &&
-              !isNaN(pos[1])
-          );
 
-          if (validPositions.length < 2) return null;
-
-          return (
-            <Polyline
-              key={idx}
-              positions={validPositions}
-              pathOptions={{
-                color: polyline.color || '#f47f00',
-                weight: polyline.weight || 6,
-                opacity: polyline.opacity || 0.9,
-                dashArray: polyline.dashArray || undefined,
-              }}
-            />
-          );
-        })}
       </MapContainer>
     </div>
   );

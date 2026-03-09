@@ -248,7 +248,10 @@ export default function BookingsPage() {
                         })()}
                       </td>
                       <td className={TABLE_CELL_CLASS + " text-right"}>
-                        <button className="p-2 hover:bg-white rounded-full transition-colors text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:shadow-sm">
+                        <button
+                          disabled={isPending}
+                          className={`p-2 rounded-full transition-colors ${isPending ? "text-[var(--text-muted)]/40 cursor-default" : "text-[var(--text-muted)] hover:bg-white hover:text-[var(--cort-orange)] hover:shadow-sm"}`}
+                        >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>

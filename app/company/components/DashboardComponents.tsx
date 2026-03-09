@@ -216,7 +216,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <Car size={120} className="text-[var(--cort-navy)]" />
                 </div>
                 <div className="relative z-10 flex items-start justify-between">
-                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
+                    <div className="text-text-muted text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
                     {data.activeRides > 0 ? (
                         <span className="relative flex h-3 w-3">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-success)] opacity-75"></span>
@@ -227,7 +227,7 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     )}
                 </div>
                 <div className="relative z-10 mt-2">
-                    <div className="text-5xl font-black text-[var(--cort-navy)] tracking-tight mb-2">{data.activeRides}</div>
+                    <div className="text-5xl font-black text-navy tracking-tight mb-2">{data.activeRides}</div>
                     <div className="text-xs text-[var(--accent-success)] font-bold mt-1">In progress</div>
                 </div>
             </div>
