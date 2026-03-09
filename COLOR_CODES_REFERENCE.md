@@ -30,6 +30,9 @@ Warning Yellow: #f59e0b  (Pending, cautionary)
 Neutral:        #e2e8f0  (Disabled, inactive)
 ```
 
+
+
+
 ---
 
 ## Component Color Mapping
