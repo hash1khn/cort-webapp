@@ -23,6 +23,8 @@ import {
   OutstandingAmountRow
 } from "./components/DashboardComponents";
 import DashboardSkeleton from "./components/DashboardSkeleton";
+import LiveMobilityCenter from "./components/LiveMobilityCenter";
+import CostLeakageDetector from "./components/CostLeakageDetector";
 
 export default function CompanyDashboardPage() {
   const dispatch = useAppDispatch();
@@ -126,7 +128,15 @@ export default function CompanyDashboardPage() {
       shuttles: shuttlePct,
       events: 0,
       eventShuttle: 0,
-    }
+    },
+    mobility: (dashboardStats as any).mobility || {
+      activeRides: 0,
+      employeesTraveling: 0,
+      shuttlesRunning: 0,
+      chauffeurRides: 0,
+      upcomingBookings: 0
+    },
+    costLeakage: (dashboardStats as any).costLeakage || { insights: [] }
   } : null;
 
   // Real data overrides where possible (example)
@@ -225,6 +235,11 @@ export default function CompanyDashboardPage() {
         <ValueDeliveredSection data={data.valueDelivered} />
       </div>
 
+      {/* Live Mobility Command Center - NEW */}
+      <div className="w-full dashboard-section dashboard-section-delay-3">
+        <LiveMobilityCenter data={data.mobility} />
+      </div>
+
       {/* 2. Main Analytics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-max">
 
@@ -258,6 +273,11 @@ export default function CompanyDashboardPage() {
         <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
           <AdoptionHealthSection data={data.adminHealth} />
         </div>
+      </div>
+
+      {/* Power Insights (Optimization) - Enhanced with Cost Leakage Detector */}
+      <div className="dashboard-section dashboard-section-delay-5">
+        <CostLeakageDetector data={data.costLeakage} />
       </div>
 
       {/* Premium Teaser */}

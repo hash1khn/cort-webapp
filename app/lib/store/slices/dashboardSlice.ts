@@ -38,6 +38,26 @@ export type DashboardStats = {
         highDemandDay: string;
         lowDemandDay: string;
     };
+    mobility: {
+        activeRides: number;
+        employeesTraveling: number;
+        shuttlesRunning: number;
+        chauffeurRides: number;
+        upcomingBookings: number;
+    };
+    costLeakage: {
+        insights: {
+            id: string;
+            title: string;
+            description: string;
+            savings: number;
+            longDescription: string;
+            iconType: string;
+            affectedEmployees: { name: string; dept: string; currentCost: number }[];
+            revisedRouteName: string;
+            revisedRouteStops: string[];
+        }[];
+    };
     monthlyBudget?: number;
 };
 

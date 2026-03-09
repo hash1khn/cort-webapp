@@ -49,4 +49,24 @@ export interface DashboardData {
         events: number;
         eventShuttle: number;
     };
+    mobility: {
+        activeRides: number;
+        employeesTraveling: number;
+        shuttlesRunning: number;
+        chauffeurRides: number;
+        upcomingBookings: number;
+    };
+    costLeakage: {
+        insights: {
+            id: string;
+            title: string;
+            description: string;
+            savings: number;
+            longDescription: string;
+            iconType: string;
+            affectedEmployees: { name: string; dept: string; currentCost: number }[];
+            revisedRouteName: string;
+            revisedRouteStops: string[];
+        }[];
+    };
 }
