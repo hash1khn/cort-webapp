@@ -389,6 +389,7 @@ export default function BookingsPage() {
                   <th className="px-4 py-3 text-left">Assigned Driver</th>
                   <th className="px-4 py-3 text-left">Assigned Vehicle</th>
                   <th className="px-4 py-3 text-left">Scheduled At</th>
+                  <th className="px-4 py-3 text-center">Days</th>
                   <th className="px-4 py-3 text-center">Status</th>
                 </tr>
               </thead>
@@ -457,6 +458,9 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-4 py-4 text-muted">
                         {formatDateTime(b.scheduled_for)}
+                      </td>
+                      <td className="px-4 py-4 text-center font-medium text-ink">
+                        {b.no_of_days || 1}
                       </td>
                       <td className="px-4 py-4 text-center">
                         <div onClick={(e) => e.stopPropagation()}>
@@ -561,6 +565,10 @@ export default function BookingsPage() {
                     <div>
                       <div className="text-[10px] text-muted uppercase">City</div>
                       <div className="text-sm font-medium text-ink">{selectedBooking.city || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-muted uppercase">Duration (Days)</div>
+                      <div className="text-sm font-medium text-ink">{selectedBooking.no_of_days || 1}</div>
                     </div>
                     <div className="col-span-2">
                       <div className="text-[10px] text-muted uppercase">Pickup Address</div>

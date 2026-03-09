@@ -41,6 +41,7 @@ export interface CreateChauffeurBookingRequest {
     internal_cost_center_code?: string;
     service_category?: string;
     city?: string;
+    no_of_days?: number;
 }
 
 export interface ChauffeurTripLog {
@@ -90,6 +91,7 @@ export interface ChauffeurBooking {
     city?: string; // City of the booking
     service_category?: string;
     pickup_address?: string; // Human readable address
+    no_of_days?: number;
     created_at: string;
     companies?: {
         id: number;

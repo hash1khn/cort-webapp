@@ -95,6 +95,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [destinationCities, setDestinationCities] = useState<string[]>([]);
     const [cityInput, setCityInput] = useState("");
     const [bookingCity, setBookingCity] = useState(""); // City for the booking itself
+    const [noOfDays, setNoOfDays] = useState<number>(1);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -136,14 +137,15 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             pickupAddress.length > 0 &&
             bookingCity.length > 0 &&
             pickupLat !== undefined &&
-            pickupLng !== undefined;
+            pickupLng !== undefined &&
+            noOfDays >= 1;
 
         if (tripType === "out_station") {
             return basicFields && destinationCities.length > 0;
         }
 
         return basicFields;
-    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities]);
+    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -206,7 +208,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         }
 
         const passenger = employees.find((e) => e.id === passengerId);
-        if (!passenger) {
+        if (!passenger && !isEventShuttle) {
             setError("Selected passenger not found");
             setIsSubmitting(false);
             return;
@@ -233,6 +235,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 destination_cities: tripType === "out_station" ? destinationCities : [],
                 service_category: serviceCategory,
                 city: bookingCity,
+                no_of_days: noOfDays,
             };
 
             // For Chauffeur Ride, passenger is required; for Event Shuttle it's optional (group booking)
@@ -396,6 +399,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <option value="in_city">In-City</option>
                         <option value="out_station">Out-Station</option>
                     </Select>
+                </Field>
+
+                <Field label="Number of Days" required>
+                    <TextInput
+                        type="number"
+                        min={1}
+                        value={noOfDays}
+                        onChange={(e) => setNoOfDays(parseInt(e.target.value) || 1)}
+                        placeholder="e.g. 1"
+                        required
+                    />
                 </Field>
 
                 {tripType === "out_station" && (

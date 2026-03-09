@@ -173,6 +173,7 @@ export default function BookingsPage() {
                 <th className={TABLE_HEADER_CELL_CLASS}>Pickup</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>City</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Scheduled</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Days</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Action</th>
               </tr>
@@ -222,6 +223,9 @@ export default function BookingsPage() {
                       </td>
                       <td className={TABLE_CELL_CLASS + " text-[var(--cort-navy)] font-medium"}>
                         {formatDateTime(booking.scheduled_for)}
+                      </td>
+                      <td className={TABLE_CELL_CLASS + " text-[var(--cort-navy)] font-medium text-center"}>
+                        {booking.no_of_days || 1}
                       </td>
                       <td className={TABLE_CELL_CLASS}>
                         {(() => {
@@ -341,6 +345,10 @@ export default function BookingsPage() {
                       <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">City</div>
                       <div className="text-sm font-bold text-[var(--cort-navy)] mt-1">{selectedBooking.city || "—"}</div>
                     </div>
+                    <div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Duration (Days)</div>
+                      <div className="text-sm font-bold text-[var(--cort-navy)] mt-1">{selectedBooking.no_of_days || 1}</div>
+                    </div>
                     <div className="col-span-2 pt-2 border-t border-[var(--border-light)]/50">
                       <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold mb-1">Pickup Address</div>
                       <div className="flex items-start gap-2 text-sm font-medium text-[var(--cort-navy)] bg-white p-3 rounded-xl border border-[var(--border-light)] shadow-sm">
@@ -429,8 +437,8 @@ export default function BookingsPage() {
                 {selectedBooking.chauffeur_trip_daily_logs && selectedBooking.chauffeur_trip_daily_logs.length > 0 && (
                   <div>
                     <h4 className="text-sm font-bold text-[var(--cort-navy)] uppercase tracking-wide mb-4 flex items-center gap-2">
-                    <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Trip Breakdown
-                  </h4>
+                      <span className="w-1 h-4 bg-[var(--cort-orange)] rounded-full"></span> Trip Breakdown
+                    </h4>
                     <div className="border border-[var(--border-light)] rounded-2xl overflow-hidden bg-white shadow-sm">
                       <table className="w-full text-xs text-left">
                         <thead className="bg-[var(--surface-subtle)] text-[var(--text-muted)] font-bold uppercase tracking-wider">
