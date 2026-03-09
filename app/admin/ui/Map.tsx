@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -42,12 +42,19 @@ export type MapMarker = {
   type?: string;
 };
 
-
+export type MapPolyline = {
+  positions: [number, number][];
+  color?: string;
+  weight?: number;
+  opacity?: number;
+  dashArray?: string;
+};
 
 type MapProps = {
   center?: [number, number];
   zoom?: number;
   markers?: MapMarker[];
+  polylines?: MapPolyline[];
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (id: string) => void;
@@ -138,6 +145,7 @@ export default function Map({
   center = [24.8607, 67.0011],
   zoom = 13,
   markers = [],
+  polylines = [],
   height = '400px',
   onMapClick,
   onMarkerClick,
@@ -180,7 +188,6 @@ export default function Map({
       return createCustomIcon('#ef4444', '📍');
     } else if (type === 'driver') {
       // Premium pulsing driver marker
-      const size = 36;
       const svgIcon = `
         <div class="relative flex items-center justify-center">
           <div class="absolute w-12 h-12 bg-[#f47f00] rounded-full opacity-30 animate-ping"></div>
@@ -249,6 +256,21 @@ export default function Map({
           ? <FitBoundsToContent markers={markers} />
           : <MapReCenter center={center} />}
         {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
+
+        {/* Render polylines */}
+        {polylines.map((pl, idx) => (
+          <Polyline
+            key={idx}
+            positions={pl.positions}
+            pathOptions={{
+              color: pl.color ?? '#0C225E',
+              weight: pl.weight ?? 4,
+              opacity: pl.opacity ?? 0.8,
+              dashArray: pl.dashArray,
+            }}
+          />
+        ))}
+
         {markers.map((marker) => (
           <Marker
             key={marker.id}
