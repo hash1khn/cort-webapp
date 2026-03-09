@@ -124,15 +124,15 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
 
     return (
         <div className="grid grid-cols-1 gap-4 h-full">
-            <Card className={`${isZero ? 'bg-[var(--surface-subtle)] border-[var(--border-light)]' : 'bg-[var(--cort-navy)] text-white border-none'} relative overflow-hidden group transition-all`}>
-                <div className={`absolute top-0 right-0 p-4 transition-opacity ${isZero ? 'opacity-5 text-[var(--text-muted)]' : 'opacity-10 text-white'}`}>
+            <Card className="relative overflow-hidden group transition-all">
+                <div className={`absolute top-0 right-0 p-4 transition-opacity opacity-5 text-[var(--cort-navy)]`}>
                     <AlertCircle size={80} />
                 </div>
                 <div className="relative z-10">
-                    <div className={`${isZero ? 'text-[var(--text-muted)]' : 'text-white text-opacity-80'} font-medium text-sm mb-1 uppercase tracking-wider`}>Un-Assigned Bookings</div>
-                    <div className={`text-5xl font-black ${isZero ? 'text-[var(--text-muted)]' : 'text-white'}`}>{data.unassignedBookings}</div>
-                    <div className={`mt-2 text-sm ${isZero ? 'text-[var(--text-muted)]' : 'text-white text-opacity-80 flex items-center gap-2'}`}>
-                        {isZero ? "All caught up" : <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">Requires attention</span>}
+                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">Un-Assigned Bookings</div>
+                    <div className="text-5xl font-black text-[var(--cort-navy)]">{data.unassignedBookings}</div>
+                    <div className="mt-2 text-sm text-[var(--text-muted)] flex items-center gap-2">
+                        {isZero ? "All caught up" : <span className="bg-[#fef3c7] text-[var(--cort-orange)] font-bold px-2 py-0.5 rounded-full text-xs border border-[#fcd34d]">Requires attention</span>}
                     </div>
                 </div>
             </Card>
