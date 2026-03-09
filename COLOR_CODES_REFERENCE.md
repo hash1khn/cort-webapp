@@ -17,6 +17,9 @@ Border Gray:    #e5e7eb  (Card borders, dividers)
 Text Gray:      #9ca3af  (Secondary text, labels)
 Dark Gray:      #374151  (Body text)
 Charcoal:       #1a3a5c  (Navy darker variant)
+
+
+
 ```
 
 ### Status Colors
