@@ -11,7 +11,12 @@ import { adminStore } from "../lib/store/admin-store";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login" || pathname === "/admin/login" || pathname === "/";
+  const isLoginPage =
+    pathname === "/login" ||
+    pathname === "/admin/login" ||
+    pathname === "/admin/forgot-password" ||
+    pathname === "/admin/reset-password" ||
+    pathname === "/";
 
   if (isLoginPage) {
     return <>{children}</>;

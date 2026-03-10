@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { UserRole } from "../../lib/types/auth-types";
@@ -99,9 +100,17 @@ export default function AdminLoginPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Password
-                </label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Password
+                  </label>
+                  <Link
+                    href="/admin/forgot-password"
+                    className="text-xs font-medium text-[#f47f00] hover:text-[#d97000] transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="group relative">
                   <input
                     value={password}

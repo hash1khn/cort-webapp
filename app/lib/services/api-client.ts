@@ -331,6 +331,25 @@ class ApiClient {
         }
     }
 
+    async forgotPassword(email: string): Promise<void> {
+        const redirectTo =
+            typeof window !== 'undefined'
+                ? `${window.location.origin}/admin/reset-password`
+                : `${process.env.NEXT_PUBLIC_APP_URL || ''}/admin/reset-password`;
+
+        await this.request<void>('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email, redirectTo }),
+        });
+    }
+
+    async resetPassword(accessToken: string, newPassword: string): Promise<void> {
+        await this.request<void>('/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify({ accessToken, newPassword }),
+        });
+    }
+
     isAuthenticated(): boolean {
         return !!this.getToken();
     }
