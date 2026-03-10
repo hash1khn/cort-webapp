@@ -26,22 +26,6 @@ export default function DashboardSkeleton() {
                 </div>
             </div>
 
-            {/* Outstanding Amount Row Skeleton */}
-            <div className="w-full">
-                <Card>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                        <div className="flex items-center gap-4 sm:gap-6">
-                            <Skeleton className="h-12 w-12 rounded-2xl" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-3 w-32" />
-                                <Skeleton className="h-3 w-44" />
-                            </div>
-                        </div>
-                        <Skeleton className="h-8 w-40 self-start sm:self-auto" />
-                    </div>
-                </Card>
-            </div>
-
             {/* Value Delivered - Hero Row Skeleton (4 metric cards) */}
             <div className="w-full">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
@@ -57,6 +41,46 @@ export default function DashboardSkeleton() {
                             </div>
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* Live Mobility Command Center Skeleton */}
+            <div className="w-full">
+                <div className="bg-[var(--surface-muted)] rounded-[2rem] border border-[var(--border-light)] shadow-sm p-0 overflow-hidden min-h-[600px] flex flex-col">
+                    {/* Header */}
+                    <div className="m-4 mb-0 p-6 bg-[var(--border-light)] rounded-[2rem]">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-4">
+                                <Skeleton className="h-3 w-3 rounded-full bg-[var(--surface-muted)]" />
+                                <div className="space-y-1">
+                                    <Skeleton className="h-5 w-64 bg-[var(--surface-muted)]" />
+                                    <Skeleton className="h-3 w-48 bg-[var(--surface-muted)]" />
+                                </div>
+                            </div>
+                            <div className="space-y-1 text-right">
+                                <Skeleton className="h-3 w-24 bg-[var(--surface-muted)]" />
+                                <Skeleton className="h-4 w-20 bg-[var(--surface-muted)]" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Stats Grid */}
+                    <div className="m-4 mt-5 p-6 bg-[var(--border-light)] rounded-[2rem] grid grid-cols-2 md:grid-cols-5 gap-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-4 w-4 rounded bg-[var(--surface-muted)]" />
+                                    <Skeleton className="h-3 w-16 bg-[var(--surface-muted)]" />
+                                </div>
+                                <Skeleton className="h-6 w-8 bg-[var(--surface-muted)]" />
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Map Area */}
+                    <div className="flex-1 p-4">
+                        <Skeleton className="h-full w-full rounded-[2rem] bg-[var(--border-light)]" />
+                    </div>
                 </div>
             </div>
 
