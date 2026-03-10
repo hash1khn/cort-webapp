@@ -218,21 +218,17 @@ export default function CompanyDashboardPage() {
 
         {/* Quick Status - "Nothing specific for you to do" */}
         <div className="lg:col-span-1 h-full">
-          <NothingToDoSection data={data.nothingToDo} />
+          <NothingToDoSection 
+            data={data.nothingToDo} 
+            outstandingAmount={dashboardStats?.chauffeur.outstandingAmount}
+            invoices={dashboardStats?.chauffeur.outstandingInvoices}
+          />
         </div>
       </div>
-
-      {/* Outstanding Amount Row - relative z-30 so tooltip appears above Value Delivered section */}
 
       {/* Value Delivered - Hero Row */}
       <div className="w-full dashboard-section dashboard-section-delay-3">
         <ValueDeliveredSection data={data.valueDelivered} />
-      </div>
-      <div className="w-full dashboard-section dashboard-section-delay-2 relative z-30">
-        <OutstandingAmountRow
-          amount={dashboardStats?.chauffeur.outstandingAmount || 0}
-          invoices={dashboardStats?.chauffeur.outstandingInvoices || []}
-        />
       </div>
 
       {/* Live Mobility Command Center - NEW */}

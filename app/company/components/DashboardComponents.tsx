@@ -154,20 +154,83 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
     );
 };
 
-export const NothingToDoSection = ({ data }: { data: DashboardData['nothingToDo'] }) => {
+export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] }: { 
+    data: DashboardData['nothingToDo'];
+    outstandingAmount?: number;
+    invoices?: any[];
+}) => {
+    const hasOutstanding = outstandingAmount > 0;
+
     return (
-        <Card className="bg-white border border-[var(--border-light)] flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.08)] h-full">
-            <div className="flex items-center gap-4">
-                <div className="bg-[#d1fae5] p-3 rounded-2xl">
-                    <CheckCircle className="w-8 h-8 text-[var(--accent-success)]" />
+        <Card className={`group relative overflow-hidden bg-gradient-to-br from-white via-white to-[var(--surface-card)] p-5 rounded-[2rem] border border-[var(--border-light)] shadow-[0_2px_8px_rgba(0,0,0,0.08)] h-full transition-all duration-300 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 flex flex-col justify-between`}>
+            {/* Background Icon matching Savings card */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+                {hasOutstanding ? (
+                    <Wallet size={120} className="text-[var(--accent-danger)]" />
+                ) : (
+                    <CheckCircle size={120} className="text-[var(--accent-success)]" />
+                )}
+            </div>
+            
+            <div className="relative z-10 pt-2">
+                <div className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-widest mb-4">
+                    {hasOutstanding ? 'Outstanding Balance' : 'Current Status'}
                 </div>
-                <div>
-                    <div className="font-bold text-xl text-[var(--cort-navy)]">You are all caught up!</div>
-                    <div className="text-[var(--text-muted)] text-sm flex gap-3 mt-1">
-                        <span className="opacity-90">No pending approvals</span>
-                        <span className="opacity-90">System healthy</span>
+                {hasOutstanding && (
+                    <div className="flex items-baseline gap-1 -mt-1">
+                        <span className="text-xl font-bold text-[var(--text-muted)] opacity-70 leading-none">PKR</span>
+                        <span className="text-4xl font-black text-[var(--accent-danger)] tracking-tight leading-none">
+                            {outstandingAmount.toLocaleString()}
+                        </span>
                     </div>
-                </div>
+                )}
+            </div>
+
+            <div className="relative z-10">
+                {hasOutstanding ? (
+                    <div className="flex flex-col">
+                        <div className="group/info text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative">
+                            <span className="font-bold">Total unpaid & overdue</span>
+                            <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
+                            
+                            {/* Invoices Tooltip */}
+                            {invoices.length > 0 && (
+                                <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-3 w-64 bg-white border border-[var(--border-light)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
+                                    <div className="bg-[var(--surface-muted)] px-4 py-2 border-b border-[var(--border-light)] text-[var(--cort-navy)] font-bold text-[10px] uppercase">
+                                        Recent Outstanding Invoices
+                                    </div>
+                                    <div className="divide-y divide-[var(--surface-muted)] max-h-48 overflow-y-auto">
+                                        {invoices.map((inv, idx) => (
+                                            <div key={idx} className="px-4 py-2 hover:bg-[var(--surface-subtle)] transition-colors">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-mono text-[10px] text-[var(--cort-navy)] font-bold">{inv.invoice_number}</span>
+                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center mt-0.5">
+                                                    <span className="text-[10px] text-[var(--text-muted)]">
+                                                        {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                    </span>
+                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-red-50 text-[var(--accent-danger)]' : 'bg-yellow-50 text-[var(--accent-warning)]'}`}>
+                                                        {inv.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col">
+                        <div className="text-3xl font-black text-[var(--accent-success)] tracking-tight mb-2">
+                            You are all caught up!
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)] mt-1 font-bold uppercase tracking-wider opacity-70">
+                            No pending actions
+                        </div>
+                    </div>
+                )}
             </div>
         </Card>
     );
