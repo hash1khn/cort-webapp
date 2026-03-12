@@ -28,7 +28,7 @@ import {
     CreateMaintenanceRecordRequest, QueryMaintenanceRecordParams, MaintenanceRecord, MaintenanceRecordResponse,
     UpdateMaintenanceRecordRequest, UpcomingMaintenanceResponse,
     // Reports
-    ChauffeurReport, ReportQueryParams,
+    ChauffeurReport, ShuttleReport, ReportQueryParams,
     // Invoices
     QueryInvoiceParams, Invoice,
     // Expenses
@@ -901,6 +901,32 @@ class ApiClient {
         const endpoint = `/companies/reports/all-chauffeur${queryString ? `?${queryString}` : ''}`;
 
         return this.request<PaginatedResponse<ChauffeurReport>>(endpoint);
+    }
+
+    async getShuttleReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ShuttleReport>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.startDate) query.append('startDate', params.startDate);
+        if (params.endDate) query.append('endDate', params.endDate);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/${companyId}/reports/shuttle${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ShuttleReport>>(endpoint);
+    }
+
+    async getAllShuttleReports(params: ReportQueryParams = {}): Promise<PaginatedResponse<ShuttleReport>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.startDate) query.append('startDate', params.startDate);
+        if (params.endDate) query.append('endDate', params.endDate);
+
+        const queryString = query.toString();
+        const endpoint = `/companies/reports/all-shuttle${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<ShuttleReport>>(endpoint);
     }
 
     // ===== INVOICES =====

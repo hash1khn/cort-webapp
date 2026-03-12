@@ -42,6 +42,49 @@ export interface ChauffeurReport {
     daily_logs?: ChauffeurTripDailyLog[];
 }
 
+export interface ShuttlePassengerLog {
+    status: string;
+    scanned_at: string | null;
+    drop_off_at: string | null;
+    employee: {
+        full_name: string;
+        email: string;
+        employee_id: string | null;
+        department: string | null;
+    } | null;
+}
+
+export interface ShuttleReport {
+    id: number;
+    trip_date: string;
+    direction: string;
+    status: string;
+    started_at: string | null;
+    completed_at: string | null;
+    route: {
+        id: number;
+        name: string;
+    } | null;
+    company: {
+        id: number;
+        name: string;
+    } | null;
+    vehicle: {
+        make: string;
+        model: string;
+        plate_number: string;
+    } | null;
+    driver: {
+        full_name: string;
+    } | null;
+    passengers: {
+        total: number;
+        boarded: number;
+        absent: number;
+        details: ShuttlePassengerLog[];
+    };
+}
+
 export interface ReportQueryParams {
     page?: number;
     limit?: number;

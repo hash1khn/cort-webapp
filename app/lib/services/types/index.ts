@@ -143,6 +143,8 @@ export type {
 // Reports
 export type {
     ChauffeurReport,
+    ShuttleReport,
+    ShuttlePassengerLog,
     ReportQueryParams,
 } from './reports';
 
