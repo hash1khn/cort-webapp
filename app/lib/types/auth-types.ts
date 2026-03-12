@@ -1,10 +1,34 @@
 // User roles enum - matches backend
 export enum UserRole {
     SUPER_ADMIN = 'SUPER_ADMIN',
+    INTERNAL_STAFF = 'INTERNAL_STAFF',
     COMPANY_ADMIN = 'COMPANY_ADMIN',
     EMPLOYEE = 'EMPLOYEE',
     DRIVER = 'DRIVER',
 }
+
+// All granular permission keys — mirrors backend PERMISSION_KEYS constant
+export const PERMISSION_KEYS = [
+    'dashboard',
+    'companies',
+    'pricing',
+    'vehicles',
+    'fuel_records',
+    'maintenance',
+    'vendors',
+    'vendor_logs',
+    'drivers',
+    'bookings',
+    'routes',
+    'ops_shuttle',
+    'ops_chauffeur',
+    'reports',
+    'expenses',
+    'invoicing',
+] as const;
+
+export type PermissionKey = (typeof PERMISSION_KEYS)[number];
+export type StaffPermissions = Record<PermissionKey, boolean>;
 
 // User status enum - matches backend
 export enum UserStatus {
@@ -29,7 +53,9 @@ export interface AuthUser {
         shuttle: boolean;
         chauffeur: boolean;
     } | null;
+    permissions?: StaffPermissions | null; // only populated for INTERNAL_STAFF
 }
+
 
 // Supabase session interface
 export interface AuthSession {
@@ -92,11 +118,14 @@ export interface AuthContextType extends AuthState {
     refreshProfile: () => Promise<void>;
     isAuthenticated: boolean;
     isSuperAdmin: boolean;
+    isInternalStaff: boolean;
     isCompanyAdmin: boolean;
     isEmployee: boolean;
     isDriver: boolean;
     hasRole: (roles: UserRole[]) => boolean;
     hasCompanyAccess: (companyId: number) => boolean;
+    hasPermission: (key: PermissionKey) => boolean;
     isShuttleEnabled: boolean;
     isChauffeurEnabled: boolean;
 }
+

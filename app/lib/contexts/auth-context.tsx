@@ -8,6 +8,7 @@ import {
     AuthUser,
     AuthSession,
     UserRole,
+    PermissionKey,
 } from '../types/auth-types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -113,6 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
 
     /**
+     * Check if user is internal staff
+     */
+    const isInternalStaff = user?.role === UserRole.INTERNAL_STAFF;
+
+    /**
      * Check if user is company admin
      */
     const isCompanyAdmin = user?.role === UserRole.COMPANY_ADMIN;
@@ -147,6 +153,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [user]);
 
     /**
+     * Check if the user has a specific granular permission.
+     * SUPER_ADMIN always returns true.
+     * INTERNAL_STAFF checks their permissions object.
+     * All other roles return false.
+     */
+    const hasPermission = useCallback((key: PermissionKey): boolean => {
+        if (!user) return false;
+        if (user.role === UserRole.SUPER_ADMIN) return true;
+        if (user.role === UserRole.INTERNAL_STAFF) {
+            return user.permissions?.[key] === true;
+        }
+        return false;
+    }, [user]);
+
+    /**
      * Check if shuttle service is enabled for the user's company
      */
     const isShuttleEnabled = !!user && (user.role === UserRole.SUPER_ADMIN || user.enabled_services?.shuttle === true);
@@ -166,11 +187,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshProfile,
         isAuthenticated,
         isSuperAdmin,
+        isInternalStaff,
         isCompanyAdmin,
         isEmployee,
         isDriver,
         hasRole,
         hasCompanyAccess,
+        hasPermission,
         isShuttleEnabled,
         isChauffeurEnabled,
     };

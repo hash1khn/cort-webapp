@@ -23,7 +23,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]} redirectTo="/login">
+    <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.INTERNAL_STAFF]} redirectTo="/admin/login">
       <Provider store={adminStore}>
         <AdminShell>{children}</AdminShell>
       </Provider>

@@ -5,25 +5,35 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
+import { PermissionKey } from "../../lib/types/auth-types";
 
-const nav = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/companies", label: "Companies" },
-  { href: "/admin/pricing", label: "Contracts & Pricing" },
-  { href: "/admin/vehicles", label: "Vehicles" },
-  { href: "/admin/vehicles/fueling", label: "↳ Fuel Records" },
-  { href: "/admin/vehicles/maintenance", label: "↳ Maintenance" },
-  { href: "/admin/vendors", label: "Vendors" },
-  { href: "/admin/vendors/logs", label: "↳ Trip Logs" },
-  { href: "/admin/drivers", label: "Drivers" },
-  { href: "/admin/bookings/pending", label: "Bookings" },
-  { href: "/admin/routes", label: "Routes" },
-  { href: "/admin/ops/shuttle", label: "Ops: Shuttle" },
-  { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/expenses", label: "Expenses" },
-  { href: "/admin/invoicing", label: "Invoicing" },
+type NavItem = {
+  href: string;
+  label: string;
+  permission?: PermissionKey; // undefined = always visible (superadmin only)
+};
+
+const nav: NavItem[] = [
+  { href: "/admin", label: "Dashboard", permission: "dashboard" },
+  { href: "/admin/companies", label: "Companies", permission: "companies" },
+  { href: "/admin/pricing", label: "Contracts & Pricing", permission: "pricing" },
+  { href: "/admin/vehicles", label: "Vehicles", permission: "vehicles" },
+  { href: "/admin/vehicles/fueling", label: "↳ Fuel Records", permission: "fuel_records" },
+  { href: "/admin/vehicles/maintenance", label: "↳ Maintenance", permission: "maintenance" },
+  { href: "/admin/vendors", label: "Vendors", permission: "vendors" },
+  { href: "/admin/vendors/logs", label: "↳ Trip Logs", permission: "vendor_logs" },
+  { href: "/admin/drivers", label: "Drivers", permission: "drivers" },
+  { href: "/admin/bookings/pending", label: "Bookings", permission: "bookings" },
+  { href: "/admin/routes", label: "Routes", permission: "routes" },
+  { href: "/admin/ops/shuttle", label: "Ops: Shuttle", permission: "ops_shuttle" },
+  { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", permission: "ops_chauffeur" },
+  { href: "/admin/reports", label: "Reports", permission: "reports" },
+  { href: "/admin/expenses", label: "Expenses", permission: "expenses" },
+  { href: "/admin/invoicing", label: "Invoicing", permission: "invoicing" },
+  // Permissions management — only visible to SUPER_ADMIN (no permission key needed)
+  { href: "/admin/permissions", label: "Staff & Permissions" },
 ];
+
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -31,18 +41,30 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { logout, user } = useAuth();
+  const { logout, user, isSuperAdmin, hasPermission } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isLogin = pathname === "/admin/login";
 
+  // Filter nav items based on role/permissions
+  const visibleNav = useMemo(() => {
+    return nav.filter((item) => {
+      // The "Staff & Permissions" page is superadmin-only (no permission key)
+      if (!item.permission) return isSuperAdmin;
+      // Superadmin sees everything
+      if (isSuperAdmin) return true;
+      // Internal staff only sees items they have permission for
+      return hasPermission(item.permission);
+    });
+  }, [isSuperAdmin, hasPermission]);
+
   const activeHref = useMemo(() => {
     if (!pathname) return "/admin";
-    const found = nav.find((n) => pathname === n.href);
+    const found = visibleNav.find((n) => pathname === n.href);
     if (found) return found.href;
-    const prefix = nav.find((n) => n.href !== "/admin" && pathname.startsWith(n.href));
+    const prefix = visibleNav.find((n) => n.href !== "/admin" && pathname.startsWith(n.href));
     return prefix?.href ?? "/admin";
-  }, [pathname]);
+  }, [pathname, visibleNav]);
 
   if (isLogin) return <>{children}</>;
 
@@ -58,7 +80,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 pb-6">
-          {nav.map((item, index) => {
+          {visibleNav.map((item, index) => {
             const active = item.href === activeHref;
             return (
               <Link
@@ -85,7 +107,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <span className="truncate text-xs font-medium text-white">
               {user?.email}
             </span>
-            <span className="text-[10px] text-white/50">Super Admin Portal</span>
+            <span className="text-[10px] text-white/50">
+              {isSuperAdmin ? "Super Admin Portal" : "Staff Portal"}
+            </span>
           </div>
           <button
             type="button"

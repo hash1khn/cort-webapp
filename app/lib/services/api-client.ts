@@ -1126,3 +1126,58 @@ export const ExpensesApi = {
         });
     },
 };
+
+// ===== PERMISSIONS / INTERNAL STAFF =====
+
+export interface InternalStaffMember {
+    id: string;
+    email: string;
+    full_name: string;
+    phone: string | null;
+    status: string | null;
+    created_at: string | null;
+    permissions: Record<string, boolean>;
+    permissions_updated_at: string | null;
+}
+
+export interface CreateInternalStaffRequest {
+    email: string;
+    password: string;
+    full_name: string;
+    phone?: string;
+    permissions?: Record<string, boolean>;
+}
+
+export const PermissionsApi = {
+    listStaff: () =>
+        apiClient.request<{ success: boolean; data: InternalStaffMember[] }>('/permissions/staff'),
+
+    getStaff: (id: string) =>
+        apiClient.request<{ success: boolean; data: InternalStaffMember }>(`/permissions/staff/${id}`),
+
+    createStaff: (data: CreateInternalStaffRequest) =>
+        apiClient.request<{ success: boolean; data: InternalStaffMember }>('/permissions/staff', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+
+    updatePermissions: (id: string, permissions: Record<string, boolean>) =>
+        apiClient.request<{ success: boolean; data: { user_id: string; permissions: Record<string, boolean> } }>(
+            `/permissions/staff/${id}/permissions`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ permissions }),
+            },
+        ),
+
+    deactivate: (id: string) =>
+        apiClient.request<{ success: boolean; message: string }>(`/permissions/staff/${id}/deactivate`, {
+            method: 'PATCH',
+        }),
+
+    reactivate: (id: string) =>
+        apiClient.request<{ success: boolean; message: string }>(`/permissions/staff/${id}/reactivate`, {
+            method: 'PATCH',
+        }),
+};
+

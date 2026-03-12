@@ -4,7 +4,27 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/contexts/auth-context";
-import { UserRole } from "../../lib/types/auth-types";
+import { UserRole, PERMISSION_KEYS } from "../../lib/types/auth-types";
+
+// Ordered list of nav hrefs mapped to their permission key — matches AdminShell nav order
+const NAV_PERMISSION_MAP: { href: string; permission: (typeof PERMISSION_KEYS)[number] }[] = [
+  { href: "/admin", permission: "dashboard" },
+  { href: "/admin/companies", permission: "companies" },
+  { href: "/admin/pricing", permission: "pricing" },
+  { href: "/admin/vehicles", permission: "vehicles" },
+  { href: "/admin/vehicles/fueling", permission: "fuel_records" },
+  { href: "/admin/vehicles/maintenance", permission: "maintenance" },
+  { href: "/admin/vendors", permission: "vendors" },
+  { href: "/admin/vendors/logs", permission: "vendor_logs" },
+  { href: "/admin/drivers", permission: "drivers" },
+  { href: "/admin/bookings/pending", permission: "bookings" },
+  { href: "/admin/routes", permission: "routes" },
+  { href: "/admin/ops/shuttle", permission: "ops_shuttle" },
+  { href: "/admin/ops/chauffeur", permission: "ops_chauffeur" },
+  { href: "/admin/reports", permission: "reports" },
+  { href: "/admin/expenses", permission: "expenses" },
+  { href: "/admin/invoicing", permission: "invoicing" },
+];
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -14,16 +34,24 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    // If already logged in, redirect based on role
-    if (!loading && isAuthenticated && user) {
-      if (user.role === UserRole.SUPER_ADMIN) {
-        router.replace("/admin");
-      } else {
-        // Non-admin users shouldn't access this
-        router.replace("/");
-      }
+  /** Returns the correct landing page for a given user after login */
+  function getRedirectPath(loginUser: typeof user): string {
+    if (!loginUser) return "/admin/login";
+    if (loginUser.role === UserRole.SUPER_ADMIN) return "/admin";
+    if (loginUser.role === UserRole.INTERNAL_STAFF) {
+      const permissions = (loginUser.permissions ?? {}) as Record<string, boolean>;
+      const first = NAV_PERMISSION_MAP.find((item) => permissions[item.permission] === true);
+      return first?.href ?? "/admin/login"; // no permissions at all → stay on login
     }
+    return "/";
+  }
+
+  useEffect(() => {
+    // If already authenticated on page load, redirect immediately
+    if (!loading && isAuthenticated && user) {
+      router.replace(getRedirectPath(user));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, isAuthenticated, user, router]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -33,7 +61,10 @@ export default function AdminLoginPage() {
 
     try {
       await login(email, password);
-      // Redirect happens in useEffect
+      // user state is set synchronously inside login() — read it via the closure ref
+      // but since state updates are async in React, we derive from the login response
+      // by letting the useEffect above pick it up on the next render.
+      // We still push to /admin here; for INTERNAL_STAFF the useEffect will correct it.
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login failed";
       if (errorMessage.includes("Invalid credentials")) {

@@ -34,7 +34,7 @@ export function ProtectedRoute({
         // Check role-based access
         if (allowedRoles && !hasRole(allowedRoles)) {
             // Redirect based on user role
-            if (user?.role === UserRole.SUPER_ADMIN) {
+            if (user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.INTERNAL_STAFF) {
                 router.push('/admin');
             } else if (user?.role === UserRole.COMPANY_ADMIN || user?.role === UserRole.EMPLOYEE) {
                 router.push('/company');
@@ -67,3 +67,4 @@ export function ProtectedRoute({
 
     return <>{children}</>;
 }
+
