@@ -26,6 +26,31 @@ const PERMISSION_LABELS: Record<PermissionKey, string> = {
   invoicing: "Invoicing",
 };
 
+function Toggle({ 
+  enabled, 
+  onChange 
+}: { 
+  enabled: boolean; 
+  onChange: (val: boolean) => void; 
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      className={`${
+        enabled ? "bg-navy" : "bg-gray-200"
+      } relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
+    >
+      <span
+        aria-hidden="true"
+        className={`${
+          enabled ? "translate-x-4" : "translate-x-0"
+        } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+      />
+    </button>
+  );
+}
+
 const emptyPermissions = (): Record<PermissionKey, boolean> =>
   Object.fromEntries(PERMISSION_KEYS.map((k) => [k, false])) as Record<PermissionKey, boolean>;
 
@@ -255,82 +280,109 @@ export default function PermissionsPage() {
 
       {/* ── Create Staff Modal ────────────────────────────────────────────────── */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-bold text-navy">New Internal Staff Account</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl rounded-xl bg-white p-10 shadow-2xl">
+            <h2 className="mb-8 text-2xl font-bold text-navy">New Internal Staff Account</h2>
 
             {createError && (
-              <div className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{createError}</div>
+              <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-600 border border-red-100">{createError}</div>
             )}
 
-            <div className="space-y-3">
-              {(["full_name", "email", "phone"] as const).map((field) => (
-                <div key={field}>
-                  <label className="mb-1 block text-xs font-medium text-gray-600 capitalize">
-                    {field.replace("_", " ")}
-                  </label>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+              <div className="lg:col-span-2 space-y-5">
+                {(["full_name", "email", "phone"] as const).map((field) => (
+                  <div key={field}>
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      {field.replace("_", " ")}
+                    </label>
+                    <input
+                      type={field === "email" ? "email" : "text"}
+                      value={(createForm as any)[field]}
+                      onChange={(e) => setCreateForm((f) => ({ ...f, [field]: e.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm transition-all focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+                      placeholder={`Enter ${field.replace("_", " ")}`}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
                   <input
-                    type={field === "email" ? "email" : "text"}
-                    value={(createForm as any)[field]}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm transition-all focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+                    placeholder="••••••••"
                   />
                 </div>
-              ))}
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Password</label>
-                <input
-                  type="password"
-                  value={createForm.password}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">Confirm Password</label>
-                <input
-                  type="password"
-                  value={createForm.confirmPassword}
-                  onChange={(e) => setCreateForm((f) => ({ ...f, confirmPassword: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
-                />
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-700 uppercase tracking-wider">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={createForm.confirmPassword}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm transition-all focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+                    placeholder="••••••••"
+                  />
+                </div>
               </div>
 
-              {/* Initial Permissions */}
-              <div>
-                <label className="mb-2 block text-xs font-medium text-gray-600">Initial Permissions</label>
-                <div className="grid grid-cols-2 gap-1.5 rounded-md border border-gray-200 bg-gray-50 p-3">
-                  {PERMISSION_KEYS.map((key) => (
-                    <label key={key} className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={!!(createForm.permissions as any)?.[key]}
-                        onChange={(e) =>
-                          setCreateForm((f) => ({
-                            ...f,
-                            permissions: { ...(f.permissions as any), [key]: e.target.checked },
-                          }))
-                        }
-                        className="h-3.5 w-3.5 rounded accent-navy"
-                      />
-                      <span className="text-xs text-gray-700">{PERMISSION_LABELS[key]}</span>
-                    </label>
-                  ))}
+              <div className="lg:col-span-3 flex flex-col">
+                <label className="mb-3 block text-xs font-semibold text-gray-700 uppercase tracking-wider">Initial Permissions</label>
+                <div className="flex-1 rounded-xl border border-gray-200 bg-gray-50/50 p-6">
+                  <div className="relative h-full">
+                    {/* Vertical Divider for two columns layout */}
+                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300 hidden sm:block" style={{ transform: 'translateX(-50%)' }} />
+                    
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-3">
+                      <div className="space-y-1">
+                        {PERMISSION_KEYS.slice(0, Math.ceil(PERMISSION_KEYS.length / 2)).map((key) => (
+                          <div key={key} className="flex items-center justify-between py-1.5 group">
+                            <span className="text-sm font-medium text-gray-700 group-hover:text-navy transition-colors">{PERMISSION_LABELS[key]}</span>
+                            <Toggle 
+                              enabled={!!(createForm.permissions as any)?.[key]} 
+                              onChange={(checked) => 
+                                setCreateForm((f) => ({
+                                  ...f,
+                                  permissions: { ...(f.permissions as any), [key]: checked },
+                                }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        {PERMISSION_KEYS.slice(Math.ceil(PERMISSION_KEYS.length / 2)).map((key) => (
+                          <div key={key} className="flex items-center justify-between py-1.5 group">
+                            <span className="text-sm font-medium text-gray-700 group-hover:text-navy transition-colors">{PERMISSION_LABELS[key]}</span>
+                            <Toggle 
+                              enabled={!!(createForm.permissions as any)?.[key]} 
+                              onChange={(checked) => 
+                                setCreateForm((f) => ({
+                                  ...f,
+                                  permissions: { ...(f.permissions as any), [key]: checked },
+                                }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end gap-3">
+            <div className="mt-10 flex justify-end gap-3 border-t pt-8">
               <button
                 onClick={() => setShowCreate(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                className="rounded-lg border border-gray-300 px-8 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={createLoading}
-                className="rounded-md bg-navy px-4 py-2 text-sm text-white hover:bg-navy/90 disabled:opacity-50"
+                className="rounded-lg bg-navy px-10 py-3 text-sm font-semibold text-white transition-all hover:bg-navy/90 hover:shadow-lg disabled:opacity-50"
               >
                 {createLoading ? "Creating…" : "Create Account"}
               </button>
@@ -339,71 +391,101 @@ export default function PermissionsPage() {
         </div>
       )}
 
+
       {/* ── Edit Permissions Modal ────────────────────────────────────────────── */}
       {editingStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="mb-1 text-lg font-bold text-navy">Edit Permissions</h2>
-            <p className="mb-4 text-sm text-gray-500">
-              {editingStaff.full_name} ({editingStaff.email})
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-navy">Edit Permissions</h2>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                <p className="text-sm font-medium text-gray-600">
+                  {editingStaff.full_name} <span className="mx-1 text-gray-400">•</span> {editingStaff.email}
+                </p>
+              </div>
+            </div>
 
             {editError && (
-              <div className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</div>
+              <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-600 border border-red-100">{editError}</div>
             )}
 
-            {/* Select All / None helpers */}
-            <div className="mb-2 flex gap-3 text-xs">
-              <button
-                onClick={() =>
-                  setEditPermissions(Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true])) as Record<PermissionKey, boolean>)
-                }
-                className="text-navy underline"
-              >
-                Select all
-              </button>
-              <button
-                onClick={() => setEditPermissions(emptyPermissions())}
-                className="text-gray-500 underline"
-              >
-                Deselect all
-              </button>
+            <div className="mb-6 flex items-center justify-between border-b pb-4">
+              <span className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Access Rights</span>
+              <div className="flex gap-4">
+                <button
+                  onClick={() =>
+                    setEditPermissions(Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true])) as Record<PermissionKey, boolean>)
+                  }
+                  className="text-xs font-bold text-navy hover:underline"
+                >
+                  Enable All
+                </button>
+                <button
+                  onClick={() => setEditPermissions(emptyPermissions())}
+                  className="text-xs font-bold text-gray-500 hover:underline"
+                >
+                  Disable All
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5 rounded-md border border-gray-200 bg-gray-50 p-3">
-              {PERMISSION_KEYS.map((key) => (
-                <label key={key} className="flex cursor-pointer items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={editPermissions[key]}
-                    onChange={(e) =>
-                      setEditPermissions((p) => ({ ...p, [key]: e.target.checked }))
-                    }
-                    className="h-3.5 w-3.5 rounded accent-navy"
-                  />
-                  <span className="text-xs text-gray-700">{PERMISSION_LABELS[key]}</span>
-                </label>
-              ))}
+            <div className="relative rounded-2xl border border-gray-200 bg-gray-50/30 p-6">
+              {/* Vertical Divider */}
+              <div className="absolute left-1/2 top-4 bottom-4 w-px bg-gray-200 hidden sm:block" style={{ transform: 'translateX(-50%)' }} />
+
+              <div className="grid grid-cols-2 gap-x-12">
+                {/* Left Column */}
+                <div className="space-y-1">
+                  {PERMISSION_KEYS.slice(0, Math.ceil(PERMISSION_KEYS.length / 2)).map((key) => (
+                    <div key={key} className="flex items-center justify-between py-2 group">
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-navy transition-colors">
+                        {PERMISSION_LABELS[key]}
+                      </span>
+                      <Toggle 
+                        enabled={editPermissions[key]} 
+                        onChange={(checked) => setEditPermissions((p) => ({ ...p, [key]: checked }))} 
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-1">
+                  {PERMISSION_KEYS.slice(Math.ceil(PERMISSION_KEYS.length / 2)).map((key) => (
+                    <div key={key} className="flex items-center justify-between py-2 group">
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-navy transition-colors">
+                        {PERMISSION_LABELS[key]}
+                      </span>
+                      <Toggle 
+                        enabled={editPermissions[key]} 
+                        onChange={(checked) => setEditPermissions((p) => ({ ...p, [key]: checked }))} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="mt-5 flex justify-end gap-3">
+            <div className="mt-8 flex justify-end gap-3 border-t pt-6">
               <button
                 onClick={() => setEditingStaff(null)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSavePermissions}
                 disabled={editLoading}
-                className="rounded-md bg-navy px-4 py-2 text-sm text-white hover:bg-navy/90 disabled:opacity-50"
+                className="rounded-xl bg-navy px-8 py-2.5 text-sm font-semibold text-white transition-all hover:bg-navy/90 hover:shadow-lg disabled:opacity-50"
               >
-                {editLoading ? "Saving…" : "Save Permissions"}
+                {editLoading ? "Saving Changes…" : "Update Permissions"}
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
