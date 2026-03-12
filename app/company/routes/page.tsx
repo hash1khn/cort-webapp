@@ -70,7 +70,7 @@ export default function RoutesPage() {
     setLoading(true);
     setError(null);
     apiClient
-      .request<CompanyRoute[]>("/routes")
+      .request<CompanyRoute[]>(`/routes?company_id=${company.id}`)
       .then((data) => {
         if (!cancelled) setRoutes(Array.isArray(data) ? data : []);
       })
