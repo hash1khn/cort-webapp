@@ -4,9 +4,6 @@ import dashboardReducer from './slices/dashboardSlice';
 import bookingsReducer from './slices/bookingsSlice';
 import contractReducer from './slices/contractSlice';
 import employeesReducer from './slices/employeeSlice';
-import invoiceReducer from './slices/invoiceSlice';
-import companyReportsReducer from './slices/companyReportsSlice';
-import shuttleReportsReducer from './slices/shuttleReportsSlice';
 
 export const companyStore = configureStore({
     reducer: {
@@ -15,9 +12,6 @@ export const companyStore = configureStore({
         bookings: bookingsReducer,
         contract: contractReducer,
         employees: employeesReducer,
-        invoices: invoiceReducer,
-        companyReports: companyReportsReducer,
-        shuttleReports: shuttleReportsReducer,
     },
 });
 

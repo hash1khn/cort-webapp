@@ -1,34 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
-import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
-import { fetchInvoices, selectInvoices, selectInvoicesPagination, selectInvoicesStatus, selectInvoicesError } from "../../lib/store/slices/invoiceSlice";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS, TABLE_PAGINATION_WRAPPER_CLASS } from "../components/PageLayout";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 import Pagination from "@/app/components/ui/Pagination";
 
+interface PaginationMeta {
+    page: number;
+    pages: number;
+    total: number;
+}
+
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
-    const dispatch = useAppDispatch();
-    const invoices = useAppSelector(selectInvoices);
-    const pagination = useAppSelector(selectInvoicesPagination);
-    const status = useAppSelector(selectInvoicesStatus);
-    const errorState = useAppSelector(selectInvoicesError);
-    const isLoading = status === 'loading';
 
-    // We can keep local error for download if needed, but fetch error is global
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorState, setErrorState] = useState<string | null>(null);
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
-
     const [page, setPage] = useState(1);
 
-    useEffect(() => {
+    const fetchInvoices = useCallback(async (p: number) => {
         if (!user?.company_id) return;
+        setIsLoading(true);
+        try {
+            const res = await apiClient.getCompanyInvoices(user.company_id, { page: p, limit: 10 }) as any;
+            const raw = res?.data ?? res;
+            setInvoices(raw?.data ?? raw ?? []);
+            const meta = raw?.pagination ?? {};
+            setPagination({ page: meta.page ?? p, pages: meta.pages ?? 1, total: meta.total ?? 0 });
+        } catch (e: any) {
+            setErrorState(e?.message ?? "Failed to load invoices");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user?.company_id]);
 
-        dispatch(fetchInvoices({ companyId: user.company_id, params: { page, limit: 10 } }));
-    }, [dispatch, user?.company_id, page]);
+    useEffect(() => {
+        fetchInvoices(page);
+    }, [page, fetchInvoices]);
 
     const downloadPdf = async (id: number, invoiceNumber: string) => {
         if (downloadingId) return;
@@ -137,11 +151,11 @@ export default function CompanyInvoicingPage() {
                         </tbody>
                     </table>
                 </div>
-                {pagination?.totalPages > 1 && (
+                {pagination?.pages > 1 && (
                     <div className={TABLE_PAGINATION_WRAPPER_CLASS}>
                         <Pagination
                             currentPage={page}
-                            totalPages={pagination.totalPages}
+                            totalPages={pagination.pages}
                             onPageChange={setPage}
                         />
                     </div>

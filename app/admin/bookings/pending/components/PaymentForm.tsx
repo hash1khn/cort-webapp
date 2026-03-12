@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, memo } from "react";
-import { useAppDispatch } from "../../../../lib/store/hooks";
-import { addPayment } from "../../../../lib/store/slices/adminBookingsSlice";
+import { apiClient } from "../../../../lib/services/api-client";
 
 export const PaymentForm = memo(function PaymentForm({ bookingId, onSuccess }: { bookingId: number; onSuccess: () => void }) {
-    const dispatch = useAppDispatch();
     const [amount, setAmount] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("CASH");
     const [notes, setNotes] = useState("");
@@ -21,15 +19,12 @@ export const PaymentForm = memo(function PaymentForm({ bookingId, onSuccess }: {
 
         setIsSubmitting(true);
         try {
-            await dispatch(addPayment({
-                bookingId,
-                data: {
-                    amount: parseFloat(amount),
-                    payment_type: "PARTIAL",
-                    payment_method: paymentMethod,
-                    notes: notes || undefined,
-                }
-            })).unwrap();
+            await apiClient.addPayment(bookingId, {
+                amount: parseFloat(amount),
+                payment_type: "PARTIAL",
+                payment_method: paymentMethod,
+                notes: notes || undefined,
+            });
 
             alert("Payment recorded successfully!");
             setAmount("");

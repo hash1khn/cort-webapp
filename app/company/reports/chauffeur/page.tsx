@@ -2,17 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { formatDateTime } from "@/app/lib/utils";
-import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
-import {
-  fetchChauffeurReports,
-  selectReports,
-  selectReportsStatus,
-  selectReportsError,
-  selectReportsFilters,
-  setFilters
-} from "../../../lib/store/slices/companyReportsSlice";
-import { ChauffeurReport } from "../../../lib/services/api-client";
+import { ChauffeurReport, apiClient } from "../../../lib/services/api-client";
 import { Card } from "../../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../../components/PageLayout";
 import Modal from "../../bookings/components/Modal";
@@ -20,54 +12,38 @@ import TablePageSkeleton from "../../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
 export default function ChauffeurReportsPage() {
-  const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
-  const reports = useAppSelector(selectReports);
-  const status = useAppSelector(selectReportsStatus);
-  const errorState = useAppSelector(selectReportsError);
-  const savedFilters = useAppSelector(selectReportsFilters);
 
-  const isLoading = status === 'loading';
+  const [reports, setReports] = useState<ChauffeurReport[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState<ChauffeurReport | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
-  // Local state for inputs (for smooth UX), initialized from Redux
-  const [startDate, setStartDate] = useState<string>(savedFilters.startDate);
-  const [endDate, setEndDate] = useState<string>(savedFilters.endDate);
+  const fetchReports = useCallback(async (start: string, end: string) => {
+    if (!company?.id) return;
+    setIsLoading(true);
+    try {
+      const res = await apiClient.getChauffeurReports(company.id, {
+        startDate: start || undefined,
+        endDate: end || undefined,
+      }) as any;
+      const raw = res?.data ?? res;
+      setReports(raw?.data ?? raw ?? []);
+    } catch (e) {
+      console.error("Failed to fetch chauffeur reports", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id]);
 
-  // Sync local state with Redux when savedFilters change (e.g., on mount)
-  useEffect(() => {
-    setStartDate(savedFilters.startDate);
-    setEndDate(savedFilters.endDate);
-  }, [savedFilters.startDate, savedFilters.endDate]);
-
-
-  // Debounce and update Redux filters
+  // Debounce filter changes and re-fetch
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (startDate !== savedFilters.startDate || endDate !== savedFilters.endDate) {
-        dispatch(setFilters({ startDate, endDate }));
-      }
-    }, 500);
+      fetchReports(startDate, endDate);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [startDate, endDate, savedFilters.startDate, savedFilters.endDate, dispatch]);
-
-  // Track last fetched params to avoid duplicates
-  const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
-
-  // Fetch reports when company or Redux filters change
-  useEffect(() => {
-    if (!company?.id) return;
-
-    const currentParams = JSON.stringify({ startDate: savedFilters.startDate, endDate: savedFilters.endDate });
-    if (currentParams === lastFetchedParams && status !== 'idle') return;
-
-    setLastFetchedParams(currentParams);
-    dispatch(fetchChauffeurReports({
-      companyId: company.id,
-      startDate: savedFilters.startDate || undefined,
-      endDate: savedFilters.endDate || undefined,
-    }));
-  }, [dispatch, company?.id, savedFilters.startDate, savedFilters.endDate, lastFetchedParams, status]);
+  }, [startDate, endDate, fetchReports]);
 
   if (!company) {
     // If company is loading, shell might cover it, or we can show skeleton.

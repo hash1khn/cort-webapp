@@ -1,18 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { useCallback, useEffect, useState } from "react";
+import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
-import {
-  fetchShuttleReports,
-  selectShuttleReports,
-  selectShuttleReportsStatus,
-  selectShuttleReportsError,
-  selectShuttleReportsFilters,
-  selectShuttleReportsPagination,
-  setShuttleReportFilters,
-} from "../../../lib/store/slices/shuttleReportsSlice";
-import { ShuttleReport } from "../../../lib/services/api-client";
+import { ShuttleReport, apiClient } from "../../../lib/services/api-client";
 import { Card } from "../../components/DashboardComponents";
 import {
   PageHeader,
@@ -39,78 +30,60 @@ function DirectionBadge({ direction }: { direction: string }) {
   );
 }
 
+interface PaginationMeta {
+  page: number;
+  pages: number;
+  total: number;
+}
+
 export default function ShuttleReportsPage() {
-  const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
-  const reports = useAppSelector(selectShuttleReports);
-  const status = useAppSelector(selectShuttleReportsStatus);
-  const errorState = useAppSelector(selectShuttleReportsError);
-  const savedFilters = useAppSelector(selectShuttleReportsFilters);
-  const pagination = useAppSelector(selectShuttleReportsPagination);
 
-  const isLoading = status === "loading";
-
+  const [reports, setReports] = useState<ShuttleReport[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState<ShuttleReport | null>(null);
-  const [startDate, setStartDate] = useState<string>(savedFilters.startDate);
-  const [endDate, setEndDate] = useState<string>(savedFilters.endDate);
-  const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
-  // Sync local inputs with Redux saved filters on mount
-  useEffect(() => {
-    setStartDate(savedFilters.startDate);
-    setEndDate(savedFilters.endDate);
-  }, [savedFilters.startDate, savedFilters.endDate]);
+  const fetchReports = useCallback(async (page: number, start: string, end: string) => {
+    if (!company?.id) return;
+    setIsLoading(true);
+    try {
+      const res = await apiClient.getShuttleReports(company.id, {
+        startDate: start || undefined,
+        endDate: end || undefined,
+        page,
+      }) as any;
+      const raw = res?.data ?? res;
+      setReports(raw?.data ?? raw ?? []);
+      const meta = raw?.pagination ?? {};
+      setPagination({ page: meta.page ?? page, pages: meta.pages ?? 1, total: meta.total ?? 0 });
+    } catch (e) {
+      console.error("Failed to fetch shuttle reports", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id]);
 
-  // Debounce date changes into Redux
+  // Debounce filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (
-        startDate !== savedFilters.startDate ||
-        endDate !== savedFilters.endDate
-      ) {
-        dispatch(setShuttleReportFilters({ startDate, endDate }));
-      }
-    }, 500);
+      setCurrentPage(1);
+      fetchReports(1, startDate, endDate);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [startDate, endDate, savedFilters.startDate, savedFilters.endDate, dispatch]);
+  }, [startDate, endDate, fetchReports]);
 
-  // Fetch when company or filters change
+  // Page change
   useEffect(() => {
-    if (!company?.id) return;
-
-    const currentParams = JSON.stringify({
-      startDate: savedFilters.startDate,
-      endDate: savedFilters.endDate,
-    });
-    if (currentParams === lastFetchedParams && status !== "idle") return;
-
-    setLastFetchedParams(currentParams);
-    dispatch(
-      fetchShuttleReports({
-        companyId: company.id,
-        startDate: savedFilters.startDate || undefined,
-        endDate: savedFilters.endDate || undefined,
-      })
-    );
-  }, [
-    dispatch,
-    company?.id,
-    savedFilters.startDate,
-    savedFilters.endDate,
-    lastFetchedParams,
-    status,
-  ]);
+    fetchReports(currentPage, startDate, endDate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   const handlePageChange = (page: number) => {
-    if (!company?.id) return;
-    dispatch(
-      fetchShuttleReports({
-        companyId: company.id,
-        startDate: savedFilters.startDate || undefined,
-        endDate: savedFilters.endDate || undefined,
-        page,
-      })
-    );
+    setCurrentPage(page);
   };
 
   if (!company) {
@@ -192,11 +165,7 @@ export default function ShuttleReportsPage() {
           </div>
         </div>
 
-        {errorState && (
-          <div className="mx-4 mb-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
-            {errorState}
-          </div>
-        )}
+        {/* error display removed — errors are logged to console */}
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
@@ -314,13 +283,13 @@ export default function ShuttleReportsPage() {
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {pagination.pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-light)]">
             <div className="text-xs text-[var(--text-muted)]">
               Showing {reports.length} of {pagination.total} trips
             </div>
             <div className="flex gap-1">
-              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
+              {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(
                 (page) => (
                   <button
                     key={page}

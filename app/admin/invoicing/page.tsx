@@ -1,46 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { useCallback, useEffect, useState } from "react";
 import { apiClient, Company } from "../../lib/services/api-client";
-import {
-  fetchAdminInvoices,
-  fetchInvoiceStats,
-  updateInvoiceStatus,
-  downloadInvoicePdf,
-  selectAdminInvoices,
-  selectAdminInvoiceStats,
-  selectAdminInvoicingStatus,
-  selectAdminInvoicingActionStatus,
-  selectAdminInvoicingPagination,
-  sendInvoiceEmail
-} from "../../lib/store/slices/adminInvoicingSlice";
 import Pagination from "../../components/ui/Pagination";
 import { Modal } from "../components/ui/Modal";
 
+interface Invoice {
+  id: number;
+  invoice_number: string;
+  billing_month: string;
+  generated_at: string;
+  total_amount: number | string;
+  status: string;
+  companies?: { name: string } | null;
+}
+
+interface InvoiceStats {
+  totalCollectable: number;
+  totalCollected: number;
+  totalOverdue: number;
+}
+
+interface PaginationMeta {
+  page: number;
+  pages: number;
+  total: number;
+}
+
 export default function InvoicingPage() {
-  const dispatch = useAppDispatch();
-  const invoices = useAppSelector(selectAdminInvoices);
-  const stats = useAppSelector(selectAdminInvoiceStats);
-  const status = useAppSelector(selectAdminInvoicingStatus);
-  const actionStatus = useAppSelector(selectAdminInvoicingActionStatus);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [stats, setStats] = useState<InvoiceStats>({ totalCollectable: 0, totalCollected: 0, totalOverdue: 0 });
+  const [isLoading, setIsLoading] = useState(false);
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
   const [isGeneratingShuttle, setIsGeneratingShuttle] = useState(false);
-
-  const pagination = useAppSelector(selectAdminInvoicingPagination);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const [showShuttleModal, setShowShuttleModal] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
 
+  const fetchInvoices = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      const res = await apiClient.getAllInvoices({ page }) as any;
+      const raw = res?.data ?? res;
+      setInvoices(raw?.data ?? []);
+      const meta = raw?.pagination ?? {};
+      setPagination({ page: meta.page ?? page, pages: meta.pages ?? 1, total: meta.total ?? 0 });
+    } catch (e) {
+      console.error("Failed to fetch invoices", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await apiClient.getInvoiceStats() as any;
+      const raw = res?.data ?? res;
+      setStats({
+        totalCollectable: raw?.totalCollectable ?? 0,
+        totalCollected: raw?.totalCollected ?? 0,
+        totalOverdue: raw?.totalOverdue ?? 0,
+      });
+    } catch (e) {
+      console.error("Failed to fetch invoice stats", e);
+    }
+  }, []);
+
   useEffect(() => {
-    dispatch(fetchAdminInvoices({ page: currentPage }));
-    dispatch(fetchInvoiceStats());
-  }, [dispatch, currentPage]);
+    fetchInvoices(currentPage);
+  }, [currentPage, fetchInvoices]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // Load companies for shuttle invoice generation
   useEffect(() => {
@@ -56,7 +94,8 @@ export default function InvoicingPage() {
         console.error("Failed to load companies for shuttle invoices", e);
       }
     })();
-  }, [selectedCompanyId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSendEmail = async (id: number, invoiceNumber: string) => {
     if (sendingEmailId) return;
@@ -64,7 +103,7 @@ export default function InvoicingPage() {
 
     setSendingEmailId(id);
     try {
-      await dispatch(sendInvoiceEmail(id)).unwrap();
+      await apiClient.sendInvoiceEmail(id);
       alert(`Invoice #${invoiceNumber} sent successfully.`);
     } catch (e: any) {
       console.error("Failed to send email", e);
@@ -78,7 +117,7 @@ export default function InvoicingPage() {
     if (downloadingId) return;
     setDownloadingId(id);
     try {
-      await dispatch(downloadInvoicePdf({ id, invoiceNumber })).unwrap();
+      await apiClient.downloadInvoicePdf(id, invoiceNumber);
     } catch (e) {
       console.error("Failed to download PDF", e);
       alert("Failed to download PDF");
@@ -88,14 +127,11 @@ export default function InvoicingPage() {
   };
 
   const handleStatusUpdate = async (id: number, newStatus: string) => {
+    if (!confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
     try {
-      if (!confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
-
-      await dispatch(updateInvoiceStatus({ id, status: newStatus })).unwrap();
-
-      // Also refresh stats as they might change with status
-      dispatch(fetchInvoiceStats());
-
+      await apiClient.updateInvoiceStatus(id, newStatus);
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
+      fetchStats();
       alert("Status updated successfully");
     } catch (error: any) {
       console.error("Failed to update status:", error);
@@ -103,7 +139,7 @@ export default function InvoicingPage() {
     }
   };
 
-  const isInvoicesLoading = status === 'loading';
+  const isInvoicesLoading = isLoading;
   const totalPages = pagination.pages;
 
   const handlePageChange = (page: number) => {
@@ -139,8 +175,8 @@ export default function InvoicingPage() {
       await apiClient.generateShuttleInvoice(contract.id, billingMonth);
 
       // Refresh invoices and stats
-      dispatch(fetchAdminInvoices({ page: currentPage }));
-      dispatch(fetchInvoiceStats());
+      fetchInvoices(currentPage);
+      fetchStats();
 
       alert("Shuttle invoice generated successfully.");
       setShowShuttleModal(false);

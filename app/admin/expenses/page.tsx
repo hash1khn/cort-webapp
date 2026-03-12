@@ -1,64 +1,88 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { format } from "date-fns";
-import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
-    fetchExpenses,
-    createExpense,
-    deleteExpense,
-    markExpenseAsPaid,
-    setFilters,
-    setPage,
-} from "../../lib/store/slices/expensesSlice";
-import {
+    ExpensesApi,
     Expense,
     ExpenseCategory,
     CreateExpenseRequest,
 } from "../../lib/services/api-client";
 
+interface PaginationMeta {
+    page: number;
+    pages: number;
+    total: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
+
 export default function ExpensesPage() {
-    const dispatch = useAppDispatch();
-    const { items: expenses, isLoading, error, filters, pagination } = useAppSelector(
-        (state) => state.expenses
-    );
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [filterStartDate, setFilterStartDate] = useState("");
     const [filterEndDate, setFilterEndDate] = useState("");
     const [filterCategory, setFilterCategory] = useState<ExpenseCategory | "">("");
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const fetchExpenses = useCallback(async (page: number, startDate: string, endDate: string, category: string) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const params: any = { page, limit: 10 };
+            if (startDate) params.startDate = new Date(startDate).toISOString();
+            if (endDate) params.endDate = new Date(endDate).toISOString();
+            if (category) params.category = category;
+            const res = await ExpensesApi.getAll(params);
+            const raw = res as any;
+            setExpenses(raw?.data?.data ?? raw?.data ?? []);
+            const meta = raw?.data?.pagination ?? raw?.pagination ?? {};
+            setPagination({
+                page: meta.page ?? page,
+                pages: meta.pages ?? 1,
+                total: meta.total ?? 0,
+                hasNext: meta.hasNext ?? false,
+                hasPrev: meta.hasPrev ?? false,
+            });
+        } catch (e: any) {
+            setError(e.message || "Failed to load expenses");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const p: any = { page: 1, limit: 10 };
-        if (filterStartDate) p.startDate = new Date(filterStartDate).toISOString();
-        if (filterEndDate) p.endDate = new Date(filterEndDate).toISOString();
-        if (filterCategory) p.category = filterCategory;
+        const timer = setTimeout(() => {
+            setCurrentPage(1);
+            fetchExpenses(1, filterStartDate, filterEndDate, filterCategory);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [filterStartDate, filterEndDate, filterCategory, fetchExpenses]);
 
-        dispatch(setFilters(p));
-        dispatch(fetchExpenses(p));
-    }, [dispatch, filterStartDate, filterEndDate, filterCategory]);
-
-    const handlePageChange = (newPage: number) => {
-        const p = { ...filters, page: newPage };
-        dispatch(setFilters(p));
-        dispatch(fetchExpenses(p));
-    };
+    useEffect(() => {
+        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
+    }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleCreate = async (data: CreateExpenseRequest) => {
-        await dispatch(createExpense(data)).unwrap();
+        await ExpensesApi.create(data);
         setIsModalOpen(false);
+        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm("Are you sure you want to delete this expense?")) {
-            await dispatch(deleteExpense(id));
-        }
+        if (!confirm("Are you sure you want to delete this expense?")) return;
+        await ExpensesApi.delete(id);
+        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
     const handleMarkAsPaid = async (id: number) => {
-        if (confirm("Mark this expense as paid?")) {
-            await dispatch(markExpenseAsPaid(id));
-        }
+        if (!confirm("Mark this expense as paid?")) return;
+        await ExpensesApi.markAsPaid(id);
+        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
     return (
@@ -223,14 +247,14 @@ export default function ExpensesPage() {
                     <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
                         <div className="flex flex-1 justify-between sm:hidden">
                             <button
-                                onClick={() => handlePageChange(pagination.page - 1)}
+                                onClick={() => setCurrentPage(p => p - 1)}
                                 disabled={!pagination.hasPrev}
                                 className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                             >
                                 Previous
                             </button>
                             <button
-                                onClick={() => handlePageChange(pagination.page + 1)}
+                                onClick={() => setCurrentPage(p => p + 1)}
                                 disabled={!pagination.hasNext}
                                 className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                             >
@@ -247,7 +271,7 @@ export default function ExpensesPage() {
                             <div>
                                 <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                                     <button
-                                        onClick={() => handlePageChange(pagination.page - 1)}
+                                        onClick={() => setCurrentPage(p => p - 1)}
                                         disabled={!pagination.hasPrev}
                                         className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
                                     >
@@ -257,7 +281,7 @@ export default function ExpensesPage() {
                                         </svg>
                                     </button>
                                     <button
-                                        onClick={() => handlePageChange(pagination.page + 1)}
+                                        onClick={() => setCurrentPage(p => p + 1)}
                                         disabled={!pagination.hasNext}
                                         className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
                                     >
