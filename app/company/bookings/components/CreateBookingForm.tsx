@@ -6,7 +6,7 @@ import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
 import { fetchContract, selectAllowedVehicleModels } from "../../../lib/store/slices/contractSlice";
 import Map from "../../../admin/ui/Map";
-import { useGeocodeMapsAutocomplete } from "../../../hooks/useGeocodeMapsAutocomplete";
+import { useGooglePlacesAutocomplete } from "../../../hooks/useGooglePlacesAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import { pakistaniCars } from "../../../lib/data/pakistaniCars";
 import { apiClient } from "../../../lib/services/api-client";
@@ -112,10 +112,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
     const isEventShuttle = serviceCategory === "Event Shuttle";
 
-    // Initialize geocode.maps.co autocomplete
-    const geocodeMapsKey = process.env.NEXT_PUBLIC_GEOCODE_MAPS_API_KEY || "";
-    const { suggestions, isLoading: isLoadingSuggestions, search, clearSuggestions, error: searchError } = useGeocodeMapsAutocomplete({
-        apiKey: geocodeMapsKey,
+    // Initialize Google Places autocomplete
+    const googleMapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+    const { suggestions, isLoading: isLoadingSuggestions, search, clearSuggestions, refreshToken } = useGooglePlacesAutocomplete({
+        apiKey: googleMapsKey,
     });
 
     const activeEmployees = useMemo(() => {
@@ -526,13 +526,15 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                     key={suggestion.place_id}
                                     type="button"
                                     onClick={() => {
-                                        setPickupLat(parseFloat(suggestion.lat));
-                                        setPickupLng(parseFloat(suggestion.lon));
+                                        setPickupLat(suggestion.lat);
+                                        setPickupLng(suggestion.lng);
+                                        setPickupAddress(suggestion.display_name);
                                         clearSuggestions();
+                                        refreshToken();
                                     }}
                                     className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 border-b border-slate-50 last:border-b-0 transition-colors"
                                 >
-                                    <div className="font-bold text-slate-800">{suggestion.name || suggestion.type || 'Location'}</div>
+                                    <div className="font-bold text-slate-800">{suggestion.name || 'Location'}</div>
                                     <div className="text-xs text-slate-500 mt-0.5 truncate">{suggestion.display_name}</div>
                                 </button>
                             ))}
@@ -574,12 +576,6 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     )}
                 </div>
             </div>
-
-            {searchError && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 font-medium">
-                    Search Error: {searchError}
-                </div>
-            )}
 
             {error && (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 font-medium flex items-center gap-2">

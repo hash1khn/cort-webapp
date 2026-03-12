@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, MapPin, Search } from 'lucide-react';
-import { useGeocodeMapsAutocomplete } from '@/app/hooks/useGeocodeMapsAutocomplete';
+import { useGooglePlacesAutocomplete } from '@/app/hooks/useGooglePlacesAutocomplete';
 
-const GEOCODE_API_KEY = process.env.NEXT_PUBLIC_GEOCODE_MAPS_API_KEY ?? '';
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
 export interface StopSelection {
     name: string;
@@ -42,8 +42,8 @@ export default function StopAddressSearch({
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const { suggestions, isLoading, search, clearSuggestions } = useGeocodeMapsAutocomplete({
-        apiKey: GEOCODE_API_KEY,
+    const { suggestions, isLoading, search, clearSuggestions, refreshToken } = useGooglePlacesAutocomplete({
+        apiKey: GOOGLE_MAPS_API_KEY,
     });
 
     // Update input value when defaultValue changes (e.g. when editing different stops)
@@ -73,10 +73,10 @@ export default function StopAddressSearch({
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const handleSelect = (suggestion: { display_name: string; lat: string; lon: string; name?: string }) => {
+    const handleSelect = (suggestion: { display_name: string; lat: number; lng: number; name: string }) => {
         const name = suggestion.name || shortenDisplayName(suggestion.display_name);
-        const lat = parseFloat(suggestion.lat);
-        const lng = parseFloat(suggestion.lon);
+        const lat = suggestion.lat;
+        const lng = suggestion.lng;
 
         onSelect({ name, lat, lng, fullAddress: suggestion.display_name });
 
@@ -87,6 +87,7 @@ export default function StopAddressSearch({
         }
         setOpen(false);
         clearSuggestions();
+        refreshToken();
     };
 
     return (
