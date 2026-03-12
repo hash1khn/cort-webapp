@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient } from '../../services/api-client';
 
+const STALE_TIME_MS = 120_000; // 2 minutes — company profile rarely changes
+
 // Define types based on backend structure
 export interface Company {
     id: number;
@@ -24,12 +26,14 @@ interface CompanyState {
     company: Company | null;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: CompanyState = {
     company: null,
     status: 'idle',
     error: null,
+    lastFetched: null,
 };
 
 // Async thunk to fetch company profile
@@ -57,6 +61,15 @@ export const fetchCompanyProfile = createAsyncThunk(
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to load company');
         }
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.company;
+            if (status === 'loading') return false;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
+        }
     }
 );
 
@@ -68,6 +81,9 @@ export const companySlice = createSlice({
             state.company = null;
             state.status = 'idle';
             state.error = null;
+        },
+        invalidateCompanyCache: (state) => {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -78,6 +94,7 @@ export const companySlice = createSlice({
             })
             .addCase(fetchCompanyProfile.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.company = action.payload;
             })
             .addCase(fetchCompanyProfile.rejected, (state, action) => {
@@ -87,7 +104,7 @@ export const companySlice = createSlice({
     },
 });
 
-export const { clearCompany } = companySlice.actions;
+export const { clearCompany, invalidateCompanyCache } = companySlice.actions;
 
 export const selectCompany = (state: RootState) => state.company.company;
 export const selectCompanyStatus = (state: RootState) => state.company.status;

@@ -17,6 +17,8 @@ import {
     MaintenanceType
 } from '../../services/api-client';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 interface AdminVehiclesState {
     // Vehicles
     vehicles: Vehicle[];
@@ -61,6 +63,7 @@ interface AdminVehiclesState {
         startDate: string;
         endDate: string;
     };
+    lastFetched: number | null;
 }
 
 const initialState: AdminVehiclesState = {
@@ -106,7 +109,8 @@ const initialState: AdminVehiclesState = {
         filterType: "ALL",
         startDate: "",
         endDate: ""
-    }
+    },
+    lastFetched: null,
 };
 
 // --- Vehicles Thunks ---
@@ -126,6 +130,16 @@ export const fetchAdminVehicles = createAsyncThunk(
             };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch vehicles');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminVehicles;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -335,6 +349,9 @@ export const adminVehiclesSlice = createSlice({
         },
         clearAdminVehicles: (state) => {
             return initialState;
+        },
+        invalidateVehiclesCache: (state) => {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -346,6 +363,7 @@ export const adminVehiclesSlice = createSlice({
             })
             .addCase(fetchAdminVehicles.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.vehicles = action.payload.data.data;
                 state.vehicleFilters = action.payload.filters;
                 if (action.payload.data.pagination) {
@@ -455,7 +473,7 @@ export const adminVehiclesSlice = createSlice({
     },
 });
 
-export const { resetVehicleActionStatus, resetFuelActionStatus, resetMaintenanceActionStatus, clearAdminVehicles } = adminVehiclesSlice.actions;
+export const { resetVehicleActionStatus, resetFuelActionStatus, resetMaintenanceActionStatus, clearAdminVehicles, invalidateVehiclesCache } = adminVehiclesSlice.actions;
 
 export const selectAdminVehicles = (state: RootState) => state.adminVehicles.vehicles;
 export const selectAdminVehiclesStatus = (state: RootState) => state.adminVehicles.status;

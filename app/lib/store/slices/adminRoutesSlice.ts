@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient } from '../../services/api-client';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 // Define Route interface based on API response
 export interface RouteStop {
     id: number;
@@ -94,6 +96,7 @@ interface AdminRoutesState {
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionError: string | null;
     assignmentStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    lastFetched: number | null;
 }
 
 const initialState: AdminRoutesState = {
@@ -111,6 +114,7 @@ const initialState: AdminRoutesState = {
     actionStatus: 'idle',
     actionError: null,
     assignmentStatus: 'idle',
+    lastFetched: null,
 };
 
 // Async Thunks
@@ -137,6 +141,16 @@ export const fetchAdminRoutes = createAsyncThunk(
             return await apiClient.request<Route[]>(`/routes?${query.toString()}`);
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch routes');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminRoutes;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -281,6 +295,9 @@ export const adminRoutesSlice = createSlice({
         },
         clearCurrentRoute: (state) => {
             state.currentRoute = null;
+        },
+        invalidateRoutesCache: (state) => {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -292,6 +309,7 @@ export const adminRoutesSlice = createSlice({
             })
             .addCase(fetchAdminRoutes.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.routes = action.payload;
             })
             .addCase(fetchAdminRoutes.rejected, (state, action) => {
@@ -399,7 +417,7 @@ export const adminRoutesSlice = createSlice({
     },
 });
 
-export const { resetRouteActionStatus, resetAssignmentStatus, clearCurrentRoute } = adminRoutesSlice.actions;
+export const { resetRouteActionStatus, resetAssignmentStatus, clearCurrentRoute, invalidateRoutesCache } = adminRoutesSlice.actions;
 
 export const selectAdminRoutes = (state: RootState) => state.adminRoutes.routes;
 export const selectCurrentRoute = (state: RootState) => state.adminRoutes.currentRoute;

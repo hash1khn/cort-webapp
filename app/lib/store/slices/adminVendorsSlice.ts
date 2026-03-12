@@ -7,12 +7,15 @@ import {
 } from '../../services/api-client';
 import { RootState } from '../store';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 interface AdminVendorsState {
     vendors: Vendor[];
     selectedVendor: Vendor | null;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
     filters: {
         search: string;
     };
@@ -31,6 +34,7 @@ const initialState: AdminVendorsState = {
     status: 'idle',
     actionStatus: 'idle',
     error: null,
+    lastFetched: null,
     filters: {
         search: ""
     },
@@ -58,6 +62,16 @@ export const fetchAdminVendors = createAsyncThunk(
             };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch vendors');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminVendors;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -109,6 +123,9 @@ const adminVendorsSlice = createSlice({
         },
         resetActionStatus(state) {
             state.actionStatus = 'idle';
+        },
+        invalidateVendorsCache(state) {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -120,6 +137,7 @@ const adminVendorsSlice = createSlice({
             })
             .addCase(fetchAdminVendors.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.vendors = action.payload.data.data;
                 state.filters = action.payload.filters;
                 if (action.payload.data.pagination) {
@@ -166,7 +184,7 @@ const adminVendorsSlice = createSlice({
     },
 });
 
-export const { selectVendor, resetActionStatus } = adminVendorsSlice.actions;
+export const { selectVendor, resetActionStatus, invalidateVendorsCache } = adminVendorsSlice.actions;
 
 export const selectAdminVendors = (state: RootState) => state.adminVendors.vendors;
 export const selectAdminVendorsStatus = (state: RootState) => state.adminVendors.status;

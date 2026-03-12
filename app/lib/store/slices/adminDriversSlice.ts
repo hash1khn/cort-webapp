@@ -9,6 +9,8 @@ import {
 } from '../../services/api-client';
 import { RootState } from '../store';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 // Define the state interface
 interface AdminDriversState {
     data: Driver[];
@@ -16,6 +18,7 @@ interface AdminDriversState {
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
     filters: {
         searchQuery: string;
         activeTab: string;
@@ -35,6 +38,7 @@ const initialState: AdminDriversState = {
     status: 'idle',
     actionStatus: 'idle',
     error: null,
+    lastFetched: null,
     filters: {
         searchQuery: "",
         activeTab: "ALL"
@@ -57,6 +61,18 @@ export const fetchAdminDrivers = createAsyncThunk(
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch drivers');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminDrivers;
+            if (status === 'loading') return false;
+            // Allow forced refetch when explicit params passed (page change, filter change)
+            if (params && Object.keys(params).length > 0) return true;
+            // Skip if data is fresh
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -136,6 +152,9 @@ const adminDriversSlice = createSlice({
         resetDriversActionStatus(state) {
             state.actionStatus = 'idle';
         },
+        invalidateDriversCache(state) {
+            state.lastFetched = null;
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -146,6 +165,7 @@ const adminDriversSlice = createSlice({
             })
             .addCase(fetchAdminDrivers.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.data = action.payload.data;
                 // Don't update filters from API response - maintain component state
                 if (action.payload.pagination) {
@@ -228,7 +248,7 @@ const adminDriversSlice = createSlice({
     },
 });
 
-export const { selectDriver, resetDriversStatus, resetDriversActionStatus } = adminDriversSlice.actions;
+export const { selectDriver, resetDriversStatus, resetDriversActionStatus, invalidateDriversCache } = adminDriversSlice.actions;
 
 export const selectAdminDrivers = (state: RootState) => state.adminDrivers.data;
 export const selectAdminDriversStatus = (state: RootState) => state.adminDrivers.status;

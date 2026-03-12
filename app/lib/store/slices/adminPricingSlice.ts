@@ -11,6 +11,8 @@ import {
 } from '../../services/api-client';
 import { RootState } from '../store';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 export type RateRow = Partial<ChauffeurContractRate> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
 export type ShuttleRouteRow = Partial<ShuttleContractRoute> & { tempId?: string; isNew?: boolean; isDeleted?: boolean };
 
@@ -48,6 +50,7 @@ interface AdminPricingState {
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: AdminPricingState = {
@@ -82,6 +85,7 @@ const initialState: AdminPricingState = {
     status: 'idle',
     actionStatus: 'idle',
     error: null,
+    lastFetched: null,
 };
 
 // Async Thunks
@@ -94,6 +98,15 @@ export const fetchPricingCompanies = createAsyncThunk(
             return response.data.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch companies');
+        }
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminPricing;
+            if (status === 'loading') return false;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -398,6 +411,9 @@ const adminPricingSlice = createSlice({
         },
         resetActionStatus(state) {
             state.actionStatus = 'idle';
+        },
+        invalidatePricingCache(state) {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -405,6 +421,7 @@ const adminPricingSlice = createSlice({
             // Fetch Companies
             .addCase(fetchPricingCompanies.fulfilled, (state, action) => {
                 state.companies = action.payload;
+                state.lastFetched = Date.now();
                 if (action.payload.length > 0 && !state.selectedCompanyId) {
                     state.selectedCompanyId = String(action.payload[0].id);
                 }
@@ -534,7 +551,8 @@ export const {
     updateRateRow,
     updateShuttleRouteRow,
     removeShuttleRouteRow,
-    resetActionStatus
+    resetActionStatus,
+    invalidatePricingCache
 } = adminPricingSlice.actions;
 
 export const selectAdminPricingState = (state: RootState) => state.adminPricing;

@@ -1,11 +1,15 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { apiClient } from '../../services/api-client';
 import { SuperAdminDashboardStats } from '../../types/admin-dashboard';
+import { RootState } from '../store';
+
+const STALE_TIME_MS = 30_000; // 30 seconds — dashboard data changes frequently
 
 interface DashboardState {
     stats: SuperAdminDashboardStats | null;
     loading: boolean;
     error: string | null;
+    lastFetched: number | null;
     dateRange: { startDate: string; endDate: string } | null;
 }
 
@@ -13,6 +17,7 @@ const initialState: DashboardState = {
     stats: null,
     loading: false,
     error: null,
+    lastFetched: null,
     dateRange: null,
 };
 
@@ -21,9 +26,19 @@ export const fetchDashboardStats = createAsyncThunk(
     async (params: { startDate?: string; endDate?: string } | undefined, { rejectWithValue }) => {
         try {
             const data = await apiClient.getSuperAdminDashboardStats(params?.startDate, params?.endDate);
-            return data as unknown as SuperAdminDashboardStats; // Cast because apiClient return type was inline (TODO: fix apiClient return type)
+            return data as unknown as SuperAdminDashboardStats;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch dashboard stats');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, loading } = state.superAdminDashboard;
+            if (loading) return false;
+            if (params && (params.startDate || params.endDate)) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -39,7 +54,11 @@ const superAdminDashboardSlice = createSlice({
             state.stats = null;
             state.loading = false;
             state.error = null;
+            state.lastFetched = null;
             state.dateRange = null;
+        },
+        invalidateDashboardCache: (state) => {
+            state.lastFetched = null;
         },
     },
     extraReducers: (builder) => {
@@ -50,6 +69,7 @@ const superAdminDashboardSlice = createSlice({
             })
             .addCase(fetchDashboardStats.fulfilled, (state, action) => {
                 state.loading = false;
+                state.lastFetched = Date.now();
                 state.stats = action.payload;
             })
             .addCase(fetchDashboardStats.rejected, (state, action) => {
@@ -59,5 +79,5 @@ const superAdminDashboardSlice = createSlice({
     },
 });
 
-export const { setDateRange, clearDashboardState } = superAdminDashboardSlice.actions;
+export const { setDateRange, clearDashboardState, invalidateDashboardCache } = superAdminDashboardSlice.actions;
 export default superAdminDashboardSlice.reducer;

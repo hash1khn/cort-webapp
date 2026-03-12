@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient, Company, CreateCompanyRequest, UpdateCompanyRequest, QueryCompanyParams } from '../../services/api-client';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 interface AdminCompaniesState {
     companies: Company[];
     pagination: {
@@ -12,8 +14,9 @@ interface AdminCompaniesState {
     };
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
-    actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed'; // For create/update/delete actions
+    actionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     actionError: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: AdminCompaniesState = {
@@ -28,6 +31,7 @@ const initialState: AdminCompaniesState = {
     error: null,
     actionStatus: 'idle',
     actionError: null,
+    lastFetched: null,
 };
 
 // Async Thunks
@@ -40,6 +44,16 @@ export const fetchAdminCompanies = createAsyncThunk(
             return response.data;
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to fetch companies');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminCompanies;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -105,7 +119,10 @@ export const adminCompaniesSlice = createSlice({
             state.companies = [];
             state.status = 'idle';
             state.error = null;
-        }
+        },
+        invalidateCompaniesCache: (state) => {
+            state.lastFetched = null;
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -116,6 +133,7 @@ export const adminCompaniesSlice = createSlice({
             })
             .addCase(fetchAdminCompanies.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.companies = action.payload.data;
                 state.pagination = {
                     page: Number(action.payload.pagination?.page) || 1,
@@ -189,7 +207,7 @@ export const adminCompaniesSlice = createSlice({
     },
 });
 
-export const { resetActionStatus, clearAdminCompanies } = adminCompaniesSlice.actions;
+export const { resetActionStatus, clearAdminCompanies, invalidateCompaniesCache } = adminCompaniesSlice.actions;
 
 export const selectAdminCompanies = (state: RootState) => state.adminCompanies.companies;
 export const selectAdminCompaniesStatus = (state: RootState) => state.adminCompanies.status;

@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient, ChauffeurBooking } from '../../services/api-client';
 
+const STALE_TIME_MS = 30_000; // 30 seconds — bookings change frequently
+
 interface BookingsState {
     bookings: ChauffeurBooking[];
     pagination: {
@@ -16,6 +18,7 @@ interface BookingsState {
     };
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: BookingsState = {
@@ -32,6 +35,7 @@ const initialState: BookingsState = {
     },
     status: 'idle',
     error: null,
+    lastFetched: null,
 };
 
 export const fetchBookings = createAsyncThunk(
@@ -43,6 +47,16 @@ export const fetchBookings = createAsyncThunk(
             return res.data; // { data: [], pagination: {} }
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch bookings');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.bookings;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 1) return true; // has params beyond defaults
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -59,6 +73,9 @@ export const bookingsSlice = createSlice({
             if (action.payload.status !== undefined) state.filters.status = action.payload.status;
             state.pagination.page = 1; // Reset to page 1 on filter change
         },
+        invalidateBookingsCache: (state) => {
+            state.lastFetched = null;
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -67,12 +84,12 @@ export const bookingsSlice = createSlice({
             })
             .addCase(fetchBookings.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.bookings = action.payload.data;
                 if (action.payload.pagination) {
                     state.pagination = {
                         ...state.pagination,
                         ...action.payload.pagination,
-                        // Match common naming variations
                         pages: action.payload.pagination.pages || state.pagination.pages
                     };
                 }
@@ -84,7 +101,7 @@ export const bookingsSlice = createSlice({
     },
 });
 
-export const { setPage, setFilters } = bookingsSlice.actions;
+export const { setPage, setFilters, invalidateBookingsCache } = bookingsSlice.actions;
 
 export const selectBookings = (state: RootState) => state.bookings.bookings;
 export const selectPagination = (state: RootState) => state.bookings.pagination;

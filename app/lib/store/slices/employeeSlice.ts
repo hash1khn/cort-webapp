@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient } from '../../services/api-client';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 export type Employee = {
     id: string;
     full_name: string;
@@ -17,12 +19,14 @@ interface EmployeeState {
     employees: Employee[];
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: EmployeeState = {
     employees: [],
     status: 'idle',
     error: null,
+    lastFetched: null,
 };
 
 export const fetchEmployees = createAsyncThunk(
@@ -33,6 +37,15 @@ export const fetchEmployees = createAsyncThunk(
             return response.data?.data || response.data || response || [];
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch employees');
+        }
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.employees;
+            if (status === 'loading') return false;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -64,7 +77,11 @@ export const deactivateEmployee = createAsyncThunk(
 export const employeeSlice = createSlice({
     name: 'employees',
     initialState,
-    reducers: {},
+    reducers: {
+        invalidateEmployeesCache: (state) => {
+            state.lastFetched = null;
+        }
+    },
     extraReducers: (builder) => {
         builder
             .addCase(fetchEmployees.pending, (state) => {
@@ -72,6 +89,7 @@ export const employeeSlice = createSlice({
             })
             .addCase(fetchEmployees.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.employees = action.payload;
             })
             .addCase(fetchEmployees.rejected, (state, action) => {
@@ -105,6 +123,8 @@ export const employeeSlice = createSlice({
             });
     },
 });
+
+export const { invalidateEmployeesCache } = employeeSlice.actions;
 
 export const selectEmployees = (state: RootState) => state.employees.employees;
 export const selectEmployeesStatus = (state: RootState) => state.employees.status;

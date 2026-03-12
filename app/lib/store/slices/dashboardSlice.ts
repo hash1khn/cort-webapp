@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient } from '../../services/api-client';
 
-// Reuse types from CompanyStore initially, can be moved to shared types later
 export type DashboardStats = {
     employees: {
         total: number;
@@ -80,25 +79,21 @@ const CACHE_DURATION_MS = 5 * 60 * 1000;
 
 export const fetchDashboardStats = createAsyncThunk(
     'dashboard/fetchStats',
-    async (companyId: string, { rejectWithValue, getState }) => {
+    async (companyId: string, { rejectWithValue }) => {
         try {
-            const state = getState() as any;
-            const dashboardState = state.dashboard;
-
-            // ✅ FIX: Check if data is cached and still valid
-            if (
-                dashboardState.stats &&
-                dashboardState.lastFetched &&
-                Date.now() - dashboardState.lastFetched < CACHE_DURATION_MS
-            ) {
-                // Return cached data without making API call
-                return dashboardState.stats;
-            }
-
             const response = await apiClient.getCompanyDashboardStats(companyId);
             return response.data || response;
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch stats');
+        }
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.dashboard;
+            if (status === 'loading') return false;
+            if (lastFetched && Date.now() - lastFetched < CACHE_DURATION_MS) return false;
+            return true;
         }
     }
 );

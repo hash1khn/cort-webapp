@@ -8,11 +8,14 @@ import {
 } from '../../services/api-client';
 import { RootState } from '../store';
 
+const STALE_TIME_MS = 60_000; // 60 seconds
+
 interface VendorLogsState {
     logs: VendorLog[];
     stats: VendorStats | null;
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
+    lastFetched: number | null;
     filters: QueryVendorLogsParams;
     pagination: {
         total: number;
@@ -29,6 +32,7 @@ const initialState: VendorLogsState = {
     stats: null,
     status: 'idle',
     error: null,
+    lastFetched: null,
     filters: {
         page: 1,
         limit: 10
@@ -52,6 +56,16 @@ export const fetchVendorLogs = createAsyncThunk(
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch vendor logs');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.vendorLogs;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
         }
     }
 );
@@ -108,6 +122,9 @@ const vendorLogsSlice = createSlice({
         },
         resetVendorLogsState(state) {
             return initialState;
+        },
+        invalidateVendorLogsCache(state) {
+            state.lastFetched = null;
         }
     },
     extraReducers: (builder) => {
@@ -119,6 +136,7 @@ const vendorLogsSlice = createSlice({
             })
             .addCase(fetchVendorLogs.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.lastFetched = Date.now();
                 state.logs = action.payload.data;
                 state.pagination = action.payload.pagination;
             })
@@ -144,7 +162,7 @@ const vendorLogsSlice = createSlice({
     },
 });
 
-export const { setFilters, clearFilters, resetVendorLogsState } = vendorLogsSlice.actions;
+export const { setFilters, clearFilters, resetVendorLogsState, invalidateVendorLogsCache } = vendorLogsSlice.actions;
 
 export const selectVendorLogs = (state: RootState) => state.vendorLogs.logs;
 export const selectVendorStats = (state: RootState) => state.vendorLogs.stats;
