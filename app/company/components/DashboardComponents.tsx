@@ -24,6 +24,15 @@ import { DashboardData } from '../types';
 
 // --- Shared Components ---
 
+const formatCurrency = (value: number) => {
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (absValue >= 1000) {
+        return sign + Math.round(absValue / 1000) + 'k';
+    }
+    return sign + absValue.toLocaleString();
+};
+
 export const Card = ({ children, className = "", withLeftBorder = false }: { children: React.ReactNode; className?: string; withLeftBorder?: boolean }) => (
     <div className={`bg-gradient-to-br from-white via-white to-[var(--surface-card)] border border-[var(--border-light)] rounded-[2rem] p-6 h-full shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 ${withLeftBorder ? 'border-l-4 border-l-[var(--cort-navy)]' : ''} ${className}`}>
         {children}
@@ -173,14 +182,14 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
             </div>
             
             <div className="relative z-10 pt-2">
-                <div className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-widest mb-4">
+                <div className="text-[var(--text-muted)] text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-4">
                     {hasOutstanding ? 'Outstanding Balance' : 'Current Status'}
                 </div>
                 {hasOutstanding && (
-                    <div className="flex items-baseline gap-1 -mt-1">
-                        <span className="text-xl font-bold text-[var(--text-muted)] opacity-70 leading-none">PKR</span>
-                        <span className="text-4xl font-black text-[var(--accent-danger)] tracking-tight leading-none">
-                            {outstandingAmount.toLocaleString()}
+                    <div className="flex items-baseline flex-wrap gap-x-1 -mt-1">
+                        <span className="text-xl sm:text-2xl font-bold text-[var(--text-muted)] opacity-70 leading-none">PKR</span>
+                        <span className="text-4xl sm:text-5xl lg:text-6xl font-black text-[var(--accent-danger)] tracking-tighter leading-none">
+                            {formatCurrency(outstandingAmount)}
                         </span>
                     </div>
                 )}
@@ -245,33 +254,33 @@ export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDeli
                     <Zap size={120} className="text-[var(--cort-orange)]" />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
-                </div>
-                <div className="relative z-10">
-                    <div className="text-5xl font-black text-[var(--cort-navy)] tracking-tight mb-2">
-                        <span className="text-2xl text-[var(--text-muted)] font-normal mr-1">PKR</span>
-                        {(data.estimatedSavings / 1000).toFixed(0)}k
-                    </div>
-                    <div className="text-xs text-[var(--text-muted)] mt-1">Estimated MTD</div>
-                </div>
+                <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
             </div>
+            <div className="relative z-10">
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--cort-navy)] tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1">
+                    <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
+                    {formatCurrency(data.estimatedSavings)}
+                </div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">Estimated MTD</div>
+            </div>
+        </div>
 
-            {/* Avg Trip Cost */}
-            <div className="bg-[var(--cort-navy)] p-5 rounded-[2rem] border border-[var(--cort-navy)] shadow-[0_2px_8px_rgba(0,0,0,0.08)] flex flex-col justify-between text-white hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
-                    <Activity size={120} className="text-white" />
-                </div>
-                <div className="relative z-10">
-                    <div className="text-white text-opacity-80 text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
-                </div>
-                <div className="relative z-10">
-                    <div className="text-5xl font-black text-white tracking-tight mb-2">
-                        <span className="text-2xl text-white text-opacity-60 font-normal mr-1">PKR</span>
-                        {(data.avgTripCost / 1000).toFixed(1)}k
-                    </div>
-                    <div className="text-xs text-white text-opacity-60 mt-1">Per completed ride</div>
-                </div>
+        {/* Avg Trip Cost */}
+        <div className="bg-[var(--cort-navy)] p-5 rounded-[2rem] border border-[var(--cort-navy)] shadow-[0_2px_8px_rgba(0,0,0,0.08)] flex flex-col justify-between text-white hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+                <Activity size={120} className="text-white" />
             </div>
+            <div className="relative z-10">
+                <div className="text-white text-opacity-80 text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
+            </div>
+            <div className="relative z-10">
+                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1">
+                    <span className="text-lg sm:text-xl lg:text-2xl text-white text-opacity-60 font-normal">PKR</span>
+                    {formatCurrency(data.avgTripCost)}
+                </div>
+                <div className="text-xs text-white text-opacity-60 mt-1">Per completed ride</div>
+            </div>
+        </div>
 
             {/* Active Chauffeur Rides */}
             <div className="bg-gradient-to-br from-white via-white to-[var(--surface-card)] p-5 rounded-[2rem] border border-[var(--border-light)] shadow-[0_2px_8px_rgba(0,0,0,0.08)] flex flex-col justify-between hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
@@ -325,10 +334,10 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
                 {/* Left: Title & Amount */}
                 <div className="flex flex-col justify-between">
                     <div>
-                        <div className="text-[var(--cort-navy)] text-[11px] font-black uppercase tracking-widest opacity-80 mb-1">Outstanding Balance</div>
-                        <div className="text-5xl font-black text-[var(--accent-danger)] tracking-tight">
-                            <span className="text-2xl text-[var(--text-muted)] font-normal mr-2">PKR</span>
-                            {amount.toLocaleString()}
+                        <div className="text-[var(--cort-navy)] text-xs sm:text-sm font-black uppercase tracking-widest opacity-80 mb-2">Outstanding Balance</div>
+                        <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-[var(--accent-danger)] tracking-tighter flex items-baseline flex-wrap gap-x-3">
+                            <span className="text-2xl sm:text-3xl text-[var(--text-muted)] font-normal">PKR</span>
+                            {formatCurrency(amount)}
                         </div>
                     </div>
 
