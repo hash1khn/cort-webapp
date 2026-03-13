@@ -50,7 +50,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
         { label: 'Employees travelling', value: data.employeesTraveling || 27, icon: <Users size={20} />, color: 'var(--cort-orange)' },
         { label: 'Shuttles running', value: data.shuttlesRunning || 3, icon: <Bus size={20} />, color: 'var(--cort-navy)' },
         { label: 'Chauffuer rides', value: data.chauffeurRides || 4, icon: <Car size={20} />, color: 'var(--cort-orange)' },
-        { label: 'Upcoming bookings', value: data.upcomingBookings || 11, icon: <Calendar size={20} />, color: 'var(--cort-navy)' },
+        { label: 'Upcoming rides', value: data.upcomingBookings || 11, icon: <Calendar size={20} />, color: 'var(--cort-navy)' },
     ];
 
     // Simulated Karachi coordinates for the map
