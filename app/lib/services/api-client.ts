@@ -841,6 +841,22 @@ class ApiClient {
         });
     }
 
+    async updateBookingInfo(id: number, data: {
+        package_selected?: string;
+        booking_type?: string;
+        no_of_days?: number;
+        total_duration_minutes?: number;
+        total_distance_km?: number;
+        expense_toll?: number;
+        expense_parking?: number;
+        daily_logs?: DailyTripLog[];
+    }): Promise<{ success: boolean }> {
+        return this.request(`/admin/bookings/${id}/info`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
     async addPayment(bookingId: number, data: AddPaymentRequest) {
         return this.request(`/admin/bookings/${bookingId}/payments`, {
             method: 'POST',

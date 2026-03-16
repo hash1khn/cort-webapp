@@ -15,7 +15,7 @@ interface DailyLogRow {
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: RecalculatePayload) => void;
+    onSubmit: (data: RecalculatePayload, mode: 'info' | 'recalculate') => void;
     booking: ChauffeurBooking | null;
     loading?: boolean;
 }
@@ -63,6 +63,9 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
     // Daily logs
     const [showDailyLogs, setShowDailyLogs] = useState(false);
     const [dailyLogs, setDailyLogs] = useState<DailyLogRow[]>([]);
+
+    // Mode: edit info only vs edit + regenerate invoice
+    const [mode, setMode] = useState<'info' | 'recalculate'>('recalculate');
 
     // Pre-fill with existing booking values when modal opens
     useEffect(() => {
@@ -151,7 +154,7 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
             }));
         }
 
-        onSubmit(payload);
+        onSubmit(payload, mode);
     };
 
     const tl = booking.chauffeur_trip_logs;
@@ -392,10 +395,49 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                         )}
                     </div>
 
-                    {/* Warning */}
+                    {/* ── Section 4: Mode Toggle ── */}
+                    <div>
+                        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                            What should happen after saving?
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setMode('info')}
+                                className={`flex flex-col gap-1 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                                    mode === 'info'
+                                        ? 'border-blue bg-blue/5'
+                                        : 'border-border hover:border-blue/30'
+                                }`}
+                            >
+                                <span className="text-sm font-semibold text-navy">Save Info Only</span>
+                                <span className="text-xs text-muted">
+                                    Updates booking data &amp; trip logs. Invoice stays unchanged.
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setMode('recalculate')}
+                                className={`flex flex-col gap-1 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                                    mode === 'recalculate'
+                                        ? 'border-orange bg-orange/5'
+                                        : 'border-border hover:border-orange/30'
+                                }`}
+                            >
+                                <span className="text-sm font-semibold text-navy">Save &amp; Regenerate Invoice</span>
+                                <span className="text-xs text-muted">
+                                    Recalculates all financials and replaces the invoice with new values.
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Warning — only shown in recalculate mode */}
+                    {mode === 'recalculate' && (
                     <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
                         ⚠️ This will <strong>delete the existing invoice</strong> and regenerate it with the new values. This action cannot be undone.
                     </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -420,7 +462,7 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                             </svg>
                         )}
-                        {loading ? "Recalculating..." : "Save & Regenerate Invoice"}
+                        {loading ? "Saving..." : mode === 'recalculate' ? "Save & Regenerate Invoice" : "Save Info Only"}
                     </button>
                 </div>
             </div>

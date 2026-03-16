@@ -261,19 +261,24 @@ export default function BookingsPage() {
     }
   }
 
-  async function handleRecalculate(data: any) {
+  async function handleRecalculate(data: any, mode: 'info' | 'recalculate') {
     if (!selectedBooking) return;
     setIsRecalculating(true);
     try {
-      const res: any = await apiClient.recalculateBooking(selectedBooking.id, data);
-      const result = res?.data ?? res;
-      alert(
-        `✅ Invoice regenerated!\n\nNew Invoice #${result?.invoice_number ?? ""}\nAmount: PKR ${Number(result?.invoice_amount ?? 0).toLocaleString()}`
-      );
+      if (mode === 'info') {
+        await apiClient.updateBookingInfo(selectedBooking.id, data);
+        alert("✅ Booking info updated. Invoice was not changed.");
+      } else {
+        const res: any = await apiClient.recalculateBooking(selectedBooking.id, data);
+        const result = res?.data ?? res;
+        alert(
+          `✅ Invoice regenerated!\n\nNew Invoice #${result?.invoice_number ?? ""}\nAmount: PKR ${Number(result?.invoice_amount ?? 0).toLocaleString()}`
+        );
+      }
       setShowRecalculateModal(false);
       loadData(currentPage, searchQuery, statusFilter);
     } catch (e: any) {
-      alert("Failed to recalculate: " + (e?.message || e));
+      alert("Failed: " + (e?.message || e));
     } finally {
       setIsRecalculating(false);
     }
