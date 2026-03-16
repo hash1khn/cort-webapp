@@ -311,72 +311,77 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 {/* Map Area */}
                 <div className="flex-1 relative order-2 lg:order-1">
                     <div className="absolute inset-0 p-4">
-                        <div className="w-full h-full rounded-4xl overflow-hidden border border-white/10 shadow-inner">
+                        {/* Outer wrapper — clips map to rounded corners */}
+                        <div className="w-full h-full rounded-4xl overflow-hidden border border-white/10 shadow-inner relative">
                             <Map
                                 height="100%"
                                 markers={markers}
                                 center={mapCenter}
                                 zoom={12}
-                                className="grayscale-[0.2] brightness-[0.9] contrast-[1.1]"
+                                className="!rounded-none !border-0 !shadow-none grayscale-[0.2] brightness-[0.9] contrast-[1.1]"
                             />
+                        </div>
 
-                            {/* Status chip */}
-                            <div className="absolute top-4 left-4 z-[500] flex flex-col gap-2 pointer-events-none">
-                                <div className={`backdrop-blur-md border p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg
-                                    ${liveCount > 0
-                                        ? 'bg-green-900/80 border-green-500/40'
-                                        : trips.length > 0
-                                            ? 'bg-navy/90 border-white/20'
-                                            : 'bg-navy/80 border-white/10'}`}>
-                                    <div className={`w-2 h-2 rounded-full flex-shrink-0
-                                        ${liveCount > 0 ? 'bg-green-400 animate-pulse'
-                                            : trips.length > 0 ? 'bg-orange animate-pulse'
-                                                : 'bg-white/30'}`} />
-                                    <span className="text-[10px] font-black text-white uppercase tracking-wider">
-                                        {tripsLoading
-                                            ? 'Syncing…'
-                                            : liveCount > 0
-                                                ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
-                                                : trips.length > 0
-                                                    ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
-                                                    : 'No active trips'}
+                        {/* Status chip — outside overflow-hidden so it isn't clipped */}
+                        <div className="absolute top-8 left-8 z-[500] flex flex-col gap-2 pointer-events-none">
+                            <div className={`backdrop-blur-md border p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg
+                                ${liveCount > 0
+                                    ? 'bg-green-900/80 border-green-500/40'
+                                    : trips.length > 0
+                                        ? 'bg-navy/90 border-white/20'
+                                        : 'bg-navy/80 border-white/10'}`}>
+                                <div className={`w-2 h-2 rounded-full flex-shrink-0
+                                    ${liveCount > 0 ? 'bg-green-400 animate-pulse'
+                                        : trips.length > 0 ? 'bg-orange animate-pulse'
+                                            : 'bg-white/30'}`} />
+                                <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                                    {tripsLoading
+                                        ? 'Syncing…'
+                                        : liveCount > 0
+                                            ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
+                                            : trips.length > 0
+                                                ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
+                                                : 'No active trips'}
+                                </span>
+                            </div>
+                            {lastRefreshed && (
+                                <div className="bg-navy/80 backdrop-blur-md border border-white/10 p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm">
+                                    <Clock size={10} className="text-white/50" />
+                                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider">
+                                        Synced {lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
-                                {lastRefreshed && (
-                                    <div className="bg-navy/80 backdrop-blur-md border border-white/10 p-1.5 px-3 rounded-xl flex items-center gap-2">
-                                        <Clock size={10} className="text-white/50" />
-                                        <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider">
-                                            Synced {lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
+                            )}
+                        </div>
 
-                            {/* Legend */}
-                            <div className="absolute bottom-4 right-4 z-[500] bg-navy/90 backdrop-blur-md border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
-                                <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Legend</span>
-                                {shuttleCount > 0 && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-base leading-none">🚌</span>
-                                        <span className="text-[11px] text-white font-bold">Shuttle ({shuttleCount})</span>
-                                    </div>
-                                )}
-                                {chauffeurCount > 0 && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-base leading-none">🚗</span>
-                                        <span className="text-[11px] text-white font-bold">Chauffeur ({chauffeurCount})</span>
-                                    </div>
-                                )}
-                                {liveCount > 0 && (
-                                    <div className="flex items-center gap-2 pt-1 border-t border-white/10">
-                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                                        <span className="text-[9px] text-green-400 font-black uppercase">Socket Live</span>
-                                    </div>
-                                )}
-                                {trips.length === 0 && !tripsLoading && (
-                                    <p className="text-[9px] text-white/30 font-bold">No trips today</p>
-                                )}
-                            </div>
+                        {/* Legend — outside overflow-hidden so it isn't clipped */}
+                        <div className="absolute bottom-8 right-8 z-[500] bg-navy backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
+                            <span className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1 font-mono">Live Legend</span>
+                            {hasShuttle && (
+                                <div className="flex items-center gap-3">
+                                    <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
+                                    <span className="text-xs text-white font-black tracking-tight">
+                                        Shuttle{shuttleCount > 0 ? ` (${shuttleCount})` : ''}
+                                    </span>
+                                </div>
+                            )}
+                            {hasChauffeur && (
+                                <div className="flex items-center gap-3">
+                                    <img src="/car_birdeye.png" alt="chauffeur" className="w-5 h-5 object-contain" />
+                                    <span className="text-xs text-white font-black tracking-tight">
+                                        Chauffeur{chauffeurCount > 0 ? ` (${chauffeurCount})` : ''}
+                                    </span>
+                                </div>
+                            )}
+                            {liveCount > 0 && (
+                                <div className="flex items-center gap-2 pt-1 border-t border-white/20">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_6px_#4ade80]" />
+                                    <span className="text-[9px] text-green-400 font-black uppercase tracking-wider">Socket Live</span>
+                                </div>
+                            )}
+                            {trips.length === 0 && !tripsLoading && (
+                                <p className="text-[9px] text-white/40 font-bold mt-1">No trips today</p>
+                            )}
                         </div>
                     </div>
                 </div>
