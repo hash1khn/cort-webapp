@@ -52,8 +52,21 @@ export interface ChauffeurTripLog {
     end_odometer: number | null;
     total_distance_km: number | null;
     total_duration_minutes: number | null;
+    expense_toll: number | null;
+    expense_parking: number | null;
     expense_toll_image_url?: string | null;
     expense_parking_image_url?: string | null;
+    base_package_cost?: number | null;
+    outstation_fee?: number | null;
+    overtime_hours?: number | null;
+    overtime_charge?: number | null;
+    service_subtotal?: number | null;
+    fuel_cost_calculated?: number | null;
+    expense_accommodation?: number | null;
+    expense_subtotal?: number | null;
+    sst_amount?: number | null;
+    total_invoice_amount?: number | null;
+    savings_amount?: number | null;
 }
 
 export interface DailyTripLog {

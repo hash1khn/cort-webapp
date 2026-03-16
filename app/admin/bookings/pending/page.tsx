@@ -10,6 +10,7 @@ import Pagination from "../../../components/ui/Pagination";
 import { cx } from "../../components/ui/cx";
 import { EndTripModal } from "./components/EndTripModal";
 import { DailyLogsModal } from "./components/DailyLogsModal";
+import { RecalculateModal } from "./components/RecalculateModal";
 import { PaymentForm } from "./components/PaymentForm";
 import { PaymentSummaryCard } from "./components/PaymentSummaryCard";
 import { PaymentHistoryList } from "./components/PaymentHistoryList";
@@ -47,6 +48,8 @@ export default function BookingsPage() {
   const [isApproving, setIsApproving] = useState(false);
   const [isStartingTrip, setIsStartingTrip] = useState(false);
   const [isEndingTrip, setIsEndingTrip] = useState(false);
+  const [showRecalculateModal, setShowRecalculateModal] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -258,6 +261,24 @@ export default function BookingsPage() {
     }
   }
 
+  async function handleRecalculate(data: any) {
+    if (!selectedBooking) return;
+    setIsRecalculating(true);
+    try {
+      const res: any = await apiClient.recalculateBooking(selectedBooking.id, data);
+      const result = res?.data ?? res;
+      alert(
+        `✅ Invoice regenerated!\n\nNew Invoice #${result?.invoice_number ?? ""}\nAmount: PKR ${Number(result?.invoice_amount ?? 0).toLocaleString()}`
+      );
+      setShowRecalculateModal(false);
+      loadData(currentPage, searchQuery, statusFilter);
+    } catch (e: any) {
+      alert("Failed to recalculate: " + (e?.message || e));
+    } finally {
+      setIsRecalculating(false);
+    }
+  }
+
   const handleStatusChange = async (b: ChauffeurBooking, newStatus: string) => {
     if (newStatus === 'ASSIGNED') {
       alert("⚠️ Cannot manually switch to 'ASSIGNED'.\n\nPlease click on the booking row to open the details modal, then select a vehicle and driver to Assign.");
@@ -328,6 +349,13 @@ export default function BookingsPage() {
         onClose={() => setShowDailyLogsModal(false)}
         onSubmit={handleUpdateDailyLogs}
         booking={selectedBooking}
+      />
+      <RecalculateModal
+        isOpen={showRecalculateModal}
+        onClose={() => setShowRecalculateModal(false)}
+        onSubmit={handleRecalculate}
+        booking={selectedBooking}
+        loading={isRecalculating}
       />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -812,6 +840,22 @@ export default function BookingsPage() {
                     className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-semibold text-white hover:opacity-95"
                   >
                     Complete Trip (Generate Invoice)
+                  </button>
+                </div>
+              )}
+
+              {selectedBooking.status === 'COMPLETED' && (
+                <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecalculateModal(true)}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange/40 bg-orange/10 px-4 text-sm font-semibold text-orange hover:bg-orange/20"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Override &amp; Recalculate Invoice
                   </button>
                 </div>
               )}
