@@ -15,20 +15,36 @@ function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
+function CardSection({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
+    return (
+        <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-500">
+            <div className="flex items-center gap-2.5 mb-6 px-1">
+                {icon && <div className="text-[var(--cort-orange)]">{icon}</div>}
+                <h3 className="text-[10px] font-black text-[var(--cort-navy)] uppercase tracking-[0.2em]">{title}</h3>
+            </div>
+            <div className="grid gap-x-6 gap-y-6 sm:grid-cols-2">
+                {children}
+            </div>
+        </div>
+    );
+}
+
 function Field({
     label,
     children,
     required,
+    className,
 }: {
     label: string;
     children: React.ReactNode;
     required?: boolean;
+    className?: string;
 }) {
     return (
-        <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        <label className={cx("flex flex-col gap-2", className)}>
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] px-1">
                 {label}
-                {required && <span className="text-rose-500"> *</span>}
+                {required && <span className="text-[var(--cort-orange)] ml-0.5"> *</span>}
             </span>
             {children}
         </label>
@@ -40,7 +56,7 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
         <input
             {...props}
             className={cx(
-                "h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700",
+                "h-12 rounded-xl border border-slate-200 bg-slate-50/30 px-4 text-sm font-medium outline-none transition-all placeholder:text-slate-400 focus:bg-white focus:border-[var(--cort-orange)] focus:ring-4 focus:ring-[var(--cort-orange)]/5 text-[var(--cort-navy)]",
                 props.className,
             )}
         />
@@ -49,13 +65,20 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     return (
-        <select
-            {...props}
-            className={cx(
-                "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700",
-                props.className,
-            )}
-        />
+        <div className="relative group">
+            <select
+                {...props}
+                className={cx(
+                    "w-full h-12 rounded-xl border border-slate-200 bg-slate-50/30 px-4 text-sm font-bold outline-none transition-all focus:bg-white focus:border-[var(--cort-orange)] focus:ring-4 focus:ring-[var(--cort-orange)]/5 text-[var(--cort-navy)] appearance-none",
+                    props.className,
+                )}
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] group-focus-within:text-[var(--cort-orange)] transition-colors">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </div>
     );
 }
 
@@ -274,333 +297,319 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const minDateTime = useMemo(() => new Date().toISOString().slice(0, 16), []);
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                <Field label="Service Type" required>
-                    <Select
-                        value={serviceCategory}
-                        onChange={(e) => setServiceCategory(e.target.value)}
-                        required
-                    >
-                        <option value="Chauffeur Ride">Chauffeur Ride</option>
-                        <option value="Event Shuttle">Event Shuttle</option>
-                    </Select>
-                </Field>
-
-                <Field label="City" required>
-                    <TextInput
-                        value={bookingCity}
-                        onChange={(e) => setBookingCity(e.target.value)}
-                        placeholder="Enter city (e.g. Karachi)"
-                        required
-                    />
-                </Field>
-
-                <Field label="Passenger" required={!isEventShuttle}>
-                    <Select
-                        value={passengerId}
-                        onChange={(e) => setPassengerId(e.target.value)}
-                        required={!isEventShuttle}
-                        autoFocus
-                    >
-                        <option value="">{isEventShuttle ? "— None (group booking)" : "Select employee"}</option>
-                        {activeEmployees.map((e) => (
-                            <option key={e.id} value={e.id}>
-                                {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''} {e.department ? `- ${e.department}` : ''}
-                            </option>
-                        ))}
-                    </Select>
-                    {isEventShuttle && (
-                        <div className="mt-1 text-xs text-slate-400 font-medium">
-                            Optional — shuttle serves multiple employees. Leave blank to assign to booking creator.
-                        </div>
-                    )}
-                </Field>
-
-                <Field label={isEventShuttle ? "Seater Type" : "Car Type"} required>
-                    {isEventShuttle ? (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+            <div className="flex flex-col gap-6">
+                {/* Service Configuration Section */}
+                <CardSection
+                    title="Service Configuration"
+                    icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+                >
+                    <Field label="Service Type" required>
                         <Select
-                            value={vehicleModel}
-                            onChange={(e) => setVehicleModel(e.target.value)}
+                            value={serviceCategory}
+                            onChange={(e) => setServiceCategory(e.target.value)}
                             required
                         >
-                            <option value="">Select seater type</option>
-                            {EVENT_SHUTTLE_SEATER_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
+                            <option value="Chauffeur Ride">Chauffeur Ride</option>
+                            <option value="Event Shuttle">Event Shuttle</option>
                         </Select>
-                    ) : (
-                        <Select
-                            value={vehicleModel}
-                            onChange={(e) => setVehicleModel(e.target.value)}
+                    </Field>
+
+                    <Field label="City" required>
+                        <TextInput
+                            value={bookingCity}
+                            onChange={(e) => setBookingCity(e.target.value)}
+                            placeholder="e.g. Karachi"
                             required
-                            disabled={allowedVehicleModels.length === 0}
+                        />
+                    </Field>
+
+                    <Field label="Passenger" required={!isEventShuttle} className="sm:col-span-2">
+                        <Select
+                            value={passengerId}
+                            onChange={(e) => setPassengerId(e.target.value)}
+                            required={!isEventShuttle}
+                            autoFocus
                         >
-                            <option value="">
-                                {allowedVehicleModels.length === 0
-                                    ? "No vehicles whitelisted"
-                                    : "Select vehicle"}
-                            </option>
-                            {allowedVehicleModels.map((model) => (
-                                <option key={model} value={model}>
-                                    {model}
+                            <option value="">{isEventShuttle ? "— None (group booking)" : "Select employee"}</option>
+                            {activeEmployees.map((e) => (
+                                <option key={e.id} value={e.id}>
+                                    {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''}
                                 </option>
                             ))}
-                            <option value="Other">Other (Special Request)</option>
                         </Select>
-                    )}
-                    {!isEventShuttle && allowedVehicleModels.length === 0 && (
-                        <div className="mt-1 text-xs text-rose-500 font-medium">
-                            No vehicles whitelisted. Contact Super Admin.
-                        </div>
-                    )}
-                </Field>
+                        {isEventShuttle && (
+                            <div className="mt-1.5 text-[10px] text-slate-400 font-bold px-1 uppercase tracking-tight">
+                                Optional — Leave blank for booking creator.
+                            </div>
+                        )}
+                    </Field>
+                </CardSection>
 
-                {!isEventShuttle && vehicleModel === "Other" && (
-                    <Field label="Specify Vehicle Model" required>
-                        <AutocompleteInput
-                            value={customVehicleModel}
-                            onChange={setCustomVehicleModel}
-                            options={pakistaniCars}
-                            placeholder="Enter vehicle model (e.g. Honda Civic)"
+                {/* Trip Details Section */}
+                <CardSection
+                    title="Ride Details"
+                    icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                >
+                    <Field label={isEventShuttle ? "Seater Type" : "Car Type"} required>
+                        {isEventShuttle ? (
+                            <Select
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                                required
+                            >
+                                <option value="">Select type</option>
+                                {EVENT_SHUTTLE_SEATER_OPTIONS.map((opt) => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </Select>
+                        ) : (
+                            <Select
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                                required
+                                disabled={allowedVehicleModels.length === 0}
+                            >
+                                <option value="">
+                                    {allowedVehicleModels.length === 0 ? "No vehicles whitelisted" : "Select vehicle"}
+                                </option>
+                                {allowedVehicleModels.map((model) => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                                <option value="Other">Other (Special Request)</option>
+                            </Select>
+                        )}
+                        {!isEventShuttle && allowedVehicleModels.length === 0 && (
+                            <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
+                                No vehicles whitelisted.
+                            </div>
+                        )}
+                    </Field>
+
+                    {!isEventShuttle && vehicleModel === "Other" && (
+                        <Field label="Specify Vehicle" required>
+                            <AutocompleteInput
+                                value={customVehicleModel}
+                                onChange={setCustomVehicleModel}
+                                options={pakistaniCars}
+                                placeholder="e.g. Honda Civic"
+                                required
+                            />
+                        </Field>
+                    )}
+
+                    <Field label="Usage Package" required>
+                        <Select
+                            value={packageType}
+                            onChange={(e) => setPackageType(e.target.value as any)}
+                            required
+                        >
+                            <optgroup label="Spot">
+                                <option value="5hr">5 Hours</option>
+                                <option value="10hr">10 Hours</option>
+                                <option value="24hr">24 Hours</option>
+                            </optgroup>
+                            <optgroup label="Monthly">
+                                <option value="monthly_10hr">Monthly (10h/day)</option>
+                                <option value="monthly_24hr">Monthly (24h/day)</option>
+                            </optgroup>
+                        </Select>
+                    </Field>
+
+                    <Field label="Trip Type" required>
+                        <Select
+                            value={tripType}
+                            onChange={(e) => setTripType(e.target.value as any)}
+                            required
+                        >
+                            <option value="in_city">In-City</option>
+                            <option value="out_station">Out-Station</option>
+                        </Select>
+                    </Field>
+
+                    <Field label="Number of Days" required>
+                        <TextInput
+                            type="number"
+                            min={1}
+                            value={noOfDays}
+                            onChange={(e) => setNoOfDays(parseInt(e.target.value) || 1)}
                             required
                         />
                     </Field>
-                )}
 
-                <Field label="Usage Package" required>
-                    <Select
-                        value={packageType}
-                        onChange={(e) =>
-                            setPackageType(
-                                e.target.value as "5hr" | "10hr" | "24hr" | "monthly_10hr" | "monthly_24hr",
-                            )
-                        }
-                        required
-                    >
-                        <optgroup label="Spot">
-                            <option value="5hr">5 Hours</option>
-                            <option value="10hr">10 Hours</option>
-                            <option value="24hr">24 Hours</option>
-                        </optgroup>
-                        <optgroup label="Monthly">
-                            <option value="monthly_10hr">Monthly (10 Hours Daily)</option>
-                            <option value="monthly_24hr">Monthly (24 Hours Daily)</option>
-                        </optgroup>
-                    </Select>
-                </Field>
-
-                <Field label="Trip Type" required>
-                    <Select
-                        value={tripType}
-                        onChange={(e) => setTripType(e.target.value as "in_city" | "out_station")}
-                        required
-                    >
-                        <option value="in_city">In-City</option>
-                        <option value="out_station">Out-Station</option>
-                    </Select>
-                </Field>
-
-                <Field label="Number of Days" required>
-                    <TextInput
-                        type="number"
-                        min={1}
-                        value={noOfDays}
-                        onChange={(e) => setNoOfDays(parseInt(e.target.value) || 1)}
-                        placeholder="e.g. 1"
-                        required
-                    />
-                </Field>
-
-                {tripType === "out_station" && (
-                    <div className="sm:col-span-2">
-                        <Field label="Destination Cities" required>
-                            <div className="flex gap-2">
-                                <TextInput
-                                    value={cityInput}
-                                    onChange={(e) => setCityInput(e.target.value)}
-                                    onKeyDown={handleCityKeyDown}
-                                    placeholder="Enter city name (e.g. Lahore)"
-                                    className="flex-1"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleAddCity}
-                                    disabled={!cityInput.trim()}
-                                    className="rounded-xl bg-indigo-50 px-5 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
-                                >
-                                    Add
-                                </button>
-                            </div>
-                            {destinationCities.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {destinationCities.map((city, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700 border border-slate-200"
-                                        >
-                                            <span>{city}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveCity(index)}
-                                                className=" rounded-full p-0.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                                            >
-                                                &times;
-                                            </button>
-                                        </div>
-                                    ))}
+                    {tripType === "out_station" && (
+                        <div className="sm:col-span-2">
+                            <Field label="Destination Cities" required>
+                                <div className="flex gap-2">
+                                    <TextInput
+                                        value={cityInput}
+                                        onChange={(e) => setCityInput(e.target.value)}
+                                        onKeyDown={handleCityKeyDown}
+                                        placeholder="Add city..."
+                                        className="flex-1"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleAddCity}
+                                        disabled={!cityInput.trim()}
+                                        className="h-12 px-6 rounded-xl bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] text-xs font-black uppercase hover:bg-[var(--cort-orange)]/20 transition-all active:scale-95 disabled:opacity-50"
+                                    >
+                                        Add
+                                    </button>
                                 </div>
-                            )}
-                            {destinationCities.length === 0 && (
-                                <div className="mt-1 text-xs text-rose-500 font-medium">At least one destination city is required</div>
-                            )}
-                        </Field>
-                    </div>
-                )}
+                                {destinationCities.length > 0 && (
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        {destinationCities.map((city, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center gap-2 rounded-full bg-slate-50 px-4 py-1.5 text-xs font-black text-[var(--cort-navy)] border border-slate-200 shadow-sm"
+                                            >
+                                                <span>{city}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveCity(index)}
+                                                    className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </Field>
+                        </div>
+                    )}
+                </CardSection>
 
-                <Field label="Time" required>
-                    <Select
-                        value={timeType}
-                        onChange={(e) => setTimeType(e.target.value as "now" | "scheduled")}
-                        required
-                    >
-                        <option value="now">Now (Immediate Dispatch)</option>
-                        <option value="scheduled">Scheduled</option>
-                    </Select>
-                </Field>
-
-                {timeType === "scheduled" && (
-                    <Field label="Scheduled Date & Time" required>
-                        <TextInput
-                            type="datetime-local"
-                            value={scheduledDateTime}
-                            onChange={(e) => setScheduledDateTime(e.target.value)}
-                            min={minDateTime}
-                            required={timeType === "scheduled"}
-                        />
+                {/* Logistics Section */}
+                <CardSection
+                    title="Logistics & Schedule"
+                    icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+                >
+                    <Field label="Pickup Time" required>
+                        <Select
+                            value={timeType}
+                            onChange={(e) => setTimeType(e.target.value as any)}
+                            required
+                        >
+                            <option value="now">Now (Quick Dispatch)</option>
+                            <option value="scheduled">Scheduled Later</option>
+                        </Select>
                     </Field>
-                )}
 
-                <div className="sm:col-span-2">
-                    <Field label="Pickup Address" required>
+                    {timeType === "scheduled" && (
+                        <Field label="Scheduled At" required>
+                            <TextInput
+                                type="datetime-local"
+                                value={scheduledDateTime}
+                                onChange={(e) => setScheduledDateTime(e.target.value)}
+                                min={minDateTime}
+                                required
+                            />
+                        </Field>
+                    )}
+
+                    <Field label="Exact Address" required className="sm:col-span-2">
                         <TextInput
                             value={pickupAddress}
                             onChange={(e) => setPickupAddress(e.target.value)}
-                            placeholder="Enter full pickup address manually"
+                            placeholder="House #, Street, Landmark..."
                             required
                         />
-                        {/* Helper text */}
-                        <div className="mt-1.5 text-xs text-slate-400 font-medium">
-                            Enter the specific address details (House #, Street, famous landmark).
-                        </div>
                     </Field>
-                </div>
-            </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5">
-                <div className="mb-4">
-                    <div className="text-xs font-bold tracking-wider text-slate-500 uppercase">Interactive Map</div>
-                    <div className="mt-1 text-sm text-slate-500">
-                        Search or tap on the map to pin the exact pickup location.
-                    </div>
-                </div>
+                    <div className="sm:col-span-2 space-y-4">
+                        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 mt-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="text-[10px] font-black text-[var(--cort-navy)] uppercase tracking-wider">Interactive Pin</div>
+                                {pickupLat && pickupLng && (
+                                    <div className="text-[9px] font-mono text-[var(--cort-orange)] font-bold bg-[var(--cort-orange)]/5 px-2 py-1 rounded-lg">
+                                        {pickupLat.toFixed(4)}, {pickupLng.toFixed(4)}
+                                    </div>
+                                )}
+                            </div>
 
-                {/* Map Search Bar */}
-                <div className="relative mb-3 z-[1000] max-w-sm">
-                    <TextInput
-                        onChange={(e) => search(e.target.value)}
-                        placeholder="Search location..."
-                        className="w-full pr-10 bg-white"
-                    />
-                    {isLoadingSuggestions && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+                            {/* Map Search Bar */}
+                            <div className="relative mb-4 z-[50]">
+                                <TextInput
+                                    onChange={(e) => search(e.target.value)}
+                                    placeholder="Search location on map..."
+                                    className="w-full pl-11 bg-white"
+                                />
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                </div>
+                                {isLoadingSuggestions && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--cort-orange)] border-t-transparent"></div>
+                                    </div>
+                                )}
+
+                                {/* Suggestions Dropdown */}
+                                {suggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 mt-2 w-full rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-60 overflow-auto z-[60] py-2">
+                                        {suggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion.place_id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setPickupLat(suggestion.lat);
+                                                    setPickupLng(suggestion.lng);
+                                                    setPickupAddress(suggestion.display_name);
+                                                    clearSuggestions();
+                                                    refreshToken();
+                                                }}
+                                                className="w-full px-5 py-3 text-left hover:bg-slate-50 transition-colors group"
+                                            >
+                                                <div className="text-xs font-black text-[var(--cort-navy)] group-hover:text-[var(--cort-orange)] transition-colors">{suggestion.name}</div>
+                                                <div className="text-[10px] text-slate-400 mt-1 truncate font-medium">{suggestion.display_name}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-inner bg-white">
+                                <Map
+                                    height="280px"
+                                    center={pickupLat && pickupLng ? [pickupLat, pickupLng] : undefined}
+                                    markers={pickupLat && pickupLng ? [{ id: "pickup", position: [pickupLat, pickupLng] as any, label: "Pickup", color: "#FF6B00" }] : []}
+                                    onMapClick={(lat, lng) => { setPickupLat(lat); setPickupLng(lng); }}
+                                />
+                            </div>
+                            <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--cort-orange)] animate-pulse"></span>
+                                Pin exact location for seamless dispatch
+                            </div>
                         </div>
-                    )}
-
-                    {/* Suggestions Dropdown */}
-                    {suggestions.length > 0 && (
-                        <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-slate-100 bg-white shadow-xl max-h-60 overflow-auto z-[2000]">
-                            {suggestions.map((suggestion) => (
-                                <button
-                                    key={suggestion.place_id}
-                                    type="button"
-                                    onClick={() => {
-                                        setPickupLat(suggestion.lat);
-                                        setPickupLng(suggestion.lng);
-                                        setPickupAddress(suggestion.display_name);
-                                        clearSuggestions();
-                                        refreshToken();
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 border-b border-slate-50 last:border-b-0 transition-colors"
-                                >
-                                    <div className="font-bold text-slate-800">{suggestion.name || 'Location'}</div>
-                                    <div className="text-xs text-slate-500 mt-0.5 truncate">{suggestion.display_name}</div>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                    <Map
-                        height="300px"
-                        center={pickupLat && pickupLng ? [pickupLat, pickupLng] : undefined}
-                        markers={
-                            pickupLat && pickupLng
-                                ? [
-                                    {
-                                        id: "pickup",
-                                        position: [pickupLat, pickupLng] as [number, number],
-                                        label: "Pickup Location",
-                                        color: "#22c55e",
-                                    },
-                                ]
-                                : []
-                        }
-                        onMapClick={(lat, lng) => {
-                            setPickupLat(lat);
-                            setPickupLng(lng);
-                        }}
-                    />
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs font-medium text-slate-500">
-                    <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span>Exact location required for driver</span>
                     </div>
-                    {pickupLat && pickupLng && (
-                        <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
-                            {pickupLat.toFixed(5)}, {pickupLng.toFixed(5)}
-                        </span>
-                    )}
-                </div>
+                </CardSection>
             </div>
 
             {error && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 font-medium flex items-center gap-2">
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    {error}
+                <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-xs text-rose-600 font-black uppercase tracking-tight flex items-start gap-3 animate-shake">
+                    <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span>{error}</span>
                 </div>
             )}
 
-            <div className="flex items-center gap-3 justify-end pt-5 border-t border-slate-100">
+            <div className="flex items-center gap-4 justify-end pt-8 border-t border-slate-100">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                    className="h-12 px-8 rounded-xl border border-slate-200 text-xs font-black uppercase text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
                 >
-                    Cancel
+                    Discard
                 </button>
                 <button
                     type="submit"
                     disabled={!canSubmit || isSubmitting}
-                    className="inline-flex h-11 min-w-[140px] items-center justify-center rounded-xl bg-slate-900 px-6 text-sm font-bold text-white shadow-lg shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none transition-all"
+                    className="h-12 min-w-[180px] px-10 rounded-xl bg-[var(--cort-navy)] text-xs font-black uppercase text-white shadow-xl shadow-[var(--cort-navy)]/10 hover:bg-[#0c1a45] hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
                 >
                     {isSubmitting ? (
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                     ) : (
-                        "Create Booking"
+                        "Confirm Booking"
                     )}
                 </button>
             </div>
