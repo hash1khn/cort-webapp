@@ -44,6 +44,10 @@ export type DashboardStats = {
         chauffeurRides: number;
         upcomingBookings: number;
     };
+    servicesEnabled?: {
+        chauffeur_enabled: boolean;
+        shuttle_enabled: boolean;
+    };
     costLeakage: {
         insights: {
             id: string;
