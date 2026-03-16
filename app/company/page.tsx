@@ -129,14 +129,14 @@ export default function CompanyDashboardPage() {
       events: 0,
       eventShuttle: 0,
     },
-    mobility: (dashboardStats as any).mobility || {
+    mobility: dashboardStats.mobility ?? {
       activeRides: 0,
       employeesTraveling: 0,
       shuttlesRunning: 0,
       chauffeurRides: 0,
       upcomingBookings: 0
     },
-    costLeakage: (dashboardStats as any).costLeakage || { insights: [] }
+    costLeakage: dashboardStats.costLeakage ?? { insights: [] }
   } : null;
 
   // Real data overrides where possible (example)
@@ -168,6 +168,9 @@ export default function CompanyDashboardPage() {
       </div>
     );
   }
+
+  const hasShuttle = company.services_enabled?.shuttle_enabled ?? false;
+  const hasChauffeur = company.services_enabled?.chauffeur_enabled ?? false;
 
   return (
     <div className="flex flex-col gap-6 pb-12 relative max-w-[1600px] mx-auto">
@@ -227,9 +230,11 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* Value Delivered - Hero Row */}
-      <div className="w-full dashboard-section dashboard-section-delay-3">
-        <ValueDeliveredSection data={data.valueDelivered} />
-      </div>
+      {(hasChauffeur || hasShuttle) && (
+        <div className="w-full dashboard-section dashboard-section-delay-3">
+          <ValueDeliveredSection data={data.valueDelivered} />
+        </div>
+      )}
 
       {/* Live Mobility Command Center - NEW */}
       <div className="w-full dashboard-section dashboard-section-delay-3">
@@ -240,9 +245,11 @@ export default function CompanyDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-max">
 
         {/* We're Taking Care of This */}
-        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-2">
-          <TakingCareSection data={data.takingCare} />
-        </div>
+        {hasChauffeur && (
+          <div className="lg:col-span-1 dashboard-section dashboard-section-delay-2">
+            <TakingCareSection data={data.takingCare} />
+          </div>
+        )}
 
         {/* Employee Usage - Wider card */}
         <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
@@ -250,21 +257,27 @@ export default function CompanyDashboardPage() {
         </div>
 
         {/* Cost Visibility */}
-        <div className="lg:col-span-2 dashboard-section dashboard-section-delay-4">
-          <CostVisibilitySection
-            data={data.cost}
-            onEditBudget={() => setIsBudgetModalOpen(true)}
-          />
-        </div>
+        {hasChauffeur && (
+          <div className="lg:col-span-2 dashboard-section dashboard-section-delay-4">
+            <CostVisibilitySection
+              data={data.cost}
+              onEditBudget={() => setIsBudgetModalOpen(true)}
+            />
+          </div>
+        )}
 
         {/* Smart Insights */}
-        <div className="lg:col-span-2 dashboard-section dashboard-section-delay-5">
-          <SmartInsightsSection insights={data.smartInsights} seasonality={data.seasonality} />
-        </div>
+        {(hasChauffeur || hasShuttle) && (
+          <div className="lg:col-span-2 dashboard-section dashboard-section-delay-5">
+            <SmartInsightsSection insights={data.smartInsights} seasonality={data.seasonality} />
+          </div>
+        )}
 
-        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-4">
-          <ServiceUsageSection data={data.services} />
-        </div>
+        {(hasChauffeur || hasShuttle) && (
+          <div className="lg:col-span-1 dashboard-section dashboard-section-delay-4">
+            <ServiceUsageSection data={data.services} />
+          </div>
+        )}
 
         <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
           <AdoptionHealthSection data={data.adminHealth} />
@@ -272,9 +285,11 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* Power Insights (Optimization) - Enhanced with Cost Leakage Detector */}
-      <div className="dashboard-section dashboard-section-delay-5">
-        <CostLeakageDetector data={data.costLeakage} />
-      </div>
+      {hasChauffeur && (
+        <div className="dashboard-section dashboard-section-delay-5">
+          <CostLeakageDetector data={data.costLeakage} />
+        </div>
+      )}
 
       {/* Premium Teaser */}
       <PremiumTeaser />

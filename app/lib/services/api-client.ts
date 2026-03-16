@@ -865,6 +865,21 @@ class ApiClient {
         return this.request<any>(`/companies/${companyId}/dashboard-stats`);
     }
 
+    async getTodayShuttleTrips(companyId: string | number): Promise<any> {
+        return this.request<any>(`/shuttle-trips/today?company_id=${companyId}`);
+    }
+
+    async getActiveBookingLocations(): Promise<any> {
+        return this.request<any>(`/admin/bookings/active-locations`);
+    }
+
+    async getActiveCompanyChauffeurBookings(companyId: string | number): Promise<any> {
+        // Fetch bookings that are currently in-progress for this company
+        return this.request<any>(
+            `/companies/${companyId}/chauffeur-bookings?status=IN_PROGRESS&limit=50`,
+        );
+    }
+
     async getEmployeesByCompany(companyId: string | number): Promise<any> {
         return this.request<any>(`/employees/company/${companyId}`);
     }

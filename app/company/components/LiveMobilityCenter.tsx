@@ -1,28 +1,35 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Activity,
     Users,
     Bus,
     Car,
     Calendar,
     AlertTriangle,
-    Maximize2,
-    MapPin,
     Navigation,
-    Clock
+    Clock,
+    RefreshCw,
+    Radio,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Card } from './DashboardComponents';
+import { apiClient } from '../../lib/services/api-client';
+import { useAppSelector } from '../../lib/store/hooks';
+import { selectDashboardStats } from '../../lib/store/slices/dashboardSlice';
+import { selectCompany } from '../../lib/store/slices/companySlice';
+import { useLiveMobilityTracking } from '../../lib/hooks/useLiveMobilityTracking';
+import type { MapMarker } from '../../admin/ui/Map';
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('../../admin/ui/Map'), {
     ssr: false,
-    loading: () => <div className="w-full h-full bg-[var(--surface-muted)] animate-pulse flex items-center justify-center rounded-2xl">
-        <span className="text-[var(--text-muted)] text-sm font-medium">Initializing Real-time Map...</span>
-    </div>
+    loading: () => (
+        <div className="w-full h-full bg-[var(--surface-muted)] animate-pulse flex items-center justify-center rounded-2xl">
+            <span className="text-[var(--text-muted)] text-sm font-medium">Initializing Real-time Map...</span>
+        </div>
+    ),
 });
 
 interface LiveMobilityCenterProps {
@@ -35,44 +42,220 @@ interface LiveMobilityCenterProps {
     };
 }
 
+// ── Internal trip registry ────────────────────────────────────────────────────
+interface TripEntry {
+    id: number;
+    type: 'shuttle' | 'chauffeur';
+    label: string;
+    /** Last known REST position (stop coord / pickup coord) */
+    restLat: number | null;
+    restLng: number | null;
+}
+
 const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const router = useRouter();
-    const [currentTime, setCurrentTime] = useState(new Date());
+    const company = useAppSelector(selectCompany);
+    const dashboardStats = useAppSelector(selectDashboardStats);
 
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [trips, setTrips] = useState<TripEntry[]>([]);
+    const [tripsLoading, setTripsLoading] = useState(true);
+    const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+    const [defaultCenter, setDefaultCenter] = useState<[number, number]>([24.8607, 67.0011]);
+
+    // Clock tick
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Simulated data based on requirements
+    // ── Service gates ──────────────────────────────────────────────────────────
+    const hasShuttle = company?.services_enabled?.shuttle_enabled ?? false;
+    const hasChauffeur = company?.services_enabled?.chauffeur_enabled ?? false;
+
+    // ── Real counters from mobility block ─────────────────────────────────────
+    const mobility = dashboardStats?.mobility ?? data;
     const stats = [
-        { label: 'Active rides', value: data.activeRides || 14, icon: <Navigation size={20} />, color: 'var(--cort-navy)' },
-        { label: 'Employees travelling', value: data.employeesTraveling || 27, icon: <Users size={20} />, color: 'var(--cort-orange)' },
-        { label: 'Shuttles running', value: data.shuttlesRunning || 3, icon: <Bus size={20} />, color: 'var(--cort-navy)' },
-        { label: 'Chauffuer rides', value: data.chauffeurRides || 4, icon: <Car size={20} />, color: 'var(--cort-orange)' },
-        { label: 'Upcoming rides', value: data.upcomingBookings || 11, icon: <Calendar size={20} />, color: 'var(--cort-navy)' },
-    ];
+        { label: 'Active rides',         value: mobility.activeRides,        icon: <Navigation size={20} />, show: true },
+        { label: 'Employees travelling', value: mobility.employeesTraveling,  icon: <Users size={20} />,     show: true },
+        { label: 'Shuttles running',     value: mobility.shuttlesRunning,     icon: <Bus size={20} />,       show: hasShuttle },
+        { label: 'Chauffeur rides',      value: mobility.chauffeurRides,      icon: <Car size={20} />,       show: hasChauffeur },
+        { label: 'Upcoming rides',       value: mobility.upcomingBookings,    icon: <Calendar size={20} />,  show: true },
+    ].filter(s => s.show);
 
-    // Simulated Karachi coordinates for the map
-    const markers: any[] = [
-        // Shuttles
-        { id: 'shuttle-1', position: [24.8719, 67.0593], label: 'Shuttle Route 1 - Occupancy 85%', id_type: 'shuttle' },
-        { id: 'shuttle-2', position: [24.9462, 67.1238], label: 'Shuttle Route 4 - Delayed 5m', id_type: 'shuttle' },
-        { id: 'shuttle-3', position: [24.8138, 67.0267], label: 'Shuttle Route 5 - On Track', id_type: 'shuttle' },
-        // Chauffeur rides
-        { id: 'car-1', position: [24.8607, 67.0011], label: 'Chauffeur Ride - active', id_type: 'chauffeur' },
-        { id: 'car-2', position: [24.8924, 67.0747], label: 'Chauffeur Ride - active', id_type: 'chauffeur' },
-        { id: 'car-3', position: [24.8348, 67.0659], label: 'Chauffeur Ride - active', id_type: 'chauffeur' },
-        { id: 'car-4', position: [24.9180, 67.0971], label: 'Chauffeur Ride - active', id_type: 'chauffeur' },
-        // Employee pickups
-        { id: 'pickup-1', position: [24.8655, 67.0250], label: 'Employee Pickup: Ahmed S.', id_type: 'pickup' },
-        { id: 'pickup-2', position: [24.9200, 67.1100], label: 'Employee Pickup: Sara K.', id_type: 'pickup' },
-    ];
+    // ── Fetch active trip IDs: shuttles + chauffeur ────────────────────────────
+    const fetchActiveTrips = useCallback(async () => {
+        const companyId = company?.id;
+        if (!companyId) return;
 
+        setTripsLoading(true);
+        try {
+            const [shuttleResp, chauffeurResp] = await Promise.allSettled([
+                hasShuttle
+                    ? apiClient.getTodayShuttleTrips(companyId)
+                    : Promise.resolve(null),
+                hasChauffeur
+                    ? apiClient.getActiveCompanyChauffeurBookings(companyId)
+                    : Promise.resolve(null),
+            ]);
+
+            const collected: TripEntry[] = [];
+
+            // ── Shuttle trips ────────────────────────────────────────────────
+            if (hasShuttle && shuttleResp.status === 'fulfilled' && shuttleResp.value !== null) {
+                const raw = shuttleResp.value;
+                // The today endpoint returns a plain array directly
+                const list: any[] = Array.isArray(raw)
+                    ? raw
+                    : Array.isArray(raw?.data?.data)
+                        ? raw.data.data
+                        : Array.isArray(raw?.data)
+                            ? raw.data
+                            : [];
+                const active = list.filter((t: any) =>
+                    ['STARTED', 'IN_PROGRESS'].includes(t.status ?? ''),
+                );
+
+                for (const trip of active) {
+                    const routeName = trip.routes?.name ?? `Route ${trip.route_id}`;
+                    const direction = trip.direction === 'MORNING' ? '↑ AM' : '↓ PM';
+                    const occupancy = trip.routes?._count?.employee_route_assignments ?? null;
+                    const occupancyStr = occupancy !== null ? ` · ${occupancy} emp` : '';
+
+                    const stops: any[] = trip.route_stops_with_coords ?? trip.routes?.route_stops ?? [];
+                    let restLat: number | null = null;
+                    let restLng: number | null = null;
+
+                    const current = stops.find((s: any) => s.id === trip.current_stop_id);
+                    if (current?.lat && current?.lng) {
+                        restLat = current.lat;
+                        restLng = current.lng;
+                    } else {
+                        const first = stops.find((s: any) => s.lat && s.lng);
+                        if (first) { restLat = first.lat; restLng = first.lng; }
+                    }
+
+                    if (collected.length === 0 && restLat !== null && restLng !== null) {
+                        setDefaultCenter([restLat, restLng]);
+                    }
+
+                    collected.push({
+                        id: trip.id as number,
+                        type: 'shuttle',
+                        label: `${routeName} ${direction} — ${trip.status}${occupancyStr}`,
+                        restLat,
+                        restLng,
+                    });
+                }
+            }
+
+            // ── Chauffeur bookings ────────────────────────────────────────────
+            if (hasChauffeur && chauffeurResp.status === 'fulfilled' && chauffeurResp.value !== null) {
+                const raw = chauffeurResp.value;
+                // SerializePaginatedResponse wraps as { data: { data: [], pagination: {} } }
+                // Handle all possible shapes defensively
+                const list: any[] = Array.isArray(raw)
+                    ? raw
+                    : Array.isArray(raw?.data?.data)
+                        ? raw.data.data
+                        : Array.isArray(raw?.data)
+                            ? raw.data
+                            : [];
+
+                for (const booking of list) {
+                    const passengerName =
+                        booking.passenger_name ??
+                        booking.users_chauffeur_bookings_passenger_idTousers?.full_name ??
+                        'Passenger';
+
+                    collected.push({
+                        id: booking.id as number,
+                        type: 'chauffeur',
+                        label: `Chauffeur · ${passengerName} — ${booking.status}`,
+                        restLat: booking.pickup_lat ?? null,
+                        restLng: booking.pickup_lng ?? null,
+                    });
+                }
+            }
+
+            setTrips(collected);
+            setLastRefreshed(new Date());
+        } catch (err) {
+            console.error('[LiveMobilityCenter] fetchActiveTrips error', err);
+        } finally {
+            setTripsLoading(false);
+        }
+    }, [company?.id, hasShuttle, hasChauffeur]);
+
+    useEffect(() => {
+        fetchActiveTrips();
+        const interval = setInterval(fetchActiveTrips, 60_000);
+        return () => clearInterval(interval);
+    }, [fetchActiveTrips]);
+
+    // ── Live socket tracking ───────────────────────────────────────────────────
+    // Stable reference: only re-create when the set of ids/types changes
+    const trackingInput = useMemo(
+        () => trips.map((t) => ({ id: t.id, type: t.type })),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [trips.map((t) => `${t.type}:${t.id}`).join(',')],
+    );
+    const { vehicleCoords, isConnected } = useLiveMobilityTracking(trackingInput);
+
+    // ── Build map markers: socket coords override REST fallback ───────────────
+    const markers = useMemo((): MapMarker[] => {
+        return trips.flatMap((trip) => {
+            const live = vehicleCoords[String(trip.id)];
+            const hasLive = live && live.updatedAt > 0 && live.lat !== 0 && live.lng !== 0;
+            const lat = hasLive ? live.lat : trip.restLat;
+            const lng = hasLive ? live.lng : trip.restLng;
+            if (lat === null || lng === null) return [];
+            return [{
+                id: `${trip.type}-${trip.id}`,
+                position: [lat, lng] as [number, number],
+                label: trip.label + (hasLive ? ' 🔴' : ''),
+                type: trip.type,
+            }];
+        });
+    }, [trips, vehicleCoords]);
+
+    // Auto-center: prefer first live socket coord, then first REST coord
+    const mapCenter = useMemo((): [number, number] => {
+        for (const trip of trips) {
+            const live = vehicleCoords[String(trip.id)];
+            if (live && live.updatedAt > 0 && live.lat !== 0) return [live.lat, live.lng];
+        }
+        return defaultCenter;
+    }, [vehicleCoords, trips, defaultCenter]);
+
+    const liveCount = useMemo(
+        () => Object.values(vehicleCoords).filter((c) => c.updatedAt > 0 && c.lat !== 0).length,
+        [vehicleCoords],
+    );
+    const shuttleCount = trips.filter((t) => t.type === 'shuttle').length;
+    const chauffeurCount = trips.filter((t) => t.type === 'chauffeur').length;
+
+    // ── Service performance ────────────────────────────────────────────────────
+    const onTimeRate = useMemo(() => {
+        if (!hasChauffeur) return null;
+        if (!dashboardStats || dashboardStats.chauffeur.completedThisMonth <= 0) return null;
+        return Math.min(100, Math.round(
+            ((dashboardStats.chauffeur.completedThisMonth - (dashboardStats.chauffeur.unassignedBookings || 0))
+                / dashboardStats.chauffeur.completedThisMonth) * 100,
+        ));
+    }, [dashboardStats, hasChauffeur]);
+
+    const fleetUtilization = useMemo(() => {
+        if (!hasShuttle) return null;
+        if (!dashboardStats || dashboardStats.shuttle.totalRoutes === 0) return null;
+        return Math.min(100, Math.round((mobility.shuttlesRunning / dashboardStats.shuttle.totalRoutes) * 100));
+    }, [dashboardStats, mobility.shuttlesRunning, hasShuttle]);
+
+    // ── Render ─────────────────────────────────────────────────────────────────
     return (
         <Card className="p-0 overflow-hidden border-none shadow-2xl bg-navy min-h-[600px] flex flex-col rounded-4xl">
             {/* Header Area */}
-            <div className="m-4 mb-0 p-6  flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-navy text-white rounded-4xl border border-white/5">
+            <div className="m-4 mb-0 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-navy text-white rounded-4xl border border-white/5">
                 <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md p-4 px-6 rounded-3xl border border-white/10">
                     <div className="relative">
                         <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-25"></div>
@@ -80,24 +263,37 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                     </div>
                     <div>
                         <h2 className="text-xl font-black tracking-tight uppercase text-white">Live Mobility Command Center</h2>
-                        <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-0">Real-time Operational Overview • Karachi</p>
+                        <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-0">Real-time Operational Overview</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
+                    {/* Socket live indicator */}
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors
+                        ${isConnected
+                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                            : 'bg-white/5 border-white/10 text-white/40'}`}>
+                        <Radio size={11} className={isConnected ? 'text-green-400' : 'text-white/30'} />
+                        {isConnected ? 'Live' : 'Connecting…'}
+                    </div>
+
                     <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Global Ops Time</span>
+                        <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Ops Time</span>
                         <div className="font-mono text-lg font-bold text-orange">
                             {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
                     </div>
-                    {/* <button className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
-                        <Maximize2 size={18} className="text-white" />
-                    </button> */}
+                    <button
+                        onClick={fetchActiveTrips}
+                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+                        title="Refresh trips"
+                    >
+                        <RefreshCw size={16} className={`text-white ${tripsLoading ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
             </div>
 
-            {/* Counters Strip - Styled as a segmented card */}
+            {/* Counters Strip */}
             <div className="m-4 mt-5 px-6 py-4 bg-white/5 border border-white/10 rounded-4xl grid grid-cols-2 md:grid-cols-5 gap-4 shadow-sm">
                 {stats.map((stat, idx) => (
                     <div key={idx} className="flex flex-col">
@@ -115,113 +311,208 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 {/* Map Area */}
                 <div className="flex-1 relative order-2 lg:order-1">
                     <div className="absolute inset-0 p-4">
-                        <div className="w-full h-full rounded-4xl overflow-hidden border border-white/10 shadow-inner group">
+                        <div className="w-full h-full rounded-4xl overflow-hidden border border-white/10 shadow-inner">
                             <Map
                                 height="100%"
-                                markers={markers.map(m => ({
-                                    ...m,
-                                    type: m.id_type // Map.tsx uses type to determine icon type
-                                }))}
-                                center={[24.8607, 67.0011]}
+                                markers={markers}
+                                center={mapCenter}
                                 zoom={12}
                                 className="grayscale-[0.2] brightness-[0.9] contrast-[1.1]"
                             />
 
-                            {/* Map Floating Controls */}
-                            <div className="absolute top-8 left-8 z-[50] flex flex-col gap-2">
-                                <div className="bg-[var(--cort-navy)] backdrop-blur-md border border-white/20 p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                    <span className="text-[10px] font-black text-white uppercase tracking-wider">Network Healthy</span>
+                            {/* Status chip */}
+                            <div className="absolute top-4 left-4 z-[500] flex flex-col gap-2 pointer-events-none">
+                                <div className={`backdrop-blur-md border p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg
+                                    ${liveCount > 0
+                                        ? 'bg-green-900/80 border-green-500/40'
+                                        : trips.length > 0
+                                            ? 'bg-navy/90 border-white/20'
+                                            : 'bg-navy/80 border-white/10'}`}>
+                                    <div className={`w-2 h-2 rounded-full flex-shrink-0
+                                        ${liveCount > 0 ? 'bg-green-400 animate-pulse'
+                                            : trips.length > 0 ? 'bg-orange animate-pulse'
+                                                : 'bg-white/30'}`} />
+                                    <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                                        {tripsLoading
+                                            ? 'Syncing…'
+                                            : liveCount > 0
+                                                ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
+                                                : trips.length > 0
+                                                    ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
+                                                    : 'No active trips'}
+                                    </span>
                                 </div>
+                                {lastRefreshed && (
+                                    <div className="bg-navy/80 backdrop-blur-md border border-white/10 p-1.5 px-3 rounded-xl flex items-center gap-2">
+                                        <Clock size={10} className="text-white/50" />
+                                        <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider">
+                                            Synced {lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Map Legend */}
-                            <div className="absolute bottom-8 right-8 z-[50] bg-navy backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2">
-                                <span className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1 font-mono">Live Legend</span>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 bg-orange rounded-full border border-white/40 shadow-[0_0_12px_rgba(244,127,0,0.8)]"></div>
-                                    <span className="text-xs text-white font-black tracking-tight">Active Vehicles</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 bg-green-500 rounded-full border border-white/40 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></div>
-                                    <span className="text-xs text-white font-black tracking-tight">Employee Pickups</span>
-                                </div>
+                            {/* Legend */}
+                            <div className="absolute bottom-4 right-4 z-[500] bg-navy/90 backdrop-blur-md border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
+                                <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Legend</span>
+                                {shuttleCount > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base leading-none">🚌</span>
+                                        <span className="text-[11px] text-white font-bold">Shuttle ({shuttleCount})</span>
+                                    </div>
+                                )}
+                                {chauffeurCount > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base leading-none">🚗</span>
+                                        <span className="text-[11px] text-white font-bold">Chauffeur ({chauffeurCount})</span>
+                                    </div>
+                                )}
+                                {liveCount > 0 && (
+                                    <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+                                        <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                                        <span className="text-[9px] text-green-400 font-black uppercase">Socket Live</span>
+                                    </div>
+                                )}
+                                {trips.length === 0 && !tripsLoading && (
+                                    <p className="text-[9px] text-white/30 font-bold">No trips today</p>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Sidebar Notifications */}
-                {/* Sidebar Notifications - Styled as a distinct Orange Card */}
+                {/* Sidebar */}
                 <div className="w-full lg:w-80 m-4 lg:ml-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-white">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-black uppercase tracking-widest text-navy">Active Alerts</h3>
-                        <span className="px-2 py-0.5 rounded-full bg-navy/20 text-navy text-[9px] font-black uppercase border border-navy/10">2 Critical</span>
+                        {hasChauffeur && (dashboardStats?.chauffeur.unassignedBookings ?? 0) > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-navy/20 text-navy text-[9px] font-black uppercase border border-navy/10">
+                                {dashboardStats!.chauffeur.unassignedBookings} Unassigned
+                            </span>
+                        )}
                     </div>
 
-                    <div className="space-y-3">
-                        {/* Alert 1 */}
-                        <div className="p-3 rounded-2xl bg-white/15 border border-white/20 hover:bg-white/25 transition-colors cursor-pointer group">
-                            <div className="flex items-start gap-3">
-                                <AlertTriangle size={16} className="text-navy mt-1 shrink-0" />
-                                <div>
-                                    <div className="text-[11px] font-black text-white group-hover:text-white transition-colors">Route Deviation Detected</div>
-                                    <div className="text-[10px] text-white font-bold leading-tight mt-1">Shuttle Route 4 is 0.8km off the planned path near Karsaz Road.</div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Clock size={10} className="text-white/60" />
-                                        <span className="text-[9px] text-white/60 font-black">2 mins ago</span>
+                    <div className="space-y-3 flex-1">
+                        {/* Unassigned rides — chauffeur only */}
+                        {hasChauffeur && (dashboardStats?.chauffeur.unassignedBookings ?? 0) > 0 && (
+                            <div
+                                className="p-3 rounded-2xl bg-white/15 border border-white/20 hover:bg-white/25 transition-colors cursor-pointer"
+                                onClick={() => router.push('/company/bookings')}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle size={16} className="text-navy mt-1 shrink-0" />
+                                    <div>
+                                        <div className="text-[11px] font-black text-white">Unassigned Bookings</div>
+                                        <div className="text-[10px] text-white font-bold leading-tight mt-1">
+                                            {dashboardStats!.chauffeur.unassignedBookings} booking{dashboardStats!.chauffeur.unassignedBookings !== 1 ? 's' : ''} pending driver assignment.
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Clock size={10} className="text-white/60" />
+                                            <span className="text-[9px] text-white/60 font-black">Needs attention</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Alert 2 */}
-                        <div className="p-3 rounded-2xl bg-white/20 border border-white/30 hover:bg-white/30 transition-colors cursor-pointer group shadow-sm">
-                            <div className="flex items-start gap-3">
-                                <Users size={16} className="text-navy mt-1 shrink-0" />
-                                <div>
-                                    <div className="text-[11px] font-black text-white">High Occupancy Alert</div>
-                                    <div className="text-[10px] text-white font-bold leading-tight mt-1">Shuttle Route 1 at 94% capacity. Next pickup (4 emps) might exceed limit.</div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Clock size={10} className="text-white/60" />
-                                        <span className="text-[9px] text-white/60 font-black">Just now</span>
+                        {/* Upcoming rides */}
+                        {mobility.upcomingBookings > 0 && (
+                            <div
+                                className="p-3 rounded-2xl bg-white/20 border border-white/30 hover:bg-white/30 transition-colors cursor-pointer"
+                                onClick={() => hasChauffeur ? router.push('/company/bookings') : hasShuttle ? router.push('/company/routes') : undefined}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <Calendar size={16} className="text-navy mt-1 shrink-0" />
+                                    <div>
+                                        <div className="text-[11px] font-black text-white">Upcoming Bookings</div>
+                                        <div className="text-[10px] text-white font-bold leading-tight mt-1">
+                                            {mobility.upcomingBookings} ride{mobility.upcomingBookings !== 1 ? 's' : ''} in the next 7 days.
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Clock size={10} className="text-white/60" />
+                                            <span className="text-[9px] text-white/60 font-black">Next 7 days</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Quick Action Button */}
-                        <button
-                            onClick={() => router.push('/company/bookings')}
-                            className="w-full mt-4 py-3 rounded-xl bg-navy hover:bg-navy-hover text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
-                        >
-                            View Full Fleet View
-                        </button>
+                        {/* On-map summary */}
+                        {trips.length > 0 && (
+                            <div className="p-3 rounded-2xl bg-white/10 border border-white/20">
+                                <div className="flex items-start gap-3">
+                                    <Navigation size={16} className="text-navy mt-1 shrink-0" />
+                                    <div>
+                                        <div className="text-[11px] font-black text-white">On the Map</div>
+                                        <div className="text-[10px] text-white/80 font-bold leading-tight mt-1">
+                                            {hasShuttle && shuttleCount > 0 && `${shuttleCount} shuttle${shuttleCount !== 1 ? 's' : ''}`}
+                                            {hasShuttle && shuttleCount > 0 && hasChauffeur && chauffeurCount > 0 && ' · '}
+                                            {hasChauffeur && chauffeurCount > 0 && `${chauffeurCount} chauffeur ride${chauffeurCount !== 1 ? 's' : ''}`}
+                                            {liveCount > 0 && ` · ${liveCount} live 🔴`}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* All clear */}
+                        {(!hasChauffeur || (dashboardStats?.chauffeur.unassignedBookings ?? 0) === 0) &&
+                            mobility.upcomingBookings === 0 &&
+                            trips.length === 0 && (
+                            <div className="p-3 rounded-2xl bg-white/10 border border-white/20">
+                                <div className="text-[11px] font-black text-white text-center py-2">✓ All Clear</div>
+                                <div className="text-[10px] text-white/70 font-bold text-center">No active alerts at this time.</div>
+                            </div>
+                        )}
+
+                        {/* CTA — adapts to enabled services */}
+                        {hasShuttle && (
+                            <button
+                                onClick={() => router.push('/company/routes')}
+                                className="w-full mt-2 py-3 rounded-xl bg-navy hover:bg-navy/80 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
+                            >
+                                Track Routes Live →
+                            </button>
+                        )}
+                        {!hasShuttle && hasChauffeur && (
+                            <button
+                                onClick={() => router.push('/company/bookings')}
+                                className="w-full mt-2 py-3 rounded-xl bg-navy hover:bg-navy/80 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
+                            >
+                                View Bookings →
+                            </button>
+                        )}
                     </div>
 
-                    <div className="mt-auto pt-6 border-t border-white/10">
-                        <div className="p-4 rounded-2xl bg-white/10 border border-white/10">
-                            <div className="text-[10px] font-black text-navy uppercase tracking-widest mb-3 opacity-60">Service Performance</div>
-                            <div className="space-y-4">
+                    {/* Service performance */}
+                    <div className="pt-4 border-t border-white/15">
+                        <div className="text-[10px] font-black text-navy uppercase tracking-widest mb-3 opacity-60">Service Performance</div>
+                        <div className="space-y-3">
+                            {onTimeRate !== null && (
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-white mb-1.5 uppercase tracking-tighter">
-                                        <span>On-Time Arrival Rate</span>
-                                        <span className="text-navy font-black">92%</span>
+                                        <span>On-Time Rate</span>
+                                        <span className="text-navy font-black">{onTimeRate}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-white w-[92%] shadow-[0_0_8px_white]"></div>
+                                        <div className="h-full bg-white shadow-[0_0_8px_white]" style={{ width: `${onTimeRate}%` }}></div>
                                     </div>
                                 </div>
+                            )}
+                            {fleetUtilization !== null && (
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-white mb-1.5 uppercase tracking-tighter">
-                                        <span>Avg. Fleet Utilization</span>
-                                        <span className="text-navy font-black">78%</span>
+                                        <span>Shuttle Utilization</span>
+                                        <span className="text-navy font-black">{fleetUtilization}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                                        <div className="h-full bg-white w-[78%] shadow-[0_0_8px_white]"></div>
+                                        <div className="h-full bg-white shadow-[0_0_8px_white]" style={{ width: `${fleetUtilization}%` }}></div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
+                            {onTimeRate === null && fleetUtilization === null && (
+                                <p className="text-[10px] text-white/40 font-bold text-center py-1">Collecting data…</p>
+                            )}
                         </div>
                     </div>
                 </div>
