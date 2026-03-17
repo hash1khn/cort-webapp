@@ -296,8 +296,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
             {/* Counters Strip */}
             <div className="m-4 mt-5 px-6 py-4 bg-white/5 border border-white/10 rounded-4xl grid grid-cols-2 md:grid-cols-5 gap-4 shadow-sm">
                 {stats.map((stat, idx) => (
-                    <div key={idx} className="flex flex-col">
-                        <div className="flex items-center gap-2 text-white mb-1">
+                    <div key={idx} className="flex flex-col items-center">
+                        <div className="flex items-center gap-2 text-white mb-1 justify-center">
                             <span className="p-1 px-1.5 rounded-md bg-white/20 text-orange">{stat.icon}</span>
                             <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">{stat.label}</span>
                         </div>

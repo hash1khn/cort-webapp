@@ -9,7 +9,10 @@ import Map from "../../../admin/ui/Map";
 import { useGooglePlacesAutocomplete } from "../../../hooks/useGooglePlacesAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import { pakistaniCars } from "../../../lib/data/pakistaniCars";
+import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
+import { selectContract } from "../../../lib/store/slices/contractSlice";
+import OutstationEstimatePanel from "./OutstationEstimatePanel";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -42,7 +45,7 @@ function Field({
 }) {
     return (
         <label className={cx("flex flex-col gap-2", className)}>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)] px-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--cort-navy)] px-1">
                 {label}
                 {required && <span className="text-[var(--cort-orange)] ml-0.5"> *</span>}
             </span>
@@ -93,6 +96,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const company = useAppSelector(selectCompany);
     const employees = useAppSelector(selectEmployees);
     const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
+    const contract = useAppSelector(selectContract);
 
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
@@ -144,6 +148,22 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const activeEmployees = useMemo(() => {
         return employees.filter((e) => e.status === "ACTIVE");
     }, [employees]);
+
+    // Derive the contract rate for the selected vehicle model (used for outstation cost estimate)
+    const selectedContractRate = useMemo(() => {
+        if (!contract?.chauffeur_contract_rates || !vehicleModel || vehicleModel === "Other") return null;
+        return contract.chauffeur_contract_rates.find(
+            (r: any) => r.vehicle_model === vehicleModel
+        ) ?? null;
+    }, [contract, vehicleModel]);
+
+    const outstationAllowancePerDay = useMemo(() => {
+        return Number(contract?.allowance_outstation ?? 0);
+    }, [contract]);
+
+    const accommodationAllowancePerNight = useMemo(() => {
+        return Number(contract?.allowance_accommodation ?? 0);
+    }, [contract]);
 
     const canSubmit = useMemo(() => {
         const vehicleModelValid = isEventShuttle
@@ -316,9 +336,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     </Field>
 
                     <Field label="City" required>
-                        <TextInput
+                        <AutocompleteInput
                             value={bookingCity}
-                            onChange={(e) => setBookingCity(e.target.value)}
+                            onChange={setBookingCity}
+                            options={pakistaniCities}
                             placeholder="e.g. Karachi"
                             required
                         />
@@ -441,11 +462,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         <div className="sm:col-span-2">
                             <Field label="Destination Cities" required>
                                 <div className="flex gap-2">
-                                    <TextInput
+                                    <AutocompleteInput
                                         value={cityInput}
-                                        onChange={(e) => setCityInput(e.target.value)}
-                                        onKeyDown={handleCityKeyDown}
-                                        placeholder="Add city..."
+                                        onChange={(val) => setCityInput(val)}
+                                        options={pakistaniCities}
+                                        placeholder="Search & add city..."
                                         className="flex-1"
                                     />
                                     <button
@@ -476,6 +497,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                         ))}
                                     </div>
                                 )}
+
+                                {/* Live outstation cost estimate */}
+                                <OutstationEstimatePanel
+                                    originCity={bookingCity}
+                                    destinationCities={destinationCities}
+                                    noOfDays={noOfDays}
+                                    packageType={packageType}
+                                    contractRate={selectedContractRate}
+                                    outstationAllowancePerDay={outstationAllowancePerDay}
+                                    accommodationAllowancePerNight={accommodationAllowancePerNight}
+                                />
                             </Field>
                         </div>
                     )}
