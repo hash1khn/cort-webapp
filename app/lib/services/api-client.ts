@@ -281,6 +281,30 @@ class ApiClient {
         document.body.removeChild(a);
     }
 
+    /**
+     * View PDF in a new tab (with auth)
+     */
+    async viewPdf(endpoint: string): Promise<void> {
+        const token = this.getToken();
+        const headers: Record<string, string> = {};
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            headers,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    }
+
     // ===== AUTH =====
 
     async login(credentials: LoginRequest): Promise<LoginResponse> {
@@ -1031,6 +1055,10 @@ class ApiClient {
 
     async downloadInvoicePdf(id: number, invoiceNumber: string): Promise<void> {
         return this.downloadPdf(`/invoices/${id}/pdf`, `invoice-${invoiceNumber}.pdf`);
+    }
+
+    async viewInvoicePdf(id: number): Promise<void> {
+        return this.viewPdf(`/invoices/${id}/pdf`);
     }
 
     async sendInvoiceEmail(id: number): Promise<any> {

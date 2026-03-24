@@ -22,6 +22,7 @@ export default function CompanyInvoicingPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [errorState, setErrorState] = useState<string | null>(null);
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
+    const [viewingId, setViewingId] = useState<number | null>(null);
     const [page, setPage] = useState(1);
 
     const fetchInvoices = useCallback(async (p: number) => {
@@ -54,6 +55,19 @@ export default function CompanyInvoicingPage() {
             alert("Failed to download PDF");
         } finally {
             setDownloadingId(null);
+        }
+    };
+
+    const viewPdf = async (id: number) => {
+        if (viewingId) return;
+        setViewingId(id);
+        try {
+            await apiClient.viewInvoicePdf(id);
+        } catch (e) {
+            console.error("Failed to view PDF", e);
+            alert("Failed to view PDF");
+        } finally {
+            setViewingId(null);
         }
     };
 
@@ -128,21 +142,38 @@ export default function CompanyInvoicingPage() {
                                             </span>
                                         </td>
                                         <td className={`${TABLE_CELL_CLASS} text-right`}>
-                                            <button
-                                                onClick={() => downloadPdf(inv.id, inv.invoice_number)}
-                                                disabled={downloadingId === inv.id}
-                                                className="text-[var(--cort-orange)] hover:text-[var(--cort-orange-hover)] font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
-                                            >
-                                                {downloadingId === inv.id ? (
-                                                    <>
-                                                        <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        Downloading...
-                                                    </>
-                                                ) : 'Download PDF'}
-                                            </button>
+                                            <div className="flex items-center justify-end gap-4">
+                                                <button
+                                                    onClick={() => viewPdf(inv.id)}
+                                                    disabled={viewingId === inv.id}
+                                                    className="text-[var(--cort-navy)] hover:text-[var(--cort-navy)]/80 font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                                                >
+                                                    {viewingId === inv.id ? (
+                                                        <>
+                                                            <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            Viewing...
+                                                        </>
+                                                    ) : 'View Invoice'}
+                                                </button>
+                                                <button
+                                                    onClick={() => downloadPdf(inv.id, inv.invoice_number)}
+                                                    disabled={downloadingId === inv.id}
+                                                    className="text-[var(--cort-orange)] hover:text-[var(--cort-orange-hover)] font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                                                >
+                                                    {downloadingId === inv.id ? (
+                                                        <>
+                                                            <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                            </svg>
+                                                            Downloading...
+                                                        </>
+                                                    ) : 'Download PDF'}
+                                                </button>
+                                            </div>
                                         </td>
 
                                     </tr>
