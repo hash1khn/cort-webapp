@@ -313,8 +313,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         return tripType === 'in_city' ? 'IN_CITY' : 'OUT_STATION';
     }, []);
 
-    // Get min datetime for scheduled bookings (now)
-    const minDateTime = useMemo(() => new Date().toISOString().slice(0, 16), []);
+    // No minimum datetime restriction — past dates are allowed for data entry purposes
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -535,7 +534,6 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 type="datetime-local"
                                 value={scheduledDateTime}
                                 onChange={(e) => setScheduledDateTime(e.target.value)}
-                                min={minDateTime}
                                 required
                             />
                         </Field>
