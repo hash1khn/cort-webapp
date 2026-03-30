@@ -144,6 +144,36 @@ export const fetchAdminVehicles = createAsyncThunk(
     }
 );
 
+// Vehicles available for assignment UIs (e.g. exclude active shuttle/chauffeur conflicts)
+export const fetchAdminAvailableVehicles = createAsyncThunk(
+    'adminVehicles/fetchAvailableVehicles',
+    async (params: QueryVehicleParams = {}, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getAvailableVehicles(params);
+            return {
+                data: response.data,
+                filters: {
+                    search: params.search || "",
+                    category: (params as any).category || "",
+                    ownership: (params as any).ownership || ""
+                }
+            };
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to fetch available vehicles');
+        }
+    },
+    {
+        condition: (params, { getState }) => {
+            const state = getState() as RootState;
+            const { lastFetched, status } = state.adminVehicles;
+            if (status === 'loading') return false;
+            if (params && Object.keys(params).length > 0) return true;
+            if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
+            return true;
+        }
+    }
+);
+
 export const createAdminVehicle = createAsyncThunk(
     'adminVehicles/createVehicle',
     async (data: CreateVehicleRequest, { rejectWithValue }) => {
@@ -376,6 +406,28 @@ export const adminVehiclesSlice = createSlice({
                 }
             })
             .addCase(fetchAdminVehicles.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload as string;
+            })
+            .addCase(fetchAdminAvailableVehicles.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(fetchAdminAvailableVehicles.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                state.lastFetched = Date.now();
+                state.vehicles = action.payload.data.data;
+                state.vehicleFilters = action.payload.filters;
+                if (action.payload.data.pagination) {
+                    state.pagination = {
+                        page: Number(action.payload.data.pagination.page),
+                        limit: Number(action.payload.data.pagination.limit),
+                        total: Number(action.payload.data.pagination.total),
+                        totalPages: Number(action.payload.data.pagination.pages),
+                    };
+                }
+            })
+            .addCase(fetchAdminAvailableVehicles.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload as string;
             })

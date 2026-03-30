@@ -14,7 +14,7 @@ import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminCompanies, selectAdminCompanies, selectAdminCompaniesStatus } from '@/app/lib/store/slices/adminCompaniesSlice';
 import { createAdminRoute, selectAdminRoutesActionStatus } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
-import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
+import { fetchAdminAvailableVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { apiClient } from '@/app/lib/services/api-client';
 import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
@@ -53,7 +53,7 @@ export default function CreateRoutePage() {
         if (companiesStatus === 'idle') dispatch(fetchAdminCompanies({ limit: 100 }));
         // Only load shuttle drivers for shuttle routes
         dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
-        dispatch(fetchAdminVehicles({ limit: 100 }));
+        dispatch(fetchAdminAvailableVehicles({ limit: 100 }));
     }, [dispatch, companiesStatus]);
 
     // Fetch road-following polyline from backend whenever stops list changes

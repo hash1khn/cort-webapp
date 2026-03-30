@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, use } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
@@ -14,7 +14,7 @@ import {
     clearCurrentRoute
 } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
-import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
+import { fetchAdminAvailableVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { Button } from '@/app/admin/ui/Button';
 import { Card } from '@/app/admin/ui/Card';
 import { Input } from '@/app/admin/ui/Input';
@@ -44,6 +44,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const [activeTab, setActiveTab] = useState<'overview' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', assigned_vehicle_id: '', assigned_driver_id: '' });
+    const [currentAssignedVehicle, setCurrentAssignedVehicle] = useState<any>(null);
 
     // Stop form
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
@@ -70,7 +71,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     useEffect(() => {
         // Only show shuttle drivers for shuttle routes
         dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
-        dispatch(fetchAdminVehicles({ limit: 100 }));
+        dispatch(fetchAdminAvailableVehicles({ limit: 100 }));
     }, [dispatch]);
 
     useEffect(() => {
@@ -85,6 +86,36 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [route?.id]);
+
+    // If the currently-assigned vehicle is excluded from the "available vehicles" list,
+    // we still want it to remain selectable/visible in the edit dropdown.
+    useEffect(() => {
+        let cancelled = false;
+        const vehicleId = route?.assigned_vehicle_id;
+        if (!vehicleId) {
+            setCurrentAssignedVehicle(null);
+            return;
+        }
+        (async () => {
+            try {
+                const res: any = await apiClient.getVehicle(vehicleId);
+                const v = res?.data ?? res;
+                if (!cancelled) setCurrentAssignedVehicle(v);
+            } catch {
+                if (!cancelled) setCurrentAssignedVehicle(null);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [route?.assigned_vehicle_id]);
+
+    const vehiclesForSelect = useMemo(() => {
+        const currentId = currentAssignedVehicle?.id;
+        if (!currentId) return vehicles;
+        const exists = vehicles.some((v: any) => v?.id === currentId);
+        return exists ? vehicles : [...vehicles, currentAssignedVehicle];
+    }, [vehicles, currentAssignedVehicle]);
 
     const fetchSavedPolyline = useCallback(async () => {
         if (!id) return;
@@ -356,7 +387,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             }
                                         >
                                             <option value="">None</option>
-                                            {vehicles.map((v) => (
+                                            {vehiclesForSelect.map((v: any) => (
                                                 <option key={v.id} value={v.id}>
                                                     {v.plate_number}
                                                     {v.model ? ` · ${v.model}` : ''}
