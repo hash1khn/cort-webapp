@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { PermissionGate } from "../../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import {
     fetchMaintenanceRecords,
     fetchUpcomingMaintenance,
@@ -37,7 +40,21 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function MaintenancePage() {
+    return (
+        <PermissionGate permission="maintenance">
+            <AdminCan I="read" a="Maintenance">
+                <MaintenancePageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function MaintenancePageContent() {
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.maintenance);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.maintenance);
+    const canDelete = ability.can("delete", ADMIN_SUBJECTS.maintenance);
 
     const records = useAppSelector(selectMaintenanceRecords);
     const vehicles = useAppSelector(selectAdminVehicles);
@@ -331,8 +348,10 @@ export default function MaintenancePage() {
                     placeholder="End Date"
                 />
                 <button
+                    type="button"
                     onClick={startCreate}
-                    className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+                    disabled={!canCreate}
+                    className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:pointer-events-none"
                 >
                     Add Maintenance Record
                 </button>
@@ -375,14 +394,18 @@ export default function MaintenancePage() {
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
+                                                type="button"
                                                 onClick={() => startEdit(r)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                disabled={!canUpdate}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface disabled:opacity-50 disabled:pointer-events-none"
                                             >
                                                 Edit
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => handleDelete(r)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                disabled={!canDelete}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50 disabled:pointer-events-none"
                                             >
                                                 Delete
                                             </button>
@@ -445,8 +468,9 @@ export default function MaintenancePage() {
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || (modalMode === "create" ? !canCreate : !canUpdate)}
                                 className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Record" : "Save Changes")}

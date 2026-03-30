@@ -7,9 +7,24 @@ import { Button } from '@/app/admin/ui/Button';
 import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminRoutes, selectAdminRoutes, selectAdminRoutesStatus } from '@/app/lib/store/slices/adminRoutesSlice';
+import { PermissionGate } from '@/app/admin/components/PermissionGate';
+import { AdminCan, useAdminAbility } from '@/app/lib/abilities/AdminAbilityProvider';
+import { ADMIN_SUBJECTS } from '@/app/lib/abilities/admin-subjects';
 
 export default function RoutesPage() {
+    return (
+        <PermissionGate permission="routes">
+            <AdminCan I="read" a="Routes">
+                <RoutesPageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function RoutesPageContent() {
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canCreate = ability.can('create', ADMIN_SUBJECTS.routes);
     const routes = useAppSelector(selectAdminRoutes);
     const status = useAppSelector(selectAdminRoutesStatus);
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
@@ -75,12 +90,19 @@ export default function RoutesPage() {
                             Back to Companies
                         </Button>
                     )}
-                    <Link href="/admin/routes/create">
-                        <Button>
+                    {canCreate ? (
+                        <Link href="/admin/routes/create">
+                            <Button>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create New Route
+                            </Button>
+                        </Link>
+                    ) : (
+                        <Button disabled>
                             <Plus className="w-4 h-4 mr-2" />
                             Create New Route
                         </Button>
-                    </Link>
+                    )}
                 </div>
             </div>
 
@@ -102,9 +124,15 @@ export default function RoutesPage() {
                         <MapPin className="w-12 h-12 text-gray-300" />
                         <h3 className="text-lg font-medium text-gray-900">No Routes Found</h3>
                         <p>Get started by creating your first route.</p>
-                        <Link href="/admin/routes/create" className="mt-4">
-                            <Button variant="outline">Create Route</Button>
-                        </Link>
+                        {canCreate ? (
+                            <Link href="/admin/routes/create" className="mt-4">
+                                <Button variant="outline">Create Route</Button>
+                            </Link>
+                        ) : (
+                            <Button variant="outline" className="mt-4" disabled>
+                                Create Route
+                            </Button>
+                        )}
                     </div>
                 </Card>
             )}

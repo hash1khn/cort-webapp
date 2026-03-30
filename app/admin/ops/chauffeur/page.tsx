@@ -2,6 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PermissionGate } from '@/app/admin/components/PermissionGate';
+import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Car, Clock, MapPin, Navigation, Phone, RefreshCw, User } from 'lucide-react';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
@@ -67,6 +69,16 @@ function formatTime(isoString: string): string {
 // ---- Component --------------------------------------------------------------
 
 export default function OpsChauffeurPage() {
+    return (
+        <PermissionGate permission="ops_chauffeur">
+            <AdminCan I="read" a="OpsChauffeur">
+                <OpsChauffeurContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function OpsChauffeurContent() {
     const [bookings, setBookings] = useState<ActiveBooking[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

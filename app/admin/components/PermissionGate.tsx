@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/contexts/auth-context";
-import { PermissionKey } from "../../lib/types/auth-types";
+import { CrudAction, PermissionKey } from "../../lib/types/auth-types";
 
 interface PermissionGateProps {
   /** The permission key required to view this content */
   permission: PermissionKey;
+  /** Which action is required (default: read — list/view pages). */
+  action?: CrudAction;
   /** Where to redirect if access is denied (defaults to /admin) */
   redirectTo?: string;
   children: React.ReactNode;
@@ -16,7 +18,7 @@ interface PermissionGateProps {
 /**
  * Wrap page content with this component to enforce permission checks.
  * - SUPER_ADMIN → always renders children.
- * - INTERNAL_STAFF → renders children only if they have the permission.
+ * - INTERNAL_STAFF → renders children only if they have the required CRUD action (default read).
  * - Other roles → redirects immediately.
  *
  * @example
@@ -29,11 +31,16 @@ interface PermissionGateProps {
  *   );
  * }
  */
-export function PermissionGate({ permission, redirectTo = "/admin", children }: PermissionGateProps) {
-  const { hasPermission, loading, isAuthenticated } = useAuth();
+export function PermissionGate({
+  permission,
+  action = "read",
+  redirectTo = "/admin",
+  children,
+}: PermissionGateProps) {
+  const { hasCrud, loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
-  const allowed = hasPermission(permission);
+  const allowed = hasCrud(permission, action);
 
   useEffect(() => {
     if (!loading && isAuthenticated && !allowed) {

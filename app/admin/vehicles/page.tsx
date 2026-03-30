@@ -20,9 +20,26 @@ import Pagination from "../../components/ui/Pagination";
 import { Badge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { VehicleFormInline, type VehicleFormData } from "./components/VehicleFormInline";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 
 export default function VehiclesPage() {
+    return (
+        <PermissionGate permission="vehicles">
+            <AdminCan I="read" a="Vehicles">
+                <VehiclesPageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function VehiclesPageContent() {
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.vehicles);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.vehicles);
+    const canDelete = ability.can("delete", ADMIN_SUBJECTS.vehicles);
     const vehicles = useAppSelector(selectAdminVehicles);
     const status = useAppSelector(selectAdminVehiclesStatus);
     const error = useAppSelector(selectAdminVehiclesError);
@@ -141,8 +158,10 @@ export default function VehiclesPage() {
                     <h1 className="mt-1 text-3xl font-bold tracking-tight text-[#0c225e]">Vehicles</h1>
                 </div>
                 <button
+                    type="button"
                     onClick={handleCreateNew}
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5"
+                    disabled={!canCreate}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0"
                 >
                     <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -216,7 +235,7 @@ export default function VehiclesPage() {
                                     <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                                         <div className="flex flex-col items-center gap-2">
                                             <span className="font-medium">No vehicles found</span>
-                                            <button onClick={handleCreateNew} className="text-sm text-[#f47f00] hover:underline">
+                                            <button type="button" onClick={handleCreateNew} disabled={!canCreate} className="text-sm text-[#f47f00] hover:underline disabled:opacity-50 disabled:no-underline">
                                                 Add your first vehicle
                                             </button>
                                         </div>
@@ -287,15 +306,19 @@ export default function VehiclesPage() {
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
+                                                type="button"
                                                 onClick={() => handleEdit(vehicle)}
-                                                className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors"
+                                                disabled={!canUpdate}
+                                                className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors disabled:opacity-40 disabled:pointer-events-none"
                                                 title="Edit Details"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => handleDelete(vehicle.id)}
-                                                className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                disabled={!canDelete}
+                                                className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                                                 title="Delete Vehicle"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -325,6 +348,7 @@ export default function VehiclesPage() {
                     onSave={handleSave}
                     onCancel={() => setIsModalOpen(false)}
                     isSaving={isSaving}
+                    saveDisabled={editingVehicle ? !canUpdate : !canCreate}
                 />
             </Modal>
 

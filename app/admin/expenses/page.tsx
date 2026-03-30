@@ -8,6 +8,9 @@ import {
     ExpenseCategory,
     CreateExpenseRequest,
 } from "../../lib/services/api-client";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 
 interface PaginationMeta {
     page: number;
@@ -18,6 +21,21 @@ interface PaginationMeta {
 }
 
 export default function ExpensesPage() {
+    return (
+        <PermissionGate permission="expenses">
+            <AdminCan I="read" a="Expenses">
+                <ExpensesPageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function ExpensesPageContent() {
+    const ability = useAdminAbility();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.expenses);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.expenses);
+    const canDelete = ability.can("delete", ADMIN_SUBJECTS.expenses);
+
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
     const [isLoading, setIsLoading] = useState(false);
@@ -90,8 +108,10 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">General Expenses</h1>
                 <button
+                    type="button"
                     onClick={() => setIsModalOpen(true)}
-                    className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90"
+                    disabled={!canCreate}
+                    className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90 disabled:opacity-50 disabled:pointer-events-none"
                 >
                     Add Expense
                 </button>
@@ -224,15 +244,19 @@ export default function ExpensesPage() {
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                                     {expense.payment_status !== "PAID" && (
                                         <button
+                                            type="button"
                                             onClick={() => handleMarkAsPaid(expense.id)}
-                                            className="text-navy hover:text-navy/80 font-semibold"
+                                            disabled={!canUpdate}
+                                            className="text-navy hover:text-navy/80 font-semibold disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                                         >
                                             Mark as Paid
                                         </button>
                                     )}
                                     <button
+                                        type="button"
                                         onClick={() => handleDelete(expense.id)}
-                                        className="text-red-600 hover:text-red-900 ml-4"
+                                        disabled={!canDelete}
+                                        className="text-red-600 hover:text-red-900 ml-4 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                                     >
                                         Delete
                                     </button>
@@ -302,6 +326,7 @@ export default function ExpensesPage() {
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     onSubmit={handleCreate}
+                    submitDisabled={!canCreate}
                 />
             )}
         </div>
@@ -312,10 +337,12 @@ function AddExpenseModal({
     isOpen,
     onClose,
     onSubmit,
+    submitDisabled = false,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: CreateExpenseRequest) => Promise<void>;
+    submitDisabled?: boolean;
 }) {
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState<ExpenseCategory | "">("");
@@ -418,7 +445,7 @@ function AddExpenseModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || submitDisabled}
                             className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90 disabled:opacity-50"
                         >
                             {isSubmitting ? "Saving..." : "Save Expense"}

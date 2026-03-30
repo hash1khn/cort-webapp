@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiClient, ChauffeurReport } from "../../lib/services/api-client";
 import Pagination from "../../components/ui/Pagination";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan } from "../../lib/abilities/AdminAbilityProvider";
 
 interface Pagination {
     page: number;
@@ -11,6 +13,16 @@ interface Pagination {
 }
 
 export default function AdminReportsPage() {
+    return (
+        <PermissionGate permission="reports">
+            <AdminCan I="read" a="Reports">
+                <AdminReportsContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function AdminReportsContent() {
     const [reports, setReports] = useState<ChauffeurReport[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

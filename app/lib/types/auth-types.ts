@@ -28,7 +28,13 @@ export const PERMISSION_KEYS = [
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
-export type StaffPermissions = Record<PermissionKey, boolean>;
+
+export const CRUD_ACTIONS = ['create', 'read', 'update', 'delete'] as const;
+export type CrudAction = (typeof CRUD_ACTIONS)[number];
+
+export type SectionCrudPermissions = Record<CrudAction, boolean>;
+
+export type StaffPermissions = Record<PermissionKey, SectionCrudPermissions>;
 
 // User status enum - matches backend
 export enum UserStatus {
@@ -124,7 +130,10 @@ export interface AuthContextType extends AuthState {
     isDriver: boolean;
     hasRole: (roles: UserRole[]) => boolean;
     hasCompanyAccess: (companyId: number) => boolean;
+    /** True if staff has `read` on the section (nav + default page access). Super admin: always true. */
     hasPermission: (key: PermissionKey) => boolean;
+    /** Check a specific CRUD action for INTERNAL_STAFF; super admin always true. */
+    hasCrud: (key: PermissionKey, action: CrudAction) => boolean;
     isShuttleEnabled: boolean;
     isChauffeurEnabled: boolean;
 }

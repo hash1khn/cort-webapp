@@ -18,6 +18,7 @@ import { fetchAdminAvailableVehicles, selectAdminVehicles } from '@/app/lib/stor
 import { apiClient } from '@/app/lib/services/api-client';
 import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
+import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
@@ -33,6 +34,14 @@ interface Stop {
 type PolylineResponse = { points: { lat: number; lng: number }[] };
 
 export default function CreateRoutePage() {
+    return (
+        <PermissionGate permission="routes" action="create">
+            <CreateRoutePageContent />
+        </PermissionGate>
+    );
+}
+
+function CreateRoutePageContent() {
     const router = useRouter();
     const dispatch = useAppDispatch();
     const companies = useAppSelector(selectAdminCompanies);

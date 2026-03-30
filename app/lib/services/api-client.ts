@@ -1,4 +1,4 @@
-import { LoginRequest, LoginResponse, ProfileResponse, SignupRequest } from '../types/auth-types';
+import { LoginRequest, LoginResponse, ProfileResponse, SignupRequest, StaffPermissions } from '../types/auth-types';
 import {
     PaginatedResponse,
     // Companies
@@ -1237,7 +1237,7 @@ export interface InternalStaffMember {
     phone: string | null;
     status: string | null;
     created_at: string | null;
-    permissions: Record<string, boolean>;
+    permissions: StaffPermissions;
     permissions_updated_at: string | null;
 }
 
@@ -1246,7 +1246,7 @@ export interface CreateInternalStaffRequest {
     password: string;
     full_name: string;
     phone?: string;
-    permissions?: Record<string, boolean>;
+    permissions?: Partial<StaffPermissions>;
 }
 
 export const PermissionsApi = {
@@ -1262,8 +1262,8 @@ export const PermissionsApi = {
             body: JSON.stringify(data),
         }),
 
-    updatePermissions: (id: string, permissions: Record<string, boolean>) =>
-        apiClient.request<{ success: boolean; data: { user_id: string; permissions: Record<string, boolean> } }>(
+    updatePermissions: (id: string, permissions: Partial<StaffPermissions>) =>
+        apiClient.request<{ success: boolean; data: { user_id: string; permissions: StaffPermissions } }>(
             `/permissions/staff/${id}/permissions`,
             {
                 method: 'PUT',

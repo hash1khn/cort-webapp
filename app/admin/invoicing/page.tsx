@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { apiClient, Company } from "../../lib/services/api-client";
 import Pagination from "../../components/ui/Pagination";
 import { Modal } from "../components/ui/Modal";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 
 interface Invoice {
   id: number;
@@ -28,6 +31,19 @@ interface PaginationMeta {
 }
 
 export default function InvoicingPage() {
+  return (
+    <PermissionGate permission="invoicing">
+      <AdminCan I="read" a="Invoicing">
+        <InvoicingPageContent />
+      </AdminCan>
+    </PermissionGate>
+  );
+}
+
+function InvoicingPageContent() {
+  const ability = useAdminAbility();
+  const canUpdate = ability.can("update", ADMIN_SUBJECTS.invoicing);
+
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({ totalCollectable: 0, totalCollected: 0, totalOverdue: 0 });
   const [isLoading, setIsLoading] = useState(false);
@@ -214,8 +230,10 @@ export default function InvoicingPage() {
           </h1>
         </div>
         <button
+          type="button"
           onClick={() => setShowShuttleModal(true)}
-          className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-[#d97000] transition-all"
+          disabled={!canUpdate}
+          className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-[#d97000] transition-all disabled:opacity-50 disabled:pointer-events-none"
         >
           Generate Shuttle Invoice
         </button>
@@ -291,7 +309,8 @@ export default function InvoicingPage() {
                       <select
                         value={inv.status || 'DRAFT'}
                         onChange={(e) => handleStatusUpdate(inv.id, e.target.value)}
-                        className={`rounded px-2 py-1 text-xs font-medium border border-border ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                        disabled={!canUpdate}
+                        className={`rounded px-2 py-1 text-xs font-medium border border-border disabled:opacity-50 disabled:cursor-not-allowed ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
                           inv.status === 'UNPAID' ? 'bg-red-100 text-red-700' :
                             'bg-zinc-100 text-zinc-700'
                           }`}
@@ -345,8 +364,9 @@ export default function InvoicingPage() {
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => handleSendEmail(inv.id, inv.invoice_number)}
-                          disabled={sendingEmailId === inv.id}
+                          disabled={sendingEmailId === inv.id || !canUpdate}
                           className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
                           title="Send Email to Company"
                         >
@@ -429,8 +449,9 @@ export default function InvoicingPage() {
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleGenerateShuttleInvoice}
-              disabled={isGeneratingShuttle}
+              disabled={isGeneratingShuttle || !canUpdate}
               className="inline-flex items-center justify-center rounded-lg bg-[#0c225e] px-5 py-2 text-sm font-bold text-white hover:bg-[#0a1a4a] disabled:opacity-70"
             >
               {isGeneratingShuttle ? "Generating..." : "Generate Invoice"}

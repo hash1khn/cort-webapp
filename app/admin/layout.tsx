@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AdminShell } from "./ui/AdminShell";
+import { AdminAbilityProvider } from "../lib/abilities/AdminAbilityProvider";
 // import { AdminStoreProvider } from "./store/AdminStore";
 import { ProtectedRoute } from "../lib/components/protected-route";
 import { UserRole } from "../lib/types/auth-types";
@@ -25,7 +26,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.INTERNAL_STAFF]} redirectTo="/admin/login">
       <Provider store={adminStore}>
-        <AdminShell>{children}</AdminShell>
+        <AdminAbilityProvider>
+          <AdminShell>{children}</AdminShell>
+        </AdminAbilityProvider>
       </Provider>
     </ProtectedRoute>
   );

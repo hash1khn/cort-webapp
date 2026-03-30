@@ -64,12 +64,15 @@ export const VehicleFormInline = memo(function VehicleFormInline({
     vehicle,
     onSave,
     onCancel,
-    isSaving
+    isSaving,
+    saveDisabled = false,
 }: {
     vehicle: Vehicle | null;
     onSave: (data: VehicleFormData) => void;
     onCancel: () => void;
     isSaving: boolean;
+    /** When true, Save is disabled (e.g. missing CRUD permission). */
+    saveDisabled?: boolean;
 }) {
     const [formData, setFormData] = useState<VehicleFormData>(() => {
         if (!vehicle) {
@@ -486,7 +489,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                 <button
                     onClick={handleSave}
                     className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
-                    disabled={isSaving}
+                    disabled={isSaving || saveDisabled}
                 >
                     {isSaving ? "Saving..." : "Save Vehicle"}
                 </button>

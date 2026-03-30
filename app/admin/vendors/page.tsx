@@ -18,6 +18,9 @@ import {
 } from "../../lib/store/slices/adminVendorsSlice";
 import Pagination from "../../components/ui/Pagination";
 import { Vendor, CreateVendorRequest } from "../../lib/services/api-client";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -29,8 +32,22 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function VendorsPage() {
+    return (
+        <PermissionGate permission="vendors">
+            <AdminCan I="read" a="Vendors">
+                <VendorsPageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function VendorsPageContent() {
     const router = useRouter();
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.vendors);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.vendors);
+    const canDelete = ability.can("delete", ADMIN_SUBJECTS.vendors);
     const vendors = useAppSelector(selectAdminVendors);
     const status = useAppSelector(selectAdminVendorsStatus);
     const actionStatus = useAppSelector(selectAdminVendorsActionStatus);
@@ -195,8 +212,10 @@ export default function VendorsPage() {
                     />
                 </div>
                 <button
+                    type="button"
                     onClick={startCreate}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95"
+                    disabled={!canCreate}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:pointer-events-none"
                 >
                     Add Vendor
                 </button>
@@ -243,14 +262,18 @@ export default function VendorsPage() {
                                                         View
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         onClick={() => startEdit(v)}
-                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                        disabled={!canUpdate}
+                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface disabled:opacity-50 disabled:pointer-events-none"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
+                                                        type="button"
                                                         onClick={() => handleDelete(v)}
-                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                        disabled={!canDelete}
+                                                        className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50 disabled:pointer-events-none"
                                                     >
                                                         Delete
                                                     </button>
@@ -318,8 +341,9 @@ export default function VendorsPage() {
                                     Cancel
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || (modalMode === "create" ? !canCreate : !canUpdate)}
                                     className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
                                 >
                                     {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vendor" : "Save Changes")}

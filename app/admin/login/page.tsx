@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { UserRole, PERMISSION_KEYS } from "../../lib/types/auth-types";
+import { normalizeStaffPermissions, staffHasCrud } from "../../lib/utils/staff-permissions";
 
 // Ordered list of nav hrefs mapped to their permission key — matches AdminShell nav order
 const NAV_PERMISSION_MAP: { href: string; permission: (typeof PERMISSION_KEYS)[number] }[] = [
@@ -39,9 +40,11 @@ export default function AdminLoginPage() {
     if (!loginUser) return "/admin/login";
     if (loginUser.role === UserRole.SUPER_ADMIN) return "/admin";
     if (loginUser.role === UserRole.INTERNAL_STAFF) {
-      const permissions = (loginUser.permissions ?? {}) as Record<string, boolean>;
-      const first = NAV_PERMISSION_MAP.find((item) => permissions[item.permission] === true);
-      return first?.href ?? "/admin/login"; // no permissions at all → stay on login
+      const permissions = normalizeStaffPermissions(loginUser.permissions ?? null);
+      const first = NAV_PERMISSION_MAP.find((item) =>
+        staffHasCrud(permissions, item.permission, "read"),
+      );
+      return first?.href ?? "/admin/login"; // no readable section → stay on login
     }
     return "/";
   }

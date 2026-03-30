@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import {
   fetchPricingCompanies,
   fetchSystemFuelPrice,
@@ -31,7 +35,7 @@ import {
 } from "../../lib/store/slices/adminPricingSlice";
 import { ChauffeurContractRate } from "../../lib/services/api-client";
 
-const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText }: any) => (
+const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText, disabled }: any) => (
   <label className="flex flex-col gap-1.5">
     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
     <input
@@ -39,13 +43,33 @@ const Input = ({ label, value, onChange, placeholder = "0", type = "number", hel
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
+      disabled={disabled}
+      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
     />
     {helperText && <span className="text-xs text-slate-500">{helperText}</span>}
   </label>
 );
 
 export default function PricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-24">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0c225e] border-t-transparent" />
+        </div>
+      }
+    >
+      <PermissionGate permission="pricing">
+        <AdminCan I="read" a="Pricing">
+          <PricingPageContent />
+        </AdminCan>
+      </PermissionGate>
+    </Suspense>
+  );
+}
+
+function PricingPageContent() {
+  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const companies = useAppSelector(selectPricingCompanies);
   const currentCompany = useAppSelector(selectPricingCurrentCompany);
@@ -64,6 +88,12 @@ export default function PricingPage() {
   const shuttleSettings = useAppSelector(selectShuttleSettings);
   const shuttleRouteRows = useAppSelector(selectShuttleRouteRows);
 
+  const ability = useAdminAbility();
+  const canCreate = ability.can("create", ADMIN_SUBJECTS.pricing);
+  const canUpdate = ability.can("update", ADMIN_SUBJECTS.pricing);
+  const canDelete = ability.can("delete", ADMIN_SUBJECTS.pricing);
+  const canAddRows = canCreate || canUpdate;
+
   const [showMarketRates, setShowMarketRates] = useState(false);
 
   // Initial load
@@ -71,6 +101,14 @@ export default function PricingPage() {
     dispatch(fetchPricingCompanies());
     dispatch(fetchSystemFuelPrice());
   }, [dispatch]);
+
+  // Deep-link from company detail: /admin/pricing?companyId=123
+  useEffect(() => {
+    const cid = searchParams.get("company") || searchParams.get("companyId");
+    if (cid) {
+      dispatch(setSelectedCompanyId(cid));
+    }
+  }, [dispatch, searchParams]);
 
   // Load Contract Details when company selected
   useEffect(() => {
@@ -174,13 +212,14 @@ export default function PricingPage() {
               type="number"
               value={systemFuelPrice}
               onChange={(e) => dispatch(setSystemFuelPriceLocal(e.target.value))}
-              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              disabled={!canUpdate}
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
             />
           </label>
           <button
             onClick={handleUpdateGlobalFuel}
             className="h-10 px-4 rounded-lg bg-[#0c225e] text-white text-sm font-bold hover:bg-[#0a1a4a] transition-colors disabled:opacity-70"
-            disabled={isUpdatingFuel}
+            disabled={!canUpdate || isUpdatingFuel}
           >
             {isUpdatingFuel ? "Updating..." : "Update"}
           </button>
@@ -300,29 +339,34 @@ export default function PricingPage() {
                     label="Base Fuel Price (PKR)"
                     value={globalSettings.fuelBasePrice}
                     onChange={(v: string) => dispatch(setGlobalSettings({ fuelBasePrice: v }))}
+                    disabled={!canUpdate}
                   />
                   <Input
                     label="Revision Threshold (%)"
                     value={globalSettings.revisionPercentage}
                     onChange={(v: string) => dispatch(setGlobalSettings({ revisionPercentage: v }))}
                     helperText="Leave empty to always adjust rates with fuel price changes"
+                    disabled={!canUpdate}
                   />
                   <Input
                     label="Outstation Allowance"
                     value={globalSettings.allowanceOutstation}
                     onChange={(v: string) => dispatch(setGlobalSettings({ allowanceOutstation: v }))}
+                    disabled={!canUpdate}
                   />
                   <Input
                     label="Accommodation Allowance"
                     value={globalSettings.allowanceAccommodation}
                     onChange={(v: string) => dispatch(setGlobalSettings({ allowanceAccommodation: v }))}
+                    disabled={!canUpdate}
                   />
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
                     <select
                       value={globalSettings.contractDuration}
                       onChange={(e) => dispatch(setGlobalSettings({ contractDuration: e.target.value }))}
-                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white"
+                      disabled={!canUpdate}
+                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
                     >
                       <option value="">Select Duration</option>
                       <option value="6 Months">6 Months</option>
@@ -337,6 +381,7 @@ export default function PricingPage() {
                     value={globalSettings.contractDate}
                     onChange={(v: string) => dispatch(setGlobalSettings({ contractDate: v }))}
                     type="date"
+                    disabled={!canUpdate}
                   />
                 </div>
               </div>
@@ -354,19 +399,21 @@ export default function PricingPage() {
                         type="checkbox"
                         checked={showMarketRates}
                         onChange={e => setShowMarketRates(e.target.checked)}
+                        disabled={!canUpdate}
                         className="rounded border-slate-300 text-[#f47f00] focus:ring-[#f47f00]"
                       />
                       Show Market Rates
                     </label>
                     <button
                       onClick={() => dispatch(addRateRow())}
-                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3"
+                      disabled={!canAddRows}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       + Add Vehicle
                     </button>
                     <button
                       onClick={handleSave}
-                      disabled={isSaving}
+                      disabled={!canUpdate || isSaving}
                       className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#d97000] disabled:opacity-70 transition-all"
                     >
                       {isSaving ? "Saving..." : "Save All Changes"}
@@ -400,6 +447,7 @@ export default function PricingPage() {
                         <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
                           <td className="px-6 py-3">
                             <input
+                              disabled={!canUpdate}
                               className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
                               value={row.vehicle_model}
                               onChange={e => dispatch(updateRateRow({ index: idx, field: 'vehicle_model', value: e.target.value }))}
@@ -408,10 +456,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'cost_per_km', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'cost_per_km', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_cost_per_km', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_cost_per_km', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.cost_per_km, row.market_cost_per_km)}
                                 </>
                               )}
@@ -419,10 +467,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_5hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_5hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_5hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_5hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_5hr, row.market_rate_spot_5hr)}
                                 </>
                               )}
@@ -430,10 +478,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_10hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_10hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_10hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_10hr, row.market_rate_spot_10hr)}
                                 </>
                               )}
@@ -441,10 +489,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_24hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_24hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_24hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_spot_24hr, row.market_rate_spot_24hr)}
                                 </>
                               )}
@@ -452,10 +500,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_10hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_10hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_10hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_monthly_10hr, row.market_rate_monthly_10hr)}
                                 </>
                               )}
@@ -463,10 +511,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_24hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_24hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_24hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_monthly_24hr, row.market_rate_monthly_24hr)}
                                 </>
                               )}
@@ -474,10 +522,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_overtime_per_hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_overtime_per_hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
-                                  <input className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_overtime_per_hr', value: e.target.value }))} placeholder="Market" />
+                                  <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_overtime_per_hr', value: e.target.value }))} placeholder="Market" />
                                   {getSavings(row.rate_overtime_per_hr, row.market_rate_overtime_per_hr)}
                                 </>
                               )}
@@ -485,8 +533,10 @@ export default function PricingPage() {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
+                              type="button"
                               onClick={() => handleDeleteRow(idx)}
-                              className="text-red-400 hover:text-red-600 p-1"
+                              disabled={!canDelete}
+                              className="text-red-400 hover:text-red-600 p-1 disabled:opacity-30 disabled:pointer-events-none"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                             </button>
@@ -516,25 +566,29 @@ export default function PricingPage() {
                     label="Base Fuel Price (PKR)"
                     value={shuttleSettings.fuelBasePrice}
                     onChange={(v: string) => dispatch(setShuttleSettings({ fuelBasePrice: v }))}
+                    disabled={!canUpdate}
                   />
                   <Input
                     label="Revision Threshold (%)"
                     value={shuttleSettings.revisionPercentage}
                     onChange={(v: string) => dispatch(setShuttleSettings({ revisionPercentage: v }))}
                     helperText="Leave empty to always adjust fuel cost with fuel price changes"
+                    disabled={!canUpdate}
                   />
                   <Input
                     label="S.S.T (%)"
                     value={shuttleSettings.sstPercentage}
                     onChange={(v: string) => dispatch(setShuttleSettings({ sstPercentage: v }))}
                     placeholder="10"
+                    disabled={!canUpdate}
                   />
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
                     <select
                       value={shuttleSettings.contractDuration}
                       onChange={(e) => dispatch(setShuttleSettings({ contractDuration: e.target.value }))}
-                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white"
+                      disabled={!canUpdate}
+                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
                     >
                       <option value="">Select Duration</option>
                       <option value="6 Months">6 Months</option>
@@ -549,6 +603,7 @@ export default function PricingPage() {
                     value={shuttleSettings.contractDate}
                     onChange={(v: string) => dispatch(setShuttleSettings({ contractDate: v }))}
                     type="date"
+                    disabled={!canUpdate}
                   />
                 </div>
               </div>
@@ -565,13 +620,14 @@ export default function PricingPage() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => dispatch(addShuttleRouteRow())}
-                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      disabled={!canAddRows}
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       + Add Shuttle Route
                     </button>
                     <button
                       onClick={handleShuttleSave}
-                      disabled={isSaving}
+                      disabled={!canUpdate || isSaving}
                       className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-[#d97000] disabled:opacity-70 transition-all"
                     >
                       {isSaving ? "Saving..." : "Save Shuttle Contract"}
@@ -603,6 +659,7 @@ export default function PricingPage() {
                           <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
                             <td className="px-6 py-3">
                               <input
+                                disabled={!canUpdate}
                                 className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
                                 value={row.particulars || ""}
                                 onChange={(e) =>
@@ -668,6 +725,7 @@ export default function PricingPage() {
                             <td className="px-4 py-3 text-center">
                               <input
                                 type="number"
+                                disabled={!canUpdate}
                                 className="w-20 h-9 rounded border border-slate-200 px-2 text-sm text-center"
                                 value={row.quantity ?? 0}
                                 onChange={(e) =>
@@ -684,8 +742,10 @@ export default function PricingPage() {
                             </td>
                             <td className="px-4 py-3 text-center">
                               <button
+                                type="button"
                                 onClick={() => dispatch(removeShuttleRouteRow(idx))}
-                                className="text-red-400 hover:text-red-600 p-1"
+                                disabled={!canDelete}
+                                className="text-red-400 hover:text-red-600 p-1 disabled:opacity-30 disabled:pointer-events-none"
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"

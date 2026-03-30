@@ -2,6 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PermissionGate } from '@/app/admin/components/PermissionGate';
+import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Bus, MapPin, Navigation, RefreshCw, Radio } from 'lucide-react';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
@@ -61,6 +63,16 @@ function statusBadge(status: string) {
 // ---- Component -------------------------------------------------------------
 
 export default function OpsShuttlePage() {
+  return (
+    <PermissionGate permission="ops_shuttle">
+      <AdminCan I="read" a="OpsShuttle">
+        <OpsShuttleContent />
+      </AdminCan>
+    </PermissionGate>
+  );
+}
+
+function OpsShuttleContent() {
   const [trips, setTrips] = useState<ShuttleTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

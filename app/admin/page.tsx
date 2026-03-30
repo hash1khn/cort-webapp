@@ -8,8 +8,20 @@ import { DashboardCharts } from "./ui/dashboard/DashboardCharts";
 import { DashboardTables } from "./ui/dashboard/DashboardTables";
 import { FuelPriceAlert } from "./components/FuelPriceAlert";
 import { RootState } from "../lib/store/store";
+import { PermissionGate } from "./components/PermissionGate";
+import { AdminCan } from "../lib/abilities/AdminAbilityProvider";
 
 export default function AdminDashboardPage() {
+  return (
+    <PermissionGate permission="dashboard">
+      <AdminCan I="read" a="Dashboard">
+        <AdminDashboardContent />
+      </AdminCan>
+    </PermissionGate>
+  );
+}
+
+function AdminDashboardContent() {
   const dispatch = useAppDispatch();
   const { stats, loading, error, dateRange } = useAppSelector((state: RootState) => state.superAdminDashboard);
 

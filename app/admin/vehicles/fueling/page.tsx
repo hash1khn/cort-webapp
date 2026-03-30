@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { PermissionGate } from "../../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import {
     fetchFuelRecords,
     fetchFuelStats,
@@ -28,7 +31,21 @@ import {
 } from "../../../lib/services/api-client";
 
 export default function FuelingPage() {
+    return (
+        <PermissionGate permission="fuel_records">
+            <AdminCan I="read" a="FuelRecords">
+                <FuelingPageContent />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function FuelingPageContent() {
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.fuel_records);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.fuel_records);
+    const canDelete = ability.can("delete", ADMIN_SUBJECTS.fuel_records);
 
     const records = useAppSelector(selectFuelRecords);
     const stats = useAppSelector(selectFuelStats);
@@ -328,17 +345,20 @@ export default function FuelingPage() {
                 {/* Bulk Action Button */}
                 {selectedIds.length > 0 && (
                     <button
+                        type="button"
                         onClick={handleBulkPay}
-                        disabled={isSubmitting}
-                        className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-success px-4 text-sm font-semibold text-white hover:opacity-95"
+                        disabled={isSubmitting || !canUpdate}
+                        className="ml-auto inline-flex h-10 items-center justify-center rounded-md bg-success px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         Mark {selectedIds.length} as Paid
                     </button>
                 )}
 
                 <button
+                    type="button"
                     onClick={startCreate}
-                    className={`${selectedIds.length === 0 ? "ml-auto" : ""} inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95`}
+                    disabled={!canCreate}
+                    className={`${selectedIds.length === 0 ? "ml-auto" : ""} inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:pointer-events-none`}
                 >
                     Add Fuel Record
                 </button>
@@ -355,6 +375,7 @@ export default function FuelingPage() {
                                         className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
                                         checked={isAllSelected}
                                         onChange={(e) => toggleSelectAll(e.target.checked)}
+                                        disabled={!canUpdate}
                                     />
                                 </th>
                                 <th className="px-4 py-3 text-left">Date</th>
@@ -376,6 +397,7 @@ export default function FuelingPage() {
                                                 className="h-4 w-4 rounded border-border text-blue focus:ring-2 focus:ring-blue/40"
                                                 checked={selectedIds.includes(r.id)}
                                                 onChange={(e) => toggleSelectId(r.id, e.target.checked)}
+                                                disabled={!canUpdate}
                                             />
                                         )}
                                     </td>
@@ -395,14 +417,18 @@ export default function FuelingPage() {
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
+                                                type="button"
                                                 onClick={() => startEdit(r)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface"
+                                                disabled={!canUpdate}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-ink hover:bg-surface disabled:opacity-50 disabled:pointer-events-none"
                                             >
                                                 Edit
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => handleDelete(r)}
-                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5"
+                                                disabled={!canDelete}
+                                                className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50 disabled:pointer-events-none"
                                             >
                                                 Delete
                                             </button>
@@ -465,8 +491,9 @@ export default function FuelingPage() {
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || (modalMode === "create" ? !canCreate : !canUpdate)}
                                 className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Record" : "Save Changes")}

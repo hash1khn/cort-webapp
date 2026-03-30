@@ -9,7 +9,9 @@ import {
     AuthSession,
     UserRole,
     PermissionKey,
+    CrudAction,
 } from '../types/auth-types';
+import { staffHasCrud } from '../utils/staff-permissions';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -152,20 +154,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return user.company_id === companyId;
     }, [user]);
 
-    /**
-     * Check if the user has a specific granular permission.
-     * SUPER_ADMIN always returns true.
-     * INTERNAL_STAFF checks their permissions object.
-     * All other roles return false.
-     */
-    const hasPermission = useCallback((key: PermissionKey): boolean => {
+    const hasCrud = useCallback((key: PermissionKey, action: CrudAction): boolean => {
         if (!user) return false;
         if (user.role === UserRole.SUPER_ADMIN) return true;
         if (user.role === UserRole.INTERNAL_STAFF) {
-            return user.permissions?.[key] === true;
+            return staffHasCrud(user.permissions ?? null, key, action);
         }
         return false;
     }, [user]);
+
+    /** Nav / default route gate: requires `read` on the section for INTERNAL_STAFF. */
+    const hasPermission = useCallback(
+        (key: PermissionKey): boolean => hasCrud(key, 'read'),
+        [hasCrud],
+    );
 
     /**
      * Check if shuttle service is enabled for the user's company
@@ -194,6 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasRole,
         hasCompanyAccess,
         hasPermission,
+        hasCrud,
         isShuttleEnabled,
         isChauffeurEnabled,
     };

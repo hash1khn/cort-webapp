@@ -1,8 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiClient, Company, Employee } from "../../../lib/services/api-client";
+import { PermissionGate } from "../../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
+import { useAuth } from "../../../lib/contexts/auth-context";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -45,8 +50,23 @@ function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose:
 // -- Main Page --
 
 export default function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    return (
+        <PermissionGate permission="companies">
+            <AdminCan I="read" a="Companies">
+                <CompanyDetailsContent params={params} />
+            </AdminCan>
+        </PermissionGate>
+    );
+}
+
+function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
+    const ability = useAdminAbility();
+    const { hasCrud } = useAuth();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.companies);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.companies);
+    const canViewPricing = hasCrud("pricing", "read");
 
     const [company, setCompany] = useState<Company | null>(null);
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -301,15 +321,26 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                         <h1 className="text-3xl font-bold tracking-tight text-[#0c225e]">{company.name}</h1>
                         <p className="text-sm text-slate-500 mt-1">{company._count?.users || 0} Employees • {company.address || "No address"}</p>
                     </div>
-                    <button
-                        onClick={handleExportCredentials}
-                        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
-                    >
-                        <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Export List
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canViewPricing && (
+                            <Link
+                                href={`/admin/pricing?companyId=${id}`}
+                                className="inline-flex h-9 items-center justify-center rounded-lg border border-[#0c225e] bg-white px-4 text-sm font-semibold text-[#0c225e] shadow-sm hover:bg-slate-50 transition-colors"
+                            >
+                                Contracts &amp; pricing
+                            </Link>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleExportCredentials}
+                            className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors"
+                        >
+                            <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Export List
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -348,13 +379,18 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                             Manage your full roster here.
                         </div>
                         <div className="flex gap-2">
-                            <label className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer">
+                            <label
+                                className={cx(
+                                    "inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors",
+                                    canCreate ? "cursor-pointer" : "cursor-not-allowed opacity-50 pointer-events-none",
+                                )}
+                            >
                                 <input
                                     type="file"
                                     accept=".csv"
                                     onChange={handleCsvUpload}
                                     className="hidden"
-                                    disabled={isUploadingCsv}
+                                    disabled={isUploadingCsv || !canCreate}
                                 />
                                 <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -362,8 +398,10 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                 {isUploadingCsv ? "Uploading..." : "Upload CSV"}
                             </label>
                             <button
+                                type="button"
                                 onClick={() => setIsEmpModalOpen(true)}
-                                className="inline-flex h-9 items-center justify-center rounded-lg bg-[#f47f00] px-4 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 transition-colors"
+                                disabled={!canCreate}
+                                className="inline-flex h-9 items-center justify-center rounded-lg bg-[#f47f00] px-4 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                             >
                                 <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -405,8 +443,10 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button
+                                                    type="button"
                                                     onClick={() => handleToggleStatus(emp)}
-                                                    className="text-xs font-semibold text-[#f47f00] hover:underline"
+                                                    disabled={!canUpdate}
+                                                    className="text-xs font-semibold text-[#f47f00] hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                                                 >
                                                     {emp.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                                                 </button>
@@ -437,12 +477,13 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                     <div className="font-semibold text-slate-700">Shuttle Service</div>
                                     <div className="text-xs text-slate-500">Enable Fixed Routes & Stops</div>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
+                                <label className={cx("relative inline-flex items-center", canUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
                                     <input
                                         type="checkbox"
                                         className="sr-only peer"
                                         checked={company.is_shuttle_enabled}
                                         onChange={() => toggleService('shuttle')}
+                                        disabled={!canUpdate}
                                     />
                                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f47f00]"></div>
                                 </label>
@@ -452,12 +493,13 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                                     <div className="font-semibold text-slate-700">Chauffeur Service</div>
                                     <div className="text-xs text-slate-500">Enable On-Demand Bookings</div>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
+                                <label className={cx("relative inline-flex items-center", canUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
                                     <input
                                         type="checkbox"
                                         className="sr-only peer"
                                         checked={company.is_chauffeur_enabled}
                                         onChange={() => toggleService('chauffeur')}
+                                        disabled={!canUpdate}
                                     />
                                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f47f00]"></div>
                                 </label>
@@ -476,7 +518,12 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                             )}
                         </div>
 
-                        <div className={cx("grid grid-cols-2 gap-2", !company.is_chauffeur_enabled && "opacity-50 pointer-events-none")}>
+                        <div
+                            className={cx(
+                                "grid grid-cols-2 gap-2",
+                                (!company.is_chauffeur_enabled || !canUpdate) && "opacity-50 pointer-events-none",
+                            )}
+                        >
                             {availableVehicleModels.map(model => {
                                 const isAllowed = currentModels.includes(model);
                                 return (
@@ -575,8 +622,9 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
                     <div className="flex justify-end gap-3 pt-4">
                         <button onClick={() => setIsEmpModalOpen(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
                         <button
+                            type="button"
                             onClick={handleCreateEmployee}
-                            disabled={isCreatingEmp}
+                            disabled={isCreatingEmp || !canCreate}
                             className="px-4 py-2 text-sm font-bold text-white bg-[#f47f00] rounded-lg hover:bg-[#d97000] disabled:opacity-50"
                         >
                             {isCreatingEmp ? "Adding..." : "Add Employee"}

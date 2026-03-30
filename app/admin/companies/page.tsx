@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Company } from "../../lib/services/api-client";
+import { PermissionGate } from "../components/PermissionGate";
+import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
   fetchAdminCompanies,
@@ -26,7 +29,21 @@ import { PasswordResetModal } from "./components/PasswordResetModal";
 // -- Main Page Definition --
 
 export default function CompaniesPage() {
+  return (
+    <PermissionGate permission="companies">
+      <AdminCan I="read" a="Companies">
+        <CompaniesPageContent />
+      </AdminCan>
+    </PermissionGate>
+  );
+}
+
+function CompaniesPageContent() {
   const dispatch = useAppDispatch();
+  const ability = useAdminAbility();
+  const canCreate = ability.can("create", ADMIN_SUBJECTS.companies);
+  const canUpdate = ability.can("update", ADMIN_SUBJECTS.companies);
+  const canDelete = ability.can("delete", ADMIN_SUBJECTS.companies);
   const companies = useAppSelector(selectAdminCompanies);
   const status = useAppSelector(selectAdminCompaniesStatus);
   const error = useAppSelector(selectAdminCompaniesError);
@@ -118,7 +135,8 @@ export default function CompaniesPage() {
         <button
           type="button"
           onClick={handleCreateNew}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5"
+          disabled={!canCreate}
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-[#f47f00] px-5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-[#d97000] hover:-translate-y-0.5 disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-y-0"
         >
           <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -183,22 +201,28 @@ export default function CompaniesPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
                       </a>
                       <button
+                        type="button"
                         onClick={() => handleEdit(company)}
-                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors"
+                        disabled={!canUpdate}
+                        className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors disabled:opacity-40 disabled:pointer-events-none"
                         title="Edit Details"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                       </button>
                       <button
+                        type="button"
                         onClick={() => setPasswordResetCompany(company)}
-                        className="rounded-md p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                        disabled={!canUpdate}
+                        className="rounded-md p-2 text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                         title="Reset Password"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(company.id)}
-                        className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        disabled={!canDelete}
+                        className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                         title="Delete Company"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -215,7 +239,7 @@ export default function CompaniesPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                       <span className="font-medium">No companies found</span>
-                      <button onClick={handleCreateNew} className="text-sm text-[#f47f00] hover:underline">
+                      <button type="button" onClick={handleCreateNew} disabled={!canCreate} className="text-sm text-[#f47f00] hover:underline disabled:opacity-50 disabled:no-underline">
                         Create your first company
                       </button>
                     </div>
