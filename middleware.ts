@@ -24,7 +24,11 @@ export function middleware(request: NextRequest) {
         // we might not need to rewrite, or we might want to handle it.
         // However, usually we rewrite everything that doesn't start with /admin to /admin
 
-        if (!pathname.startsWith("/admin")) {
+        // Important: keep /company routes intact on the admin domain.
+        // Otherwise, redirects from ProtectedRoute like "/company" will be
+        // internally rewritten to "/admin/company" (not a real route),
+        // resulting in a 404 ("Lost your way?").
+        if (!pathname.startsWith("/admin") && !pathname.startsWith("/company")) {
             return NextResponse.rewrite(new URL(`/admin${pathname}`, request.url));
         }
     }
@@ -36,8 +40,9 @@ export function middleware(request: NextRequest) {
             return NextResponse.rewrite(new URL("/company/login", request.url));
         }
 
-        // Similar logic for company portal
-        if (!pathname.startsWith("/company")) {
+        // Similar logic for company portal, but keep /admin routes intact.
+        // (ProtectedRoute can redirect admins to "/admin".)
+        if (!pathname.startsWith("/company") && !pathname.startsWith("/admin")) {
             return NextResponse.rewrite(new URL(`/company${pathname}`, request.url));
         }
     }
