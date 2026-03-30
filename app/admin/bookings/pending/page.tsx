@@ -124,19 +124,40 @@ export default function BookingsPage() {
   // Handle opening modal and fetching resources
   const onOpenBookingModal = async (booking: ChauffeurBooking) => {
     setSelectedBookingId(booking.id);
-    setSelectedCarId("");
-    setSelectedDriverId("");
+    setSelectedCarId(booking.vehicles?.id?.toString() || "");
+    setSelectedDriverId(booking.users_chauffeur_bookings_driver_idTousers?.id?.toString() || "");
+    setAvailableCars([]);
+    setAvailableDrivers([]);
 
-    if (booking.status === 'PENDING') {
+    const canEditAssignment = booking.status === 'PENDING' || booking.status === 'ASSIGNED' || booking.status === 'ARRIVED';
+
+    if (canEditAssignment) {
       try {
         const [carsRes, driversRes] = await Promise.all([
           apiClient.getAvailableVehicles({ limit: 100 }) as any,
           apiClient.getAvailableDrivers({ limit: 100, driver_type: DriverType.CHAUFFEUR }) as any,
         ]);
+
         const carsRaw = carsRes?.data ?? carsRes;
         const driversRaw = driversRes?.data ?? driversRes;
-        setAvailableCars(carsRaw?.data ?? carsRaw ?? []);
-        setAvailableDrivers(driversRaw?.data ?? driversRaw ?? []);
+
+        const cars = carsRaw?.data ?? carsRaw ?? [];
+        const drivers = driversRaw?.data ?? driversRaw ?? [];
+
+        // Ensure the currently-assigned vehicle/driver remain selectable in the dropdown,
+        // even if the backend's "available" filter excludes them.
+        const currentCar = booking.vehicles;
+        if (currentCar?.id != null && !cars.some((c: any) => c?.id === currentCar.id)) {
+          cars.push(currentCar);
+        }
+
+        const currentDriver = booking.users_chauffeur_bookings_driver_idTousers;
+        if (currentDriver?.id && !drivers.some((d: any) => d?.id === currentDriver.id)) {
+          drivers.push(currentDriver);
+        }
+
+        setAvailableCars(cars);
+        setAvailableDrivers(drivers);
       } catch (e) {
         console.error("Failed to load assignment resources", e);
       }
@@ -161,7 +182,7 @@ export default function BookingsPage() {
     setIsApproving(true);
     try {
       await apiClient.assignBooking(selectedBooking.id, parseInt(selectedCarId), selectedDriverId);
-      alert("Booking approved and assignment complete!");
+      alert("Booking assignment updated!");
       setSelectedBookingId(null);
       setSelectedCarId("");
       setSelectedDriverId("");
@@ -698,10 +719,10 @@ export default function BookingsPage() {
                 )}
               </div>
 
-              {selectedBooking.status === 'PENDING' && (
+              {(selectedBooking.status === 'PENDING' || selectedBooking.status === 'ASSIGNED' || selectedBooking.status === 'ARRIVED') && (
                 <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
                   <div className="text-xs font-semibold tracking-wider text-muted">
-                    ASSIGN DRIVER & VEHICLE
+                    {selectedBooking.status === 'PENDING' ? 'ASSIGN DRIVER & VEHICLE' : 'EDIT VEHICLE & DRIVER'}
                   </div>
                   <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="flex flex-col gap-1">
@@ -767,6 +788,25 @@ export default function BookingsPage() {
                       </svg>
                     )}
                     {isApproving ? "Approving..." : "Approve & Assign"}
+                  </button>
+                </div>
+              )}
+
+              {(selectedBooking.status === 'ASSIGNED' || selectedBooking.status === 'ARRIVED') && (
+                <div className="flex items-center justify-end pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={!selectedCarId || !selectedDriverId || isApproving}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
+                  >
+                    {isApproving && (
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    {isApproving ? "Updating..." : "Update Assignment"}
                   </button>
                 </div>
               )}
