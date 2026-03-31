@@ -27,6 +27,8 @@ import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
 import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
+import { useAuth } from '@/app/lib/contexts/auth-context';
+import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
@@ -40,6 +42,12 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const status = useAppSelector(selectAdminRoutesStatus);
     const drivers = useAppSelector(selectAdminDrivers);
     const vehicles = useAppSelector(selectAdminVehicles);
+
+    const { hasCrud } = useAuth();
+    const canEditRoutes =
+        hasCrud('routes', 'create') ||
+        hasCrud('routes', 'update') ||
+        hasCrud('routes', 'delete');
 
     const [activeTab, setActiveTab] = useState<'overview' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
@@ -172,6 +180,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     }, []);
 
     const handleStopSubmit = async () => {
+        if (!canEditRoutes) return;
         if (!route) return;
         if (!stopForm.name || !stopForm.lat || !stopForm.lng || !stopForm.sequence_order) {
             toast.error('Name, location, and sequence order are required');
@@ -201,6 +210,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     };
 
     const handleStopDelete = async (stopId: number) => {
+        if (!canEditRoutes) return;
         if (!confirm('Delete this stop?')) return;
         try {
             await dispatch(deleteRouteStop(stopId)).unwrap();
@@ -225,6 +235,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     };
 
     const handleSaveDetails = async () => {
+        if (!canEditRoutes) return;
         if (!route) return;
         try {
             await dispatch(updateAdminRoute({
@@ -294,7 +305,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     if (!route) return <div className="p-8 text-center">Route not found</div>;
 
     return (
-        <div className="space-y-6">
+        <PermissionGate permission="routes">
+            <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
                 <Button variant="ghost" size="sm" onClick={() => router.back()}>
@@ -310,7 +322,11 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     ) : (
                         <h1 className="text-2xl font-bold flex items-center gap-2">
                             {route.name}
-                            <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-blue-600">
+                            <button
+                                onClick={canEditRoutes ? () => setIsEditing(true) : undefined}
+                                disabled={!canEditRoutes}
+                                className="text-gray-400 hover:text-blue-600 disabled:opacity-40"
+                            >
                                 <Edit className="w-4 h-4" />
                             </button>
                         </h1>
@@ -322,7 +338,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 {isEditing && (
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                        <Button onClick={handleSaveDetails}>Save Changes</Button>
+                        <Button onClick={handleSaveDetails} disabled={!canEditRoutes}>Save Changes</Button>
                     </div>
                 )}
             </div>
@@ -437,7 +453,11 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     Stops ({route.route_stops?.length || 0})
                                 </h3>
                                 {!isAddingStop && !editingStopId && (
-                                    <Button size="sm" onClick={handleStopAddClick}>
+                                    <Button
+                                        size="sm"
+                                        onClick={canEditRoutes ? handleStopAddClick : undefined}
+                                        disabled={!canEditRoutes}
+                                    >
                                         <Plus className="w-4 h-4 mr-1" /> Add
                                     </Button>
                                 )}
@@ -539,7 +559,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         </p>
                                     )}
 
-                                    <Button size="sm" className="w-full" onClick={handleStopSubmit}>
+                                    <Button size="sm" className="w-full" onClick={handleStopSubmit} disabled={!canEditRoutes}>
                                         <Save className="w-3 h-3 mr-2" /> Save Stop
                                     </Button>
                                 </div>
@@ -558,7 +578,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         <div className="flex justify-between items-start">
                                             <div
                                                 className="cursor-pointer hover:text-blue-600"
-                                                onClick={() => handleStopEditClick(stop)}
+                                                onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
                                             >
                                                 <div className="text-sm font-medium">{stop.name}</div>
                                                 <div className="text-xs text-gray-400">
@@ -567,14 +587,16 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
-                                                    onClick={() => handleStopEditClick(stop)}
-                                                    className="p-1 hover:bg-gray-100 rounded text-blue-500"
+                                                    onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
+                                                    disabled={!canEditRoutes}
+                                                    className="p-1 hover:bg-gray-100 rounded text-blue-500 disabled:opacity-40"
                                                 >
                                                     <Edit className="w-3 h-3" />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleStopDelete(stop.id)}
-                                                    className="p-1 hover:bg-gray-100 rounded text-red-500"
+                                                    onClick={canEditRoutes ? () => handleStopDelete(stop.id) : undefined}
+                                                    disabled={!canEditRoutes}
+                                                    className="p-1 hover:bg-gray-100 rounded text-red-500 disabled:opacity-40"
                                                 >
                                                     <Trash className="w-3 h-3" />
                                                 </button>
@@ -597,6 +619,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Rostering Tab */}
             {activeTab === 'rostering' && <RosteringTab route={route} />}
-        </div>
+            </div>
+        </PermissionGate>
     );
 }

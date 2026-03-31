@@ -6,7 +6,7 @@ import { DriverType, ChauffeurBooking, TripType, apiClient } from "../../../lib/
 import { type MapMarker } from "../../ui/Map";
 import Modal from "../../../company/bookings/components/Modal";
 import Pagination from "../../../components/ui/Pagination";
-
+import { useAuth } from "../../../lib/contexts/auth-context";
 import { cx } from "../../components/ui/cx";
 import { EndTripModal } from "./components/EndTripModal";
 import { DailyLogsModal } from "./components/DailyLogsModal";
@@ -38,6 +38,12 @@ export default function BookingsPage() {
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<any>(null);
+
+  const { hasCrud } = useAuth();
+  const canEditBookings =
+    hasCrud("bookings", "create") ||
+    hasCrud("bookings", "update") ||
+    hasCrud("bookings", "delete");
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
@@ -517,7 +523,11 @@ export default function BookingsPage() {
                         <div onClick={(e) => e.stopPropagation()}>
                           <select
                             value={b.status}
-                            onChange={(e) => handleStatusChange(b, e.target.value)}
+                            onChange={(e) => {
+                              if (!canEditBookings) return;
+                              handleStatusChange(b, e.target.value);
+                            }}
+                            disabled={!canEditBookings}
                             className={cx(
                               "h-7 rounded-full px-2 text-[11px] font-semibold border-none outline-none cursor-pointer appearance-none text-center min-w-[100px]",
                               b.status === 'PENDING' ? "bg-yellow/10 text-yellow" :
@@ -538,8 +548,9 @@ export default function BookingsPage() {
                         {b.status === 'COMPLETED' && !b.invoices && (
                           <div className="mt-2 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
-                              onClick={() => handleGenerateInvoice(b.id)}
-                              className="text-[10px] bg-navy text-white px-2 py-1 rounded hover:opacity-90"
+                              onClick={() => canEditBookings && handleGenerateInvoice(b.id)}
+                              disabled={!canEditBookings}
+                              className="text-[10px] bg-navy text-white px-2 py-1 rounded hover:opacity-90 disabled:opacity-50"
                             >
                               Generate Invoice
                             </button>
@@ -770,15 +781,16 @@ export default function BookingsPage() {
                 <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={handleReject}
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-danger/30 bg-white px-4 text-sm font-semibold text-danger hover:bg-danger/5"
+                    onClick={canEditBookings ? handleReject : undefined}
+                    disabled={!canEditBookings}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-danger/30 bg-white px-4 text-sm font-semibold text-danger hover:bg-danger/5 disabled:opacity-50"
                   >
                     Reject
                   </button>
                   <button
                     type="button"
-                    onClick={handleApprove}
-                    disabled={!selectedCarId || !selectedDriverId || isApproving}
+                    onClick={canEditBookings ? handleApprove : undefined}
+                    disabled={!canEditBookings || !selectedCarId || !selectedDriverId || isApproving}
                     className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
                   >
                     {isApproving && (
@@ -796,8 +808,8 @@ export default function BookingsPage() {
                 <div className="flex items-center justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={handleApprove}
-                    disabled={!selectedCarId || !selectedDriverId || isApproving}
+                    onClick={canEditBookings ? handleApprove : undefined}
+                    disabled={!canEditBookings || !selectedCarId || !selectedDriverId || isApproving}
                     className="inline-flex h-10 items-center justify-center rounded-md bg-orange px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
                   >
                     {isApproving && (
@@ -826,7 +838,8 @@ export default function BookingsPage() {
                   {(selectedBooking.status === 'IN_PROGRESS' ||
                     selectedBooking.status === 'ENDED' ||
                     selectedBooking.status === 'COMPLETED') &&
-                    paymentSummary?.payment_status !== 'FULLY_PAID' && (
+                    paymentSummary?.payment_status !== 'FULLY_PAID' &&
+                    canEditBookings && (
                       <PaymentForm
                         bookingId={selectedBooking.id}
                         onSuccess={() => loadPaymentData(selectedBooking.id)}
@@ -843,8 +856,8 @@ export default function BookingsPage() {
                 <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={handleStartTrip}
-                    disabled={isStartingTrip}
+                    onClick={canEditBookings ? handleStartTrip : undefined}
+                    disabled={!canEditBookings || isStartingTrip}
                     className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 gap-2"
                   >
                     {isStartingTrip && (
@@ -862,15 +875,17 @@ export default function BookingsPage() {
                 <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={() => setShowEndTripModal(true)}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95"
+                    onClick={canEditBookings ? () => setShowEndTripModal(true) : undefined}
+                    disabled={!canEditBookings}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
                   >
                     End Trip
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowDailyLogsModal(true)}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue/10 text-blue px-4 text-sm font-semibold hover:bg-blue/20"
+                    onClick={canEditBookings ? () => setShowDailyLogsModal(true) : undefined}
+                    disabled={!canEditBookings}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue/10 text-blue px-4 text-sm font-semibold hover:bg-blue/20 disabled:opacity-50"
                   >
                     Manage Daily Logs
                   </button>
@@ -881,8 +896,9 @@ export default function BookingsPage() {
                 <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={handleCompleteTrip}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-semibold text-white hover:opacity-95"
+                    onClick={canEditBookings ? handleCompleteTrip : undefined}
+                    disabled={!canEditBookings}
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
                   >
                     Complete Trip (Generate Invoice)
                   </button>
@@ -893,8 +909,9 @@ export default function BookingsPage() {
                 <div className="flex items-center gap-3 justify-end pt-4 border-t border-border">
                   <button
                     type="button"
-                    onClick={() => setShowRecalculateModal(true)}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange/40 bg-orange/10 px-4 text-sm font-semibold text-orange hover:bg-orange/20"
+                    onClick={canEditBookings ? () => setShowRecalculateModal(true) : undefined}
+                    disabled={!canEditBookings}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-orange/40 bg-orange/10 px-4 text-sm font-semibold text-orange hover:bg-orange/20 disabled:opacity-50"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
