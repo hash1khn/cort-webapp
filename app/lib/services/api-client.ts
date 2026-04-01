@@ -1009,10 +1009,14 @@ class ApiClient {
         });
     }
 
-    async generateShuttleInvoice(contractId: number, billingMonth: string) {
+    async generateShuttleInvoice(
+        contractId: number,
+        billingMonth: string,
+        options?: { continuedVehicles?: number; amountMode?: 'EXACT' | 'LESS' | 'MORE'; amountDelta?: number }
+    ) {
         return this.request('/invoices/generate/shuttle', {
             method: 'POST',
-            body: JSON.stringify({ contractId, billingMonth }),
+            body: JSON.stringify({ contractId, billingMonth, ...options }),
         });
     }
 
@@ -1071,6 +1075,12 @@ class ApiClient {
         return this.request<any>(`/invoices/${id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ status })
+        });
+    }
+
+    async deleteInvoice(id: number): Promise<any> {
+        return this.request<any>(`/invoices/${id}`, {
+            method: 'DELETE',
         });
     }
 

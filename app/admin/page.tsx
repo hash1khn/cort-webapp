@@ -28,6 +28,7 @@ function AdminDashboardContent() {
   // Local state for date inputs to allow typing before dispatch
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const hasDateFilter = Boolean(startDate && endDate);
 
   // Track which button triggered the load
   const [loadingAction, setLoadingAction] = useState<'filter' | 'refresh' | null>(null);
@@ -216,6 +217,21 @@ function AdminDashboardContent() {
 
             <MetricCard label="Payables" metric={{ current: stats.totalPayables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
           </div>
+
+          {hasDateFilter && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <MetricCard
+                label="Current Filter Receivable"
+                metric={{ current: stats.currentPeriodReceivables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
+                type="currency"
+              />
+              <MetricCard
+                label="Current Filter Payable"
+                metric={{ current: stats.currentPeriodPayables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
+                type="currency"
+              />
+            </div>
+          )}
 
           {/* Charts */}
           <DashboardCharts

@@ -13,6 +13,8 @@ export interface SuperAdminDashboardStats {
     costPerRide: number;
     totalReceivables: number;
     totalPayables: number;
+    currentPeriodReceivables: number | null;
+    currentPeriodPayables: number | null;
     alerts: any[];
     totalUnassignedBookings: number;
     receivablesByClient: BreakdownItem[];

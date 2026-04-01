@@ -43,6 +43,7 @@ export default function InvoicingPage() {
 function InvoicingPageContent() {
   const ability = useAdminAbility();
   const canUpdate = ability.can("update", ADMIN_SUBJECTS.invoicing);
+  const canDelete = ability.can("delete", ADMIN_SUBJECTS.invoicing);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats>({ totalCollectable: 0, totalCollected: 0, totalOverdue: 0 });
@@ -59,6 +60,10 @@ function InvoicingPageContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
+  const [continuedVehicles, setContinuedVehicles] = useState<string>("");
+  const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
+  const [amountDelta, setAmountDelta] = useState<string>("");
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
   const fetchInvoices = useCallback(async (page: number) => {
     setIsLoading(true);
@@ -202,7 +207,11 @@ function InvoicingPageContent() {
         return;
       }
 
-      await apiClient.generateShuttleInvoice(contract.id, billingMonth);
+      await apiClient.generateShuttleInvoice(contract.id, billingMonth, {
+        continuedVehicles: continuedVehicles !== "" ? Number(continuedVehicles) : undefined,
+        amountMode,
+        amountDelta: amountMode !== "EXACT" && amountDelta !== "" ? Number(amountDelta) : undefined,
+      });
 
       // Refresh invoices and stats
       fetchInvoices(currentPage);
@@ -211,11 +220,29 @@ function InvoicingPageContent() {
       alert("Shuttle invoice generated successfully.");
       setShowShuttleModal(false);
       setBillingMonthRaw("");
+      setContinuedVehicles("");
+      setAmountMode("EXACT");
+      setAmountDelta("");
     } catch (e: any) {
       console.error("Failed to generate shuttle invoice", e);
       alert(`Failed to generate shuttle invoice: ${e?.message || e}`);
     } finally {
       setIsGeneratingShuttle(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (id: number, invoiceNumber: string) => {
+    if (!confirm(`Delete invoice #${invoiceNumber}? This cannot be undone.`)) return;
+    setDeletingInvoiceId(id);
+    try {
+      await apiClient.deleteInvoice(id);
+      setInvoices(prev => prev.filter(inv => inv.id !== id));
+      fetchStats();
+      alert("Invoice deleted successfully.");
+    } catch (e: any) {
+      alert(`Failed to delete invoice: ${e?.message || e}`);
+    } finally {
+      setDeletingInvoiceId(null);
     }
   };
 
@@ -382,6 +409,15 @@ function InvoicingPageContent() {
                             </svg>
                           )}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInvoice(inv.id, inv.invoice_number)}
+                          disabled={deletingInvoiceId === inv.id || !canDelete}
+                          className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                          title="Delete Invoice"
+                        >
+                          {deletingInvoiceId === inv.id ? "..." : "Delete"}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -439,6 +475,51 @@ function InvoicingPageContent() {
               className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
             />
           </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Continued Vehicles (Optional)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={continuedVehicles}
+              onChange={(e) => setContinuedVehicles(e.target.value)}
+              placeholder="e.g. 8"
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Amount Vs Contract
+            </label>
+            <select
+              value={amountMode}
+              onChange={(e) => setAmountMode(e.target.value as "EXACT" | "LESS" | "MORE")}
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+            >
+              <option value="EXACT">Exact as contract</option>
+              <option value="LESS">Less than contract</option>
+              <option value="MORE">More than contract</option>
+            </select>
+          </div>
+
+          {amountMode !== "EXACT" && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Amount Difference (PKR)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={amountDelta}
+                onChange={(e) => setAmountDelta(e.target.value)}
+                placeholder="e.g. 25000"
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
