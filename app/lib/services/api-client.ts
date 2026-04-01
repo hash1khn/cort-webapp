@@ -829,7 +829,7 @@ class ApiClient {
         });
     }
 
-    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, expense_toll_image_url?: string, expense_parking_image_url?: string, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
+    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, expense_toll_image_url?: string, expense_parking_image_url?: string, start_time?: string, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
             method: 'PATCH',
             body: JSON.stringify(data),

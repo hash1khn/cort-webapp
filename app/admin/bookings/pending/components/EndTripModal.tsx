@@ -9,6 +9,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [toll, setToll] = useState("0");
     const [parking, setParking] = useState("0");
     const [vendorCost, setVendorCost] = useState("");
+    const [useManualStartTime, setUseManualStartTime] = useState(false);
+    const [manualStartTime, setManualStartTime] = useState("");
     const [useManualEndTime, setUseManualEndTime] = useState(false);
     const [manualEndTime, setManualEndTime] = useState("");
     const [dailyLogs, setDailyLogs] = useState<any[]>([]);
@@ -21,9 +23,11 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
 
     useEffect(() => {
         if (isOpen && booking) {
-            const startDate = booking.chauffeur_trip_logs?.start_time
-                ? new Date(booking.chauffeur_trip_logs.start_time)
-                : new Date(booking.scheduled_for);
+            const startDate = (useManualStartTime && manualStartTime)
+                ? new Date(manualStartTime)
+                : booking.chauffeur_trip_logs?.start_time
+                    ? new Date(booking.chauffeur_trip_logs.start_time)
+                    : new Date(booking.scheduled_for);
 
             const endDate = (useManualEndTime && manualEndTime)
                 ? new Date(manualEndTime)
@@ -70,7 +74,7 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
             }
             setDailyLogs(days);
         }
-    }, [isOpen, booking, manualEndTime, useManualEndTime]);
+    }, [isOpen, booking, manualEndTime, useManualEndTime, manualStartTime, useManualStartTime]);
 
     if (!isOpen) return null;
 
@@ -110,6 +114,9 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
 
             if (useManualEndTime && manualEndTime) {
                 data.end_time = new Date(manualEndTime).toISOString();
+            }
+            if (useManualStartTime && manualStartTime) {
+                data.start_time = new Date(manualStartTime).toISOString();
             }
 
             const existingLogs = (booking?.chauffeur_trip_daily_logs || []).map(log => {
@@ -200,6 +207,17 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                         </div>
 
                         <div className="border border-border rounded-md p-3">
+                            <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input type="checkbox" checked={useManualStartTime} onChange={(e) => setUseManualStartTime(e.target.checked)} className="rounded border-border" />
+                                <span className="text-xs font-semibold uppercase text-muted">Set Manual Start Time</span>
+                            </label>
+                            {useManualStartTime && (
+                                <div className="mb-3">
+                                    <input type="datetime-local" className="w-full rounded-md border border-border p-2 text-sm" value={manualStartTime} onChange={(e) => setManualStartTime(e.target.value)} />
+                                    <p className="mt-1 text-[10px] text-muted">Leave empty to use recorded trip start time</p>
+                                </div>
+                            )}
+
                             <label className="flex items-center gap-2 cursor-pointer mb-2">
                                 <input type="checkbox" checked={useManualEndTime} onChange={(e) => setUseManualEndTime(e.target.checked)} className="rounded border-border" />
                                 <span className="text-xs font-semibold uppercase text-muted">Set Manual End Time</span>
