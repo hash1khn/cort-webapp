@@ -802,6 +802,12 @@ class ApiClient {
         return this.request<PaginatedResponse<ChauffeurBooking>>(endpoint);
     }
 
+    async deleteBooking(id: number): Promise<void> {
+        return this.request<void>(`/admin/bookings/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
     async createChauffeurBooking(companyId: number, data: CreateChauffeurBookingRequest): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/companies/${companyId}/chauffeur-bookings`, {
             method: 'POST',

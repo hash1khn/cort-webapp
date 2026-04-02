@@ -14,6 +14,7 @@ import { RecalculateModal } from "./components/RecalculateModal";
 import { PaymentForm } from "./components/PaymentForm";
 import { PaymentSummaryCard } from "./components/PaymentSummaryCard";
 import { PaymentHistoryList } from "./components/PaymentHistoryList";
+import { Trash2 } from "lucide-react";
 
 // Dynamic import for the heavy Leaflet map component
 const Map = dynamic(() => import("../../ui/Map"), { ssr: false, loading: () => <div className="h-40 bg-surface/50 rounded-lg animate-pulse flex items-center justify-center text-xs text-muted">Loading map...</div> });
@@ -56,6 +57,7 @@ export default function BookingsPage() {
   const [isEndingTrip, setIsEndingTrip] = useState(false);
   const [showRecalculateModal, setShowRecalculateModal] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -274,6 +276,25 @@ export default function BookingsPage() {
       loadData(currentPage, searchQuery, statusFilter);
     } catch (error: any) {
       alert(error?.message || "Failed to reject booking");
+    }
+  }
+
+  async function handleDeleteBooking(bookingId: number) {
+    if (!confirm(`Are you sure you want to permanently delete booking #${bookingId}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await apiClient.deleteBooking(bookingId);
+      alert("Booking deleted successfully.");
+      setSelectedBookingId(null);
+      loadData(currentPage, searchQuery, statusFilter);
+    } catch (error: any) {
+      console.error("Failed to delete booking", error);
+      alert(error?.message || "Failed to delete booking");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -545,6 +566,28 @@ export default function BookingsPage() {
                             <option value="CANCELLED">CANCELLED</option>
                           </select>
                         </div>
+
+                        {canEditBookings && (
+                          <div
+                            className="mt-2 flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              aria-label={`Delete booking #${b.id}`}
+                              title={`Delete booking #${b.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBooking(b.id);
+                              }}
+                              disabled={isDeleting}
+                              className="text-danger hover:text-danger/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+
                         {b.status === 'COMPLETED' && !b.invoices && (
                           <div className="mt-2 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
