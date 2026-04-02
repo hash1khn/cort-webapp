@@ -16,6 +16,10 @@ interface Invoice {
   total_amount: number | string;
   status: string;
   companies?: { name: string } | null;
+  shuttle_contract_id?: number | null;
+  amount_paid?: number | string | null;
+  amount_remaining?: number | string | null;
+  payment_status?: string | null;
 }
 
 interface InvoiceStats {
@@ -60,10 +64,20 @@ function InvoicingPageContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
+  const [billingPeriod, setBillingPeriod] = useState<"MONTHLY" | "WEEKLY">("MONTHLY");
   const [continuedVehicles, setContinuedVehicles] = useState<string>("");
   const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
   const [amountDelta, setAmountDelta] = useState<string>("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
+
+  // Settle modal state
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settlingInvoice, setSettlingInvoice] = useState<Invoice | null>(null);
+  const [settleAmount, setSettleAmount] = useState<string>("");
+  const [settlePaymentType, setSettlePaymentType] = useState<"PARTIAL" | "FINAL">("PARTIAL");
+  const [settlePaymentMethod, setSettlePaymentMethod] = useState<string>("");
+  const [settleNotes, setSettleNotes] = useState<string>("");
+  const [isSettling, setIsSettling] = useState(false);
 
   const fetchInvoices = useCallback(async (page: number) => {
     setIsLoading(true);
@@ -211,6 +225,7 @@ function InvoicingPageContent() {
         continuedVehicles: continuedVehicles !== "" ? Number(continuedVehicles) : undefined,
         amountMode,
         amountDelta: amountMode !== "EXACT" && amountDelta !== "" ? Number(amountDelta) : undefined,
+        billingPeriod,
       });
 
       // Refresh invoices and stats
@@ -223,6 +238,7 @@ function InvoicingPageContent() {
       setContinuedVehicles("");
       setAmountMode("EXACT");
       setAmountDelta("");
+      setBillingPeriod("MONTHLY");
     } catch (e: any) {
       console.error("Failed to generate shuttle invoice", e);
       alert(`Failed to generate shuttle invoice: ${e?.message || e}`);
@@ -231,8 +247,43 @@ function InvoicingPageContent() {
     }
   };
 
+  const openSettleModal = (inv: Invoice) => {
+    setSettlingInvoice(inv);
+    setSettleAmount("");
+    setSettlePaymentType("PARTIAL");
+    setSettlePaymentMethod("");
+    setSettleNotes("");
+    setShowSettleModal(true);
+  };
+
+  const handleSettleInvoice = async () => {
+    if (!settlingInvoice) return;
+    const amount = Number(settleAmount);
+    if (!settleAmount || isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    setIsSettling(true);
+    try {
+      await apiClient.settleShuttleInvoice(settlingInvoice.id, {
+        amount,
+        paymentType: settlePaymentType,
+        paymentMethod: settlePaymentMethod || undefined,
+        notes: settleNotes || undefined,
+      });
+      fetchInvoices(currentPage);
+      fetchStats();
+      alert(`Payment of PKR ${amount.toLocaleString()} recorded successfully.`);
+      setShowSettleModal(false);
+      setSettlingInvoice(null);
+    } catch (e: any) {
+      alert(`Failed to record payment: ${e?.message || e}`);
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
   const handleDeleteInvoice = async (id: number, invoiceNumber: string) => {
-    if (!confirm(`Delete invoice #${invoiceNumber}? This cannot be undone.`)) return;
     setDeletingInvoiceId(id);
     try {
       await apiClient.deleteInvoice(id);
@@ -418,6 +469,17 @@ function InvoicingPageContent() {
                         >
                           {deletingInvoiceId === inv.id ? "..." : "Delete"}
                         </button>
+                        {/* Settle button — only for shuttle invoices not yet fully paid */}
+                        {inv.shuttle_contract_id && inv.status !== 'PAID' && inv.status !== 'CANCELLED' && canUpdate && (
+                          <button
+                            type="button"
+                            onClick={() => openSettleModal(inv)}
+                            className="text-green-700 hover:text-green-900 font-semibold text-xs border border-green-300 rounded px-2 py-1 hover:bg-green-50"
+                            title="Record Payment"
+                          >
+                            Settle
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -462,6 +524,33 @@ function InvoicingPageContent() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Billing Period
+            </label>
+            <div className="flex gap-2">
+              {(["MONTHLY", "WEEKLY"] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setBillingPeriod(period)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                    billingPeriod === period
+                      ? "bg-[#0c225e] text-white border-[#0c225e]"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-[#0c225e]"
+                  }`}
+                >
+                  {period === "MONTHLY" ? "Monthly" : "Weekly"}
+                </button>
+              ))}
+            </div>
+            {billingPeriod === "WEEKLY" && (
+              <p className="text-xs text-amber-600 mt-1">
+                Weekly amounts are calculated as monthly ÷ 4.33. The current week of the month will be auto-detected.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -539,6 +628,139 @@ function InvoicingPageContent() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Settle Shuttle Invoice Modal */}
+      <Modal
+        isOpen={showSettleModal}
+        onClose={() => {
+          if (!isSettling) {
+            setShowSettleModal(false);
+            setSettlingInvoice(null);
+          }
+        }}
+        title="Record Payment"
+      >
+        {settlingInvoice && (
+          <div className="space-y-4">
+            {/* Compute effective remaining: total - paid (handles stale amount_remaining = 0 on older invoices) */}
+            {/* We use a destructured const via a wrapper so we can share the value below */}
+            {(({ total, paid, remaining }: { total: number; paid: number; remaining: number }) => (
+              <>
+            {/* Summary */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Invoice</span>
+                <span className="font-semibold text-navy">{settlingInvoice.invoice_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Amount</span>
+                <span className="font-semibold">PKR {total.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Already Paid</span>
+                <span className="font-semibold text-green-700">PKR {paid.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Remaining</span>
+                <span className="font-semibold text-red-600">PKR {remaining.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Amount Received (PKR)
+              </label>
+              <input
+                type="number"
+                min={0.01}
+                value={settleAmount}
+                onChange={(e) => setSettleAmount(e.target.value)}
+                placeholder={`Max: PKR ${remaining.toLocaleString()}`}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Payment Type
+              </label>
+              <div className="flex gap-2">
+                {(["PARTIAL", "FINAL"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      setSettlePaymentType(type);
+                      if (type === "FINAL") setSettleAmount(String(remaining));
+                    }}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                      settlePaymentType === type
+                        ? "bg-[#0c225e] text-white border-[#0c225e]"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-[#0c225e]"
+                    }`}
+                  >
+                    {type === "PARTIAL" ? "Partial" : "Full / Final"}
+                  </button>
+                ))}
+              </div>
+            </div>
+              </>
+            ))({
+              total: Number(settlingInvoice.total_amount),
+              paid: Number(settlingInvoice.amount_paid ?? 0),
+              remaining: Math.max(0, Number(settlingInvoice.total_amount) - Number(settlingInvoice.amount_paid ?? 0)),
+            })}
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Payment Method (Optional)
+              </label>
+              <select
+                value={settlePaymentMethod}
+                onChange={(e) => setSettlePaymentMethod(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+              >
+                <option value="">Select method...</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Cash">Cash</option>
+                <option value="Online Transfer">Online Transfer</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={settleNotes}
+                onChange={(e) => setSettleNotes(e.target.value)}
+                placeholder="e.g. Cheque #12345"
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => !isSettling && setShowSettleModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+                disabled={isSettling}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSettleInvoice}
+                disabled={isSettling || !settleAmount}
+                className="inline-flex items-center justify-center rounded-lg bg-green-700 px-5 py-2 text-sm font-bold text-white hover:bg-green-800 disabled:opacity-70"
+              >
+                {isSettling ? "Recording..." : "Record Payment"}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -1018,12 +1018,31 @@ class ApiClient {
     async generateShuttleInvoice(
         contractId: number,
         billingMonth: string,
-        options?: { continuedVehicles?: number; amountMode?: 'EXACT' | 'LESS' | 'MORE'; amountDelta?: number }
+        options?: {
+            continuedVehicles?: number;
+            amountMode?: 'EXACT' | 'LESS' | 'MORE';
+            amountDelta?: number;
+            billingPeriod?: 'MONTHLY' | 'WEEKLY';
+        }
     ) {
         return this.request('/invoices/generate/shuttle', {
             method: 'POST',
             body: JSON.stringify({ contractId, billingMonth, ...options }),
         });
+    }
+
+    async settleShuttleInvoice(
+        invoiceId: number,
+        data: { amount: number; paymentType?: 'PARTIAL' | 'FINAL'; paymentMethod?: string; notes?: string }
+    ) {
+        return this.request(`/invoices/${invoiceId}/settle`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getShuttleInvoicePayments(invoiceId: number): Promise<any> {
+        return this.request(`/invoices/${invoiceId}/payments`);
     }
 
     async getPendingTrips(): Promise<any> {
