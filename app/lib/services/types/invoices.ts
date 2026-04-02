@@ -14,6 +14,10 @@ export interface Invoice {
     pdf_url?: string;
     generated_at: string;
     status: string;
+    shuttle_contract_id?: number | null;
+    amount_paid?: number | string | null;
+    amount_remaining?: number | string | null;
+    payment_status?: string | null;
     companies?: {
         name: string;
     }

@@ -354,6 +354,8 @@ function InvoicingPageContent() {
                 <th className="px-4 py-3">Reference Month</th>
                 <th className="px-4 py-3">Generated At</th>
                 <th className="px-4 py-3 text-right">Total Amount</th>
+                <th className="px-4 py-3 text-right">Amount Received</th>
+                <th className="px-4 py-3 text-right">Amount Receivable</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -361,13 +363,13 @@ function InvoicingPageContent() {
             <tbody className="divide-y divide-border">
               {isInvoicesLoading && invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted">
                     Loading invoices...
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted">
                     No invoices generated yet.
                   </td>
                 </tr>
@@ -383,6 +385,16 @@ function InvoicingPageContent() {
                     <td className="px-4 py-3 text-right font-medium text-navy">
                       PKR {Number(inv.total_amount).toLocaleString()}
                     </td>
+                    <td className="px-4 py-3 text-right font-medium text-green-700">
+                      {inv.amount_paid != null && Number(inv.amount_paid) > 0
+                        ? `PKR ${Number(inv.amount_paid).toLocaleString()}`
+                        : <span className="text-slate-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-red-600">
+                      {inv.status === 'PAID'
+                        ? <span className="text-green-600">Fully Paid</span>
+                        : `PKR ${Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid ?? 0)).toLocaleString()}`}
+                    </td>
                     <td className="px-4 py-3">
                       <select
                         value={inv.status || 'DRAFT'}
@@ -390,11 +402,13 @@ function InvoicingPageContent() {
                         disabled={!canUpdate}
                         className={`rounded px-2 py-1 text-xs font-medium border border-border disabled:opacity-50 disabled:cursor-not-allowed ${inv.status === 'PAID' ? 'bg-green-100 text-green-700' :
                           inv.status === 'UNPAID' ? 'bg-red-100 text-red-700' :
+                          inv.status === 'PARTIALLY_PAID' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-zinc-100 text-zinc-700'
                           }`}
                       >
                         <option value="DRAFT">DRAFT</option>
                         <option value="UNPAID">UNPAID</option>
+                        <option value="PARTIALLY_PAID">PARTIALLY PAID</option>
                         <option value="PAID">PAID</option>
                         <option value="OVERDUE">OVERDUE</option>
                         <option value="CANCELLED">CANCELLED</option>

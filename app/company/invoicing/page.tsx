@@ -97,16 +97,18 @@ export default function CompanyInvoicingPage() {
                                 <th className={TABLE_HEADER_CELL_CLASS}>Billing Month</th>
                                 <th className={TABLE_HEADER_CELL_CLASS}>Generated At</th>
                                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Total Amount</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Amount Paid</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Amount Payable</th>
                                 <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
                                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-light)]/50">
                             {isLoading && invoices.length === 0 ? (
-                                <TableSkeleton columns={6} rows={8} />
+                                <TableSkeleton columns={8} rows={8} />
                             ) : invoices.length === 0 && !isLoading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center align-top">
+                                    <td colSpan={8} className="px-6 py-12 text-center align-top">
                                         <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                                             <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,16 +131,40 @@ export default function CompanyInvoicingPage() {
                                             <span className="text-[var(--text-muted)] text-xs font-normal mr-1">PKR</span>
                                             {Number(inv.total_amount).toLocaleString()}
                                         </td>
+                                        <td className={`${TABLE_CELL_CLASS} text-right`}>
+                                            {inv.amount_paid != null && Number(inv.amount_paid) > 0 ? (
+                                                <span className="font-semibold text-emerald-600">
+                                                    <span className="text-emerald-400 text-xs font-normal mr-1">PKR</span>
+                                                    {Number(inv.amount_paid).toLocaleString()}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[var(--text-muted)]">—</span>
+                                            )}
+                                        </td>
+                                        <td className={`${TABLE_CELL_CLASS} text-right`}>
+                                            {inv.status === 'PAID' ? (
+                                                <span className="text-emerald-600 font-semibold text-xs">Fully Paid</span>
+                                            ) : (
+                                                <span className="font-semibold text-rose-600">
+                                                    <span className="text-rose-400 text-xs font-normal mr-1">PKR</span>
+                                                    {Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid ?? 0)).toLocaleString()}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className={TABLE_CELL_CLASS}>
                                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${inv.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                                 inv.status === 'UNPAID' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                inv.status === 'PARTIALLY_PAID' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                inv.status === 'OVERDUE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                                                     'bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]'
                                                 }`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${inv.status === 'PAID' ? 'bg-emerald-400' :
                                                     inv.status === 'UNPAID' ? 'bg-rose-400' :
+                                                    inv.status === 'PARTIALLY_PAID' ? 'bg-amber-400' :
+                                                    inv.status === 'OVERDUE' ? 'bg-orange-400' :
                                                         'bg-[var(--text-muted)]'
                                                     }`}></span>
-                                                {inv.status || 'DRAFT'}
+                                                {inv.status === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : (inv.status || 'DRAFT')}
                                             </span>
                                         </td>
                                         <td className={`${TABLE_CELL_CLASS} text-right`}>
