@@ -54,6 +54,7 @@ function InvoicingPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterCompanyId, setFilterCompanyId] = useState<number | undefined>(undefined);
 
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [viewingId, setViewingId] = useState<number | null>(null);
@@ -79,10 +80,10 @@ function InvoicingPageContent() {
   const [settleNotes, setSettleNotes] = useState<string>("");
   const [isSettling, setIsSettling] = useState(false);
 
-  const fetchInvoices = useCallback(async (page: number) => {
+  const fetchInvoices = useCallback(async (page: number, companyId?: number) => {
     setIsLoading(true);
     try {
-      const res = await apiClient.getAllInvoices({ page }) as any;
+      const res = await apiClient.getAllInvoices({ page, ...(companyId ? { company_id: companyId } : {}) }) as any;
       const raw = res?.data ?? res;
       setInvoices(raw?.data ?? []);
       const meta = raw?.pagination ?? {};
@@ -109,8 +110,8 @@ function InvoicingPageContent() {
   }, []);
 
   useEffect(() => {
-    fetchInvoices(currentPage);
-  }, [currentPage, fetchInvoices]);
+    fetchInvoices(currentPage, filterCompanyId);
+  }, [currentPage, filterCompanyId, fetchInvoices]);
 
   useEffect(() => {
     fetchStats();
@@ -229,7 +230,7 @@ function InvoicingPageContent() {
       });
 
       // Refresh invoices and stats
-      fetchInvoices(currentPage);
+      fetchInvoices(currentPage, filterCompanyId);
       fetchStats();
 
       alert("Shuttle invoice generated successfully.");
@@ -271,7 +272,7 @@ function InvoicingPageContent() {
         paymentMethod: settlePaymentMethod || undefined,
         notes: settleNotes || undefined,
       });
-      fetchInvoices(currentPage);
+      fetchInvoices(currentPage, filterCompanyId);
       fetchStats();
       alert(`Payment of PKR ${amount.toLocaleString()} recorded successfully.`);
       setShowSettleModal(false);
@@ -345,6 +346,34 @@ function InvoicingPageContent() {
       </div>
 
       <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm flex flex-col">
+        {/* Filter Bar */}
+        <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-3">
+          <label className="text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">
+            Filter by Company
+          </label>
+          <select
+            value={filterCompanyId ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFilterCompanyId(val ? Number(val) : undefined);
+              setCurrentPage(1);
+            }}
+            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-[#f47f00]/40 min-w-[180px]"
+          >
+            <option value="">All Companies</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          {filterCompanyId && (
+            <button
+              onClick={() => { setFilterCompanyId(undefined); setCurrentPage(1); }}
+              className="text-xs text-[#f47f00] hover:text-[#d97000] font-medium underline"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-max text-left text-sm">
             <thead className="bg-zinc-50 text-xs font-medium uppercase text-muted">
