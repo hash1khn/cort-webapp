@@ -7,6 +7,7 @@ export enum ExpenseCategory {
     TRAVELLING = 'TRAVELLING',
     BANK_CHARGES = 'BANK_CHARGES',
     ENTERTAINMENT = 'ENTERTAINMENT',
+    SUBSCRIPTION = 'SUBSCRIPTION',
     MISC = 'MISC',
 }
 
