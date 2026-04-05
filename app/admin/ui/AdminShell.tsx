@@ -22,6 +22,7 @@ const nav: NavItem[] = [
   { href: "/admin/vehicles/maintenance", label: "↳ Maintenance", permission: "maintenance" },
   { href: "/admin/vendors", label: "Vendors", permission: "vendors" },
   { href: "/admin/vendors/logs", label: "↳ Trip Logs", permission: "vendor_logs" },
+  { href: "/admin/external-vendors", label: "External Vendors", permission: "external_vendors" },
   { href: "/admin/drivers", label: "Drivers", permission: "drivers" },
   { href: "/admin/bookings/pending", label: "Bookings", permission: "bookings" },
   { href: "/admin/routes", label: "Routes", permission: "routes" },

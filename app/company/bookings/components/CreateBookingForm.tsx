@@ -13,6 +13,7 @@ import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
 import { selectContract } from "../../../lib/store/slices/contractSlice";
 import OutstationEstimatePanel from "./OutstationEstimatePanel";
+import { CompanyFeature, PoolVehicle, PoolDriver } from "../../../lib/services/types/multi-mode";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -100,13 +101,42 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
+    // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
+    const [features, setFeatures] = useState<CompanyFeature[]>([]);
+    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
+    const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
+    const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
+    const [poolVehicleId, setPoolVehicleId] = useState<number | null>(null);
+    const [poolDriverId, setPoolDriverId] = useState<string | null>(null);
 
     useEffect(() => {
         if (company?.id) {
             dispatch(fetchEmployees(company.id.toString()));
             dispatch(fetchContract());
+            // Load feature flags
+            apiClient.getCompanyFeatures(Number(company.id)).then((r) => setFeatures(r.data)).catch(() => {});
         }
     }, [dispatch, company?.id]);
+
+    useEffect(() => {
+        if (fulfillmentType === "SELF_MANAGED" && company?.id) {
+            apiClient.getPoolVehicles(Number(company.id)).then((r) => setPoolVehicles(r.data)).catch(() => {});
+            apiClient.getPoolDrivers(Number(company.id)).then((r) => setPoolDrivers(r.data)).catch(() => {});
+        }
+    }, [fulfillmentType, company?.id]);
+
+    const availableFulfillmentTypes = useMemo(() => {
+        const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [
+            { value: "CORT_MANAGED", label: "CORT Managed" },
+        ];
+        if (features.find((f) => f.feature_key === "chauffeur_external_vendor")?.is_enabled) {
+            opts.push({ value: "EXTERNAL_VENDOR", label: "External Vendor" });
+        }
+        if (features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled) {
+            opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
+        }
+        return opts;
+    }, [features]);
 
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
@@ -286,6 +316,12 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 apiData.passenger_id = passengerId;
             }
 
+            apiData.fulfillment_type = fulfillmentType;
+            if (fulfillmentType === "SELF_MANAGED") {
+                if (poolVehicleId) apiData.vehicle_id = poolVehicleId;
+                if (poolDriverId) apiData.driver_id = poolDriverId;
+            }
+
             await apiClient.createChauffeurBooking(Number(company.id), apiData);
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
@@ -318,6 +354,65 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <div className="flex flex-col gap-6">
+                {/* Fulfillment Type Selector (shown only when more than 1 option) */}
+                {availableFulfillmentTypes.length > 1 && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">Fulfillment Type</p>
+                        <div className="flex flex-wrap gap-2">
+                            {availableFulfillmentTypes.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setFulfillmentType(opt.value)}
+                                    className={cx(
+                                        "px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all",
+                                        fulfillmentType === opt.value
+                                            ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                            : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-orange)]/50"
+                                    )}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        {fulfillmentType === "EXTERNAL_VENDOR" && (
+                            <p className="mt-3 text-xs text-orange-700 bg-orange-100 rounded-lg px-3 py-2">
+                                All linked chauffeur vendors for your company will be notified of this booking request.
+                            </p>
+                        )}
+                        {fulfillmentType === "SELF_MANAGED" && (
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">Pool Vehicle</label>
+                                    <select
+                                        value={poolVehicleId ?? ""}
+                                        onChange={(e) => setPoolVehicleId(Number(e.target.value) || null)}
+                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                    >
+                                        <option value="">— Select Vehicle —</option>
+                                        {poolVehicles.map((v) => (
+                                            <option key={v.id} value={v.id}>{v.plate_number} — {v.make} {v.model}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">Pool Driver</label>
+                                    <select
+                                        value={poolDriverId ?? ""}
+                                        onChange={(e) => setPoolDriverId(e.target.value || null)}
+                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                    >
+                                        <option value="">— Select Driver —</option>
+                                        {poolDrivers.map((d) => (
+                                            <option key={d.id} value={d.id}>{d.full_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Service Configuration Section */}
                 <CardSection
                     title="Service Configuration"

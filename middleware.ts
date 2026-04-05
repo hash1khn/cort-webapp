@@ -28,7 +28,7 @@ export function middleware(request: NextRequest) {
         // Otherwise, redirects from ProtectedRoute like "/company" will be
         // internally rewritten to "/admin/company" (not a real route),
         // resulting in a 404 ("Lost your way?").
-        if (!pathname.startsWith("/admin") && !pathname.startsWith("/company")) {
+        if (!pathname.startsWith("/admin") && !pathname.startsWith("/company") && !pathname.startsWith("/vendor")) {
             return NextResponse.rewrite(new URL(`/admin${pathname}`, request.url));
         }
     }

@@ -17,10 +17,13 @@ import {
   ChevronRight,
   LogOut,
   Menu,
+  Car,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
+import { apiClient } from "../../lib/services/api-client";
+import { CompanyFeature } from "../../lib/services/types/multi-mode";
 
-const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
+const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }, features: CompanyFeature[]) => {
   const groups = [
     {
       title: "",
@@ -57,6 +60,12 @@ const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_ena
     groups[1].items.push({ href: "/company/reports/chauffeur", label: "Chauffeur Reports", icon: FileSpreadsheet });
   }
 
+  // Pool Fleet — only show if chauffeur_self_managed feature is enabled
+  const hasSelfManaged = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled;
+  if (servicesEnabled.chauffeur_enabled && hasSelfManaged) {
+    groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
+  }
+
   // Filter out empty groups if any
   return groups.filter(g => g.items.length > 0);
 };
@@ -72,7 +81,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [features, setFeatures] = useState<CompanyFeature[]>([]);
   const companyId = user?.company_id?.toString();
+
+  useEffect(() => {
+    if (companyId) {
+      apiClient.getCompanyFeatures(Number(companyId)).then((r) => setFeatures(r.data)).catch(() => {});
+    }
+  }, [companyId]);
 
   // ✅ FIX: Add dependency tracking to prevent unnecessary refetches
   useEffect(() => {
@@ -98,7 +114,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled);
+    const navGroups = getNavGroups(servicesEnabled, features);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -107,7 +123,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, servicesEnabled]);
+  }, [pathname, servicesEnabled, features]);
 
   if (isLogin) return <>{children}</>;
 
@@ -131,7 +147,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(

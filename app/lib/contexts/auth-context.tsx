@@ -71,6 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(response.data.user);
             setSession(response.data.session);
+
+            // Role-based post-login redirect
+            if (response.data.user.role === UserRole.COMPANY_VENDOR) {
+                router.push('/vendor');
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Login failed';
             setError(errorMessage);
@@ -78,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [router]);
 
     /**
      * Logout user
@@ -134,6 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      * Check if user is driver
      */
     const isDriver = user?.role === UserRole.DRIVER;
+
+    /**
+     * Check if user is a company vendor
+     */
+    const isCompanyVendor = user?.role === UserRole.COMPANY_VENDOR;
 
     /**
      * Check if user has any of the specified roles
@@ -193,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isCompanyAdmin,
         isEmployee,
         isDriver,
+        isCompanyVendor,
         hasRole,
         hasCompanyAccess,
         hasPermission,

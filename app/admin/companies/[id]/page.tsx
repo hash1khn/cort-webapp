@@ -1,9 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { apiClient, Company, Employee } from "../../../lib/services/api-client";
+import { CompanyFeature, CompanyVendorLink, ExternalVendor } from "../../../lib/services/types/multi-mode";
 import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
@@ -73,7 +75,20 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<"employees" | "settings">("employees");
+    const [activeTab, setActiveTab] = useState<"employees" | "settings" | "features" | "external_vendors">("employees");
+
+    // Feature flags state
+    const [features, setFeatures] = useState<CompanyFeature[]>([]);
+    const [featuresLoading, setFeaturesLoading] = useState(false);
+    const [trackerForm, setTrackerForm] = useState({ api_endpoint: "", api_key: "" });
+    const [trackerSaving, setTrackerSaving] = useState(false);
+
+    // External vendors tab state
+    const [companyVendorLinks, setCompanyVendorLinks] = useState<CompanyVendorLink[]>([]);
+    const [vendorsLoading, setVendorsLoading] = useState(false);
+    const [allVendors, setAllVendors] = useState<ExternalVendor[]>([]);
+    const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkForm, setLinkForm] = useState({ vendor_id: 0, serves_chauffeur: false, serves_shuttle: false });
 
     // Employee Modal
     const [isEmpModalOpen, setIsEmpModalOpen] = useState(false);
@@ -111,6 +126,114 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
     useEffect(() => {
         fetchCompanyData();
     }, [id]);
+
+    const fetchFeatures = useCallback(async () => {
+        setFeaturesLoading(true);
+        try {
+            const res = await apiClient.getCompanyFeatures(Number(id));
+            setFeatures(res.data);
+            const tracker = res.data.find((f) => f.feature_key === "tracker_api_integration");
+            if (tracker?.config) {
+                setTrackerForm({
+                    api_endpoint: (tracker.config.api_endpoint as string) ?? "",
+                    api_key: (tracker.config.api_key as string) ?? "",
+                });
+            }
+        } catch {
+            // silently ignore
+        } finally {
+            setFeaturesLoading(false);
+        }
+    }, [id]);
+
+    const fetchCompanyVendors = useCallback(async () => {
+        setVendorsLoading(true);
+        try {
+            const res = await apiClient.getCompanyExternalVendors(Number(id));
+            setCompanyVendorLinks(res.data);
+        } catch {
+            // silently ignore
+        } finally {
+            setVendorsLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        if (activeTab === "features") fetchFeatures();
+        if (activeTab === "external_vendors") fetchCompanyVendors();
+    }, [activeTab, fetchFeatures, fetchCompanyVendors]);
+
+    const toggleFeature = async (feature_key: string, is_enabled: boolean) => {
+        try {
+            await apiClient.upsertCompanyFeature(Number(id), { feature_key, is_enabled });
+            setFeatures((prev) => prev.map((f) => f.feature_key === feature_key ? { ...f, is_enabled } : f));
+            toast.success(`${feature_key.replace(/_/g, " ")} ${is_enabled ? "enabled" : "disabled"}`);
+        } catch {
+            toast.error("Failed to update feature");
+        }
+    };
+
+    const saveTrackerConfig = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setTrackerSaving(true);
+        try {
+            await apiClient.upsertTrackerConfig(Number(id), { api_endpoint: trackerForm.api_endpoint, api_key: trackerForm.api_key });
+            toast.success("Tracker config saved");
+        } catch {
+            toast.error("Failed to save tracker config");
+        } finally {
+            setTrackerSaving(false);
+        }
+    };
+
+    const handleLinkVendor = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!linkForm.vendor_id) return;
+        try {
+            await apiClient.createVendorLink(linkForm.vendor_id, {
+                company_id: Number(id),
+                serves_chauffeur: linkForm.serves_chauffeur,
+                serves_shuttle: linkForm.serves_shuttle,
+            });
+            toast.success("Vendor linked");
+            setShowLinkModal(false);
+            fetchCompanyVendors();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to link vendor");
+        }
+    };
+
+    const updateLink = async (linkId: number, dto: { serves_chauffeur?: boolean; serves_shuttle?: boolean; is_active?: boolean }) => {
+        try {
+            await apiClient.updateVendorLink(linkId, dto);
+            fetchCompanyVendors();
+            toast.success("Link updated");
+        } catch {
+            toast.error("Failed to update link");
+        }
+    };
+
+    const removeLink = async (linkId: number) => {
+        if (!confirm("Remove this vendor link?")) return;
+        try {
+            await apiClient.removeVendorLink(linkId);
+            fetchCompanyVendors();
+            toast.success("Link removed");
+        } catch {
+            toast.error("Failed to remove link");
+        }
+    };
+
+    const openLinkModal = async () => {
+        try {
+            const res = await apiClient.getExternalVendors({ limit: 100 });
+            setAllVendors(res.data.data);
+        } catch {
+            toast.error("Failed to load vendors");
+        }
+        setLinkForm({ vendor_id: 0, serves_chauffeur: false, serves_shuttle: false });
+        setShowLinkModal(true);
+    };
 
     // -- Handlers --
 
@@ -346,29 +469,24 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
 
             {/* Tabs */}
             <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
-                    <button
-                        onClick={() => setActiveTab("employees")}
-                        className={cx(
-                            "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium",
-                            activeTab === "employees"
-                                ? "border-[#f47f00] text-[#f47f00]"
-                                : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
-                        )}
-                    >
-                        Employees
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("settings")}
-                        className={cx(
-                            "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium",
-                            activeTab === "settings"
-                                ? "border-[#f47f00] text-[#f47f00]"
-                                : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
-                        )}
-                    >
-                        Settings & Whitelisting
-                    </button>
+                <nav className="-mb-px flex space-x-8 overflow-x-auto">
+                    {(["employees", "settings", "features", "external_vendors"] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cx(
+                                "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium",
+                                activeTab === tab
+                                    ? "border-[#f47f00] text-[#f47f00]"
+                                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                            )}
+                        >
+                            {tab === "employees" && "Employees"}
+                            {tab === "settings" && "Settings & Whitelisting"}
+                            {tab === "features" && "Features"}
+                            {tab === "external_vendors" && "External Vendors"}
+                        </button>
+                    ))}
                 </nav>
             </div>
 
@@ -548,6 +666,177 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                             })}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Features Tab */}
+            {activeTab === "features" && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                    {featuresLoading ? (
+                        <p className="text-sm text-gray-400">Loading features…</p>
+                    ) : (
+                        <>
+                            {[
+                                { key: "chauffeur_external_vendor", label: "Chauffeur — External Vendor", desc: "Allow external vendors to fulfill chauffeur bookings" },
+                                { key: "shuttle_external_vendor", label: "Shuttle — External Vendor", desc: "Allow external vendors to manage shuttle routes" },
+                                { key: "chauffeur_self_managed", label: "Chauffeur — Self-Managed Pool", desc: "Company manages its own pool of vehicles and drivers" },
+                                { key: "tracker_api_integration", label: "Third-Party Tracker API", desc: "Integrate with the company's own tracker instead of CORT app" },
+                                { key: "ai_insights", label: "AI Insights", desc: "Enable AI-powered cost savings analysis" },
+                            ].map(({ key, label, desc }) => {
+                                const feat = features.find((f) => f.feature_key === key);
+                                const enabled = feat?.is_enabled ?? false;
+                                return (
+                                    <div key={key} className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">{label}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                                        </div>
+                                        <button
+                                            role="switch"
+                                            aria-checked={enabled}
+                                            onClick={() => toggleFeature(key, !enabled)}
+                                            className={cx(
+                                                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                                enabled ? "bg-[#f47f00]" : "bg-gray-200"
+                                            )}
+                                        >
+                                            <span className={cx("inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform", enabled ? "translate-x-6" : "translate-x-1")} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Tracker sub-form */}
+                            {features.find((f) => f.feature_key === "tracker_api_integration")?.is_enabled && (
+                                <form onSubmit={saveTrackerConfig} className="bg-blue-50 rounded-xl border border-blue-200 p-5 space-y-3">
+                                    <p className="text-sm font-semibold text-blue-800">Tracker API Configuration</p>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">API Endpoint</label>
+                                        <input
+                                            type="url"
+                                            value={trackerForm.api_endpoint}
+                                            onChange={(e) => setTrackerForm((f) => ({ ...f, api_endpoint: e.target.value }))}
+                                            placeholder="https://tracker.example.com/api"
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
+                                        <input
+                                            type="text"
+                                            value={trackerForm.api_key}
+                                            onChange={(e) => setTrackerForm((f) => ({ ...f, api_key: e.target.value }))}
+                                            placeholder="••••••••"
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                        />
+                                    </div>
+                                    <button type="submit" disabled={trackerSaving} className="bg-[#f47f00] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50">
+                                        {trackerSaving ? "Saving…" : "Save Tracker Config"}
+                                    </button>
+                                </form>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* External Vendors Tab */}
+            {activeTab === "external_vendors" && (
+                <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-500">Manage vendor links for this company.</p>
+                        <button onClick={openLinkModal} className="bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d96e00]">
+                            + Link Vendor
+                        </button>
+                    </div>
+                    {vendorsLoading ? (
+                        <p className="text-sm text-gray-400">Loading…</p>
+                    ) : companyVendorLinks.length === 0 ? (
+                        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+                            No vendors linked yet. Click "Link Vendor" to add one.
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        {["Vendor", "Chauffeur", "Shuttle", "Status", "Actions"].map((h) => (
+                                            <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {companyVendorLinks.map((link) => (
+                                        <tr key={link.id} className="hover:bg-gray-50">
+                                            <td className="px-4 py-3 font-medium text-gray-900">{link.external_vendors?.name ?? `Vendor #${link.vendor_id}`}</td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => updateLink(link.id, { serves_chauffeur: !link.serves_chauffeur })}
+                                                    className={cx("h-5 w-5 rounded border-2 flex items-center justify-center transition-colors", link.serves_chauffeur ? "bg-[#f47f00] border-[#f47f00] text-white" : "border-gray-300")}
+                                                >
+                                                    {link.serves_chauffeur && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => updateLink(link.id, { serves_shuttle: !link.serves_shuttle })}
+                                                    className={cx("h-5 w-5 rounded border-2 flex items-center justify-center transition-colors", link.serves_shuttle ? "bg-[#f47f00] border-[#f47f00] text-white" : "border-gray-300")}
+                                                >
+                                                    {link.serves_shuttle && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => updateLink(link.id, { is_active: !link.is_active })}
+                                                    className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium transition-colors", link.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}
+                                                >
+                                                    {link.is_active ? "Active" : "Inactive"}
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <button onClick={() => removeLink(link.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Link Vendor Modal */}
+                    {showLinkModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-900">Link External Vendor</h2>
+                                    <button onClick={() => setShowLinkModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+                                </div>
+                                <form onSubmit={handleLinkVendor} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Select Vendor *</label>
+                                        <select required value={linkForm.vendor_id} onChange={(e) => setLinkForm((f) => ({ ...f, vendor_id: Number(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                            <option value={0}>— Choose a vendor —</option>
+                                            {allVendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input type="checkbox" checked={linkForm.serves_chauffeur} onChange={(e) => setLinkForm((f) => ({ ...f, serves_chauffeur: e.target.checked }))} />
+                                            Serves Chauffeur
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input type="checkbox" checked={linkForm.serves_shuttle} onChange={(e) => setLinkForm((f) => ({ ...f, serves_shuttle: e.target.checked }))} />
+                                            Serves Shuttle
+                                        </label>
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button type="button" onClick={() => setShowLinkModal(false)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
+                                        <button type="submit" className="bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm">Link Vendor</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

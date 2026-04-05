@@ -5,6 +5,7 @@ export enum UserRole {
     COMPANY_ADMIN = 'COMPANY_ADMIN',
     EMPLOYEE = 'EMPLOYEE',
     DRIVER = 'DRIVER',
+    COMPANY_VENDOR = 'COMPANY_VENDOR',
 }
 
 // All granular permission keys — mirrors backend PERMISSION_KEYS constant
@@ -25,6 +26,9 @@ export const PERMISSION_KEYS = [
     'reports',
     'expenses',
     'invoicing',
+    'external_vendors',
+    'company_features',
+    'vendor_fleet',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -46,6 +50,16 @@ export enum UserStatus {
     REJECTED = 'REJECTED',
 }
 
+// Vendor link — populated for COMPANY_VENDOR role
+export interface VendorLink {
+    id: number;
+    company_id: number;
+    serves_chauffeur: boolean;
+    serves_shuttle: boolean;
+    is_active: boolean;
+    companies?: { id: number; name: string };
+}
+
 // Authenticated user interface
 export interface AuthUser {
     id: string;
@@ -60,6 +74,8 @@ export interface AuthUser {
         chauffeur: boolean;
     } | null;
     permissions?: StaffPermissions | null; // only populated for INTERNAL_STAFF
+    external_vendor_id?: number | null;    // only populated for COMPANY_VENDOR
+    vendor_links?: VendorLink[];           // only populated for COMPANY_VENDOR
 }
 
 
@@ -136,5 +152,6 @@ export interface AuthContextType extends AuthState {
     hasCrud: (key: PermissionKey, action: CrudAction) => boolean;
     isShuttleEnabled: boolean;
     isChauffeurEnabled: boolean;
+    isCompanyVendor: boolean;
 }
 
