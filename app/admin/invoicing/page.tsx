@@ -66,7 +66,7 @@ function InvoicingPageContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
-  const [billingPeriod, setBillingPeriod] = useState<"MONTHLY" | "WEEKLY">("MONTHLY");
+  const [billingPeriod] = useState<"MONTHLY">("MONTHLY");
   const [continuedVehicles, setContinuedVehicles] = useState<string>("");
   const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
   const [amountDelta, setAmountDelta] = useState<string>("");
@@ -266,7 +266,7 @@ function InvoicingPageContent() {
       setContinuedVehicles("");
       setAmountMode("EXACT");
       setAmountDelta("");
-      setBillingPeriod("MONTHLY");
+
       const resetTrips: Record<number, string> = {};
       perTripRoutes.forEach((r) => { resetTrips[r.id] = "0"; });
       setRouteTrips(resetTrips);
@@ -599,32 +599,7 @@ function InvoicingPageContent() {
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Billing Period
-            </label>
-            <div className="flex gap-2">
-              {(["MONTHLY", "WEEKLY"] as const).map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() => setBillingPeriod(period)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
-                    billingPeriod === period
-                      ? "bg-[#0c225e] text-white border-[#0c225e]"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-[#0c225e]"
-                  }`}
-                >
-                  {period === "MONTHLY" ? "Monthly" : "Weekly"}
-                </button>
-              ))}
-            </div>
-            {billingPeriod === "WEEKLY" && (
-              <p className="text-xs text-amber-600 mt-1">
-                Weekly amounts are calculated as monthly ÷ 4.33. The current week of the month will be auto-detected.
-              </p>
-            )}
-          </div>
+
 
           {/* Per-trip routes — trips count inputs */}
           {perTripRoutes.length > 0 && (
