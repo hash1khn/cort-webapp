@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiClient, Company } from "../../lib/services/api-client";
+import { ShuttleContractRoute } from "../../lib/services/types/pricing";
 import Pagination from "../../components/ui/Pagination";
 import { Modal } from "../components/ui/Modal";
 import { PermissionGate } from "../components/PermissionGate";
@@ -71,6 +72,10 @@ function InvoicingPageContent() {
   const [amountDelta, setAmountDelta] = useState<string>("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
+  // Per-trip route state
+  const [perTripRoutes, setPerTripRoutes] = useState<ShuttleContractRoute[]>([]);
+  const [routeTrips, setRouteTrips] = useState<Record<number, string>>({});
+
   // Settle modal state
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settlingInvoice, setSettlingInvoice] = useState<Invoice | null>(null);
@@ -133,6 +138,25 @@ function InvoicingPageContent() {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load shuttle contract to discover PER_TRIP routes when company changes
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    (async () => {
+      try {
+        const res = await apiClient.getShuttleContract(Number(selectedCompanyId));
+        const routes: ShuttleContractRoute[] = res?.data?.shuttle_contract_routes ?? [];
+        const pt = routes.filter((r) => r.billing_type === "PER_TRIP");
+        setPerTripRoutes(pt);
+        const initial: Record<number, string> = {};
+        pt.forEach((r) => { initial[r.id] = "0"; });
+        setRouteTrips(initial);
+      } catch {
+        setPerTripRoutes([]);
+        setRouteTrips({});
+      }
+    })();
+  }, [selectedCompanyId]);
 
   const handleSendEmail = async (id: number, invoiceNumber: string) => {
     if (sendingEmailId) return;
@@ -227,6 +251,9 @@ function InvoicingPageContent() {
         amountMode,
         amountDelta: amountMode !== "EXACT" && amountDelta !== "" ? Number(amountDelta) : undefined,
         billingPeriod,
+        routeTrips: perTripRoutes.length > 0
+          ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0) }))
+          : undefined,
       });
 
       // Refresh invoices and stats
@@ -240,6 +267,9 @@ function InvoicingPageContent() {
       setAmountMode("EXACT");
       setAmountDelta("");
       setBillingPeriod("MONTHLY");
+      const resetTrips: Record<number, string> = {};
+      perTripRoutes.forEach((r) => { resetTrips[r.id] = "0"; });
+      setRouteTrips(resetTrips);
     } catch (e: any) {
       console.error("Failed to generate shuttle invoice", e);
       alert(`Failed to generate shuttle invoice: ${e?.message || e}`);
@@ -595,6 +625,40 @@ function InvoicingPageContent() {
               </p>
             )}
           </div>
+
+          {/* Per-trip routes — trips count inputs */}
+          {perTripRoutes.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
+                Trips Run This Period
+              </label>
+              <p className="text-xs text-slate-500">
+                Enter how many trips were actually made for each per-trip route. Set 0 if the trip didn&apos;t run.
+              </p>
+              <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                {perTripRoutes.map((route) => (
+                  <div key={route.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-slate-800 truncate">{route.particulars}</div>
+                      <div className="text-xs text-slate-400">{route.vehicle_type} × {route.quantity}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-slate-500">Trips:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={routeTrips[route.id] ?? "0"}
+                        onChange={(e) =>
+                          setRouteTrips((prev) => ({ ...prev, [route.id]: e.target.value }))
+                        }
+                        className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">

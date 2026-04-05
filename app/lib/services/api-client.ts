@@ -1023,6 +1023,7 @@ class ApiClient {
             amountMode?: 'EXACT' | 'LESS' | 'MORE';
             amountDelta?: number;
             billingPeriod?: 'MONTHLY' | 'WEEKLY';
+            routeTrips?: { routeId: number; tripsCount: number }[];
         }
     ) {
         return this.request('/invoices/generate/shuttle', {

@@ -289,6 +289,8 @@ export const saveShuttleChanges = createAsyncThunk(
                     fixedCostPerVehicle: Number(row.fixed_cost_per_vehicle || 0),
                     fuelCostPerVehicle: Number(row.fuel_cost_per_vehicle || 0),
                     quantity: Number(row.quantity || 0),
+                    billingType: row.billing_type || 'MONTHLY',
+                    scheduledDays: row.scheduled_days || undefined,
                 }))
                 .filter((r) => r.particulars && r.vehicleType && r.quantity > 0);
 
@@ -380,6 +382,8 @@ const adminPricingSlice = createSlice({
                 fixed_cost_per_vehicle: "0",
                 fuel_cost_per_vehicle: "0",
                 quantity: 1,
+                billing_type: "MONTHLY",
+                scheduled_days: "",
             });
         },
         updateRateRow(state, action: PayloadAction<{ index: number, field: keyof ChauffeurContractRate, value: string }>) {

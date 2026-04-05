@@ -122,6 +122,8 @@ export interface ShuttleContractRoute {
     fixed_cost_per_vehicle: string;
     fuel_cost_per_vehicle: string;
     quantity: number;
+    billing_type?: string;
+    scheduled_days?: string | null;
 }
 
 export interface ShuttleContract {
@@ -144,6 +146,8 @@ export interface CreateShuttleContractRequestRoute {
     fixedCostPerVehicle: number;
     fuelCostPerVehicle: number;
     quantity: number;
+    billingType?: string;
+    scheduledDays?: string;
 }
 
 export interface CreateShuttleContractRequest {

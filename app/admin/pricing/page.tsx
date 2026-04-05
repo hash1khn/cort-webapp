@@ -643,6 +643,8 @@ function PricingPageContent() {
                         <th className="px-4 py-4 min-w-[120px]">Vehicle Type</th>
                         <th className="px-4 py-4 min-w-[140px]">Fixed Cost / Vehicle</th>
                         <th className="px-4 py-4 min-w-[140px]">Fuel Cost / Vehicle</th>
+                        <th className="px-4 py-4 min-w-[130px]">Billing Type</th>
+                        <th className="px-4 py-4 min-w-[120px]">Sched. Days</th>
                         <th className="px-4 py-4 min-w-[80px] text-center">Qty</th>
                         <th className="px-4 py-4 w-[50px]"></th>
                       </tr>
@@ -650,7 +652,7 @@ function PricingPageContent() {
                     <tbody className="divide-y divide-slate-100">
                       {shuttleRouteRows.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                             No shuttle routes configured. Click &quot;Add Shuttle Route&quot; to start.
                           </td>
                         </tr>
@@ -720,6 +722,45 @@ function PricingPageContent() {
                                   )
                                 }
                                 placeholder="20000"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                disabled={!canUpdate}
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm bg-white focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                                value={row.billing_type || "MONTHLY"}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "billing_type",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                              >
+                                <option value="MONTHLY">Monthly</option>
+                                <option value="PER_TRIP">Per Trip</option>
+                              </select>
+                              {row.billing_type === "PER_TRIP" && (
+                                <span className="text-[10px] text-amber-600 mt-1 block">Cost × trips run at invoice time</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                disabled={!canUpdate}
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm placeholder:text-slate-300 disabled:opacity-70"
+                                value={row.scheduled_days || ""}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "scheduled_days",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                                placeholder="e.g. MON, FRI/SAT"
                               />
                             </td>
                             <td className="px-4 py-3 text-center">
