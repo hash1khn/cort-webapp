@@ -5,14 +5,29 @@ import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
 import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/types/multi-mode";
+import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-const VEHICLE_CATEGORIES = ["Sedan", "SUV", "MPV", "Mini Bus", "Coach", "Hatchback", "Pickup", "Van"];
+const VEHICLE_CATEGORIES = Object.values(VehicleCategory);
 const DRIVER_TYPES = ["PERMANENT", "PART_TIME", "CONTRACT"];
+
+const formatVehicleCategory = (category: string) =>
+    category.charAt(0) + category.slice(1).toLowerCase();
+
+const getDefaultVehicleForm = () => ({
+    plate_number: "",
+    make: "",
+    model: "",
+    year: new Date().getFullYear(),
+    color: "",
+    category: VehicleCategory.SEDAN,
+    fuel_avg_city: 10,
+    fuel_avg_highway: 13,
+});
 
 export default function CompanyFleetPage() {
     const company = useAppSelector(selectCompany);
@@ -26,7 +41,7 @@ export default function CompanyFleetPage() {
     const [vehicles, setVehicles] = useState<PoolVehicle[]>([]);
     const [vehiclesLoading, setVehiclesLoading] = useState(false);
     const [showAddVehicle, setShowAddVehicle] = useState(false);
-    const [vehicleForm, setVehicleForm] = useState({ plate_number: "", make: "", model: "", year: new Date().getFullYear(), color: "", category: "Sedan", fuel_avg_city: 10, fuel_avg_highway: 13 });
+    const [vehicleForm, setVehicleForm] = useState(getDefaultVehicleForm);
     const [vehicleSaving, setVehicleSaving] = useState(false);
 
     // Drivers state
@@ -87,7 +102,7 @@ export default function CompanyFleetPage() {
             });
             toast.success("Vehicle added to pool");
             setShowAddVehicle(false);
-            setVehicleForm({ plate_number: "", make: "", model: "", year: new Date().getFullYear(), color: "", category: "Sedan", fuel_avg_city: 10, fuel_avg_highway: 13 });
+            setVehicleForm(getDefaultVehicleForm());
             fetchVehicles();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to add vehicle");
@@ -204,7 +219,7 @@ export default function CompanyFleetPage() {
                                         <td className="px-4 py-3 font-mono text-xs font-medium">{v.plate_number}</td>
                                         <td className="px-4 py-3">{v.make} {v.model}</td>
                                         <td className="px-4 py-3">{v.year}</td>
-                                        <td className="px-4 py-3">{v.category}</td>
+                                        <td className="px-4 py-3">{formatVehicleCategory(v.category)}</td>
                                         <td className="px-4 py-3">
                                             <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", v.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
                                                 {v.status ?? "—"}
@@ -274,8 +289,10 @@ export default function CompanyFleetPage() {
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Plate Number *"><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Category">
-                                <select value={vehicleForm.category} onChange={(e) => setVehicleForm((f) => ({ ...f, category: e.target.value }))} className={inputCls}>
-                                    {VEHICLE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                                <select value={vehicleForm.category} onChange={(e) => setVehicleForm((f) => ({ ...f, category: e.target.value as VehicleCategory }))} className={inputCls}>
+                                    {VEHICLE_CATEGORIES.map((c) => (
+                                        <option key={c} value={c}>{formatVehicleCategory(c)}</option>
+                                    ))}
                                 </select>
                             </Field>
                             <Field label="Make *"><input required value={vehicleForm.make} onChange={(e) => setVehicleForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>

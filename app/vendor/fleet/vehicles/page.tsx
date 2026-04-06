@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiClient } from "../../../lib/services/api-client";
 import { VendorVehicle } from "../../../lib/services/types/multi-mode";
+import { VehicleCategory } from "../../../lib/services/types/vehicles";
 import { useVendorContext } from "../../layout";
 import { toast } from "sonner";
 
@@ -10,7 +11,21 @@ function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-const VEHICLE_CATEGORIES = ["Sedan", "SUV", "MPV", "Mini Bus", "Coach", "Hatchback", "Pickup", "Van"];
+const VEHICLE_CATEGORIES = Object.values(VehicleCategory);
+
+const formatVehicleCategory = (category: string) =>
+    category.charAt(0) + category.slice(1).toLowerCase();
+
+const getDefaultForm = () => ({
+    plate_number: "",
+    make: "",
+    model: "",
+    year: new Date().getFullYear(),
+    color: "",
+    category: VehicleCategory.SEDAN,
+    fuel_avg_city: 10,
+    fuel_avg_highway: 13,
+});
 
 export default function VendorVehiclesPage() {
     const { selectedLink } = useVendorContext();
@@ -18,7 +33,7 @@ export default function VendorVehiclesPage() {
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<VendorVehicle | null>(null);
-    const [form, setForm] = useState({ plate_number: "", make: "", model: "", year: new Date().getFullYear(), color: "", category: "Sedan", fuel_avg_city: 10, fuel_avg_highway: 13 });
+    const [form, setForm] = useState(getDefaultForm);
     const [saving, setSaving] = useState(false);
 
     const load = useCallback(async () => {
@@ -93,7 +108,7 @@ export default function VendorVehiclesPage() {
         setForm({ plate_number: v.plate_number, make: v.make, model: v.model, year: v.year, color: v.color ?? "", category: v.category, fuel_avg_city: v.fuel_avg_city, fuel_avg_highway: v.fuel_avg_highway });
     };
 
-    const resetForm = () => setForm({ plate_number: "", make: "", model: "", year: new Date().getFullYear(), color: "", category: "Sedan", fuel_avg_city: 10, fuel_avg_highway: 13 });
+    const resetForm = () => setForm(getDefaultForm());
 
     return (
         <div className="p-6 space-y-6">
@@ -124,7 +139,7 @@ export default function VendorVehiclesPage() {
                                 <td className="px-4 py-3 font-mono text-xs font-medium">{v.plate_number}</td>
                                 <td className="px-4 py-3">{v.make} {v.model}</td>
                                 <td className="px-4 py-3">{v.year}</td>
-                                <td className="px-4 py-3">{v.category}</td>
+                                <td className="px-4 py-3">{formatVehicleCategory(v.category)}</td>
                                 <td className="px-4 py-3">
                                     <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", v.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
                                         {v.status ?? "—"}
@@ -154,8 +169,10 @@ export default function VendorVehiclesPage() {
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Plate Number *"><input required value={form.plate_number} onChange={(e) => setForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
                                 <Field label="Category">
-                                    <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={inputCls}>
-                                        {VEHICLE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                                    <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as VehicleCategory }))} className={inputCls}>
+                                        {VEHICLE_CATEGORIES.map((c) => (
+                                            <option key={c} value={c}>{formatVehicleCategory(c)}</option>
+                                        ))}
                                     </select>
                                 </Field>
                                 <Field label="Make *"><input required value={form.make} onChange={(e) => setForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>
