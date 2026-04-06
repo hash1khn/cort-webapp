@@ -32,6 +32,25 @@ function Badge({ children, color = "blue" }: { children: React.ReactNode; color?
     );
 }
 
+function ToggleSwitch({ checked, onChange, disabled = false, loading = false }: { checked: boolean; onChange: () => void; disabled?: boolean; loading?: boolean }) {
+    const isDisabled = disabled || loading;
+
+    return (
+        <label className={cx("relative inline-flex items-center", isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
+            <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} disabled={isDisabled} />
+            <div className={cx("h-6 w-11 rounded-full transition-colors", checked ? "bg-[#f47f00]" : "bg-gray-200")}></div>
+            <div className={cx("absolute left-[2px] top-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 bg-white transition-transform", checked ? "translate-x-full" : "translate-x-0")}>
+                {loading && (
+                    <svg className="h-3 w-3 animate-spin text-[#f47f00]" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" className="opacity-25" />
+                        <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-90" />
+                    </svg>
+                )}
+            </div>
+        </label>
+    );
+}
+
 function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
     if (!isOpen) return null;
     return (
@@ -75,19 +94,22 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<"employees" | "settings" | "features" | "external_vendors">("employees");
+    const [activeTab, setActiveTab] = useState<"employees" | "services" | "whitelisting">("employees");
+    const [linkContext, setLinkContext] = useState<'chauffeur' | 'shuttle' | 'general'>('general');
 
     // Feature flags state
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
     const [featuresLoading, setFeaturesLoading] = useState(false);
     const [trackerForm, setTrackerForm] = useState({ api_endpoint: "", api_key: "" });
     const [trackerSaving, setTrackerSaving] = useState(false);
+    const [pendingToggleKeys, setPendingToggleKeys] = useState<string[]>([]);
 
     // External vendors tab state
     const [companyVendorLinks, setCompanyVendorLinks] = useState<CompanyVendorLink[]>([]);
     const [vendorsLoading, setVendorsLoading] = useState(false);
     const [allVendors, setAllVendors] = useState<ExternalVendor[]>([]);
     const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkSaving, setLinkSaving] = useState(false);
     const [linkForm, setLinkForm] = useState({ vendor_id: 0, serves_chauffeur: false, serves_shuttle: false });
 
     // Employee Modal
@@ -159,18 +181,33 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
     }, [id]);
 
     useEffect(() => {
-        if (activeTab === "features") fetchFeatures();
-        if (activeTab === "external_vendors") fetchCompanyVendors();
+        if (activeTab === "services") {
+            fetchFeatures();
+            fetchCompanyVendors();
+        }
     }, [activeTab, fetchFeatures, fetchCompanyVendors]);
 
-    const toggleFeature = async (feature_key: string, is_enabled: boolean) => {
+    const isTogglePending = (key: string) => pendingToggleKeys.includes(key);
+
+    const runWithTogglePending = async (key: string, action: () => Promise<void>) => {
+        setPendingToggleKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
         try {
-            await apiClient.upsertCompanyFeature(Number(id), { feature_key, is_enabled });
-            setFeatures((prev) => prev.map((f) => f.feature_key === feature_key ? { ...f, is_enabled } : f));
-            toast.success(`${feature_key.replace(/_/g, " ")} ${is_enabled ? "enabled" : "disabled"}`);
-        } catch {
-            toast.error("Failed to update feature");
+            await action();
+        } finally {
+            setPendingToggleKeys((prev) => prev.filter((item) => item !== key));
         }
+    };
+
+    const toggleFeature = async (feature_key: string, is_enabled: boolean) => {
+        await runWithTogglePending(`feature:${feature_key}`, async () => {
+            try {
+                await apiClient.upsertCompanyFeature(Number(id), { feature_key, is_enabled });
+                setFeatures((prev) => prev.map((f) => f.feature_key === feature_key ? { ...f, is_enabled } : f));
+                toast.success(`${feature_key.replace(/_/g, " ")} ${is_enabled ? "enabled" : "disabled"}`);
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update feature");
+            }
+        });
     };
 
     const saveTrackerConfig = async (e: React.FormEvent) => {
@@ -190,16 +227,19 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
         e.preventDefault();
         if (!linkForm.vendor_id) return;
         try {
+            setLinkSaving(true);
             await apiClient.createVendorLink(linkForm.vendor_id, {
                 company_id: Number(id),
                 serves_chauffeur: linkForm.serves_chauffeur,
                 serves_shuttle: linkForm.serves_shuttle,
             });
-            toast.success("Vendor linked");
+            toast.success("Vendor link saved");
             setShowLinkModal(false);
             fetchCompanyVendors();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to link vendor");
+        } finally {
+            setLinkSaving(false);
         }
     };
 
@@ -224,15 +264,18 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
         }
     };
 
-    const openLinkModal = async () => {
-        try {
-            const res = await apiClient.getExternalVendors({ limit: 100 });
-            setAllVendors(res.data.data);
-        } catch {
-            toast.error("Failed to load vendors");
-        }
-        setLinkForm({ vendor_id: 0, serves_chauffeur: false, serves_shuttle: false });
+    const openLinkModal = (context: 'chauffeur' | 'shuttle' | 'general' = 'general') => {
+        setLinkContext(context);
+        setLinkForm({
+            vendor_id: 0,
+            serves_chauffeur: context === 'chauffeur',
+            serves_shuttle: context === 'shuttle',
+        });
         setShowLinkModal(true);
+        // Load vendor list in background — modal is already visible
+        apiClient.getExternalVendors({ limit: 100 })
+            .then(res => setAllVendors(res.data.data))
+            .catch(() => toast.error("Failed to load vendors"));
     };
 
     // -- Handlers --
@@ -375,12 +418,29 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
         // Optimistic
         setCompany({ ...company, [key]: newVal });
 
-        try {
-            await apiClient.updateCompany(company.id, { [key]: newVal });
-        } catch (err) {
-            setCompany({ ...company, [key]: !newVal }); // Revert
-            alert("Failed to update settings");
-        }
+        await runWithTogglePending(`service:${key}`, async () => {
+            try {
+                await apiClient.updateCompany(company.id, { [key]: newVal });
+            } catch (err) {
+                setCompany({ ...company, [key]: !newVal }); // Revert
+                alert("Failed to update settings");
+            }
+        });
+    };
+
+    const updateCompanyField = async (field: 'is_cort_managed' | 'is_external_vendor_managed' | 'is_own_pooled_cars_managed', newVal: boolean) => {
+        if (!company) return;
+        const prev = company[field];
+        setCompany({ ...company, [field]: newVal });
+
+        await runWithTogglePending(`company:${field}`, async () => {
+            try {
+                await apiClient.updateCompany(company.id, { [field]: newVal });
+            } catch {
+                setCompany({ ...company, [field]: prev }); // Revert
+                alert("Failed to update settings");
+            }
+        });
     };
 
     const toggleVehicleModel = async (model: string) => {
@@ -406,6 +466,30 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
         } catch (err: any) {
             console.error(err);
             alert("Failed to update vehicle whitelist");
+        }
+    };
+
+    const handleChauffeurCortManagedToggle = async (newVal: boolean) => {
+        if (!canUpdate) return;
+        await toggleFeature('chauffeur_cort_managed', newVal);
+        if (newVal) {
+            const appTrackingFeat = features.find(f => f.feature_key === 'tracking_via_app');
+            if (!appTrackingFeat?.is_enabled) {
+                await toggleFeature('tracking_via_app', true);
+                toast.success("App Tracking was auto-enabled for CORT Managed Chauffeur.");
+            }
+        }
+    };
+
+    const handleShuttleCortManagedToggle = async (newVal: boolean) => {
+        if (!canUpdate) return;
+        await toggleFeature('shuttle_cort_managed', newVal);
+        if (newVal) {
+            const appTrackingFeat = features.find(f => f.feature_key === 'tracking_via_app');
+            if (!appTrackingFeat?.is_enabled) {
+                await toggleFeature('tracking_via_app', true);
+                toast.success("App Tracking was auto-enabled for CORT Managed Shuttle.");
+            }
         }
     };
 
@@ -470,7 +554,7 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
             {/* Tabs */}
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8 overflow-x-auto">
-                    {(["employees", "settings", "features", "external_vendors"] as const).map((tab) => (
+                    {(["employees", "services", "whitelisting"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -482,9 +566,8 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                             )}
                         >
                             {tab === "employees" && "Employees"}
-                            {tab === "settings" && "Settings & Whitelisting"}
-                            {tab === "features" && "Features"}
-                            {tab === "external_vendors" && "External Vendors"}
+                            {tab === "services" && "Services & Configuration"}
+                            {tab === "whitelisting" && "Vehicle Whitelisting"}
                         </button>
                     ))}
                 </nav>
@@ -585,63 +668,424 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                 </div>
             )}
 
-            {activeTab === "settings" && (
-                <div className="grid gap-6 md:grid-cols-2 animate-in fade-in duration-300">
-                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 className="text-lg font-bold text-[#0c225e] mb-4">Service Configuration</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                <div>
-                                    <div className="font-semibold text-slate-700">Shuttle Service</div>
-                                    <div className="text-xs text-slate-500">Enable Fixed Routes & Stops</div>
+            {activeTab === "services" && (
+                <div className="space-y-6 animate-in fade-in duration-300">
+                    {(featuresLoading || vendorsLoading) ? (
+                        <div className="space-y-6">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="rounded-xl border border-slate-200 bg-white shadow-sm p-6 animate-pulse">
+                                    <div className="h-5 bg-slate-200 rounded w-1/4 mb-3"></div>
+                                    <div className="h-3 bg-slate-200 rounded w-1/3 mb-6"></div>
+                                    <div className="h-10 bg-slate-100 rounded w-full"></div>
                                 </div>
-                                <label className={cx("relative inline-flex items-center", canUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
-                                        checked={company.is_shuttle_enabled}
-                                        onChange={() => toggleService('shuttle')}
-                                        disabled={!canUpdate}
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f47f00]"></div>
-                                </label>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100">
-                                <div>
-                                    <div className="font-semibold text-slate-700">Chauffeur Service</div>
-                                    <div className="text-xs text-slate-500">Enable On-Demand Bookings</div>
-                                </div>
-                                <label className={cx("relative inline-flex items-center", canUpdate ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only peer"
+                            ))}
+                        </div>
+                    ) : (
+                        <>
+                            {/* Chauffeur Service Card */}
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                                    <div>
+                                        <h3 className="text-base font-bold text-[#0c225e]">Chauffeur Service</h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">On-demand point-to-point bookings</p>
+                                    </div>
+                                    <ToggleSwitch
                                         checked={company.is_chauffeur_enabled}
                                         onChange={() => toggleService('chauffeur')}
                                         disabled={!canUpdate}
+                                        loading={isTogglePending('service:is_chauffeur_enabled')}
                                     />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#f47f00]"></div>
-                                </label>
+                                </div>
+                                {company.is_chauffeur_enabled ? (
+                                    <div className="divide-y divide-slate-100">
+                                        {/* CORT Managed */}
+                                        {(() => {
+                                            const cmChauffeur = features.find(f => f.feature_key === 'chauffeur_cort_managed')?.is_enabled ?? false;
+                                            return (
+                                        <div className="flex items-center justify-between px-5 py-4">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-700">CORT Managed</div>
+                                                <div className="text-xs text-slate-500">CORT assigns drivers and vehicles for bookings</div>
+                                            </div>
+                                            <ToggleSwitch
+                                                checked={cmChauffeur}
+                                                onChange={() => handleChauffeurCortManagedToggle(!cmChauffeur)}
+                                                disabled={!canUpdate}
+                                                loading={isTogglePending('feature:chauffeur_cort_managed')}
+                                            />
+                                        </div>
+                                            );
+                                        })()}
+                                        {/* External Vendor */}
+                                        {(() => {
+                                            const cvEnabled = features.find(f => f.feature_key === 'chauffeur_external_vendor')?.is_enabled ?? false;
+                                            const cvVendors = companyVendorLinks.filter(l => l.serves_chauffeur);
+                                            return (
+                                                <div className="px-5 py-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-slate-700">External Vendor</div>
+                                                            <div className="text-xs text-slate-500">Third-party vendors fulfill bookings via their dashboard</div>
+                                                        </div>
+                                                        <ToggleSwitch
+                                                            checked={cvEnabled}
+                                                            onChange={() => toggleFeature('chauffeur_external_vendor', !cvEnabled)}
+                                                            disabled={!canUpdate}
+                                                            loading={isTogglePending('feature:chauffeur_external_vendor')}
+                                                        />
+                                                    </div>
+                                                    
+                                                    <div className="mt-3 rounded-lg border border-slate-200 overflow-hidden">
+                                                        {cvVendors.length > 0 && (
+                                                            <table className="w-full text-xs">
+                                                                <thead className="bg-slate-50 border-b border-slate-200">
+                                                                    <tr>{["Vendor", "Status", ""].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-slate-500 uppercase tracking-wide">{h}</th>)}</tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-slate-100">
+                                                                    {cvVendors.map(link => (
+                                                                        <tr key={link.id} className="hover:bg-slate-50">
+                                                                            <td className="px-3 py-2 font-medium text-slate-800">{link.external_vendors?.name ?? `Vendor #${link.vendor_id}`}</td>
+                                                                            <td className="px-3 py-2">
+                                                                                <button onClick={() => updateLink(link.id, { is_active: !link.is_active })} className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium transition-colors", link.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                                                                    {link.is_active ? "Active" : "Inactive"}
+                                                                                </button>
+                                                                            </td>
+                                                                            <td className="px-3 py-2 text-right"><button onClick={() => removeLink(link.id)} className="text-red-400 hover:text-red-600 hover:underline">Remove</button></td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        )}
+                                                        {cvVendors.length === 0 && <div className="px-4 py-3 text-xs text-slate-400 bg-slate-50">No vendors linked for chauffeur yet.</div>}
+                                                        <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                                                            <span className="text-[11px] text-slate-400">
+                                                                {cvEnabled ? "Link a vendor for chauffeur fulfilment." : "Link a vendor first, then enable External Vendor."}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => openLinkModal('chauffeur')}
+                                                                disabled={!canUpdate}
+                                                                className={cx(
+                                                                    "text-xs font-semibold",
+                                                                    canUpdate ? "text-[#f47f00] hover:underline" : "text-slate-300 cursor-not-allowed"
+                                                                )}
+                                                            >
+                                                                + Add Vendor
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                </div>
+                                    );
+                                })()}
+                                {/* Own Pool */}
+                                {(() => {
+                                    const smEnabled = features.find(f => f.feature_key === 'chauffeur_self_managed')?.is_enabled ?? false;
+                                    return (
+                                        <div className="flex items-center justify-between px-5 py-4">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-700">Own Pool (Self-Managed)</div>
+                                                <div className="text-xs text-slate-500">Company runs its own drivers and vehicle pool</div>
+                                            </div>
+                                            <ToggleSwitch
+                                                checked={smEnabled}
+                                                onChange={() => toggleFeature('chauffeur_self_managed', !smEnabled)}
+                                                disabled={!canUpdate}
+                                                loading={isTogglePending('feature:chauffeur_self_managed')}
+                                            />
+                                        </div>
+                                    );
+                                })()}
                             </div>
+                        ) : (
+                            <div className="px-5 py-4 text-sm text-slate-400 bg-slate-50/50">Enable Chauffeur Service to configure fulfilment modes.</div>
+                        )}
+                    </div>
+
+                    {/* Shuttle Service Card */}
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                            <div>
+                                <h3 className="text-base font-bold text-[#0c225e]">Shuttle Service</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">Fixed routes with scheduled stops</p>
+                            </div>
+                            <ToggleSwitch
+                                checked={company.is_shuttle_enabled}
+                                onChange={() => toggleService('shuttle')}
+                                disabled={!canUpdate}
+                                loading={isTogglePending('service:is_shuttle_enabled')}
+                            />
+                        </div>
+                        {company.is_shuttle_enabled ? (
+                            <div className="divide-y divide-slate-100">
+                                {/* CORT Managed */}
+                                {(() => {
+                                    const cmShuttle = features.find(f => f.feature_key === 'shuttle_cort_managed')?.is_enabled ?? false;
+                                    return (
+                                <div className="flex items-center justify-between px-5 py-4">
+                                    <div>
+                                        <div className="text-sm font-semibold text-slate-700">CORT Managed</div>
+                                        <div className="text-xs text-slate-500">CORT manages shuttle routes and drivers</div>
+                                    </div>
+                                    <ToggleSwitch
+                                        checked={cmShuttle}
+                                        onChange={() => handleShuttleCortManagedToggle(!cmShuttle)}
+                                        disabled={!canUpdate}
+                                        loading={isTogglePending('feature:shuttle_cort_managed')}
+                                    />
+                                </div>
+                                    );
+                                })()}
+                                {/* External Vendor */}
+                                {(() => {
+                                    const svEnabled = features.find(f => f.feature_key === 'shuttle_external_vendor')?.is_enabled ?? false;
+                                    const svVendors = companyVendorLinks.filter(l => l.serves_shuttle);
+                                    return (
+                                        <div className="px-5 py-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="text-sm font-semibold text-slate-700">External Vendor</div>
+                                                    <div className="text-xs text-slate-500">Third-party vendors manage shuttle routes</div>
+                                                </div>
+                                                <ToggleSwitch
+                                                    checked={svEnabled}
+                                                    onChange={() => toggleFeature('shuttle_external_vendor', !svEnabled)}
+                                                    disabled={!canUpdate}
+                                                    loading={isTogglePending('feature:shuttle_external_vendor')}
+                                                />
+                                            </div>
+                                            
+                                            <div className="mt-3 rounded-lg border border-slate-200 overflow-hidden">
+                                                {svVendors.length > 0 && (
+                                                    <table className="w-full text-xs">
+                                                        <thead className="bg-slate-50 border-b border-slate-200">
+                                                            <tr>{["Vendor", "Status", ""].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-slate-500 uppercase tracking-wide">{h}</th>)}</tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {svVendors.map(link => (
+                                                                <tr key={link.id} className="hover:bg-slate-50">
+                                                                    <td className="px-3 py-2 font-medium text-slate-800">{link.external_vendors?.name ?? `Vendor #${link.vendor_id}`}</td>
+                                                                    <td className="px-3 py-2">
+                                                                        <button onClick={() => updateLink(link.id, { is_active: !link.is_active })} className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium transition-colors", link.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                                                            {link.is_active ? "Active" : "Inactive"}
+                                                                        </button>
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-right"><button onClick={() => removeLink(link.id)} className="text-red-400 hover:text-red-600 hover:underline">Remove</button></td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                )}
+                                                {svVendors.length === 0 && <div className="px-4 py-3 text-xs text-slate-400 bg-slate-50">No vendors linked for shuttle yet.</div>}
+                                                <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                                                    <span className="text-[11px] text-slate-400">
+                                                        {svEnabled ? "Link a vendor for shuttle fulfilment." : "Link a vendor first, then enable External Vendor."}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => openLinkModal('shuttle')}
+                                                        disabled={!canUpdate}
+                                                        className={cx(
+                                                            "text-xs font-semibold",
+                                                            canUpdate ? "text-[#f47f00] hover:underline" : "text-slate-300 cursor-not-allowed"
+                                                        )}
+                                                    >
+                                                        + Add Vendor
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        ) : (
+                            <div className="px-5 py-4 text-sm text-slate-400 bg-slate-50/50">Enable Shuttle Service to configure fulfilment modes.</div>
+                        )}
+                    </div>
+
+                    {/* Tracking Card */}
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <div className="p-5 border-b border-slate-100">
+                            <h3 className="text-base font-bold text-[#0c225e]">Tracking</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">How vehicles and drivers are tracked. Both methods can be active simultaneously.</p>
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                            {(() => {
+                                const tEnabled = features.find(f => f.feature_key === 'tracker_api_integration')?.is_enabled ?? false;
+                                return (
+                                    <div className="px-5 py-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-700">Third-Party Tracker API</div>
+                                                <div className="text-xs text-slate-500">Integrate with the company's own external tracking system</div>
+                                            </div>
+                                            <ToggleSwitch
+                                                checked={tEnabled}
+                                                onChange={() => toggleFeature('tracker_api_integration', !tEnabled)}
+                                                disabled={!canUpdate}
+                                                loading={isTogglePending('feature:tracker_api_integration')}
+                                            />
+                                        </div>
+                                        {tEnabled && (
+                                            <form onSubmit={saveTrackerConfig} className="mt-3 bg-blue-50 rounded-lg border border-blue-200 p-4 space-y-3">
+                                                <p className="text-xs font-semibold text-blue-800">Tracker API Configuration</p>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">API Endpoint</label>
+                                                    <input type="url" value={trackerForm.api_endpoint} onChange={(e) => setTrackerForm(f => ({ ...f, api_endpoint: e.target.value }))} placeholder="https://tracker.example.com/api" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
+                                                    <input type="text" value={trackerForm.api_key} onChange={(e) => setTrackerForm(f => ({ ...f, api_key: e.target.value }))} placeholder="••••••••" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                                                </div>
+                                                <button type="submit" disabled={trackerSaving} className="bg-[#f47f00] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50">{trackerSaving ? "Saving…" : "Save Config"}</button>
+                                            </form>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                            {(() => {
+                                const appEnabled = features.find(f => f.feature_key === 'tracking_via_app')?.is_enabled ?? false;
+                                return (
+                                    <div className="flex items-center justify-between px-5 py-4">
+                                        <div>
+                                            <div className="text-sm font-semibold text-slate-700">App Tracking (CORT)</div>
+                                            <div className="text-xs text-slate-500">Track drivers and vehicles via GPS in the CORT mobile app</div>
+                                        </div>
+                                        <ToggleSwitch
+                                            checked={appEnabled}
+                                            onChange={() => toggleFeature('tracking_via_app', !appEnabled)}
+                                            disabled={!canUpdate}
+                                            loading={isTogglePending('feature:tracking_via_app')}
+                                        />
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
+                    {/* Add-ons Card */}
+                    {(() => {
+                        const aiEnabled = features.find(f => f.feature_key === 'ai_insights')?.is_enabled ?? false;
+                        return (
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-slate-100">
+                                    <h3 className="text-base font-bold text-[#0c225e]">Add-ons</h3>
+                                    <p className="text-xs text-slate-500 mt-0.5">Optional features available to any configuration.</p>
+                                </div>
+                                <div className="flex items-center justify-between px-5 py-4">
+                                    <div>
+                                        <div className="text-sm font-semibold text-slate-700">AI Insights</div>
+                                        <div className="text-xs text-slate-500">AI-powered cost savings analysis and recommendations</div>
+                                    </div>
+                                    <ToggleSwitch
+                                        checked={aiEnabled}
+                                        onChange={() => toggleFeature('ai_insights', !aiEnabled)}
+                                        disabled={!canUpdate}
+                                        loading={isTogglePending('feature:ai_insights')}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Active Services Summary */}
+                    {(() => {
+                        const cvEnabled = features.find(f => f.feature_key === 'chauffeur_external_vendor')?.is_enabled ?? false;
+                        const svEnabled = features.find(f => f.feature_key === 'shuttle_external_vendor')?.is_enabled ?? false;
+                        const smEnabled = features.find(f => f.feature_key === 'chauffeur_self_managed')?.is_enabled ?? false;
+                        const cmChauffeur = features.find(f => f.feature_key === 'chauffeur_cort_managed')?.is_enabled ?? false;
+                        const cmShuttle = features.find(f => f.feature_key === 'shuttle_cort_managed')?.is_enabled ?? false;
+                        const tEnabled = features.find(f => f.feature_key === 'tracker_api_integration')?.is_enabled ?? false;
+                        const appEnabled = features.find(f => f.feature_key === 'tracking_via_app')?.is_enabled ?? false;
+                        const aiEnabled = features.find(f => f.feature_key === 'ai_insights')?.is_enabled ?? false;
+                        const cvCount = companyVendorLinks.filter(l => l.serves_chauffeur && l.is_active).length;
+                        const svCount = companyVendorLinks.filter(l => l.serves_shuttle && l.is_active).length;
+                        const items: { label: string; color: "blue" | "green" | "purple" | "orange" }[] = [];
+                        if (company.is_chauffeur_enabled) {
+                            if (cmChauffeur) items.push({ label: "Chauffeur — CORT Managed", color: "blue" });
+                            if (cvEnabled) items.push({ label: `Chauffeur — External Vendor (${cvCount} active)`, color: "purple" });
+                            if (smEnabled) items.push({ label: "Chauffeur — Own Pool", color: "green" });
+                        }
+                        if (company.is_shuttle_enabled) {
+                            if (cmShuttle) items.push({ label: "Shuttle — CORT Managed", color: "blue" });
+                            if (svEnabled) items.push({ label: `Shuttle — External Vendor (${svCount} active)`, color: "purple" });
+                        }
+                        if (tEnabled) items.push({ label: "Tracking — Third-Party API", color: "orange" });
+                        if (appEnabled) items.push({ label: "Tracking — CORT App GPS", color: "orange" });
+                        if (aiEnabled) items.push({ label: "Add-on: AI Insights", color: "green" });
+                        return (
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
+                                <h3 className="text-sm font-bold text-slate-600 mb-3">Active Services Summary</h3>
+                                {items.length === 0 ? (
+                                    <p className="text-xs text-slate-400">No services enabled yet.</p>
+                                ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                        {items.map((item, i) => <Badge key={i} color={item.color}>{item.label}</Badge>)}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* Link Vendor Modal */}
+                    {showLinkModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-900">Link External Vendor</h2>
+                                    <button onClick={() => setShowLinkModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+                                </div>
+                                <form onSubmit={handleLinkVendor} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Select Vendor *</label>
+                                        <select required value={linkForm.vendor_id} onChange={(e) => setLinkForm(f => ({ ...f, vendor_id: Number(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                            <option value={0}>— Choose a vendor —</option>
+                                            {allVendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <label className={cx("flex items-center gap-2 text-sm", linkContext === 'chauffeur' ? "opacity-60" : "cursor-pointer")}>
+                                            <input type="checkbox" checked={linkForm.serves_chauffeur} disabled={linkContext === 'chauffeur'} onChange={(e) => linkContext !== 'chauffeur' && setLinkForm(f => ({ ...f, serves_chauffeur: e.target.checked }))} />
+                                            Serves Chauffeur
+                                        </label>
+                                        <label className={cx("flex items-center gap-2 text-sm", linkContext === 'shuttle' ? "opacity-60" : "cursor-pointer")}>
+                                            <input type="checkbox" checked={linkForm.serves_shuttle} disabled={linkContext === 'shuttle'} onChange={(e) => linkContext !== 'shuttle' && setLinkForm(f => ({ ...f, serves_shuttle: e.target.checked }))} />
+                                            Serves Shuttle
+                                        </label>
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <button type="button" onClick={() => setShowLinkModal(false)} disabled={linkSaving} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+                                        <button type="submit" disabled={linkSaving || !linkForm.vendor_id} className="inline-flex items-center justify-center gap-2 bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                                            {linkSaving && (
+                                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" className="opacity-25" />
+                                                    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-90" />
+                                                </svg>
+                                            )}
+                                            {linkSaving ? "Saving..." : "Link Vendor"}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {activeTab === "whitelisting" && (
+                <div className="animate-in fade-in duration-300">
                     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h3 className="text-lg font-bold text-[#0c225e]">Vehicle Whitelisting</h3>
-                                <div className="text-xs text-slate-500 mt-1">Select vehicles available for Chauffeur bookings.</div>
+                                <div className="text-xs text-slate-500 mt-1">Select vehicle models available for Chauffeur bookings.</div>
                             </div>
                             {!company.is_chauffeur_enabled && (
                                 <Badge color="red">Disabled (Chauffeur Off)</Badge>
                             )}
                         </div>
-
-                        <div
-                            className={cx(
-                                "grid grid-cols-2 gap-2",
-                                (!company.is_chauffeur_enabled || !canUpdate) && "opacity-50 pointer-events-none",
-                            )}
-                        >
+                        <div className={cx("grid grid-cols-2 gap-2 sm:grid-cols-3", (!company.is_chauffeur_enabled || !canUpdate) && "opacity-50 pointer-events-none")}>
                             {availableVehicleModels.map(model => {
                                 const isAllowed = currentModels.includes(model);
                                 return (
@@ -650,9 +1094,7 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                                         onClick={() => toggleVehicleModel(model)}
                                         className={cx(
                                             "flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all border",
-                                            isAllowed
-                                                ? "bg-purple-50 border-purple-200 text-purple-700"
-                                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                            isAllowed ? "bg-purple-50 border-purple-200 text-purple-700" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                                         )}
                                     >
                                         <span>{model}</span>
@@ -666,177 +1108,6 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                             })}
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Features Tab */}
-            {activeTab === "features" && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                    {featuresLoading ? (
-                        <p className="text-sm text-gray-400">Loading features…</p>
-                    ) : (
-                        <>
-                            {[
-                                { key: "chauffeur_external_vendor", label: "Chauffeur — External Vendor", desc: "Allow external vendors to fulfill chauffeur bookings" },
-                                { key: "shuttle_external_vendor", label: "Shuttle — External Vendor", desc: "Allow external vendors to manage shuttle routes" },
-                                { key: "chauffeur_self_managed", label: "Chauffeur — Self-Managed Pool", desc: "Company manages its own pool of vehicles and drivers" },
-                                { key: "tracker_api_integration", label: "Third-Party Tracker API", desc: "Integrate with the company's own tracker instead of CORT app" },
-                                { key: "ai_insights", label: "AI Insights", desc: "Enable AI-powered cost savings analysis" },
-                            ].map(({ key, label, desc }) => {
-                                const feat = features.find((f) => f.feature_key === key);
-                                const enabled = feat?.is_enabled ?? false;
-                                return (
-                                    <div key={key} className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900">{label}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                                        </div>
-                                        <button
-                                            role="switch"
-                                            aria-checked={enabled}
-                                            onClick={() => toggleFeature(key, !enabled)}
-                                            className={cx(
-                                                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                                enabled ? "bg-[#f47f00]" : "bg-gray-200"
-                                            )}
-                                        >
-                                            <span className={cx("inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform", enabled ? "translate-x-6" : "translate-x-1")} />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Tracker sub-form */}
-                            {features.find((f) => f.feature_key === "tracker_api_integration")?.is_enabled && (
-                                <form onSubmit={saveTrackerConfig} className="bg-blue-50 rounded-xl border border-blue-200 p-5 space-y-3">
-                                    <p className="text-sm font-semibold text-blue-800">Tracker API Configuration</p>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">API Endpoint</label>
-                                        <input
-                                            type="url"
-                                            value={trackerForm.api_endpoint}
-                                            onChange={(e) => setTrackerForm((f) => ({ ...f, api_endpoint: e.target.value }))}
-                                            placeholder="https://tracker.example.com/api"
-                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
-                                        <input
-                                            type="text"
-                                            value={trackerForm.api_key}
-                                            onChange={(e) => setTrackerForm((f) => ({ ...f, api_key: e.target.value }))}
-                                            placeholder="••••••••"
-                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                        />
-                                    </div>
-                                    <button type="submit" disabled={trackerSaving} className="bg-[#f47f00] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50">
-                                        {trackerSaving ? "Saving…" : "Save Tracker Config"}
-                                    </button>
-                                </form>
-                            )}
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* External Vendors Tab */}
-            {activeTab === "external_vendors" && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-500">Manage vendor links for this company.</p>
-                        <button onClick={openLinkModal} className="bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d96e00]">
-                            + Link Vendor
-                        </button>
-                    </div>
-                    {vendorsLoading ? (
-                        <p className="text-sm text-gray-400">Loading…</p>
-                    ) : companyVendorLinks.length === 0 ? (
-                        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
-                            No vendors linked yet. Click "Link Vendor" to add one.
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50 border-b border-gray-200">
-                                    <tr>
-                                        {["Vendor", "Chauffeur", "Shuttle", "Status", "Actions"].map((h) => (
-                                            <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {companyVendorLinks.map((link) => (
-                                        <tr key={link.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 font-medium text-gray-900">{link.external_vendors?.name ?? `Vendor #${link.vendor_id}`}</td>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => updateLink(link.id, { serves_chauffeur: !link.serves_chauffeur })}
-                                                    className={cx("h-5 w-5 rounded border-2 flex items-center justify-center transition-colors", link.serves_chauffeur ? "bg-[#f47f00] border-[#f47f00] text-white" : "border-gray-300")}
-                                                >
-                                                    {link.serves_chauffeur && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => updateLink(link.id, { serves_shuttle: !link.serves_shuttle })}
-                                                    className={cx("h-5 w-5 rounded border-2 flex items-center justify-center transition-colors", link.serves_shuttle ? "bg-[#f47f00] border-[#f47f00] text-white" : "border-gray-300")}
-                                                >
-                                                    {link.serves_shuttle && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => updateLink(link.id, { is_active: !link.is_active })}
-                                                    className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium transition-colors", link.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}
-                                                >
-                                                    {link.is_active ? "Active" : "Inactive"}
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <button onClick={() => removeLink(link.id)} className="text-xs text-red-500 hover:underline">Remove</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* Link Vendor Modal */}
-                    {showLinkModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-lg font-semibold text-gray-900">Link External Vendor</h2>
-                                    <button onClick={() => setShowLinkModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
-                                </div>
-                                <form onSubmit={handleLinkVendor} className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">Select Vendor *</label>
-                                        <select required value={linkForm.vendor_id} onChange={(e) => setLinkForm((f) => ({ ...f, vendor_id: Number(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                                            <option value={0}>— Choose a vendor —</option>
-                                            {allVendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input type="checkbox" checked={linkForm.serves_chauffeur} onChange={(e) => setLinkForm((f) => ({ ...f, serves_chauffeur: e.target.checked }))} />
-                                            Serves Chauffeur
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input type="checkbox" checked={linkForm.serves_shuttle} onChange={(e) => setLinkForm((f) => ({ ...f, serves_shuttle: e.target.checked }))} />
-                                            Serves Shuttle
-                                        </label>
-                                    </div>
-                                    <div className="flex justify-end gap-3 pt-2">
-                                        <button type="button" onClick={() => setShowLinkModal(false)} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
-                                        <button type="submit" className="bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm">Link Vendor</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 

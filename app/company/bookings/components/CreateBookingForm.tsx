@@ -103,6 +103,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
     // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
+    const [featuresLoading, setFeaturesLoading] = useState(true);
     const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
     const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
     const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
@@ -114,7 +115,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             dispatch(fetchEmployees(company.id.toString()));
             dispatch(fetchContract());
             // Load feature flags
-            apiClient.getCompanyFeatures(Number(company.id)).then((r) => setFeatures(r.data)).catch(() => {});
+            setFeaturesLoading(true);
+            apiClient.getCompanyFeatures(Number(company.id))
+                .then((r) => setFeatures(r.data))
+                .catch(() => {})
+                .finally(() => setFeaturesLoading(false));
         }
     }, [dispatch, company?.id]);
 
@@ -126,9 +131,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     }, [fulfillmentType, company?.id]);
 
     const availableFulfillmentTypes = useMemo(() => {
-        const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [
-            { value: "CORT_MANAGED", label: "CORT Managed" },
-        ];
+        const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [];
+        if (features.find((f) => f.feature_key === "chauffeur_cort_managed")?.is_enabled) {
+            opts.push({ value: "CORT_MANAGED", label: "CORT Managed" });
+        }
         if (features.find((f) => f.feature_key === "chauffeur_external_vendor")?.is_enabled) {
             opts.push({ value: "EXTERNAL_VENDOR", label: "External Vendor" });
         }
@@ -137,6 +143,16 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         }
         return opts;
     }, [features]);
+
+    // Auto-select first available fulfillment type after features load
+    useEffect(() => {
+        if (!featuresLoading && availableFulfillmentTypes.length > 0) {
+            if (!availableFulfillmentTypes.find((o) => o.value === fulfillmentType)) {
+                setFulfillmentType(availableFulfillmentTypes[0].value);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [featuresLoading, availableFulfillmentTypes]);
 
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
@@ -354,8 +370,16 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <div className="flex flex-col gap-6">
-                {/* Fulfillment Type Selector (shown only when more than 1 option) */}
-                {availableFulfillmentTypes.length > 1 && (
+                {/* Fulfillment Type Selector */}
+                {featuresLoading ? (
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 animate-pulse">
+                        <div className="h-2.5 w-28 bg-orange-200 rounded mb-4"></div>
+                        <div className="flex gap-2">
+                            <div className="h-9 w-28 bg-orange-200 rounded-xl"></div>
+                            <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
+                        </div>
+                    </div>
+                ) : availableFulfillmentTypes.length > 1 && (
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
                         <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">Fulfillment Type</p>
                         <div className="flex flex-wrap gap-2">

@@ -35,6 +35,13 @@ export interface Route {
     };
     assigned_vehicle_id?: number;
     assigned_driver_id?: string;
+    company_vendor_link_id?: number | null;
+    company_vendor_links?: {
+        id: number;
+        external_vendors?: {
+            name: string;
+        };
+    } | null;
     vehicles?: {
         plate_number: string;
         model: string;

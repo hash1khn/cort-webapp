@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
-import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight, Building2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminRoutes, selectAdminRoutes, selectAdminRoutesStatus } from '@/app/lib/store/slices/adminRoutesSlice';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
@@ -180,6 +180,16 @@ function RoutesPageContent() {
                                         <div className="flex items-center gap-2">
                                             <MapPin className="w-4 h-4" />
                                             <span>{route.route_stops?.length || 0} Stops</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Building2 className="w-4 h-4" />
+                                            {route.company_vendor_link_id ? (
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                                                    {route.company_vendor_links?.external_vendors?.name ?? 'External Vendor'}
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">CORT</span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Truck className="w-4 h-4" />

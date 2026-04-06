@@ -99,7 +99,7 @@ export interface ChauffeurBooking {
     trip_type: TripType;
     scheduled_for: string;
     status: TripStatus;
-    fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
+    fulfillment_type: 'CORT_MANAGED' | 'EXTERNAL_VENDOR' | 'SELF_MANAGED';
     internal_cost_center_code: string | null;
     city?: string; // City of the booking
     service_category?: string;

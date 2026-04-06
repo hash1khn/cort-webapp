@@ -14,7 +14,10 @@ export type CompanyFeatureKey =
     | 'chauffeur_external_vendor'
     | 'shuttle_external_vendor'
     | 'chauffeur_self_managed'
+    | 'chauffeur_cort_managed'
+    | 'shuttle_cort_managed'
     | 'tracker_api_integration'
+    | 'tracking_via_app'
     | 'ai_insights';
 
 export interface CompanyFeature {
