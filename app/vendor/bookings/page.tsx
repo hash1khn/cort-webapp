@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
     CANCELLED:   "bg-red-50 text-red-600 border-red-200",
 };
 
-const STATUS_TABS = ["All", "ASSIGNED", "IN_PROGRESS", "ENDED", "COMPLETED"];
+const STATUS_TABS = ["All", "ASSIGNED", "OTW", "ARRIVED", "IN_PROGRESS", "ENDED", "COMPLETED"];
 
 interface EndTripForm {
     total_distance_km: string;
@@ -54,6 +54,7 @@ export default function VendorBookingsPage() {
     });
     const [isEnding, setIsEnding] = useState(false);
     const [isStarting, setIsStarting] = useState<number | null>(null);
+    const [isUpdating, setIsUpdating] = useState<number | null>(null);
 
     const load = useCallback(async (page: number) => {
         if (!selectedLink) return;
@@ -87,12 +88,27 @@ export default function VendorBookingsPage() {
         return () => clearInterval(timer);
     }, [statusFilter, currentPage, load]);
 
+    const handleUpdateStatus = async (booking: ChauffeurBooking, status: 'OTW' | 'ARRIVED') => {
+        setIsUpdating(booking.id);
+        try {
+            await apiClient.vendorUpdateStatus(booking.id, status);
+            toast.success(`Status updated to ${status}`);
+            load(currentPage);
+            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status } : b);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : `Failed to update status`);
+        } finally {
+            setIsUpdating(null);
+        }
+    };
+
     const handleStartTrip = async (booking: ChauffeurBooking) => {
         if (!confirm(`Start trip for Booking #${booking.id}?`)) return;
         setIsStarting(booking.id);
         try {
             await apiClient.vendorStartTrip(booking.id);
             toast.success("Trip started — status is now IN_PROGRESS");
+            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status: 'IN_PROGRESS' } : b);
             load(currentPage);
             setSelectedBooking(null);
         } catch (err) {
@@ -249,23 +265,43 @@ export default function VendorBookingsPage() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                        {b.status === "ASSIGNED" && (
-                                            <button
-                                                onClick={() => handleStartTrip(b)}
-                                                disabled={isStarting === b.id}
-                                                className="text-xs bg-[#0c225e] text-white px-3 py-1.5 rounded-lg font-medium hover:bg-[#0a1a4a] disabled:opacity-50 whitespace-nowrap"
-                                            >
-                                                {isStarting === b.id ? "Starting…" : "Start Trip"}
-                                            </button>
-                                        )}
-                                        {b.status === "IN_PROGRESS" && (
-                                            <button
-                                                onClick={() => openEndModal(b)}
-                                                className="text-xs bg-[#f47f00] text-white px-3 py-1.5 rounded-lg font-medium hover:bg-[#d96e00] whitespace-nowrap"
-                                            >
-                                                End Trip
-                                            </button>
-                                        )}
+                                        <div className="flex flex-col gap-1">
+                                            {b.status === "ASSIGNED" && (
+                                                <button
+                                                    onClick={() => handleUpdateStatus(b, 'OTW')}
+                                                    disabled={isUpdating === b.id}
+                                                    className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+                                                >
+                                                    {isUpdating === b.id ? "Updating…" : "Mark OTW"}
+                                                </button>
+                                            )}
+                                            {b.status === "OTW" && (
+                                                <button
+                                                    onClick={() => handleUpdateStatus(b, 'ARRIVED')}
+                                                    disabled={isUpdating === b.id}
+                                                    className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 whitespace-nowrap"
+                                                >
+                                                    {isUpdating === b.id ? "Updating…" : "Mark Arrived"}
+                                                </button>
+                                            )}
+                                            {b.status === "ARRIVED" && (
+                                                <button
+                                                    onClick={() => handleStartTrip(b)}
+                                                    disabled={isStarting === b.id}
+                                                    className="text-xs bg-[#0c225e] text-white px-3 py-1.5 rounded-lg font-medium hover:bg-[#0a1a4a] disabled:opacity-50 whitespace-nowrap"
+                                                >
+                                                    {isStarting === b.id ? "Starting…" : "Start Trip"}
+                                                </button>
+                                            )}
+                                            {b.status === "IN_PROGRESS" && (
+                                                <button
+                                                    onClick={() => openEndModal(b)}
+                                                    className="text-xs bg-[#f47f00] text-white px-3 py-1.5 rounded-lg font-medium hover:bg-[#d96e00] whitespace-nowrap"
+                                                >
+                                                    End Trip
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -416,8 +452,26 @@ export default function VendorBookingsPage() {
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="px-6 pb-5 flex justify-end gap-3">
+                        <div className="px-6 pb-5 flex justify-end gap-3 flex-wrap">
                             {selectedBooking.status === "ASSIGNED" && (
+                                <button
+                                    onClick={() => handleUpdateStatus(selectedBooking, 'OTW')}
+                                    disabled={isUpdating === selectedBooking.id}
+                                    className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {isUpdating === selectedBooking.id ? "Updating…" : "Mark OTW"}
+                                </button>
+                            )}
+                            {selectedBooking.status === "OTW" && (
+                                <button
+                                    onClick={() => handleUpdateStatus(selectedBooking, 'ARRIVED')}
+                                    disabled={isUpdating === selectedBooking.id}
+                                    className="bg-purple-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                    {isUpdating === selectedBooking.id ? "Updating…" : "Mark Arrived"}
+                                </button>
+                            )}
+                            {selectedBooking.status === "ARRIVED" && (
                                 <button
                                     onClick={() => handleStartTrip(selectedBooking)}
                                     disabled={isStarting === selectedBooking.id}

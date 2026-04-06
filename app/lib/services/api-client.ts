@@ -1336,6 +1336,13 @@ class ApiClient {
         return this.request<{ success: boolean; data: { data: ChauffeurBooking[]; pagination: Pagination } }>(`/vendor/bookings?${query}`);
     }
 
+    async vendorUpdateStatus(bookingId: number, status: 'OTW' | 'ARRIVED') {
+        return this.request<{ success: boolean }>(`/vendor/bookings/${bookingId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
+        });
+    }
+
     async vendorStartTrip(bookingId: number) {
         return this.request<{ success: boolean; data: { success: boolean } }>(`/vendor/bookings/${bookingId}/start`, {
             method: 'PATCH',
