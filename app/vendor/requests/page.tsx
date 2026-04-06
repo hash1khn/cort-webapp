@@ -61,8 +61,8 @@ export default function VendorRequestsPage() {
                     apiClient.getVendorVehicles(selectedLink.id),
                     apiClient.getVendorDrivers(selectedLink.id),
                 ]);
-                setVehicles(vRes?.data?.data ?? vRes?.data ?? []);
-                setDrivers(dRes?.data?.data ?? dRes?.data ?? []);
+                setVehicles(vRes?.data ?? []);
+                setDrivers(dRes?.data ?? []);
             } catch { toast.error("Failed to load fleet"); }
         }
     };

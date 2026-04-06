@@ -19,8 +19,10 @@ export enum TripType {
 export enum TripStatus {
     PENDING = 'PENDING',
     ASSIGNED = 'ASSIGNED',
+    OTW = 'OTW',
     ARRIVED = 'ARRIVED',
     IN_PROGRESS = 'IN_PROGRESS',
+    DROPPED_OFF = 'DROPPED_OFF',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED',
     ENDED = 'ENDED',

@@ -94,7 +94,7 @@ export default function VendorBookingsPage() {
             await apiClient.vendorUpdateStatus(booking.id, status);
             toast.success(`Status updated to ${status}`);
             load(currentPage);
-            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status } : b);
+            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status: status as ChauffeurBooking['status'] } : b);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : `Failed to update status`);
         } finally {
@@ -108,7 +108,7 @@ export default function VendorBookingsPage() {
         try {
             await apiClient.vendorStartTrip(booking.id);
             toast.success("Trip started — status is now IN_PROGRESS");
-            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status: 'IN_PROGRESS' } : b);
+            if (selectedBooking?.id === booking.id) setSelectedBooking((b) => b ? { ...b, status: 'IN_PROGRESS' as ChauffeurBooking['status'] } : b);
             load(currentPage);
             setSelectedBooking(null);
         } catch (err) {

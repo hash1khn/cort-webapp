@@ -105,7 +105,7 @@ export default function VendorVehiclesPage() {
 
     const openEdit = (v: VendorVehicle) => {
         setEditingVehicle(v);
-        setForm({ plate_number: v.plate_number, make: v.make, model: v.model, year: v.year, color: v.color ?? "", category: v.category, fuel_avg_city: v.fuel_avg_city, fuel_avg_highway: v.fuel_avg_highway });
+        setForm({ plate_number: v.plate_number, make: v.make, model: v.model, year: v.year, color: v.color ?? "", category: v.category as VehicleCategory, fuel_avg_city: v.fuel_avg_city, fuel_avg_highway: v.fuel_avg_highway });
     };
 
     const resetForm = () => setForm(getDefaultForm());
