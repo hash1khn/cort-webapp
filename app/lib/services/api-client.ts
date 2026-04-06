@@ -808,6 +808,7 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.status) query.append('status', params.status);
         if (params.search) query.append('search', params.search);
+        if (params.fulfillment_type) query.append('fulfillment_type', params.fulfillment_type);
 
         const queryString = query.toString();
         const endpoint = `/admin/bookings${queryString ? `?${queryString}` : ''}`;

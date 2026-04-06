@@ -96,6 +96,7 @@ export default function BookingsPage() {
     } finally {
       setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounce search/filter changes

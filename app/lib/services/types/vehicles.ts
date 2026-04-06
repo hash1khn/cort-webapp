@@ -25,7 +25,6 @@ export interface CreateVehicleRequest {
     fuel_avg_city: number;
     fuel_avg_highway: number;
     owner_company_id?: number;
-    is_available_for_pooling?: boolean;
     vendor_id?: number;
     rent_per_day_city?: number;
     rent_per_day_outstation?: number;
@@ -67,7 +66,6 @@ export interface Vehicle {
     fuel_avg_city: number;
     fuel_avg_highway: number;
     owner_company_id: number | null;
-    is_available_for_pooling: boolean;
     created_at?: string;
     updated_at?: string;
     vendor_id?: number | null;

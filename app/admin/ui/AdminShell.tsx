@@ -33,6 +33,7 @@ const nav: NavItem[] = [
   { href: "/admin/invoicing", label: "Invoicing", permission: "invoicing" },
   // Permissions management — only visible to SUPER_ADMIN (no permission key needed)
   { href: "/admin/permissions", label: "Staff & Permissions" },
+  { href: "/admin/tracker-test", label: "🛰 Tracker Test" },
 ];
 
 
