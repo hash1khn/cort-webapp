@@ -15,6 +15,7 @@ interface BookingsState {
     filters: {
         search: string;
         status: string;
+        fulfillmentType: string;
     };
     status: 'idle' | 'loading' | 'succeeded' | 'failed';
     error: string | null;
@@ -32,6 +33,7 @@ const initialState: BookingsState = {
     filters: {
         search: '',
         status: '',
+        fulfillmentType: '',
     },
     status: 'idle',
     error: null,
@@ -68,9 +70,10 @@ export const bookingsSlice = createSlice({
         setPage: (state, action: PayloadAction<number>) => {
             state.pagination.page = action.payload;
         },
-        setFilters: (state, action: PayloadAction<{ search?: string; status?: string }>) => {
+        setFilters: (state, action: PayloadAction<{ search?: string; status?: string; fulfillmentType?: string }>) => {
             if (action.payload.search !== undefined) state.filters.search = action.payload.search;
             if (action.payload.status !== undefined) state.filters.status = action.payload.status;
+            if (action.payload.fulfillmentType !== undefined) state.filters.fulfillmentType = action.payload.fulfillmentType;
             state.pagination.page = 1; // Reset to page 1 on filter change
         },
         invalidateBookingsCache: (state) => {

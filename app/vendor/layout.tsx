@@ -15,6 +15,7 @@ import {
     Menu,
     X,
     ChevronDown,
+    ClipboardList,
 } from "lucide-react";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -84,6 +85,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     const navItems = [
         { href: "/vendor", label: "Dashboard", icon: LayoutDashboard, exact: true },
         { href: "/vendor/requests", label: "Booking Requests", icon: Inbox },
+        { href: "/vendor/bookings", label: "Bookings", icon: ClipboardList },
         { href: "/vendor/fleet/vehicles", label: "Vehicles", icon: Car },
         { href: "/vendor/fleet/drivers", label: "Drivers", icon: Users },
         ...(selectedLink?.serves_shuttle ? [{ href: "/vendor/routes", label: "Routes", icon: Map }] : []),

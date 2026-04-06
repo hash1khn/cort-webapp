@@ -10,22 +10,38 @@ function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-const DRIVER_TYPES = ["PERMANENT", "PART_TIME", "CONTRACT"];
+/** Derive allowed driver types from the link's service flags */
+function getDriverTypes(link: { serves_chauffeur?: boolean; serves_shuttle?: boolean } | null): string[] {
+    if (!link) return ["CHAUFFEUR", "SHUTTLE"];
+    const types: string[] = [];
+    if (link.serves_chauffeur) types.push("CHAUFFEUR");
+    if (link.serves_shuttle) types.push("SHUTTLE");
+    return types.length > 0 ? types : ["CHAUFFEUR", "SHUTTLE"];
+}
 
 export default function VendorDriversPage() {
     const { selectedLink } = useVendorContext();
     const [drivers, setDrivers] = useState<VendorDriver[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
-    const [form, setForm] = useState({ email: "", password: "", full_name: "", phone: "", driver_type: "PERMANENT", cnic_number: "", license_number: "" });
+
+    const availableDriverTypes = getDriverTypes(selectedLink);
+    const defaultDriverType = availableDriverTypes[0];
+
+    const [form, setForm] = useState({ email: "", password: "", full_name: "", phone: "", driver_type: defaultDriverType, cnic_number: "", license_number: "" });
     const [saving, setSaving] = useState(false);
+
+    // Reset driver_type default when selectedLink changes
+    useEffect(() => {
+        setForm((f) => ({ ...f, driver_type: getDriverTypes(selectedLink)[0] }));
+    }, [selectedLink]);
 
     const load = useCallback(async () => {
         if (!selectedLink) return;
         setLoading(true);
         try {
-            const res = await apiClient.getVendorDrivers(selectedLink.id);
-            setDrivers(res.data);
+            const res = await apiClient.getVendorDrivers(selectedLink.id) as any;
+            setDrivers(res?.data?.data ?? res?.data ?? []);
         } catch { toast.error("Failed to load drivers"); }
         finally { setLoading(false); }
     }, [selectedLink]);
@@ -49,7 +65,7 @@ export default function VendorDriversPage() {
             });
             toast.success("Driver added");
             setShowAdd(false);
-            setForm({ email: "", password: "", full_name: "", phone: "", driver_type: "PERMANENT", cnic_number: "", license_number: "" });
+            setForm({ email: "", password: "", full_name: "", phone: "", driver_type: getDriverTypes(selectedLink)[0], cnic_number: "", license_number: "" });
             load();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to add driver");
@@ -88,22 +104,22 @@ export default function VendorDriversPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {loading ? (
-                            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+                            <tr key="loading"><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
                         ) : drivers.length === 0 ? (
-                            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No drivers in your fleet yet</td></tr>
+                            <tr key="empty"><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No drivers in your fleet yet</td></tr>
                         ) : drivers.map((d) => (
-                            <tr key={d.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium text-gray-900">{d.full_name}</td>
-                                <td className="px-4 py-3 text-gray-600">{d.email}</td>
-                                <td className="px-4 py-3 text-gray-600">{d.phone ?? "—"}</td>
-                                <td className="px-4 py-3 text-gray-600">{d.drivers_profile?.driver_type ?? "—"}</td>
+                            <tr key={d.user_id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 font-medium text-gray-900">{d.users.full_name}</td>
+                                <td className="px-4 py-3 text-gray-600">{d.users.email}</td>
+                                <td className="px-4 py-3 text-gray-600">{d.users.phone ?? "—"}</td>
+                                <td className="px-4 py-3 text-gray-600">{d.driver_type ?? "—"}</td>
                                 <td className="px-4 py-3">
-                                    <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", d.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
-                                        {d.status ?? "—"}
+                                    <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", d.users.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                        {d.users.status ?? "—"}
                                     </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                    <button onClick={() => handleRemove(d.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                                    <button onClick={() => handleRemove(d.user_id)} className="text-xs text-red-500 hover:underline">Remove</button>
                                 </td>
                             </tr>
                         ))}
@@ -125,9 +141,13 @@ export default function VendorDriversPage() {
                                 <Field label="Phone"><input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} /></Field>
                                 <Field label="Email *"><input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
                                 <Field label="Password *"><input required type="password" minLength={8} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
-                                <Field label="Driver Type">
+                                <Field label="Driver Type *">
                                     <select value={form.driver_type} onChange={(e) => setForm((f) => ({ ...f, driver_type: e.target.value }))} className={inputCls}>
-                                        {DRIVER_TYPES.map((t) => <option key={t}>{t}</option>)}
+                                        {availableDriverTypes.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t === "CHAUFFEUR" ? "Chauffeur" : t === "SHUTTLE" ? "Shuttle / Bus Driver" : t}
+                                            </option>
+                                        ))}
                                     </select>
                                 </Field>
                                 <Field label="CNIC"><input value={form.cnic_number} onChange={(e) => setForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>

@@ -61,8 +61,8 @@ export default function VendorRequestsPage() {
                     apiClient.getVendorVehicles(selectedLink.id),
                     apiClient.getVendorDrivers(selectedLink.id),
                 ]);
-                setVehicles(vRes.data);
-                setDrivers(dRes.data);
+                setVehicles(vRes?.data?.data ?? vRes?.data ?? []);
+                setDrivers(dRes?.data?.data ?? dRes?.data ?? []);
             } catch { toast.error("Failed to load fleet"); }
         }
     };
@@ -211,7 +211,7 @@ export default function VendorRequestsPage() {
                                 <select required value={assignForm.driver_user_id} onChange={(e) => setAssignForm((f) => ({ ...f, driver_user_id: e.target.value }))} className={inputCls}>
                                     <option value="">— Choose Driver —</option>
                                     {drivers.map((d) => (
-                                        <option key={d.id} value={d.id}>{d.full_name}</option>
+                                        <option key={d.user_id} value={d.user_id}>{d.users.full_name}</option>
                                     ))}
                                 </select>
                             </div>

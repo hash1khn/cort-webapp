@@ -119,17 +119,18 @@ export interface VendorVehicle {
 }
 
 export interface VendorDriver {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    status: string | null;
-    drivers_profile?: {
-        driver_type: string;
-        cnic_number: string | null;
-        license_number: string | null;
-        company_vendor_link_id: number | null;
-    } | null;
+    user_id: string;
+    driver_type: string;
+    cnic_number: string | null;
+    license_number: string | null;
+    company_vendor_link_id: number | null;
+    users: {
+        id: string;
+        full_name: string;
+        email: string;
+        phone: string | null;
+        status: string | null;
+    };
 }
 
 // ─── Vendor Routes ────────────────────────────────────────────────────────────

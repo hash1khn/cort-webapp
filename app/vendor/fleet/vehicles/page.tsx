@@ -40,8 +40,8 @@ export default function VendorVehiclesPage() {
         if (!selectedLink) return;
         setLoading(true);
         try {
-            const res = await apiClient.getVendorVehicles(selectedLink.id);
-            setVehicles(res.data);
+            const res = await apiClient.getVendorVehicles(selectedLink.id) as any;
+            setVehicles(res?.data?.data ?? res?.data ?? []);
         } catch { toast.error("Failed to load vehicles"); }
         finally { setLoading(false); }
     }, [selectedLink]);

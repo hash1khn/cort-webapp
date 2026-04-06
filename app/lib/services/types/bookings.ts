@@ -138,6 +138,7 @@ export interface QueryChauffeurBookingParams {
     limit?: number;
     status?: string;
     search?: string;
+    fulfillment_type?: 'CORT_MANAGED' | 'EXTERNAL_VENDOR' | 'SELF_MANAGED';
 }
 
 export interface ChauffeurBookingResponse {
