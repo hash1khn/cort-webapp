@@ -169,16 +169,23 @@ export interface PoolVehicle {
 }
 
 export interface PoolDriver {
-    id: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    status: string | null;
-    drivers_profile?: {
-        driver_type: string;
-        cnic_number: string | null;
-        license_number: string | null;
-        is_company_pool_driver: boolean;
+    user_id: string;
+    driver_type: string;
+    cnic_number: string | null;
+    license_number: string | null;
+    is_company_pool_driver: boolean;
+    users: {
+        id: string;
+        full_name: string;
+        email: string;
+        phone: string | null;
+        status: string | null;
+    };
+    vehicles: {
+        id: number;
+        plate_number: string;
+        make: string;
+        model: string;
     } | null;
 }
 

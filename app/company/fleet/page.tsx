@@ -48,7 +48,7 @@ export default function CompanyFleetPage() {
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
     const [showAddDriver, setShowAddDriver] = useState(false);
-    const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", driver_type: "PERMANENT", cnic_number: "", license_number: "" });
+    const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
     const [driverSaving, setDriverSaving] = useState(false);
 
     useEffect(() => {
@@ -129,13 +129,13 @@ export default function CompanyFleetPage() {
                 password: driverForm.password,
                 full_name: driverForm.full_name,
                 phone: driverForm.phone || undefined,
-                driver_type: driverForm.driver_type,
+                driver_type: "CHAUFFEUR",
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
             toast.success("Driver invited to pool");
             setShowAddDriver(false);
-            setDriverForm({ email: "", password: "", full_name: "", phone: "", driver_type: "PERMANENT", cnic_number: "", license_number: "" });
+            setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
             fetchDrivers();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to invite driver");
@@ -259,19 +259,19 @@ export default function CompanyFleetPage() {
                                 ) : drivers.length === 0 ? (
                                     <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No pool drivers yet</td></tr>
                                 ) : drivers.map((d) => (
-                                    <tr key={d.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-medium text-gray-900">{d.full_name}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.email}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.phone ?? "—"}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.drivers_profile?.driver_type ?? "—"}</td>
+                                    <tr key={d.user_id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 font-medium text-gray-900">{d.users.full_name}</td>
+                                        <td className="px-4 py-3 text-gray-600">{d.users.email}</td>
+                                        <td className="px-4 py-3 text-gray-600">{d.users.phone ?? "—"}</td>
+                                        <td className="px-4 py-3 text-gray-600">{d.driver_type}</td>
                                         <td className="px-4 py-3">
-                                            <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", d.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
-                                                {d.status ?? "—"}
+                                            <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", d.users.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                                {d.users.status ?? "—"}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3">
-                                            {d.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateDriver(d.id)} className="text-xs text-red-500 hover:underline">Deactivate</button>
+                                            {d.users.status === "ACTIVE" && (
+                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-red-500 hover:underline">Deactivate</button>
                                             )}
                                         </td>
                                     </tr>
@@ -319,11 +319,6 @@ export default function CompanyFleetPage() {
                             <Field label="Phone"><input value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Email *"><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Driver Type">
-                                <select value={driverForm.driver_type} onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value }))} className={inputCls}>
-                                    {DRIVER_TYPES.map((t) => <option key={t}>{t}</option>)}
-                                </select>
-                            </Field>
                             <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
                             <Field label="License No."><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
                         </div>
