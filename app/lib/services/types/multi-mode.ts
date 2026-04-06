@@ -144,13 +144,16 @@ export interface VendorRoute {
     assigned_driver_id: string | null;
     status: string | null;
     companies?: { id: number; name: string };
-    vehicles?: { plate_number: string; model: string } | null;
+    vehicles?: { id?: number; plate_number: string; model: string } | null;
+    users?: { id: string; full_name: string } | null;
     route_stops?: Array<{
         id: number;
         name: string;
         sequence_order: number;
         morning_eta: string | null;
         evening_eta: string | null;
+        lat: number | null;
+        lng: number | null;
     }>;
 }
 

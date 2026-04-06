@@ -1432,6 +1432,10 @@ class ApiClient {
         return this.request<{ success: boolean; data: VendorRoute[] }>(`/vendor/routes${query}`);
     }
 
+    async getVendorRoute(routeId: number) {
+        return this.request<{ success: boolean; data: VendorRoute }>(`/vendor/routes/${routeId}`);
+    }
+
     async createVendorRoute(dto: {
         name: string;
         company_vendor_link_id: number;
@@ -1442,6 +1446,62 @@ class ApiClient {
         return this.request<{ success: boolean; data: VendorRoute }>('/vendor/routes', {
             method: 'POST',
             body: JSON.stringify(dto),
+        });
+    }
+
+    async updateVendorRoute(routeId: number, dto: {
+        name?: string;
+        assigned_vehicle_id?: number | null;
+        assigned_driver_id?: string | null;
+    }) {
+        return this.request<{ success: boolean; data: VendorRoute }>(`/vendor/routes/${routeId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async getVendorRoutePolyline(routeId: number) {
+        return this.request<{ points: { lat: number; lng: number }[] }>(`/vendor/routes/${routeId}/polyline`);
+    }
+
+    async previewVendorRoutePolyline(stops: { lat: number; lng: number }[]) {
+        return this.request<{ points: { lat: number; lng: number }[] }>('/vendor/routes/preview-polyline', {
+            method: 'POST',
+            body: JSON.stringify({ stops }),
+        });
+    }
+
+    async addVendorRouteStop(routeId: number, dto: {
+        name: string;
+        sequence_order: number;
+        lat?: number;
+        lng?: number;
+        morning_eta?: string;
+        evening_eta?: string;
+    }) {
+        return this.request<{ success: boolean; data: unknown }>(`/vendor/routes/${routeId}/stops`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateVendorRouteStop(stopId: number, dto: {
+        name?: string;
+        sequence_order?: number;
+        lat?: number;
+        lng?: number;
+        morning_eta?: string | null;
+        evening_eta?: string | null;
+    }) {
+        return this.request<{ success: boolean; data: unknown }>(`/vendor/routes/stops/${stopId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deleteVendorRouteStop(stopId: number) {
+        return this.request<{ success: boolean }>(`/vendor/routes/stops/${stopId}`, {
+            method: 'DELETE',
         });
     }
 
