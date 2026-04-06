@@ -7,6 +7,7 @@ export enum VehicleCategory {
     BUS = 'BUS',
     COASTER = 'COASTER',
     HIACE = 'HIACE',
+    HATCHBACK = 'HATCHBACK',
 }
 
 export enum OwnershipType {
