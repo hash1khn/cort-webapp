@@ -70,6 +70,8 @@ function InvoicingPageContent() {
   const [continuedVehicles, setContinuedVehicles] = useState<string>("");
   const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
   const [amountDelta, setAmountDelta] = useState<string>("");
+  const [shuttleDiscountType, setShuttleDiscountType] = useState<"NONE" | "PERCENTAGE" | "FLAT">("NONE");
+  const [shuttleDiscountValue, setShuttleDiscountValue] = useState<string>("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
   // Per-trip route state
@@ -254,6 +256,8 @@ function InvoicingPageContent() {
         routeTrips: perTripRoutes.length > 0
           ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0) }))
           : undefined,
+        discountType: shuttleDiscountType !== "NONE" ? shuttleDiscountType : undefined,
+        discountValue: shuttleDiscountType !== "NONE" && shuttleDiscountValue !== "" ? Number(shuttleDiscountValue) : undefined,
       });
 
       // Refresh invoices and stats
@@ -266,6 +270,8 @@ function InvoicingPageContent() {
       setContinuedVehicles("");
       setAmountMode("EXACT");
       setAmountDelta("");
+      setShuttleDiscountType("NONE");
+      setShuttleDiscountValue("");
 
       const resetTrips: Record<number, string> = {};
       perTripRoutes.forEach((r) => { resetTrips[r.id] = "0"; });
@@ -687,6 +693,37 @@ function InvoicingPageContent() {
                 value={amountDelta}
                 onChange={(e) => setAmountDelta(e.target.value)}
                 placeholder="e.g. 25000"
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Invoice Discount (Optional)
+            </label>
+            <select
+              value={shuttleDiscountType}
+              onChange={(e) => { setShuttleDiscountType(e.target.value as any); setShuttleDiscountValue(""); }}
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+            >
+              <option value="NONE">No Discount</option>
+              <option value="PERCENTAGE">Percentage (%)</option>
+              <option value="FLAT">Flat Amount (PKR)</option>
+            </select>
+          </div>
+
+          {shuttleDiscountType !== "NONE" && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                {shuttleDiscountType === "PERCENTAGE" ? "Discount %" : "Discount Amount (PKR)"}
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={shuttleDiscountValue}
+                onChange={(e) => setShuttleDiscountValue(e.target.value)}
+                placeholder={shuttleDiscountType === "PERCENTAGE" ? "e.g. 10" : "e.g. 5000"}
                 className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>

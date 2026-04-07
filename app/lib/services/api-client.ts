@@ -1024,6 +1024,8 @@ class ApiClient {
             amountDelta?: number;
             billingPeriod?: 'MONTHLY' | 'WEEKLY';
             routeTrips?: { routeId: number; tripsCount: number }[];
+            discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
+            discountValue?: number;
         }
     ) {
         return this.request('/invoices/generate/shuttle', {

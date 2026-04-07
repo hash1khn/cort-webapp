@@ -9,6 +9,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [toll, setToll] = useState("0");
     const [parking, setParking] = useState("0");
     const [vendorCost, setVendorCost] = useState("");
+    const [discountType, setDiscountType] = useState<"NONE" | "PERCENTAGE" | "FLAT">("NONE");
+    const [discountValue, setDiscountValue] = useState("");
     const [useManualStartTime, setUseManualStartTime] = useState(false);
     const [manualStartTime, setManualStartTime] = useState("");
     const [useManualEndTime, setUseManualEndTime] = useState(false);
@@ -112,6 +114,12 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                 data.vendor_cost = parseFloat(vendorCost);
             }
 
+            // Discount
+            if (discountType !== "NONE" && discountValue !== "" && parseFloat(discountValue) > 0) {
+                data.discount_type = discountType;
+                data.discount_value = parseFloat(discountValue);
+            }
+
             if (useManualEndTime && manualEndTime) {
                 data.end_time = new Date(manualEndTime).toISOString();
             }
@@ -191,6 +199,28 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                                 <p className="mt-1 text-[10px] text-amber-600">Manually enter the agreed vendor cost. This overrides auto-calculation.</p>
                             </div>
                         )}
+                        <div className="rounded-md border border-border p-3 space-y-2">
+                            <label className="text-xs font-semibold uppercase text-muted">Invoice Discount (Optional)</label>
+                            <select
+                                className="w-full rounded-md border border-border p-2 text-sm bg-white"
+                                value={discountType}
+                                onChange={(e) => { setDiscountType(e.target.value as any); setDiscountValue(""); }}
+                            >
+                                <option value="NONE">No Discount</option>
+                                <option value="PERCENTAGE">Percentage (%)</option>
+                                <option value="FLAT">Flat Amount (PKR)</option>
+                            </select>
+                            {discountType !== "NONE" && (
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder={discountType === "PERCENTAGE" ? "e.g. 10 (for 10%)" : "e.g. 5000"}
+                                    className="w-full rounded-md border border-border p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#f47f00]"
+                                    value={discountValue}
+                                    onChange={(e) => setDiscountValue(e.target.value)}
+                                />
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-4">

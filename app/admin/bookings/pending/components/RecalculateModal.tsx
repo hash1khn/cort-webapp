@@ -35,6 +35,8 @@ export interface RecalculatePayload {
         hours_used?: number;
         apply_accommodation?: boolean;
     }>;
+    discount_type?: 'NONE' | 'PERCENTAGE' | 'FLAT';
+    discount_value?: number;
 }
 
 const PACKAGES = [
@@ -66,6 +68,10 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
 
     // Mode: edit info only vs edit + regenerate invoice
     const [mode, setMode] = useState<'info' | 'recalculate'>('recalculate');
+
+    // Discount (only applied when mode = recalculate)
+    const [discountType, setDiscountType] = useState<'NONE' | 'PERCENTAGE' | 'FLAT'>('NONE');
+    const [discountValue, setDiscountValue] = useState('');
 
     // Pre-fill with existing booking values when modal opens
     useEffect(() => {
@@ -152,6 +158,11 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                 hours_used: l.hours_used ? parseFloat(l.hours_used) : undefined,
                 apply_accommodation: l.apply_accommodation,
             }));
+        }
+
+        if (mode === 'recalculate' && discountType !== 'NONE' && discountValue !== '' && parseFloat(discountValue) > 0) {
+            payload.discount_type = discountType;
+            payload.discount_value = parseFloat(discountValue);
         }
 
         onSubmit(payload, mode);
@@ -437,6 +448,44 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                     <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
                         ⚠️ This will <strong>delete the existing invoice</strong> and regenerate it with the new values. This action cannot be undone.
                     </div>
+                    )}
+
+                    {/* ── Section 5: Discount — only in recalculate mode ── */}
+                    {mode === 'recalculate' && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                                Invoice Discount (Optional)
+                            </h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-xs font-medium text-navy">Discount Type</span>
+                                    <select
+                                        value={discountType}
+                                        onChange={(e) => { setDiscountType(e.target.value as any); setDiscountValue(''); }}
+                                        className="h-9 rounded-md border border-border px-2 text-sm focus:outline-none focus:ring-1 focus:ring-orange bg-white"
+                                    >
+                                        <option value="NONE">No Discount</option>
+                                        <option value="PERCENTAGE">Percentage (%)</option>
+                                        <option value="FLAT">Flat Amount (PKR)</option>
+                                    </select>
+                                </label>
+                                {discountType !== 'NONE' && (
+                                    <label className="flex flex-col gap-1">
+                                        <span className="text-xs font-medium text-navy">
+                                            {discountType === 'PERCENTAGE' ? 'Discount %' : 'Discount Amount (PKR)'}
+                                        </span>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={discountValue}
+                                            onChange={(e) => setDiscountValue(e.target.value)}
+                                            placeholder={discountType === 'PERCENTAGE' ? 'e.g. 10' : 'e.g. 5000'}
+                                            className="h-9 rounded-md border border-border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-orange"
+                                        />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
 
