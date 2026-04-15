@@ -789,6 +789,10 @@ class ApiClient {
 
     // ===== CHAUFFEUR BOOKINGS =====
 
+    async getBookingStats(): Promise<{ data: { total: number; pending: number; assigned: number; arrived: number; in_progress: number; ended: number; completed: number; cancelled: number } }> {
+        return this.request<any>('/admin/bookings/stats');
+    }
+
     async getAllBookings(params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());

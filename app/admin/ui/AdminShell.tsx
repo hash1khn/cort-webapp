@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { PermissionKey } from "../../lib/types/auth-types";
+import { BookingNotificationProvider } from "../components/BookingNotificationProvider";
 
 type NavItem = {
   href: string;
@@ -168,6 +169,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <BookingNotificationProvider />
           <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-6">
             {children}
           </main>

@@ -40,6 +40,9 @@ export default function BookingsPage() {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<any>(null);
 
+  // Booking stats
+  const [stats, setStats] = useState<{ total: number; pending: number; assigned: number; arrived: number; in_progress: number; ended: number; completed: number; cancelled: number } | null>(null);
+
   const { hasCrud } = useAuth();
   const canEditBookings =
     hasCrud("bookings", "create") ||
@@ -78,6 +81,32 @@ export default function BookingsPage() {
     }
   }, [selectedCarId, availableDrivers]);
 
+  // Load booking stats
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await apiClient.getBookingStats() as any;
+      const data = res?.data ?? res;
+      setStats(data);
+    } catch (e) {
+      console.error("Failed to load booking stats", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // Refresh list + stats when the global notification provider fires a new booking event
+  useEffect(() => {
+    const handler = () => {
+      loadData(1, "", "");
+      loadStats();
+    };
+    window.addEventListener("booking:new", handler);
+    return () => window.removeEventListener("booking:new", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadData = useCallback(async (page: number, search: string, status: string) => {
     setIsLoading(true);
     try {
@@ -97,8 +126,6 @@ export default function BookingsPage() {
       setIsLoading(false);
     }
   }, []);
-
-  // Debounce search/filter changes
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
@@ -418,6 +445,34 @@ export default function BookingsPage() {
           </h1>
         </div>
       </div>
+
+      {/* Booking Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {[
+            { label: "Total",       value: stats.total,       color: "bg-navy/5 text-navy",            border: "border-navy/10" },
+            { label: "Pending",     value: stats.pending,     color: "bg-yellow/10 text-yellow-700",   border: "border-yellow/20" },
+            { label: "Assigned",    value: stats.assigned,    color: "bg-blue/10 text-blue",           border: "border-blue/20" },
+            { label: "Arrived",     value: stats.arrived,     color: "bg-indigo-50 text-indigo-700",   border: "border-indigo-200" },
+            { label: "In Progress", value: stats.in_progress, color: "bg-orange/10 text-orange",       border: "border-orange/20" },
+            { label: "Ended",       value: stats.ended,       color: "bg-purple-50 text-purple-700",   border: "border-purple-200" },
+            { label: "Completed",   value: stats.completed,   color: "bg-green-50 text-green-700",     border: "border-green-200" },
+            { label: "Cancelled",   value: stats.cancelled,   color: "bg-red-50 text-red-600",         border: "border-red-200" },
+          ].map(({ label, value, color, border }) => (
+            <div
+              key={label}
+              onClick={() => setStatusFilter(label === "Total" ? "" : label.replace(" ", "_").toUpperCase())}
+              className={cx(
+                "rounded-xl border p-3 text-center cursor-pointer hover:shadow-sm transition-shadow",
+                color, border
+              )}
+            >
+              <div className="text-2xl font-bold">{value}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide mt-0.5 opacity-80">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl border border-border shadow-sm">
