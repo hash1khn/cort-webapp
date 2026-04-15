@@ -33,6 +33,7 @@ interface AdminPricingState {
     rateRows: RateRow[];
     shuttleSettings: {
         fuelBasePrice: string;
+        dieselBasePrice: string;
         revisionPercentage: string;
         sstPercentage: string;
         contractDuration: string;
@@ -40,6 +41,7 @@ interface AdminPricingState {
     };
     shuttleRouteRows: ShuttleRouteRow[];
     systemFuelPrice: string;
+    systemDieselPrice: string;
 
     // Preview
     showPreview: boolean;
@@ -70,6 +72,7 @@ const initialState: AdminPricingState = {
     rateRows: [],
     shuttleSettings: {
         fuelBasePrice: "0",
+        dieselBasePrice: "",
         revisionPercentage: "",
         sstPercentage: "10",
         contractDuration: "",
@@ -77,6 +80,7 @@ const initialState: AdminPricingState = {
     },
     shuttleRouteRows: [],
     systemFuelPrice: "0",
+    systemDieselPrice: "0",
 
     showPreview: false,
     previewData: null,
@@ -135,6 +139,30 @@ export const updateSystemFuelPrice = createAsyncThunk(
     }
 );
 
+export const fetchSystemDieselPrice = createAsyncThunk(
+    'adminPricing/fetchSystemDieselPrice',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getSystemSetting('current_diesel_price');
+            return response.data.value;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch diesel price');
+        }
+    }
+);
+
+export const updateSystemDieselPrice = createAsyncThunk(
+    'adminPricing/updateSystemDieselPrice',
+    async (value: string, { rejectWithValue }) => {
+        try {
+            await apiClient.updateSystemSetting('current_diesel_price', value);
+            return value;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to update diesel price');
+        }
+    }
+);
+
 export const fetchCompanyContractDetails = createAsyncThunk(
     'adminPricing/fetchCompanyContractDetails',
     async (companyId: string, { rejectWithValue }) => {
@@ -155,9 +183,13 @@ export const fetchCompanyContractDetails = createAsyncThunk(
 
 export const previewRateAdjustments = createAsyncThunk(
     'adminPricing/previewRateAdjustments',
-    async ({ fuelPrice, companyId }: { fuelPrice: number, companyId: number }, { rejectWithValue }) => {
+    async ({ fuelPrice, companyId }: { fuelPrice: number, companyId: number }, { getState, rejectWithValue }) => {
         try {
-            const response = await apiClient.previewRateAdjustments(fuelPrice, companyId);
+            const state = getState() as RootState;
+            const dieselPrice = state.adminPricing.systemDieselPrice
+                ? Number(state.adminPricing.systemDieselPrice)
+                : undefined;
+            const response = await apiClient.previewRateAdjustments(fuelPrice, companyId, dieselPrice);
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to preview adjustments');
@@ -291,12 +323,14 @@ export const saveShuttleChanges = createAsyncThunk(
                     quantity: Number(row.quantity || 0),
                     billingType: row.billing_type || 'MONTHLY',
                     scheduledDays: row.scheduled_days || undefined,
+                    fuelType: row.fuel_type || 'PETROL',
                 }))
                 .filter((r) => r.particulars && r.vehicleType && r.quantity > 0);
 
             const payload: CreateShuttleContractRequest = {
                 companyId: Number(selectedCompanyId),
                 fuelBasePrice: Number(shuttleSettings.fuelBasePrice || 0),
+                dieselBasePrice: shuttleSettings.dieselBasePrice !== '' ? Number(shuttleSettings.dieselBasePrice) : null,
                 revisionPercentage: revisionPct,
                 sstPercentage: sstPct,
                 contractDuration: shuttleSettings.contractDuration || undefined,
@@ -346,6 +380,9 @@ const adminPricingSlice = createSlice({
         setSystemFuelPriceLocal(state, action: PayloadAction<string>) {
             state.systemFuelPrice = action.payload;
         },
+        setSystemDieselPriceLocal(state, action: PayloadAction<string>) {
+            state.systemDieselPrice = action.payload;
+        },
         setShowPreview(state, action: PayloadAction<boolean>) {
             state.showPreview = action.payload;
         },
@@ -384,6 +421,7 @@ const adminPricingSlice = createSlice({
                 quantity: 1,
                 billing_type: "MONTHLY",
                 scheduled_days: "",
+                fuel_type: "PETROL",
             });
         },
         updateRateRow(state, action: PayloadAction<{ index: number, field: keyof ChauffeurContractRate, value: string }>) {
@@ -434,10 +472,21 @@ const adminPricingSlice = createSlice({
             .addCase(fetchSystemFuelPrice.fulfilled, (state, action) => {
                 state.systemFuelPrice = action.payload;
             })
+            // Fetch Diesel Price
+            .addCase(fetchSystemDieselPrice.fulfilled, (state, action) => {
+                state.systemDieselPrice = action.payload;
+            })
             // Update Fuel Price
             .addCase(updateSystemFuelPrice.pending, (state) => { state.actionStatus = 'loading'; })
             .addCase(updateSystemFuelPrice.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
             .addCase(updateSystemFuelPrice.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            // Update Diesel Price
+            .addCase(updateSystemDieselPrice.pending, (state) => { state.actionStatus = 'loading'; })
+            .addCase(updateSystemDieselPrice.fulfilled, (state) => { state.actionStatus = 'succeeded'; })
+            .addCase(updateSystemDieselPrice.rejected, (state, action) => {
                 state.actionStatus = 'failed';
                 state.error = action.payload as string;
             })
@@ -503,6 +552,7 @@ const adminPricingSlice = createSlice({
                 if (contract) {
                     state.shuttleSettings = {
                         fuelBasePrice: contract.fuel_base_price,
+                        dieselBasePrice: contract.diesel_base_price || '',
                         revisionPercentage: contract.revision_percentage || '',
                         sstPercentage: contract.sst_percentage || '10',
                         contractDuration: contract.contract_duration || '',
@@ -514,6 +564,7 @@ const adminPricingSlice = createSlice({
                 } else {
                     state.shuttleSettings = {
                         fuelBasePrice: '0',
+                        dieselBasePrice: '',
                         revisionPercentage: '',
                         sstPercentage: '10',
                         contractDuration: '',
@@ -548,6 +599,7 @@ export const {
     setSelectedCompanyId,
     setGlobalSettings,
     setSystemFuelPriceLocal,
+    setSystemDieselPriceLocal,
     setShowPreview,
     setShuttleSettings,
     addRateRow,

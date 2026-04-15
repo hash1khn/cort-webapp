@@ -10,6 +10,8 @@ import {
   fetchPricingCompanies,
   fetchSystemFuelPrice,
   updateSystemFuelPrice,
+  fetchSystemDieselPrice,
+  updateSystemDieselPrice,
   fetchCompanyContractDetails,
   fetchShuttleContract,
   previewRateAdjustments,
@@ -20,6 +22,7 @@ import {
   setGlobalSettings,
   setShuttleSettings,
   setSystemFuelPriceLocal,
+  setSystemDieselPriceLocal,
   setShowPreview,
   addRateRow,
   updateRateRow,
@@ -78,6 +81,7 @@ function PricingPageContent() {
     globalSettings,
     rateRows,
     systemFuelPrice,
+    systemDieselPrice,
     showPreview,
     previewData,
     isLoadingPreview,
@@ -100,6 +104,7 @@ function PricingPageContent() {
   useEffect(() => {
     dispatch(fetchPricingCompanies());
     dispatch(fetchSystemFuelPrice());
+    dispatch(fetchSystemDieselPrice());
   }, [dispatch]);
 
   // Deep-link from company detail: /admin/pricing?companyId=123
@@ -132,6 +137,10 @@ function PricingPageContent() {
 
   const handleUpdateGlobalFuel = () => {
     dispatch(updateSystemFuelPrice(systemFuelPrice));
+  };
+
+  const handleUpdateGlobalDiesel = () => {
+    dispatch(updateSystemDieselPrice(systemDieselPrice));
   };
 
   const handlePreviewAdjustments = () => {
@@ -233,6 +242,33 @@ function PricingPageContent() {
         </div>
       </div>
 
+      {/* Global Diesel Rate (Shuttle Only) */}
+      <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-6 flex flex-col gap-4">
+        <div>
+          <h3 className="text-base font-bold text-[#0c225e]">Global Diesel Rate <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Shuttle Only</span></h3>
+          <p className="text-sm text-slate-600 mt-1">Set the current diesel price used for shuttle route rows marked as Diesel. Adjusted dynamically at invoice generation.</p>
+        </div>
+        <div className="flex items-end gap-3 flex-wrap">
+          <label className="flex-1 min-w-[200px]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Current Diesel Price (PKR)</span>
+            <input
+              type="number"
+              value={systemDieselPrice}
+              onChange={(e) => dispatch(setSystemDieselPriceLocal(e.target.value))}
+              disabled={!canUpdate}
+              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+            />
+          </label>
+          <button
+            onClick={handleUpdateGlobalDiesel}
+            className="h-10 px-4 rounded-lg bg-[#0c225e] text-white text-sm font-bold hover:bg-[#0a1a4a] transition-colors disabled:opacity-70"
+            disabled={!canUpdate || isUpdatingFuel}
+          >
+            Update
+          </button>
+        </div>
+      </div>
+
       {/* Preview Modal */}
       {showPreview && (
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6">
@@ -254,16 +290,37 @@ function PricingPageContent() {
                         {item.type === 'shuttle' ? 'Shuttle' : 'Chauffeur'}
                       </span>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.calculation.will_adjust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                      {item.calculation.will_adjust ? 'Will Adjust' : 'No Adjustment'}
-                    </span>
+                    <div className="flex gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.calculation.will_adjust ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                        Petrol: {item.calculation.will_adjust ? 'Will Adjust' : 'No Adjustment'}
+                      </span>
+                      {item.type === 'shuttle' && item.diesel_calculation && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.diesel_calculation.will_adjust ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                          Diesel: {item.diesel_calculation.will_adjust ? 'Will Adjust' : 'No Adjustment'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+
+                  {/* Petrol row */}
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-2 bg-blue-50/50 rounded p-2">
+                    <div className="col-span-2 text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Petrol</div>
                     <div><span className="text-slate-500">Base Fuel Price:</span> <span className="font-semibold">PKR {Number(item.contract.fuel_base_price).toFixed(0)}</span></div>
                     <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
                     <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-orange-600">{(Number(item.calculation.percent_change) * 100).toFixed(2)}%</span></div>
                     <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.calculation.multiplier).toFixed(4)}x</span></div>
                   </div>
+
+                  {/* Diesel row (shuttle only, when diesel_base_price is set) */}
+                  {item.type === 'shuttle' && item.diesel_calculation && (
+                    <div className="grid grid-cols-2 gap-2 text-sm mb-3 bg-amber-50/50 rounded p-2">
+                      <div className="col-span-2 text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Diesel</div>
+                      <div><span className="text-slate-500">Base Diesel Price:</span> <span className="font-semibold">PKR {Number(item.diesel_calculation.diesel_base_price).toFixed(0)}</span></div>
+                      <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
+                      <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-amber-600">{(Number(item.diesel_calculation.percent_change) * 100).toFixed(2)}%</span></div>
+                      <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.diesel_calculation.multiplier).toFixed(4)}x</span></div>
+                    </div>
+                  )}
                   {(item.type !== 'shuttle') && item.rates?.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
@@ -569,6 +626,14 @@ function PricingPageContent() {
                     disabled={!canUpdate}
                   />
                   <Input
+                    label="Base Diesel Price (PKR)"
+                    value={shuttleSettings.dieselBasePrice}
+                    onChange={(v: string) => dispatch(setShuttleSettings({ dieselBasePrice: v }))}
+                    placeholder="0"
+                    helperText="Required for any route rows marked as Diesel"
+                    disabled={!canUpdate}
+                  />
+                  <Input
                     label="Revision Threshold (%)"
                     value={shuttleSettings.revisionPercentage}
                     onChange={(v: string) => dispatch(setShuttleSettings({ revisionPercentage: v }))}
@@ -641,6 +706,7 @@ function PricingPageContent() {
                       <tr>
                         <th className="px-6 py-4 min-w-[220px]">Particulars</th>
                         <th className="px-4 py-4 min-w-[120px]">Vehicle Type</th>
+                        <th className="px-4 py-4 min-w-[110px]">Fuel Type</th>
                         <th className="px-4 py-4 min-w-[140px]">Fixed Cost / Vehicle</th>
                         <th className="px-4 py-4 min-w-[140px]">Fuel Cost / Vehicle</th>
                         <th className="px-4 py-4 min-w-[130px]">Billing Type</th>
@@ -652,7 +718,7 @@ function PricingPageContent() {
                     <tbody className="divide-y divide-slate-100">
                       {shuttleRouteRows.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                             No shuttle routes configured. Click &quot;Add Shuttle Route&quot; to start.
                           </td>
                         </tr>
@@ -691,6 +757,28 @@ function PricingPageContent() {
                                 }
                                 placeholder="e.g. BUS, COASTER"
                               />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                disabled={!canUpdate}
+                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm bg-white focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                                value={row.fuel_type || "PETROL"}
+                                onChange={(e) =>
+                                  dispatch(
+                                    updateShuttleRouteRow({
+                                      index: idx,
+                                      field: "fuel_type",
+                                      value: e.target.value,
+                                    }),
+                                  )
+                                }
+                              >
+                                <option value="PETROL">Petrol</option>
+                                <option value="DIESEL">Diesel</option>
+                              </select>
+                              {row.fuel_type === "DIESEL" && (
+                                <span className="text-[10px] text-amber-600 mt-1 block">Uses global diesel rate</span>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <input

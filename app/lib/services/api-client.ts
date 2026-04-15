@@ -749,10 +749,11 @@ class ApiClient {
         });
     }
 
-    async previewRateAdjustments(newFuelPrice: number, companyId?: number): Promise<any> {
+    async previewRateAdjustments(newFuelPrice: number, companyId?: number, newDieselPrice?: number): Promise<any> {
         const query = new URLSearchParams();
         query.append('newFuelPrice', newFuelPrice.toString());
         if (companyId) query.append('companyId', companyId.toString());
+        if (newDieselPrice != null) query.append('newDieselPrice', newDieselPrice.toString());
 
         return this.request<any>(`/contracts/chauffeur/preview-adjustments?${query.toString()}`);
     }

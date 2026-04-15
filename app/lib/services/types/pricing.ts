@@ -124,12 +124,14 @@ export interface ShuttleContractRoute {
     quantity: number;
     billing_type?: string;
     scheduled_days?: string | null;
+    fuel_type?: string;
 }
 
 export interface ShuttleContract {
     id: number;
     company_id: number;
     fuel_base_price: string;
+    diesel_base_price?: string | null;
     revision_percentage: string | null;
     sst_percentage: string;
     contract_duration?: string | null;
@@ -148,11 +150,13 @@ export interface CreateShuttleContractRequestRoute {
     quantity: number;
     billingType?: string;
     scheduledDays?: string;
+    fuelType?: string;
 }
 
 export interface CreateShuttleContractRequest {
     companyId: number;
     fuelBasePrice: number;
+    dieselBasePrice?: number | null;
     revisionPercentage?: number | null;
     sstPercentage?: number;
     contractDuration?: string;
