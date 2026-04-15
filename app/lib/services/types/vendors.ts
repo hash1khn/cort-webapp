@@ -116,12 +116,26 @@ export interface VendorLog {
     total_distance_km: number;
     total_duration_minutes: number;
     vendor_cost: number;
+    vendor_base_rent?: number;
+    vendor_fuel_cost?: number;
+    vendor_overtime_charge?: number;
     vendor_payment_status: string;
     vendor_amount_paid?: number;
     vendor_amount_remaining?: number;
+    // Cost breakdown
+    base_package_cost?: number;
+    fuel_cost_calculated?: number;
+    fuel_price_snapshot?: number;
+    overtime_hours?: number;
+    overtime_charge?: number;
+    outstation_fee?: number;
+    expense_toll?: number;
+    expense_parking?: number;
+    expense_accommodation?: number;
     chauffeur_bookings?: {
         id: number;
         trip_type: string;
+        package_selected?: string;
         vehicles?: {
             plate_number: string;
             make: string;
