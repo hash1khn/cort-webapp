@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
@@ -273,6 +273,29 @@ function FuelingPageContent() {
                     className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
                     placeholder="45230"
                 />
+                {(() => {
+                    if (!formData.vehicle_id) return null;
+                    const prev = records
+                        .filter(r => r.vehicle_id === formData.vehicle_id && r.odometer_reading != null
+                            && !(modalMode === 'edit' && selectedRecord && r.id === selectedRecord.id))
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                    if (!prev?.odometer_reading) return null;
+                    const kmDriven = formData.odometer_reading
+                        ? Number(formData.odometer_reading) - Number(prev.odometer_reading)
+                        : null;
+                    return (
+                        <div className="text-xs text-muted">
+                            Last reading: <span className="font-semibold text-ink">{Number(prev.odometer_reading).toLocaleString()} km</span>
+                            {kmDriven != null && kmDriven > 0 && (
+                                <> &mdash; <span className="text-blue font-semibold">{kmDriven.toLocaleString()} km driven</span>
+                                {formData.fuel_litres && formData.fuel_litres > 0 && (
+                                    <> &middot; <span className="text-success font-semibold">{(kmDriven / formData.fuel_litres).toFixed(1)} km/L</span></>
+                                )}
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
             </label>
 
             {/* Removed "Mark as Billed" checkbox for creation */}
@@ -306,6 +329,39 @@ function FuelingPageContent() {
     const unpaidRecordsCount = records.filter(r => !r.billed).length;
     const isAllSelected = unpaidRecordsCount > 0 && selectedIds.length === unpaidRecordsCount;
 
+    // --- Fuel efficiency per record ---
+    // For each record that has an odometer reading, compute km driven since the
+    // previous fill for the same vehicle and derive km/L.
+    const efficiencyMap = useMemo(() => {
+        const withOdo = [...records].filter(r => r.odometer_reading != null);
+        // Sort ascending by vehicle then date so we can walk forward
+        withOdo.sort((a, b) => {
+            if (a.vehicle_id !== b.vehicle_id) return a.vehicle_id - b.vehicle_id;
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+        });
+        const map = new Map<number, { kmDriven: number; kmPerLitre: number; prevOdometer: number }>();
+        const lastOdo = new Map<number, number>(); // vehicle_id → last odometer
+        for (const r of withOdo) {
+            const prev = lastOdo.get(r.vehicle_id);
+            const odo = Number(r.odometer_reading);
+            if (prev !== undefined) {
+                const kmDriven = odo - prev;
+                const litres = Number(r.fuel_litres);
+                if (kmDriven > 0 && litres > 0) {
+                    map.set(r.id, { kmDriven, kmPerLitre: kmDriven / litres, prevOdometer: prev });
+                }
+            }
+            lastOdo.set(r.vehicle_id, odo);
+        }
+        return map;
+    }, [records]);
+
+    const avgEfficiency = useMemo(() => {
+        const vals = Array.from(efficiencyMap.values()).map(v => v.kmPerLitre);
+        if (vals.length === 0) return null;
+        return vals.reduce((s, v) => s + v, 0) / vals.length;
+    }, [efficiencyMap]);
+
     return (
         <div className="flex flex-col gap-6">
             <div>
@@ -315,7 +371,7 @@ function FuelingPageContent() {
 
             {/* Stats Cards */}
             {stats && (
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL FUEL COST</div>
                         <div className="mt-2 text-2xl font-bold text-navy">PKR {Number(stats.total_fuel_cost).toFixed(2)}</div>
@@ -327,6 +383,17 @@ function FuelingPageContent() {
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL RECORDS</div>
                         <div className="mt-2 text-2xl font-bold text-navy">{stats.total_records}</div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-white p-4">
+                        <div className="text-xs font-semibold tracking-wider text-muted">AVG MILEAGE</div>
+                        {avgEfficiency != null ? (
+                            <>
+                                <div className="mt-2 text-2xl font-bold text-navy">{avgEfficiency.toFixed(1)} <span className="text-base font-medium">km/L</span></div>
+                                <div className="mt-1 text-xs text-muted">based on {efficiencyMap.size} interval{efficiencyMap.size !== 1 ? 's' : ''}</div>
+                            </>
+                        ) : (
+                            <div className="mt-2 text-sm text-muted">Add odometer readings to track mileage</div>
+                        )}
                     </div>
                 </div>
             )}
@@ -407,6 +474,7 @@ function FuelingPageContent() {
                                 <th className="px-4 py-3 text-left">Date</th>
                                 <th className="px-4 py-3 text-left">Vehicle</th>
                                 <th className="px-4 py-3 text-right">Odometer</th>
+                                <th className="px-4 py-3 text-right">Mileage</th>
                                 <th className="px-4 py-3 text-right">Litres</th>
                                 <th className="px-4 py-3 text-right">Rate (PKR/L)</th>
                                 <th className="px-4 py-3 text-right">Total Cost</th>
@@ -435,6 +503,18 @@ function FuelingPageContent() {
                                     </td>
                                     <td className="px-4 py-3 text-right text-muted">
                                         {r.odometer_reading ? `${Number(r.odometer_reading).toLocaleString()} km` : <span className="text-xs">—</span>}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {(() => {
+                                            const eff = efficiencyMap.get(r.id);
+                                            if (!eff) return <span className="text-xs text-muted">—</span>;
+                                            return (
+                                                <div>
+                                                    <div className="font-semibold text-navy">{eff.kmPerLitre.toFixed(1)} <span className="text-xs font-normal text-muted">km/L</span></div>
+                                                    <div className="text-xs text-muted">{eff.kmDriven.toLocaleString()} km</div>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-4 py-3 text-right font-semibold">{Number(r.fuel_litres)} L</td>
                                     <td className="px-4 py-3 text-right">PKR {Number(r.current_fuel_rate).toFixed(2)}</td>
@@ -468,14 +548,14 @@ function FuelingPageContent() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
                                         No fuel records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>
