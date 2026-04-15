@@ -26,7 +26,6 @@ export const initialVehicleFormData: VehicleFormData = {
     rent_per_day_city: 0,
     rent_per_day_outstation: 0,
     vendor_id: undefined,
-    overnight_rate: 0,
     vendor_overtime_rate: 0,
     vendor_rent_5hr: 0,
     vendor_rent_10hr: 0,
@@ -94,7 +93,6 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             owner_company_id: vehicle.owner_company_id || undefined,
             rent_per_day_city: vehicle.rent_per_day_city || 0,
             rent_per_day_outstation: vehicle.rent_per_day_outstation || 0,
-            overnight_rate: vehicle.overnight_rate || 0,
             vendor_overtime_rate: vehicle.vendor_overtime_rate || 0,
             vendor_rent_5hr: vehicle.vendor_rent_5hr || 0,
             vendor_rent_10hr: vehicle.vendor_rent_10hr || 0,
@@ -285,7 +283,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day (City)</label>
+                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent 24 Hrs (City)</label>
                             <input
                                 type="number"
                                 value={formData.rent_per_day_city || 0}
@@ -295,23 +293,13 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent Per Day (Outstation)</label>
+                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent 24 Hrs (Outstation)</label>
                             <input
                                 type="number"
                                 value={formData.rent_per_day_outstation || 0}
                                 onChange={(e) => handleChange("rent_per_day_outstation", parseFloat(e.target.value) || 0)}
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
                                 disabled={isSaving}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Overnight Rate (PKR)</label>
-                            <input
-                                type="number"
-                                min="0"
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                value={formData.overnight_rate}
-                                onChange={(e) => setFormData(prev => ({ ...prev, overnight_rate: parseFloat(e.target.value) || 0 }))}
                             />
                         </div>
                         <div className="space-y-2">

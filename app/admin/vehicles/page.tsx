@@ -276,11 +276,6 @@ function VehiclesPageContent() {
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {vehicle.overnight_rate ? (
-                                                            <span title="Overnight Rate" className="whitespace-nowrap">
-                                                                Night: <span className="font-medium text-slate-700">{vehicle.overnight_rate?.toLocaleString()}</span>
-                                                            </span>
-                                                        ) : null}
                                                         {vehicle.vendor_overtime_rate ? (
                                                             <span title="Overtime Rate" className="whitespace-nowrap">
                                                                 OT: <span className="font-medium text-slate-700">{vehicle.vendor_overtime_rate?.toLocaleString()}</span>
