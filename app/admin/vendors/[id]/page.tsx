@@ -69,7 +69,8 @@ export default function VendorDetailsPage() {
 
     const openPaymentModal = (bookingId: number, cost: number, paid: number = 0) => {
         setSelectedBookingForPayment({ id: bookingId, cost, paid });
-        setPaymentAmount((cost - paid).toString()); // Default to remaining amount
+        // If cost is 0 the trip is still in progress — leave amount blank for admin to fill in
+        setPaymentAmount(cost > 0 ? (cost - paid).toString() : '');
         setPaymentNotes('');
         setIsPaymentModalOpen(true);
     };
@@ -331,7 +332,12 @@ export default function VendorDetailsPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Cost</label>
-                                    <div className="text-slate-900">PKR {selectedBookingForPayment.cost.toLocaleString()}</div>
+                                    <div className="text-slate-900">
+                                        {selectedBookingForPayment.cost > 0
+                                            ? `PKR ${selectedBookingForPayment.cost.toLocaleString()}`
+                                            : <span className="text-orange-600 text-sm font-medium">Trip in progress — cost not yet finalized</span>
+                                        }
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Payment Amount</label>
@@ -341,7 +347,6 @@ export default function VendorDetailsPage() {
                                             type="number"
                                             required
                                             min="1"
-                                            max={selectedBookingForPayment.cost} // Limit to total cost for now
                                             step="0.01"
                                             value={paymentAmount}
                                             onChange={(e) => setPaymentAmount(e.target.value)}
