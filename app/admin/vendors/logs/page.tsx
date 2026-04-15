@@ -282,12 +282,37 @@ export default function VendorLogsPage() {
                     <div className="space-y-2">
                         <div className="text-xs font-semibold uppercase tracking-wider text-muted">Breakdown</div>
                         <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden">
-                            {Number(bl.vendor_base_rent) > 0 && (
-                                <div className="flex justify-between px-4 py-2.5 text-sm">
-                                    <span className="text-slate-600">Base Rent</span>
-                                    <span className="font-medium text-ink">Rs. {Number(bl.vendor_base_rent).toLocaleString()}</span>
-                                </div>
-                            )}
+                            {Number(bl.vendor_base_rent) > 0 && (() => {
+                                const v = bl.chauffeur_bookings?.vehicles;
+                                const pkg = bl.chauffeur_bookings?.package_selected;
+                                const tripType = bl.chauffeur_bookings?.trip_type;
+                                const isOutstation = tripType === 'OUT_STATION';
+                                let rateLabel: string | null = null;
+                                let rateValue: number | null = null;
+                                if (pkg === 'HOURS_24') {
+                                    rateLabel = isOutstation ? 'Rate / day (outstation)' : 'Rate / day (city)';
+                                    rateValue = isOutstation ? Number(v?.rent_per_day_outstation) : Number(v?.rent_per_day_city);
+                                } else if (pkg === 'HOURS_10') {
+                                    rateLabel = 'Rate (10 hr)';
+                                    rateValue = Number(v?.vendor_rent_10hr);
+                                } else if (pkg === 'HOURS_5') {
+                                    rateLabel = 'Rate (5 hr)';
+                                    rateValue = Number(v?.vendor_rent_5hr);
+                                }
+                                return (
+                                    <>
+                                        <div className="flex justify-between px-4 py-2.5 text-sm">
+                                            <span className="text-slate-600">
+                                                Base Rent
+                                                {rateLabel && rateValue ? (
+                                                    <span className="ml-1.5 text-xs text-muted font-normal">({rateLabel}: Rs. {rateValue.toLocaleString()})</span>
+                                                ) : null}
+                                            </span>
+                                            <span className="font-medium text-ink">Rs. {Number(bl.vendor_base_rent).toLocaleString()}</span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                             {Number(bl.vendor_fuel_cost) > 0 && (
                                 <div className="flex justify-between px-4 py-2.5 text-sm">
                                     <span className="text-slate-600">
@@ -299,7 +324,12 @@ export default function VendorLogsPage() {
                             )}
                             {Number(bl.vendor_overtime_charge) > 0 && (
                                 <div className="flex justify-between px-4 py-2.5 text-sm">
-                                    <span className="text-slate-600">Overtime</span>
+                                    <span className="text-slate-600">
+                                        Overtime
+                                        {bl.chauffeur_bookings?.vehicles?.vendor_overtime_rate
+                                            ? <span className="ml-1 text-xs text-muted">@ Rs. {Number(bl.chauffeur_bookings.vehicles.vendor_overtime_rate).toLocaleString()}/hr</span>
+                                            : null}
+                                    </span>
                                     <span className="font-medium text-ink">Rs. {Number(bl.vendor_overtime_charge).toLocaleString()}</span>
                                 </div>
                             )}

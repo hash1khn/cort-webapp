@@ -140,6 +140,12 @@ export interface VendorLog {
             plate_number: string;
             make: string;
             model: string;
+            rent_per_day_city?: number;
+            rent_per_day_outstation?: number;
+            vendor_rent_5hr?: number;
+            vendor_rent_10hr?: number;
+            vendor_overtime_rate?: number;
+            overnight_rate?: number;
             vendors?: {
                 name: string;
             }
