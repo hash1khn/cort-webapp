@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
-import { fetchCompanyProfile, selectCompany } from "../../lib/store/slices/companySlice";
+import { fetchCompanyProfile, fetchCompanyFeatures, selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import {
   LayoutDashboard,
   Users,
@@ -20,10 +20,13 @@ import {
   Car,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
-import { apiClient } from "../../lib/services/api-client";
-import { CompanyFeature } from "../../lib/services/types/multi-mode";
 
-const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }, features: CompanyFeature[]) => {
+type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
+type FeatureLike = { feature_key: string; is_enabled: boolean };
+
+const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[]) => {
+  const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
+
   const groups = [
     {
       title: "",
@@ -39,7 +42,6 @@ const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_ena
       title: "Administration",
       items: [
         { href: "/company/employees", label: "Employees", icon: Users },
-        { href: "/company/invoicing", label: "Invoices", icon: Receipt },
       ]
     }
   ];
@@ -61,12 +63,16 @@ const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_ena
   }
 
   // Pool Fleet — only show if chauffeur_self_managed feature is enabled
-  const hasSelfManaged = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled;
-  if (servicesEnabled.chauffeur_enabled && hasSelfManaged) {
+  if (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) {
     groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
   }
 
-  // Filter out empty groups if any
+  // Invoices — only show if chauffeur_cort_managed feature is enabled
+  if (hasFeature("chauffeur_cort_managed")) {
+    groups[2].items.push({ href: "/company/invoicing", label: "Invoices", icon: Receipt });
+  }
+
+  // Filter out empty groups
   return groups.filter(g => g.items.length > 0);
 };
 
@@ -81,19 +87,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [features, setFeatures] = useState<CompanyFeature[]>([]);
+  const features = useAppSelector(selectCompanyFeatures);
   const companyId = user?.company_id?.toString();
 
   useEffect(() => {
-    if (companyId) {
-      apiClient.getCompanyFeatures(Number(companyId)).then((r) => setFeatures(r.data)).catch(() => {});
-    }
-  }, [companyId]);
-
-  // ✅ FIX: Add dependency tracking to prevent unnecessary refetches
-  useEffect(() => {
     if (companyId && !company) {
       dispatch(fetchCompanyProfile(companyId));
+    }
+    if (companyId) {
+      dispatch(fetchCompanyFeatures(Number(companyId)));
     }
   }, [companyId, company, dispatch]);
 

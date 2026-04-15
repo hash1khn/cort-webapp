@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
 import { fetchContract, selectAllowedVehicleModels } from "../../../lib/store/slices/contractSlice";
+import { fetchCompanyFeatures, selectCompanyFeatures, selectCompanyFeaturesStatus } from "../../../lib/store/slices/companySlice";
 import Map from "../../../admin/ui/Map";
 import { useGooglePlacesAutocomplete } from "../../../hooks/useGooglePlacesAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
@@ -13,7 +14,7 @@ import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
 import { selectContract } from "../../../lib/store/slices/contractSlice";
 import OutstationEstimatePanel from "./OutstationEstimatePanel";
-import { CompanyFeature, PoolVehicle, PoolDriver, CompanyVendorLink, VendorVehicle } from "../../../lib/services/types/multi-mode";
+import { PoolVehicle, PoolDriver, CompanyVendorLink, VendorVehicle } from "../../../lib/services/types/multi-mode";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -98,12 +99,13 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const employees = useAppSelector(selectEmployees);
     const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
     const contract = useAppSelector(selectContract);
+    const features = useAppSelector(selectCompanyFeatures);
+    const featuresStatus = useAppSelector(selectCompanyFeaturesStatus);
+    const featuresLoading = featuresStatus === 'idle' || featuresStatus === 'loading';
 
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
     // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
-    const [features, setFeatures] = useState<CompanyFeature[]>([]);
-    const [featuresLoading, setFeaturesLoading] = useState(true);
     const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
     const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
     const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
@@ -117,51 +119,47 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const [vendorsLoading, setVendorsLoading] = useState(false);
 
     useEffect(() => {
-        if (company?.id) {
-            dispatch(fetchEmployees(company.id.toString()));
-            dispatch(fetchContract());
-            // Load feature flags
-            setFeaturesLoading(true);
-            apiClient.getCompanyFeatures(Number(company.id))
-                .then((r) => setFeatures(r.data))
-                .catch(() => {})
-                .finally(() => setFeaturesLoading(false));
-        }
-    }, [dispatch, company?.id]);
+        if (!company?.id) return;
+        const companyId = Number(company.id);
 
-    useEffect(() => {
-        if (fulfillmentType === "SELF_MANAGED" && company?.id) {
-            apiClient.getPoolVehicles(Number(company.id)).then((r) => setPoolVehicles(r.data)).catch(() => {});
-            apiClient.getPoolDrivers(Number(company.id)).then((r) => setPoolDrivers(r.data)).catch(() => {});
-        }
-        if (fulfillmentType === "EXTERNAL_VENDOR" && company?.id) {
-            setVendorsLoading(true);
-            apiClient.getCompanyExternalVendors(Number(company.id))
-                .then(async (r) => {
-                    const chauffeurLinks = r.data.filter((l) => l.serves_chauffeur && l.is_active);
-                    setVendorLinks(chauffeurLinks);
-                    setVendorMode("all");
-                    // Load vehicles per vendor link
-                    const vehicleMap: Record<number, VendorVehicle[]> = {};
-                    await Promise.all(
-                        chauffeurLinks.map(async (link) => {
-                            try {
-                                const vr = await apiClient.getVendorVehicles(link.id);
-                                vehicleMap[link.id] = vr.data;
-                            } catch {
-                                vehicleMap[link.id] = [];
-                            }
-                        })
-                    );
-                    setVendorVehicleMap(vehicleMap);
-                })
-                .catch(() => {})
-                .finally(() => setVendorsLoading(false));
-        }
-        // Reset vehicle model when fulfillment type changes
-        setVehicleModel("");
-        setPoolVehicleId(null);
-    }, [fulfillmentType, company?.id]);
+        dispatch(fetchEmployees(company.id.toString()));
+        dispatch(fetchContract());
+        dispatch(fetchCompanyFeatures(companyId));
+
+        // Prefetch all mode data in parallel so it is ready before the user clicks any option.
+        // This also prevents duplicate fetches when switching between fulfillment types.
+        setVendorsLoading(true);
+
+        Promise.all([
+            apiClient.getPoolVehicles(companyId).catch(() => ({ data: [] as PoolVehicle[] })),
+            apiClient.getPoolDrivers(companyId).catch(() => ({ data: [] as PoolDriver[] })),
+            apiClient.getCompanyExternalVendors(companyId).catch(() => ({ data: [] as CompanyVendorLink[] })),
+        ]).then(async ([poolVehiclesRes, poolDriversRes, vendorsRes]) => {
+            setPoolVehicles(poolVehiclesRes.data);
+            setPoolDrivers(poolDriversRes.data);
+
+            const chauffeurLinks = (vendorsRes.data as CompanyVendorLink[]).filter(
+                (l) => l.serves_chauffeur && l.is_active,
+            );
+            setVendorLinks(chauffeurLinks);
+
+            // Fetch vehicles for every vendor link in parallel
+            const vehicleMap: Record<number, VendorVehicle[]> = {};
+            await Promise.all(
+                chauffeurLinks.map(async (link) => {
+                    try {
+                        const vr = await apiClient.getVendorVehicles(link.id);
+                        vehicleMap[link.id] = vr.data;
+                    } catch {
+                        vehicleMap[link.id] = [];
+                    }
+                }),
+            );
+            setVendorVehicleMap(vehicleMap);
+        }).catch(() => {}).finally(() => {
+            setVendorsLoading(false);
+        });
+    }, [dispatch, company?.id]);
 
     const availableFulfillmentTypes = useMemo(() => {
         const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [];
@@ -443,7 +441,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 <button
                                     key={opt.value}
                                     type="button"
-                                    onClick={() => setFulfillmentType(opt.value)}
+                                    onClick={() => { setFulfillmentType(opt.value); setVehicleModel(""); setPoolVehicleId(null); }}
                                     className={cx(
                                         "px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all",
                                         fulfillmentType === opt.value
