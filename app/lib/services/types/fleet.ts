@@ -15,6 +15,7 @@ export interface CreateFuelRecordRequest {
     fuel_litres: number;
     current_fuel_rate: number;
     fuel_cost?: number; // Auto-calculated if not provided
+    odometer_reading?: number;
     billed?: boolean;
 }
 
@@ -40,6 +41,7 @@ export interface FuelRecord {
     fuel_litres: number;
     current_fuel_rate: number;
     fuel_cost: number;
+    odometer_reading?: number;
     billed: boolean;
     created_at: string;
     updated_at: string;

@@ -28,6 +28,7 @@ import {
     UpdateFuelRecordRequest,
     QueryFuelRecordParams,
     OwnershipType,
+    apiClient,
 } from "../../../lib/services/api-client";
 
 export default function FuelingPage() {
@@ -169,11 +170,19 @@ function FuelingPageContent() {
         }
     };
 
-    const startCreate = () => {
+    const startCreate = async () => {
         setSelectedRecord(null);
+        let autoRate: number | undefined;
+        try {
+            const res = await apiClient.getSystemSetting('current_fuel_price');
+            const val = Number(res.data.value);
+            if (!isNaN(val) && val > 0) autoRate = val;
+        } catch {
+            // ignore — user can enter rate manually
+        }
         setFormData({
             date: new Date().toISOString().split('T')[0],
-            // billed: false // Default handled by backend
+            current_fuel_rate: autoRate,
         });
         setModalMode("create");
         setIsModalOpen(true);
@@ -188,6 +197,7 @@ function FuelingPageContent() {
             date: formattedDate,
             fuel_litres: record.fuel_litres,
             current_fuel_rate: record.current_fuel_rate,
+            odometer_reading: record.odometer_reading ?? undefined,
             billed: record.billed,
         });
         setModalMode("edit");
@@ -239,13 +249,29 @@ function FuelingPageContent() {
             </label>
             <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold tracking-wider text-muted">Fuel Rate (PKR/L) *</span>
+                <div className="relative">
+                    <input
+                        type="number"
+                        step="0.01"
+                        value={formData.current_fuel_rate || ""}
+                        onChange={(e) => setFormData({ ...formData, current_fuel_rate: Number(e.target.value) })}
+                        className="h-10 w-full rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                        placeholder="280.00"
+                    />
+                    {modalMode === "create" && formData.current_fuel_rate && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-success font-medium">auto</span>
+                    )}
+                </div>
+            </label>
+            <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wider text-muted">Odometer Reading (km)</span>
                 <input
                     type="number"
-                    step="0.01"
-                    value={formData.current_fuel_rate || ""}
-                    onChange={(e) => setFormData({ ...formData, current_fuel_rate: Number(e.target.value) })}
+                    step="1"
+                    value={formData.odometer_reading || ""}
+                    onChange={(e) => setFormData({ ...formData, odometer_reading: e.target.value ? Number(e.target.value) : undefined })}
                     className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="280.00"
+                    placeholder="45230"
                 />
             </label>
 
@@ -380,6 +406,7 @@ function FuelingPageContent() {
                                 </th>
                                 <th className="px-4 py-3 text-left">Date</th>
                                 <th className="px-4 py-3 text-left">Vehicle</th>
+                                <th className="px-4 py-3 text-right">Odometer</th>
                                 <th className="px-4 py-3 text-right">Litres</th>
                                 <th className="px-4 py-3 text-right">Rate (PKR/L)</th>
                                 <th className="px-4 py-3 text-right">Total Cost</th>
@@ -405,6 +432,9 @@ function FuelingPageContent() {
                                     <td className="px-4 py-3">
                                         <div className="font-medium text-ink">{r.vehicles?.plate_number}</div>
                                         <div className="text-xs text-muted">{r.vehicles?.make} {r.vehicles?.model}</div>
+                                    </td>
+                                    <td className="px-4 py-3 text-right text-muted">
+                                        {r.odometer_reading ? `${Number(r.odometer_reading).toLocaleString()} km` : <span className="text-xs">—</span>}
                                     </td>
                                     <td className="px-4 py-3 text-right font-semibold">{Number(r.fuel_litres)} L</td>
                                     <td className="px-4 py-3 text-right">PKR {Number(r.current_fuel_rate).toFixed(2)}</td>
@@ -438,14 +468,14 @@ function FuelingPageContent() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         No fuel records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>
