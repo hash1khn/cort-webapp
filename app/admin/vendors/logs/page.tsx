@@ -185,7 +185,7 @@ export default function VendorLogsPage() {
                                     <th className="px-4 py-3 text-left">Vehicle / Vendor</th>
                                     <th className="px-4 py-3 text-left">Trip Type</th>
                                     <th className="px-4 py-3 text-left">Passenger</th>
-                                    <th className="px-4 py-3 text-right">Distance</th>
+                                    <th className="px-4 py-3 text-right">Vendor Distance</th>
                                     <th className="px-4 py-3 text-right">Cost</th>
                                     <th className="px-4 py-3 text-center">Status</th>
                                 </tr>
@@ -214,7 +214,11 @@ export default function VendorLogsPage() {
                                             {log.chauffeur_bookings?.users_chauffeur_bookings_passenger_idTousers?.full_name || '-'}
                                         </td>
                                         <td className="px-4 py-3 text-right text-ink">
-                                            {log.total_distance_km ? `${Number(log.total_distance_km).toFixed(1)} km` : '-'}
+                                            {log.vendor_distance_km != null
+                                                ? `${Number(log.vendor_distance_km).toFixed(1)} km`
+                                                : log.total_distance_km
+                                                    ? `${Number(log.total_distance_km).toFixed(1)} km`
+                                                    : '-'}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <button
