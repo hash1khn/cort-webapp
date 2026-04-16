@@ -18,6 +18,7 @@ import { fetchAdminVendors, selectAdminVendors } from "../../../lib/store/slices
 import Pagination from "../../../components/ui/Pagination";
 import { Modal } from "../../components/ui/Modal";
 import { VendorLog } from "../../../lib/services/types/vendors";
+import { apiClient } from "../../../lib/services/api-client";
 
 export default function VendorLogsPage() {
     const dispatch = useDispatch<AppDispatch>();
@@ -55,6 +56,36 @@ export default function VendorLogsPage() {
 
     const loading = status === 'loading';
     const [breakdownLog, setBreakdownLog] = useState<VendorLog | null>(null);
+    const [editDistance, setEditDistance] = useState<string>('');
+    const [savingDistance, setSavingDistance] = useState(false);
+    const [distanceError, setDistanceError] = useState<string | null>(null);
+
+    // Sync edit input when modal opens
+    useEffect(() => {
+        if (breakdownLog) {
+            const d = breakdownLog.vendor_distance_km ?? breakdownLog.total_distance_km;
+            setEditDistance(d != null ? String(Number(d)) : '');
+            setDistanceError(null);
+        }
+    }, [breakdownLog?.booking_id]);
+
+    const handleSaveDistance = async () => {
+        if (!breakdownLog) return;
+        const km = parseFloat(editDistance);
+        if (isNaN(km) || km < 0) { setDistanceError('Enter a valid distance'); return; }
+        setSavingDistance(true);
+        setDistanceError(null);
+        try {
+            await apiClient.updateVendorTripLog(breakdownLog.booking_id, km);
+            dispatch(fetchVendorLogs(filters));
+            dispatch(fetchVendorStats(filters.vendor_id));
+            setBreakdownLog(null);
+        } catch {
+            setDistanceError('Failed to save. Please try again.');
+        } finally {
+            setSavingDistance(false);
+        }
+    };
 
     return (
         <>
@@ -269,9 +300,32 @@ export default function VendorLogsPage() {
                             </div>
                         )}
                         <div className="flex justify-between">
-                            <span className="text-muted">Distance</span>
+                            <span className="text-muted">Distance (GPS)</span>
                             <span className="font-medium text-ink">{bl.total_distance_km ? `${Number(bl.total_distance_km).toFixed(1)} km` : '—'}</span>
                         </div>
+                        {/* Vendor Distance — editable override for fuel cost */}
+                        <div className="flex items-center justify-between gap-3 pt-1">
+                            <span className="text-muted shrink-0">Vendor Distance</span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={editDistance}
+                                    onChange={(e) => { setEditDistance(e.target.value); setDistanceError(null); }}
+                                    className="w-28 rounded-md border border-border px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                                />
+                                <span className="text-sm text-muted">km</span>
+                                <button
+                                    onClick={handleSaveDistance}
+                                    disabled={savingDistance}
+                                    className="rounded-md bg-navy px-3 py-1 text-xs font-medium text-white hover:bg-navy/90 disabled:opacity-50"
+                                >
+                                    {savingDistance ? 'Saving…' : 'Save'}
+                                </button>
+                            </div>
+                        </div>
+                        {distanceError && <div className="text-xs text-red-500">{distanceError}</div>}
                         <div className="flex justify-between">
                             <span className="text-muted">Duration</span>
                             <span className="font-medium text-ink">{bl.total_duration_minutes ? `${Math.floor(Number(bl.total_duration_minutes) / 60)}h ${Number(bl.total_duration_minutes) % 60}m` : '—'}</span>

@@ -626,6 +626,13 @@ class ApiClient {
         });
     }
 
+    async updateVendorTripLog(bookingId: number, vendorDistanceKm: number) {
+        return this.request<{ success: boolean; vendor_cost: number }>(`/vendors/logs/${bookingId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ vendor_distance_km: vendorDistanceKm }),
+        });
+    }
+
     async createVendorPayment(data: CreateVendorPaymentRequest): Promise<VendorPaymentTransaction> {
         return this.request<VendorPaymentTransaction>('/vendors/payments', {
             method: 'POST',

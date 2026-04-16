@@ -114,6 +114,7 @@ export interface VendorLog {
     start_time: string;
     end_time: string;
     total_distance_km: number;
+    vendor_distance_km?: number;
     total_duration_minutes: number;
     vendor_cost: number;
     vendor_base_rent?: number;
