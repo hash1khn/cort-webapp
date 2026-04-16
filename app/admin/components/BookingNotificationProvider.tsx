@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { toast, Toaster } from "sonner";
 import { X } from "lucide-react";
+import { useWebPush } from "../../lib/hooks/useWebPush";
 
 function playNotificationSound() {
   try {
@@ -40,6 +41,10 @@ type ImmediateAlert = {
 export function BookingNotificationProvider() {
   const socketRef = useRef<Socket | null>(null);
   const [immediateAlerts, setImmediateAlerts] = useState<ImmediateAlert[]>([]);
+
+  const isAuthenticated =
+    typeof window !== "undefined" ? !!localStorage.getItem("auth_token") : false;
+  useWebPush(isAuthenticated);
 
   useEffect(() => {
     const token =

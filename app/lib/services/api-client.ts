@@ -1242,6 +1242,26 @@ class ApiClient {
             alerts: any[];
         }>(`/admin/reports/dashboard${query}`);
     }
+
+    // ---------------------------------------------------------------------------
+    // Web Push
+    // ---------------------------------------------------------------------------
+
+    async getVapidPublicKey(): Promise<string> {
+        const res = await this.request<{ publicKey: string }>('/notifications/web-push/vapid-key');
+        return res.publicKey;
+    }
+
+    async saveWebPushSubscription(sub: { endpoint: string; p256dh: string; auth: string; userAgent?: string }): Promise<void> {
+        await this.request<void>('/notifications/web-push/subscription', {
+            method: 'POST',
+            body: JSON.stringify(sub),
+        });
+    }
+
+    async deleteWebPushSubscription(): Promise<void> {
+        await this.request<void>('/notifications/web-push/subscription', { method: 'DELETE' });
+    }
 }
 
 export const apiClient = new ApiClient();
