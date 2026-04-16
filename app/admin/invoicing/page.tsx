@@ -77,6 +77,7 @@ function InvoicingPageContent() {
   // Per-trip route state
   const [perTripRoutes, setPerTripRoutes] = useState<ShuttleContractRoute[]>([]);
   const [routeTrips, setRouteTrips] = useState<Record<number, string>>({});
+  const [routeTripDates, setRouteTripDates] = useState<Record<number, string>>({});
 
   // Settle modal state
   const [showSettleModal, setShowSettleModal] = useState(false);
@@ -151,8 +152,10 @@ function InvoicingPageContent() {
         const pt = routes.filter((r) => r.billing_type === "PER_TRIP");
         setPerTripRoutes(pt);
         const initial: Record<number, string> = {};
-        pt.forEach((r) => { initial[r.id] = "0"; });
+        const initialDates: Record<number, string> = {};
+        pt.forEach((r) => { initial[r.id] = "0"; initialDates[r.id] = ""; });
         setRouteTrips(initial);
+        setRouteTripDates(initialDates);
       } catch {
         setPerTripRoutes([]);
         setRouteTrips({});
@@ -254,7 +257,7 @@ function InvoicingPageContent() {
         amountDelta: amountMode !== "EXACT" && amountDelta !== "" ? Number(amountDelta) : undefined,
         billingPeriod,
         routeTrips: perTripRoutes.length > 0
-          ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0) }))
+          ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0), tripDate: routeTripDates[r.id] || undefined }))
           : undefined,
         discountType: shuttleDiscountType !== "NONE" ? shuttleDiscountType : undefined,
         discountValue: shuttleDiscountType !== "NONE" && shuttleDiscountValue !== "" ? Number(shuttleDiscountValue) : undefined,
@@ -633,6 +636,15 @@ function InvoicingPageContent() {
                           setRouteTrips((prev) => ({ ...prev, [route.id]: e.target.value }))
                         }
                         className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                      />
+                      <span className="text-xs text-slate-500">Date:</span>
+                      <input
+                        type="date"
+                        value={routeTripDates[route.id] ?? ""}
+                        onChange={(e) =>
+                          setRouteTripDates((prev) => ({ ...prev, [route.id]: e.target.value }))
+                        }
+                        className="h-8 rounded border border-slate-200 px-2 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                       />
                     </div>
                   </div>

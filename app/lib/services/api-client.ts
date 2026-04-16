@@ -1035,7 +1035,7 @@ class ApiClient {
             amountMode?: 'EXACT' | 'LESS' | 'MORE';
             amountDelta?: number;
             billingPeriod?: 'MONTHLY' | 'WEEKLY';
-            routeTrips?: { routeId: number; tripsCount: number }[];
+            routeTrips?: { routeId: number; tripsCount: number; tripDate?: string }[];
             discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
             discountValue?: number;
         }
