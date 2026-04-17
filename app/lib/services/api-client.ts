@@ -1029,12 +1029,14 @@ class ApiClient {
 
     async generateShuttleInvoice(
         contractId: number,
-        billingMonth: string,
         options?: {
+            billingMonth?: string;
             continuedVehicles?: number;
             amountMode?: 'EXACT' | 'LESS' | 'MORE';
             amountDelta?: number;
             billingPeriod?: 'MONTHLY' | 'WEEKLY';
+            weeklyStartDate?: string;
+            weeklyEndDate?: string;
             routeTrips?: { routeId: number; tripsCount: number; tripDate?: string }[];
             discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
             discountValue?: number;
@@ -1042,7 +1044,7 @@ class ApiClient {
     ) {
         return this.request('/invoices/generate/shuttle', {
             method: 'POST',
-            body: JSON.stringify({ contractId, billingMonth, ...options }),
+            body: JSON.stringify({ contractId, ...options }),
         });
     }
 

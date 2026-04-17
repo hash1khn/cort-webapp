@@ -13,6 +13,9 @@ interface Invoice {
   id: number;
   invoice_number: string;
   billing_month: string;
+  billing_period?: "MONTHLY" | "WEEKLY" | null;
+  period_start?: string | null;
+  period_end?: string | null;
   generated_at: string;
   total_amount: number | string;
   status: string;
@@ -66,7 +69,9 @@ function InvoicingPageContent() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [billingMonthRaw, setBillingMonthRaw] = useState<string>("");
-  const [billingPeriod] = useState<"MONTHLY">("MONTHLY");
+  const [billingPeriod, setBillingPeriod] = useState<"MONTHLY" | "WEEKLY">("MONTHLY");
+  const [weeklyStartDate, setWeeklyStartDate] = useState<string>("");
+  const [weeklyEndDate, setWeeklyEndDate] = useState<string>("");
   const [continuedVehicles, setContinuedVehicles] = useState<string>("");
   const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
   const [amountDelta, setAmountDelta] = useState<string>("");
@@ -221,6 +226,62 @@ function InvoicingPageContent() {
   const isInvoicesLoading = isLoading;
   const totalPages = pagination.pages;
 
+  const formatPeriodDate = (value: string) => {
+    const hasTimeComponent = value.includes("T");
+    const dt = hasTimeComponent ? new Date(value) : new Date(`${value}T00:00:00`);
+    if (Number.isNaN(dt.getTime())) return value;
+    return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const formatInvoicePeriod = (invoice: Invoice) => {
+    if (invoice.period_start && invoice.period_end) {
+      const start = formatPeriodDate(invoice.period_start);
+      const end = formatPeriodDate(invoice.period_end);
+      return start === end ? start : `${start} to ${end}`;
+    }
+
+    const raw = invoice.billing_month ?? "";
+
+    // Backward-compatible parsing for legacy weekly key format: "4/2026 W0401-0407"
+    const weeklyMatch = raw.match(/^(\d{1,2})\/(\d{4})\s+W(\d{4})-(\d{4})$/);
+    if (weeklyMatch) {
+      const year = Number(weeklyMatch[2]);
+      const startMonth = Number(weeklyMatch[3].slice(0, 2));
+      const startDay = Number(weeklyMatch[3].slice(2, 4));
+      const endMonth = Number(weeklyMatch[4].slice(0, 2));
+      const endDay = Number(weeklyMatch[4].slice(2, 4));
+
+      const start = new Date(year, startMonth - 1, startDay);
+      const end = new Date(year, endMonth - 1, endDay);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        const startText = start.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        const endText = end.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        return `${startText} to ${endText}`;
+      }
+    }
+
+    const monthlyMatch = raw.match(/^(\d{1,2})\/(\d{4})$/);
+    if (monthlyMatch) {
+      const month = Number(monthlyMatch[1]);
+      const year = Number(monthlyMatch[2]);
+      const dt = new Date(year, month - 1, 1);
+      if (!Number.isNaN(dt.getTime())) {
+        return dt.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+      }
+    }
+
+    return raw;
+  };
+
+  const getInvoicePeriodType = (invoice: Invoice): "WEEKLY" | "MONTHLY" => {
+    if (invoice.billing_period === "WEEKLY" || invoice.billing_period === "MONTHLY") {
+      return invoice.billing_period;
+    }
+
+    const raw = invoice.billing_month ?? "";
+    return /\s+W\d{4}-\d{4}$/.test(raw) ? "WEEKLY" : "MONTHLY";
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -230,17 +291,38 @@ function InvoicingPageContent() {
       alert("Please select a company.");
       return;
     }
-    if (!billingMonthRaw) {
-      alert("Please select a billing month.");
-      return;
-    }
 
-    const [year, month] = billingMonthRaw.split("-");
-    if (!year || !month) {
-      alert("Invalid billing month.");
-      return;
+    let billingMonth: string | undefined;
+
+    if (billingPeriod === "MONTHLY") {
+      if (!billingMonthRaw) {
+        alert("Please select a billing month.");
+        return;
+      }
+
+      const [year, month] = billingMonthRaw.split("-");
+      if (!year || !month) {
+        alert("Invalid billing month.");
+        return;
+      }
+      billingMonth = `${Number(month)}/${year}`;
+    } else {
+      if (!weeklyStartDate || !weeklyEndDate) {
+        alert("Please select weekly start and end dates.");
+        return;
+      }
+
+      const start = new Date(weeklyStartDate);
+      const end = new Date(weeklyEndDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        alert("Invalid weekly date range.");
+        return;
+      }
+      if (start > end) {
+        alert("Weekly start date cannot be after end date.");
+        return;
+      }
     }
-    const billingMonth = `${Number(month)}/${year}`;
 
     setIsGeneratingShuttle(true);
     try {
@@ -251,11 +333,14 @@ function InvoicingPageContent() {
         return;
       }
 
-      await apiClient.generateShuttleInvoice(contract.id, billingMonth, {
+      await apiClient.generateShuttleInvoice(contract.id, {
+        billingMonth,
         continuedVehicles: continuedVehicles !== "" ? Number(continuedVehicles) : undefined,
         amountMode,
         amountDelta: amountMode !== "EXACT" && amountDelta !== "" ? Number(amountDelta) : undefined,
         billingPeriod,
+        weeklyStartDate: billingPeriod === "WEEKLY" ? weeklyStartDate : undefined,
+        weeklyEndDate: billingPeriod === "WEEKLY" ? weeklyEndDate : undefined,
         routeTrips: perTripRoutes.length > 0
           ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0), tripDate: routeTripDates[r.id] || undefined }))
           : undefined,
@@ -270,6 +355,9 @@ function InvoicingPageContent() {
       alert("Shuttle invoice generated successfully.");
       setShowShuttleModal(false);
       setBillingMonthRaw("");
+      setBillingPeriod("MONTHLY");
+      setWeeklyStartDate("");
+      setWeeklyEndDate("");
       setContinuedVehicles("");
       setAmountMode("EXACT");
       setAmountDelta("");
@@ -419,7 +507,7 @@ function InvoicingPageContent() {
               <tr>
                 <th className="px-4 py-3">Invoice #</th>
                 <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3">Reference Month</th>
+                <th className="px-4 py-3">Billing Period</th>
                 <th className="px-4 py-3">Generated At</th>
                 <th className="px-4 py-3 text-right">Total Amount</th>
                 <th className="px-4 py-3 text-right">Amount Received</th>
@@ -446,7 +534,10 @@ function InvoicingPageContent() {
                   <tr key={inv.id} className="hover:bg-zinc-50/50">
                     <td className="px-4 py-3 font-medium text-navy">{inv.invoice_number}</td>
                     <td className="px-4 py-3 text-navy">{inv.companies?.name || "Unknown"}</td>
-                    <td className="px-4 py-3 text-navy">{inv.billing_month}</td>
+                    <td className="px-4 py-3 text-navy">
+                      <div>{formatInvoicePeriod(inv)}</div>
+                      <div className="text-xs text-slate-500">({getInvoicePeriodType(inv).toLowerCase()})</div>
+                    </td>
                     <td className="px-4 py-3 text-navy">
                       {new Date(inv.generated_at).toLocaleDateString()}
                     </td>
@@ -655,15 +746,56 @@ function InvoicingPageContent() {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Billing Month
+              Billing Period
             </label>
-            <input
-              type="month"
-              value={billingMonthRaw}
-              onChange={(e) => setBillingMonthRaw(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
-            />
+            <select
+              value={billingPeriod}
+              onChange={(e) => setBillingPeriod(e.target.value as "MONTHLY" | "WEEKLY")}
+              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+            >
+              <option value="MONTHLY">Monthly</option>
+              <option value="WEEKLY">Weekly</option>
+            </select>
           </div>
+
+          {billingPeriod === "MONTHLY" ? (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Billing Month
+              </label>
+              <input
+                type="month"
+                value={billingMonthRaw}
+                onChange={(e) => setBillingMonthRaw(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Week Start Date
+                </label>
+                <input
+                  type="date"
+                  value={weeklyStartDate}
+                  onChange={(e) => setWeeklyStartDate(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Week End Date
+                </label>
+                <input
+                  type="date"
+                  value={weeklyEndDate}
+                  onChange={(e) => setWeeklyEndDate(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
