@@ -100,6 +100,38 @@ export interface SingleChauffeurContractResponse {
     message: string;
 }
 
+export interface FixedTermContract {
+    id: number;
+    car_description: string;
+    owner_name: string;
+    monthly_amount: string;
+    start_date: string;
+    end_date: string | null;
+    is_active: boolean;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CreateFixedTermContractRequest {
+    carDescription: string;
+    ownerName: string;
+    monthlyAmount: number;
+    startDate: string;
+    endDate?: string | null;
+    notes?: string | null;
+}
+
+export interface UpdateFixedTermContractRequest {
+    carDescription?: string;
+    ownerName?: string;
+    monthlyAmount?: number;
+    startDate?: string;
+    isActive?: boolean;
+    endDate?: string | null;
+    notes?: string | null;
+}
+
 export interface SystemSetting {
     id: number;
     key: string;

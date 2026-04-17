@@ -8,6 +8,9 @@ import {
     ShuttleContract,
     ShuttleContractRoute,
     CreateShuttleContractRequest,
+    FixedTermContract,
+    CreateFixedTermContractRequest,
+    UpdateFixedTermContractRequest,
 } from '../../services/api-client';
 import { RootState } from '../store';
 
@@ -22,6 +25,7 @@ interface AdminPricingState {
     currentCompany: Company | null;
     contract: ChauffeurContract | null;
     shuttleContract: ShuttleContract | null;
+    fixedTermContracts: FixedTermContract[];
     globalSettings: {
         fuelBasePrice: string;
         revisionPercentage: string;
@@ -61,6 +65,7 @@ const initialState: AdminPricingState = {
     currentCompany: null,
     contract: null,
     shuttleContract: null,
+    fixedTermContracts: [],
     globalSettings: {
         fuelBasePrice: "0",
         revisionPercentage: "",
@@ -294,6 +299,54 @@ export const fetchShuttleContract = createAsyncThunk(
             return rejectWithValue(error.message || 'Failed to fetch shuttle contract');
         }
     },
+);
+
+export const fetchFixedTermContracts = createAsyncThunk(
+    'adminPricing/fetchFixedTermContracts',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getFixedTermContracts();
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const createFixedTermContractAsync = createAsyncThunk(
+    'adminPricing/createFixedTermContract',
+    async (data: CreateFixedTermContractRequest, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.createFixedTermContract(data);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const updateFixedTermContractAsync = createAsyncThunk(
+    'adminPricing/updateFixedTermContract',
+    async ({ id, data }: { id: number, data: UpdateFixedTermContractRequest }, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.updateFixedTermContract(id, data);
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const deleteFixedTermContractAsync = createAsyncThunk(
+    'adminPricing/deleteFixedTermContract',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            await apiClient.deleteFixedTermContract(id);
+            return id;
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
 );
 
 export const saveShuttleChanges = createAsyncThunk(
@@ -585,6 +638,52 @@ const adminPricingSlice = createSlice({
                 state.actionStatus = 'succeeded';
             })
             .addCase(saveShuttleChanges.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            // Fixed Term
+            .addCase(fetchFixedTermContracts.pending, (state) => {
+                state.status = 'loading';
+            })
+            .addCase(fetchFixedTermContracts.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                state.fixedTermContracts = action.payload;
+            })
+            .addCase(fetchFixedTermContracts.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload as string;
+            })
+            .addCase(createFixedTermContractAsync.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(createFixedTermContractAsync.fulfilled, (state, action) => {
+                state.fixedTermContracts.unshift(action.payload);
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(createFixedTermContractAsync.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            .addCase(updateFixedTermContractAsync.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(updateFixedTermContractAsync.fulfilled, (state, action) => {
+                const idx = state.fixedTermContracts.findIndex(c => c.id === action.payload.id);
+                if (idx !== -1) state.fixedTermContracts[idx] = action.payload;
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(updateFixedTermContractAsync.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.error = action.payload as string;
+            })
+            .addCase(deleteFixedTermContractAsync.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(deleteFixedTermContractAsync.fulfilled, (state, action) => {
+                state.fixedTermContracts = state.fixedTermContracts.filter(c => c.id !== action.payload);
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(deleteFixedTermContractAsync.rejected, (state, action) => {
                 state.actionStatus = 'failed';
                 state.error = action.payload as string;
             })

@@ -19,6 +19,9 @@ import {
     ShuttleContract,
     ShuttleContractRoute,
     CreateShuttleContractRequest,
+    FixedTermContract,
+    CreateFixedTermContractRequest,
+    UpdateFixedTermContractRequest,
     // Bookings
     CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams,
     DailyTripLog, AddPaymentRequest,
@@ -779,6 +782,32 @@ class ApiClient {
         return this.request<{ data: ShuttleContract }>('/contracts/shuttle', {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    }
+
+    // ===== FIXED-TERM CONTRACTS =====
+
+    async getFixedTermContracts(): Promise<{ data: FixedTermContract[] }> {
+        return this.request<{ data: FixedTermContract[] }>('/contracts/fixed-term');
+    }
+
+    async createFixedTermContract(data: CreateFixedTermContractRequest): Promise<{ data: FixedTermContract }> {
+        return this.request<{ data: FixedTermContract }>('/contracts/fixed-term', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async updateFixedTermContract(id: number, data: UpdateFixedTermContractRequest): Promise<{ data: FixedTermContract }> {
+        return this.request<{ data: FixedTermContract }>(`/contracts/fixed-term/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteFixedTermContract(id: number): Promise<void> {
+        await this.request<void>(`/contracts/fixed-term/${id}`, {
+            method: 'DELETE',
         });
     }
 
