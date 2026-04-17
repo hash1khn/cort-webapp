@@ -1040,6 +1040,8 @@ class ApiClient {
             routeTrips?: { routeId: number; tripsCount: number; tripDate?: string }[];
             discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
             discountValue?: number;
+            vendorId?: number;
+            vendorCost?: number;
         }
     ) {
         return this.request('/invoices/generate/shuttle', {

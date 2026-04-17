@@ -126,14 +126,14 @@ export default function VendorDetailsPage() {
                     <h1 className="text-2xl font-bold text-slate-900">
                         {vendor?.name || `Vendor #${vendorId}`}
                     </h1>
-                    <p className="text-slate-500">Vendor Trip Logs & Financials</p>
+                    <p className="text-slate-500">Vendor Trip & Shuttle Logs · Financials</p>
                 </div>
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-medium text-slate-500 mb-2">Total Rides</h3>
+                    <h3 className="text-sm font-medium text-slate-500 mb-2">Total Logs</h3>
                     <div className="text-3xl font-bold text-slate-900">
                         {logsStatus === 'loading' ? '...' : stats?.total_rides || 0}
                     </div>
@@ -148,6 +148,14 @@ export default function VendorDetailsPage() {
                     <h3 className="text-sm font-medium text-slate-500 mb-2">Total Outstanding</h3>
                     <div className={`text-3xl font-bold ${(stats?.total_outstanding || 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                         PKR {logsStatus === 'loading' ? '...' : (stats?.total_outstanding || 0).toLocaleString()}
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm bg-blue-50/30">
+                    <h3 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
+                        <DollarSign className="w-3.5 h-3.5" /> Settled To Date
+                    </h3>
+                    <div className="text-3xl font-bold text-blue-700">
+                        PKR {logsStatus === 'loading' ? '...' : ((stats?.total_cost || 0) - (stats?.total_outstanding || 0)).toLocaleString()}
                     </div>
                 </div>
             </div>
@@ -199,11 +207,10 @@ export default function VendorDetailsPage() {
                     <table className="min-w-full text-left text-sm">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 font-semibold text-slate-700">Date/Time</th>
-                                <th className="px-6 py-4 font-semibold text-slate-700">Booking ID</th>
-                                <th className="px-6 py-4 font-semibold text-slate-700">Passenger</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Date</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Type</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Reference / Passenger</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Vehicle</th>
-                                <th className="px-6 py-4 font-semibold text-slate-700">Description</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Vendor Cost</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-center">Status</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Actions</th>
@@ -212,64 +219,62 @@ export default function VendorDetailsPage() {
                         <tbody className="divide-y divide-slate-100">
                             {logsStatus === 'loading' ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                         Loading logs...
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                         No logs found matching criteria.
                                     </td>
                                 </tr>
                             ) : (
-                                logs.map((log) => {
-                                    const statusRaw = log.vendor_payment_status || '';
-                                    const isPaid = ['FULLY_PAID'].includes(statusRaw.toUpperCase());
+                                logs.map((log: any) => {
+                                    const statusRaw = log.status || '';
+                                    const isPaid = ['FULLY_PAID', 'PAID'].includes(statusRaw.toUpperCase());
 
                                     return (
-                                        <tr key={log.booking_id} className="hover:bg-slate-50 transition-colors">
-
-                                            <td className="px-6 py-4 text-slate-600">
-                                                {new Date(log.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-900 font-medium">
-                                                #{log.booking_id}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-slate-900">{log.chauffeur_bookings?.users_chauffeur_bookings_passenger_idTousers?.full_name || 'Guest'}</div>
-                                                <div className="text-xs text-slate-500">{log.chauffeur_bookings?.users_chauffeur_bookings_passenger_idTousers?.phone}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-slate-900">{log.chauffeur_bookings?.vehicles?.model}</div>
-                                                <div className="text-xs text-slate-500">{log.chauffeur_bookings?.vehicles?.plate_number}</div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="text-slate-900 text-sm max-w-[200px] truncate" title={log.chauffeur_bookings?.vendor_payment_transactions?.[0]?.notes || '-'}>
-                                                    {log.chauffeur_bookings?.vendor_payment_transactions?.[0]?.notes || '-'}
+                                        <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                                                {new Date(log.date).toLocaleDateString()}
+                                                <div className="text-[10px] text-slate-400">
+                                                    {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${log.type === 'SHUTTLE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    {log.type}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-900 font-medium">{log.passenger || 'N/A'}</div>
+                                                <div className="text-xs text-slate-500">{log.details || '-'}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-900">{log.vehicle || 'N/A'}</div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="font-medium text-slate-900">
-                                                    PKR {Number(log.vendor_cost).toLocaleString()}
+                                                    PKR {Number(log.cost).toLocaleString()}
                                                 </div>
-                                                {log.vendor_amount_paid ? (
-                                                    <>
-                                                        <div className="text-xs text-green-600 mt-1">
-                                                            Paid: PKR {Number(log.vendor_amount_paid).toLocaleString()}
+                                                {Number(log.amount_paid || 0) > 0 ? (
+                                                    <div className="text-[10px] space-y-0.5">
+                                                        <div className="text-green-600 font-medium">
+                                                            Paid: PKR {Number(log.amount_paid).toLocaleString()}
                                                         </div>
-                                                        <div className="text-xs text-slate-500">
-                                                            Rem: PKR {Number(log.vendor_amount_remaining).toLocaleString()}
+                                                        <div className="text-slate-400">
+                                                            Rem: PKR {Number(log.amount_remaining).toLocaleString()}
                                                         </div>
-                                                    </>
+                                                    </div>
                                                 ) : null}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${isPaid
+                                                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase ${isPaid
                                                     ? 'bg-green-100 text-green-700'
                                                     : 'bg-orange-100 text-orange-700'
                                                     }`}>
-                                                    {log.vendor_payment_status || 'UNPAID'}
+                                                    {log.status || 'UNPAID'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -278,15 +283,15 @@ export default function VendorDetailsPage() {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             openPaymentModal(
-                                                                log.booking_id,
-                                                                Number(log.vendor_cost),
-                                                                Number(log.vendor_amount_paid || 0)
+                                                                log.booking_id || log.invoice_id,
+                                                                Number(log.cost),
+                                                                Number(log.amount_paid || 0)
                                                             );
                                                         }}
-                                                        className="text-orange hover:opacity-80 font-medium text-sm inline-flex items-center gap-1"
+                                                        className="text-orange hover:opacity-80 font-bold text-xs inline-flex items-center gap-1 uppercase"
                                                     >
-                                                        <DollarSign className="w-4 h-4" />
-                                                        Pay
+                                                        <DollarSign className="w-3.5 h-3.5" />
+                                                        Settle
                                                     </button>
                                                 )}
                                             </td>

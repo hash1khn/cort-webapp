@@ -84,6 +84,12 @@ function InvoicingPageContent() {
   const [routeTrips, setRouteTrips] = useState<Record<number, string>>({});
   const [routeTripDates, setRouteTripDates] = useState<Record<number, string>>({});
 
+  // Vendor state for shuttle invoice
+  const [isVendorCar, setIsVendorCar] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const [vendorCost, setVendorCost] = useState<string>("");
+  const [allVendors, setAllVendors] = useState<{ id: number; name: string }[]>([]);
+
   // Settle modal state
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [settlingInvoice, setSettlingInvoice] = useState<Invoice | null>(null);
@@ -134,14 +140,22 @@ function InvoicingPageContent() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiClient.getCompanies({ limit: 100 });
-        const companyList = res.data.data;
+        const [compRes, vendRes] = await Promise.all([
+          apiClient.getCompanies({ limit: 100 }),
+          apiClient.getVendors({ limit: 100 })
+        ]);
+        const companyList = compRes.data.data;
+        const vendorList = vendRes.data.data;
         setCompanies(companyList);
+        setAllVendors(vendorList);
         if (companyList.length > 0 && !selectedCompanyId) {
           setSelectedCompanyId(String(companyList[0].id));
         }
+        if (vendorList.length > 0 && !selectedVendorId) {
+          setSelectedVendorId(String(vendorList[0].id));
+        }
       } catch (e) {
-        console.error("Failed to load companies for shuttle invoices", e);
+        console.error("Failed to load companies/vendors for shuttle invoices", e);
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -346,6 +360,8 @@ function InvoicingPageContent() {
           : undefined,
         discountType: shuttleDiscountType !== "NONE" ? shuttleDiscountType : undefined,
         discountValue: shuttleDiscountType !== "NONE" && shuttleDiscountValue !== "" ? Number(shuttleDiscountValue) : undefined,
+        vendorId: isVendorCar ? Number(selectedVendorId) : undefined,
+        vendorCost: isVendorCar && vendorCost !== "" ? Number(vendorCost) : undefined,
       });
 
       // Refresh invoices and stats
@@ -363,6 +379,8 @@ function InvoicingPageContent() {
       setAmountDelta("");
       setShuttleDiscountType("NONE");
       setShuttleDiscountValue("");
+      setIsVendorCar(false);
+      setVendorCost("");
 
       const resetTrips: Record<number, string> = {};
       perTripRoutes.forEach((r) => { resetTrips[r.id] = "0"; });
@@ -872,6 +890,55 @@ function InvoicingPageContent() {
               />
             </div>
           )}
+
+          <div className="pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="checkbox"
+                id="isVendorCar"
+                checked={isVendorCar}
+                onChange={(e) => setIsVendorCar(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-[#f47f00] focus:ring-[#f47f00]"
+              />
+              <label htmlFor="isVendorCar" className="text-sm font-semibold text-slate-700 cursor-pointer">
+                Vehicle is from a Vendor (External)
+              </label>
+            </div>
+
+            {isVendorCar && (
+              <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Vendor
+                  </label>
+                  <select
+                    value={selectedVendorId}
+                    onChange={(e) => setSelectedVendorId(e.target.value)}
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+                  >
+                    {allVendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Vendor Cost (Internal)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={vendorCost}
+                    onChange={(e) => setVendorCost(e.target.value)}
+                    placeholder="e.g. 150000"
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button

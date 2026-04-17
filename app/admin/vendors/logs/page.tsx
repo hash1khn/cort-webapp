@@ -182,70 +182,63 @@ export default function VendorLogsPage() {
                             <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
                                 <tr>
                                     <th className="px-4 py-3 text-left">Date</th>
+                                    <th className="px-4 py-3 text-left">Type</th>
                                     <th className="px-4 py-3 text-left">Vehicle / Vendor</th>
-                                    <th className="px-4 py-3 text-left">Trip Type</th>
-                                    <th className="px-4 py-3 text-left">Passenger</th>
+                                    <th className="px-4 py-3 text-left">Reference / Passenger</th>
                                     <th className="px-4 py-3 text-right">Vendor Distance</th>
                                     <th className="px-4 py-3 text-right">Cost</th>
                                     <th className="px-4 py-3 text-center">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {logs.map((log) => (
-                                    <tr key={log.booking_id} className="hover:bg-surface/50">
+                                {logs.map((log: any) => (
+                                    <tr key={log.id} className="hover:bg-surface/50">
                                         <td className="px-4 py-3 text-ink">
-                                            {log.start_time ? new Date(log.start_time).toLocaleDateString() : '-'}
-                                            <div className="text-xs text-muted">
-                                                {log.start_time ? new Date(log.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                            </div>
+                                            {log.date ? new Date(log.date).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${log.type === 'SHUTTLE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                {log.type}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="font-medium text-ink">
-                                                {log.chauffeur_bookings?.vehicles?.plate_number || 'N/A'}
+                                                {log.vehicle || 'N/A'}
                                             </div>
                                             <div className="text-xs text-muted">
-                                                {log.chauffeur_bookings?.vehicles?.vendors?.name || 'Unknown Vendor'}
+                                                {log.vendor_name || 'Unknown Vendor'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-ink">
-                                            {log.chauffeur_bookings?.trip_type?.replace('_', ' ') || '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-ink">
-                                            {log.chauffeur_bookings?.users_chauffeur_bookings_passenger_idTousers?.full_name || '-'}
+                                            <div className="font-medium">{log.passenger || '-'}</div>
+                                            <div className="text-xs text-muted">{log.details}</div>
                                         </td>
                                         <td className="px-4 py-3 text-right text-ink">
-                                            {log.vendor_distance_km != null
-                                                ? `${Number(log.vendor_distance_km).toFixed(1)} km`
-                                                : log.total_distance_km
-                                                    ? `${Number(log.total_distance_km).toFixed(1)} km`
-                                                    : '-'}
+                                            {log.distance != null
+                                                ? `${Number(log.distance).toFixed(1)} km`
+                                                : '-'}
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <button
-                                                type="button"
-                                                onClick={() => setBreakdownLog(log)}
-                                                className="font-medium text-ink hover:text-[#f47f00] transition-colors underline decoration-dotted"
-                                                title="View cost breakdown"
-                                            >
-                                                Rs. {Number(log.vendor_cost).toLocaleString()}
-                                            </button>
-                                            {log.vendor_amount_paid ? (
+                                            <div className="font-medium text-ink">
+                                                Rs. {Number(log.cost || 0).toLocaleString()}
+                                            </div>
+                                            {Number(log.amount_paid || 0) > 0 ? (
                                                 <>
                                                     <div className="text-xs text-green-600 mt-1">
-                                                        Paid: Rs. {Number(log.vendor_amount_paid).toLocaleString()}
+                                                        Paid: Rs. {Number(log.amount_paid).toLocaleString()}
                                                     </div>
                                                     <div className="text-xs text-muted">
-                                                        Rem: Rs. {Number(log.vendor_amount_remaining).toLocaleString()}
+                                                        Rem: Rs. {Number(log.amount_remaining).toLocaleString()}
                                                     </div>
                                                 </>
                                             ) : null}
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${['PAID', 'FULLY_PAID'].includes(String(log.vendor_payment_status).toUpperCase()) ? 'bg-green-100 text-green-800' :
-                                                log.vendor_payment_status === 'PARTIALLY_PAID' ? 'bg-blue/10 text-blue' :
+                                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${['PAID', 'FULLY_PAID', 'PAID'].includes(String(log.status).toUpperCase()) ? 'bg-green-100 text-green-800' :
+                                                log.status === 'PARTIALLY_PAID' ? 'bg-blue/10 text-blue' :
                                                     'bg-orange/10 text-orange'
                                                 }`}>
-                                                {log.vendor_payment_status?.replace('_', ' ') || 'UNPAID'}
+                                                {log.status?.replace('_', ' ') || 'UNPAID'}
                                             </span>
                                         </td>
                                     </tr>
