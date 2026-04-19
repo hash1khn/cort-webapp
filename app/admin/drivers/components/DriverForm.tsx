@@ -17,11 +17,13 @@ export const DriverForm = memo(function DriverForm({
     driver,
     onSave,
     onCancel,
+    onZoomImage,
     isSaving,
 }: {
     driver: any | null;
     onSave: (data: CreateDriverRequest) => void;
     onCancel: () => void;
+    onZoomImage?: (url: string, name: string) => void;
     isSaving: boolean;
 }) {
     const [formData, setFormData] = useState<CreateDriverRequest>(
@@ -172,12 +174,13 @@ export const DriverForm = memo(function DriverForm({
 
                 <div>
                     <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Profile Picture (Optional)</label>
-                    {driver?.drivers_profile?.profile_picture_url && (
+                    {driver?.profile_picture_url && (
                         <div className="mb-2">
                             <img
-                                src={driver.drivers_profile.profile_picture_url}
+                                src={driver.profile_picture_url}
                                 alt="Current profile"
-                                className="w-16 h-16 rounded-full object-cover border border-slate-200"
+                                className="w-16 h-16 rounded-full object-cover border border-slate-200 cursor-zoom-in hover:opacity-80 transition-opacity"
+                                onClick={() => onZoomImage?.(driver.profile_picture_url, driver.full_name)}
                             />
                         </div>
                     )}

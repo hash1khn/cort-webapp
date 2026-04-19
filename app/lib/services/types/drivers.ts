@@ -54,6 +54,7 @@ export interface Driver {
     email: string;
     phone: string | null;
     status: DriverStatus;
+    profile_picture_url: string | null;
     company_id: number | null;
     drivers_profile?: {
         driver_type: DriverType;
