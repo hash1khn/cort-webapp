@@ -24,8 +24,8 @@ export default function FixedTermContractsPage() {
         </div>
       }
     >
-      <PermissionGate permission="pricing">
-        <AdminCan I="read" a="Pricing">
+      <PermissionGate permission="fixed_contracts">
+        <AdminCan I="read" a="FixedContracts">
           <FixedTermContractsContent />
         </AdminCan>
       </PermissionGate>

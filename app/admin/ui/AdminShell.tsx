@@ -18,7 +18,7 @@ const nav: NavItem[] = [
   { href: "/admin", label: "Dashboard", permission: "dashboard" },
   { href: "/admin/companies", label: "Companies", permission: "companies" },
   { href: "/admin/pricing", label: "Contracts & Pricing", permission: "pricing" },
-  { href: "/admin/fixed-contracts", label: "↳ Fixed-Term Cars", permission: "pricing" },
+  { href: "/admin/fixed-contracts", label: "↳ Fixed-Term Cars", permission: "fixed_contracts" },
   { href: "/admin/vehicles", label: "Vehicles", permission: "vehicles" },
   { href: "/admin/vehicles/fueling", label: "↳ Fuel Records", permission: "fuel_records" },
   { href: "/admin/vehicles/maintenance", label: "↳ Maintenance", permission: "maintenance" },

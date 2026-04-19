@@ -25,6 +25,7 @@ export const PERMISSION_KEYS = [
     'reports',
     'expenses',
     'invoicing',
+    'fixed_contracts',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
