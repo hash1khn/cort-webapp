@@ -38,6 +38,7 @@ export type {
     QueryDriverParams,
     Driver,
     DriverResponse,
+    RideReview,
 } from './drivers';
 
 // Vehicles
