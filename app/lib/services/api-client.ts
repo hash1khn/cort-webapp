@@ -697,6 +697,13 @@ class ApiClient {
         return this.request<DriverResponse>(`/drivers/${id}`);
     }
 
+    async getDriverReviews(id: string, page: number = 1, limit: number = 10): Promise<PaginatedResponse<RideReview>> {
+        const query = new URLSearchParams();
+        query.append('page', page.toString());
+        query.append('limit', limit.toString());
+        return this.request<PaginatedResponse<RideReview>>(`/drivers/${id}/reviews?${query.toString()}`);
+    }
+
     async createDriver(data: CreateDriverRequest): Promise<DriverResponse> {
         if (data.profile_picture) {
             const formData = new FormData();

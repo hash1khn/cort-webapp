@@ -75,3 +75,21 @@ export interface DriverResponse {
     statusCode: number;
     message: string;
 }
+
+export interface RideReview {
+    id: number;
+    employee_id: string;
+    chauffeur_booking_id: number;
+    rating: number;
+    review_text: string | null;
+    created_at: string;
+    users?: {
+        id: string;
+        full_name: string;
+    };
+    chauffeur_bookings?: {
+        id: number;
+        scheduled_for: string;
+        pickup_address: string;
+    };
+}

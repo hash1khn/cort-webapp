@@ -7,7 +7,9 @@ import {
     DriverType,
     DriverStatus,
     DriverStatusAction,
-    QueryDriverParams
+    QueryDriverParams,
+    RideReview,
+    apiClient
 } from "../../lib/services/api-client";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
@@ -78,6 +80,13 @@ function DriversPageContent() {
     const [rejectingDriverId, setRejectingDriverId] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState("");
 
+    // Review Modal States
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [selectedDriverForReviews, setSelectedDriverForReviews] = useState<Driver | null>(null);
+    const [reviews, setReviews] = useState<RideReview[]>([]);
+    const [isReviewsLoading, setIsReviewsLoading] = useState(false);
+    const [reviewsPagination, setReviewsPagination] = useState({ page: 1, pages: 1 });
+
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -124,6 +133,24 @@ function DriversPageContent() {
         setEditingDriver(driver);
         setIsCreateModalOpen(true);
     }
+
+    const handleViewReviews = async (driver: Driver, page = 1) => {
+        setSelectedDriverForReviews(driver);
+        setIsReviewModalOpen(true);
+        setIsReviewsLoading(true);
+        try {
+            const response = await apiClient.getDriverReviews(driver.id, page, 5);
+            setReviews(response.data);
+            setReviewsPagination({
+                page: response.pagination.page,
+                pages: response.pagination.pages
+            });
+        } catch (err) {
+            console.error("Failed to fetch reviews:", err);
+        } finally {
+            setIsReviewsLoading(false);
+        }
+    };
 
     const handleSave = async (data: CreateDriverRequest) => {
         try {
@@ -390,6 +417,14 @@ function DriversPageContent() {
 
                                             <button
                                                 type="button"
+                                                onClick={() => handleViewReviews(driver)}
+                                                className="rounded-md p-2 text-slate-500 hover:bg-yellow-50 hover:text-yellow-600 transition-colors"
+                                                title="View Reviews"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => handleEdit(driver)}
                                                 disabled={!canUpdate}
                                                 className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors disabled:opacity-40 disabled:pointer-events-none"
@@ -472,18 +507,95 @@ function DriversPageContent() {
                     isOpen={isCredentialsModalOpen}
                     onClose={() => setIsCredentialsModalOpen(false)}
                     title="Driver Credentials"
-                    successMessage="Driver created successfully! Please share these credentials with the driver."
-                    email={createdCredentials.email}
-                    password={createdCredentials.password}
-                />
-            )}
+                email={createdCredentials.email}
+                password={createdCredentials.password}
+            />
+        )}
 
-            {/* Reject Reason Modal */}
-            <Modal
-                isOpen={isRejectModalOpen}
-                onClose={() => setIsRejectModalOpen(false)}
-                title="Reject Driver"
-            >
+        {/* Review Listing Modal */}
+        <Modal
+            isOpen={isReviewModalOpen}
+            onClose={() => setIsReviewModalOpen(false)}
+            title={`Reviews for ${selectedDriverForReviews?.full_name}`}
+        >
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 px-1">
+                {isReviewsLoading ? (
+                    <div className="py-12 text-center text-slate-500">Loading reviews...</div>
+                ) : reviews.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500">No reviews yet for this driver.</div>
+                ) : (
+                    <div className="space-y-4">
+                        {reviews.map((review) => (
+                            <div key={review.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <svg
+                                                key={i}
+                                                className={cx(
+                                                    "h-4 w-4",
+                                                    i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-slate-300 fill-slate-300"
+                                                )}
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                            </svg>
+                                        ))}
+                                    </div>
+                                    <span className="text-xs text-slate-500">
+                                        {new Date(review.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-[#0c225e] italic mb-3">
+                                    "{review.review_text || "No comment provided."}"
+                                </p>
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 border-t border-slate-200 pt-2">
+                                    <div>By: <span className="font-semibold">{review.users?.full_name}</span></div>
+                                    <div>Booking: <span className="font-semibold">#{review.chauffeur_booking_id}</span></div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Pagination for Reviews */}
+                        {reviewsPagination.pages > 1 && (
+                            <div className="flex justify-center gap-2 pt-4">
+                                <button
+                                    disabled={reviewsPagination.page === 1}
+                                    onClick={() => selectedDriverForReviews && handleViewReviews(selectedDriverForReviews, reviewsPagination.page - 1)}
+                                    className="px-3 py-1 text-xs font-medium rounded border border-slate-200 disabled:opacity-50"
+                                >
+                                    Prev
+                                </button>
+                                <span className="text-xs self-center">Page {reviewsPagination.page} of {reviewsPagination.pages}</span>
+                                <button
+                                    disabled={reviewsPagination.page === reviewsPagination.pages}
+                                    onClick={() => selectedDriverForReviews && handleViewReviews(selectedDriverForReviews, reviewsPagination.page + 1)}
+                                    className="px-3 py-1 text-xs font-medium rounded border border-slate-200 disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+            <div className="mt-6 flex justify-end">
+                <button
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="rounded-lg border border-slate-300 px-6 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                >
+                    Close
+                </button>
+            </div>
+        </Modal>
+
+        {/* Reject Reason Modal */}
+        <Modal
+            isOpen={isRejectModalOpen}
+            onClose={() => setIsRejectModalOpen(false)}
+            title="Reject Driver"
+        >
                 <div className="space-y-4">
                     <p className="text-sm text-slate-600">Please provide a reason for rejecting this driver request.</p>
                     <textarea
