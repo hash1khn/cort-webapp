@@ -27,9 +27,12 @@ export interface CreateDriverRequest {
     cnic_number?: string;
     license_number?: string;
     status?: DriverStatus;
+    profile_picture?: File;
 }
 
-export interface UpdateDriverRequest extends Partial<CreateDriverRequest> { }
+export interface UpdateDriverRequest extends Partial<Omit<CreateDriverRequest, 'profile_picture'>> {
+    profile_picture?: File;
+}
 
 export interface UpdateDriverStatusRequest {
     action: DriverStatusAction;

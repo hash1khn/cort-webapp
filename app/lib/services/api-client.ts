@@ -187,9 +187,13 @@ class ApiClient {
     ): Promise<T> {
         const token = this.getToken();
         const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
             ...(options.headers as Record<string, string>),
         };
+
+        // Only set Content-Type to application/json if it's NOT already set (e.g. for FormData)
+        if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
 
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -694,6 +698,20 @@ class ApiClient {
     }
 
     async createDriver(data: CreateDriverRequest): Promise<DriverResponse> {
+        if (data.profile_picture) {
+            const formData = new FormData();
+            Object.entries(data).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, value instanceof File ? value : String(value));
+                }
+            });
+
+            return this.request<DriverResponse>('/drivers', {
+                method: 'POST',
+                body: formData,
+            });
+        }
+
         return this.request<DriverResponse>('/drivers', {
             method: 'POST',
             body: JSON.stringify(data),
@@ -701,6 +719,20 @@ class ApiClient {
     }
 
     async updateDriver(id: string, data: UpdateDriverRequest): Promise<DriverResponse> {
+        if (data.profile_picture) {
+            const formData = new FormData();
+            Object.entries(data).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    formData.append(key, value instanceof File ? value : String(value));
+                }
+            });
+
+            return this.request<DriverResponse>(`/drivers/${id}`, {
+                method: 'PATCH',
+                body: formData,
+            });
+        }
+
         return this.request<DriverResponse>(`/drivers/${id}`, {
             method: 'PATCH',
             body: JSON.stringify(data),

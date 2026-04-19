@@ -170,6 +170,29 @@ export const DriverForm = memo(function DriverForm({
                     />
                 </div>
 
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Profile Picture (Optional)</label>
+                    {driver?.drivers_profile?.profile_picture_url && (
+                        <div className="mb-2">
+                            <img
+                                src={driver.drivers_profile.profile_picture_url}
+                                alt="Current profile"
+                                className="w-16 h-16 rounded-full object-cover border border-slate-200"
+                            />
+                        </div>
+                    )}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleChange("profile_picture", file);
+                        }}
+                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-[#f47f00] hover:file:bg-orange-100"
+                        disabled={isSaving}
+                    />
+                </div>
+
                 {driver && (
                     <div>
                         <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Status</label>

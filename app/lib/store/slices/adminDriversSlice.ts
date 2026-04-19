@@ -93,6 +93,10 @@ export const createAdminDriver = createAsyncThunk(
     'adminDrivers/createAdminDriver',
     async (data: CreateDriverRequest, { rejectWithValue }) => {
         try {
+            // Remove non-serializable File from data before passing to action result if needed,
+            // but here we just need to ensure the API call handles it.
+            // The error happens because Redux Toolkit's serializability middleware 
+            // checks the action payload.
             const response = await apiClient.createDriver(data);
             return response.data;
         } catch (error: any) {
@@ -105,8 +109,10 @@ export const updateAdminDriver = createAsyncThunk(
     'adminDrivers/updateAdminDriver',
     async ({ id, data }: { id: string; data: UpdateDriverRequest }, { rejectWithValue }) => {
         try {
-            await apiClient.updateDriver(id, data);
-            return { id, changes: data }; // Return id and changes to update state optimistically or re-fetch
+            const response = await apiClient.updateDriver(id, data);
+            // Return the updated driver from the server response instead of just the changes
+            // to ensure we have the correct serializable state (including the new profile_picture_url)
+            return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to update driver');
         }
@@ -212,9 +218,11 @@ const adminDriversSlice = createSlice({
             })
             .addCase(updateAdminDriver.fulfilled, (state, action) => {
                 state.actionStatus = 'succeeded';
-                const index = state.data.findIndex(d => d.id === action.payload.id);
+                const updatedDriver = action.payload;
+                const index = state.data.findIndex(d => d.id === updatedDriver.id);
                 if (index !== -1) {
-                    state.data[index] = { ...state.data[index], ...action.payload.changes };
+                    // Update the state with the serializable driver from the response
+                    state.data[index] = { ...state.data[index], ...updatedDriver };
                 }
             })
             .addCase(updateAdminDriver.rejected, (state, action) => {
