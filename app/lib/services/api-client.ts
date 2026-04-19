@@ -12,7 +12,7 @@ import {
     CreateVendorContractRequest, QueryVendorContractParams, VendorContract, VendorContractResponse, UpdateVendorContractRequest,
     QueryVendorLogsParams, VendorLogsResponse, VendorStatsResponse, CreateVendorPaymentRequest, VendorPaymentTransaction,
     // Drivers
-    CreateDriverRequest, QueryDriverParams, Driver, DriverResponse, UpdateDriverRequest, UpdateDriverStatusRequest,
+    CreateDriverRequest, QueryDriverParams, Driver, DriverResponse, UpdateDriverRequest, UpdateDriverStatusRequest, RideReview,
     // Pricing / Contracts
     ChauffeurContractResponse, CreateChauffeurContractRequest, SingleChauffeurContractResponse, UpdateChauffeurContractRequest,
     SystemSettingResponse,

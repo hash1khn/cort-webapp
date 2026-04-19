@@ -140,10 +140,10 @@ function DriversPageContent() {
         setIsReviewsLoading(true);
         try {
             const response = await apiClient.getDriverReviews(driver.id, page, 5);
-            setReviews(response.data);
+            setReviews(response.data.data);
             setReviewsPagination({
-                page: response.pagination.page,
-                pages: response.pagination.pages
+                page: response.data.pagination.page,
+                pages: response.data.pagination.pages
             });
         } catch (err) {
             console.error("Failed to fetch reviews:", err);
