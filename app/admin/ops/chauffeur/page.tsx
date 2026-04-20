@@ -44,14 +44,18 @@ type ActiveBooking = {
 
 const STATUS_STYLES: Record<string, string> = {
     ASSIGNED:    'bg-blue-100 text-blue-700',
+    OTW:         'bg-indigo-100 text-indigo-700',
     ARRIVED:     'bg-amber-100 text-amber-700',
     IN_PROGRESS: 'bg-orange-100 text-orange-700',
+    DROPPED_OFF: 'bg-purple-100 text-purple-700',
 };
 
 const STATUS_LABELS: Record<string, string> = {
     ASSIGNED:    'Assigned',
+    OTW:         'On The Way',
     ARRIVED:     'Driver Arrived',
     IN_PROGRESS: 'In Progress',
+    DROPPED_OFF: 'Dropped Off',
 };
 
 function timeAgo(isoString: string | null): string {
@@ -201,7 +205,7 @@ function OpsChauffeurContent() {
                 <div className="lg:col-span-1 flex flex-col gap-3 overflow-y-auto">
                     {/* Summary pills */}
                     <div className="flex gap-2 flex-wrap shrink-0">
-                        {(['ASSIGNED', 'ARRIVED', 'IN_PROGRESS'] as const).map((s) => {
+                        {(['ASSIGNED', 'OTW', 'ARRIVED', 'IN_PROGRESS', 'DROPPED_OFF'] as const).map((s) => {
                             const count = bookings.filter((b) => b.status === s).length;
                             return (
                                 <span
