@@ -246,6 +246,7 @@ function AdminDashboardContent() {
             fuelExpenses={stats.fuelExpenses}
             repairExpenses={stats.repairExpenses}
             overdueInvoices={stats.overdueInvoices}
+            problemReports={stats.problemReports}
           />
         </>
       )}

@@ -1311,6 +1311,30 @@ class ApiClient {
             costPerRide: number;
             totalReceivables: number;
             totalPayables: number;
+            currentPeriodReceivables: number | null;
+            currentPeriodPayables: number | null;
+            totalUnassignedBookings: number;
+            receivablesByClient: { name: string; value: number }[];
+            overdueInvoices: {
+                id: number;
+                invoice_number: string;
+                company_name: string;
+                total_amount: number;
+                generated_at: string;
+                status: string;
+            }[];
+            revenueBreakdown: { name: string; value: number }[];
+            problemReports: {
+                id: number;
+                message: string;
+                created_at: string;
+                reported_by_user_id: string;
+                company_id: number | null;
+                reporter_name: string;
+                reporter_email: string;
+                reporter_role: string;
+                company_name: string | null;
+            }[];
             alerts: any[];
         }>(`/admin/reports/dashboard${query}`);
     }

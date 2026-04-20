@@ -20,6 +20,7 @@ export interface SuperAdminDashboardStats {
     receivablesByClient: BreakdownItem[];
     overdueInvoices: OverdueInvoice[];
     revenueBreakdown: BreakdownItem[];
+    problemReports: ProblemReport[];
 }
 
 export interface OverdueInvoice {
@@ -41,4 +42,16 @@ export interface MetricComparison {
 export interface BreakdownItem {
     name: string;
     value: number;
+}
+
+export interface ProblemReport {
+    id: number;
+    message: string;
+    created_at: string;
+    reported_by_user_id: string;
+    company_id: number | null;
+    reporter_name: string;
+    reporter_email: string;
+    reporter_role: string;
+    company_name: string | null;
 }
