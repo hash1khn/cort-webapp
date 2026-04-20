@@ -7,9 +7,16 @@
  * Used by the dashboard Live Mobility Command Center to track all active
  * shuttle trips AND chauffeur rides simultaneously on the overview map.
  *
- * - Joins one socket room per tripId: `ride_<tripId>`
- * - Listens for `driver:location` events and updates per-trip coords
- * - Re-joins rooms when the set of active tripIds changes
+ * Backend events handled (mapped from ride.gateway.ts + bookings/shuttle services):
+ *  - driver:location          → real-time GPS coord per trip
+ *  - trip:distance_update     → cumulative distance meter per trip
+ *  - chauffeur:status         → chauffeur booking status changes (OTW → ARRIVED → IN_PROGRESS → DROPPED_OFF → ENDED)
+ *  - RIDE_ENDED               → shuttle trip completed; auto-removes from tracking
+ *
+ * Room strategy:
+ *  - Joins ride_<tripId> per tripId via `join:ride`
+ *  - Replays all joins on every `connect` event (server drops rooms on disconnect)
+ *  - Prunes stale rooms when tripIds list shrinks
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -25,6 +32,11 @@ export interface LiveVehicleCoord {
     speed?: number;
     type: 'shuttle' | 'chauffeur';
     updatedAt: number; // ms timestamp
+    distanceKm?: number;
+    /** Chauffeur booking status — only populated for type === 'chauffeur' */
+    chauffeurStatus?: 'OTW' | 'ARRIVED' | 'IN_PROGRESS' | 'DROPPED_OFF' | 'ENDED' | 'COMPLETED';
+    /** True when the backend emitted RIDE_ENDED for this tripId */
+    ended?: boolean;
 }
 
 /**
@@ -40,7 +52,7 @@ export function useLiveMobilityTracking(
     const [vehicleCoords, setVehicleCoords] = useState<Record<string, LiveVehicleCoord>>({});
     const [isConnected, setIsConnected] = useState(false);
 
-    // Stable serialization of tripIds to detect real changes
+    // Stable serialisation of tripIds to detect real changes
     const tripIdsKey = tripIds.map((t) => `${t.type}:${t.id}`).sort().join(',');
 
     // ── Effect 1: establish socket once ────────────────────────────────────
@@ -53,14 +65,17 @@ export function useLiveMobilityTracking(
             auth: { token },
             transports: ['websocket'],
             reconnection: true,
-            reconnectionAttempts: 20,
-            reconnectionDelay: 3000,
+            // Never stop retrying — match expo's Infinity approach
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 30_000,
+            randomizationFactor: 0.5,
         });
         socketRef.current = socket;
 
         socket.on('connect', () => {
             setIsConnected(true);
-            // Re-join all rooms after reconnect
+            // ✅ Replay all room joins after reconnect — server drops them on disconnect
             joinedRoomsRef.current.forEach((tripId) => {
                 socket.emit('join:ride', { tripId, userId: '', role: 'employee' });
             });
@@ -68,6 +83,7 @@ export function useLiveMobilityTracking(
 
         socket.on('disconnect', () => setIsConnected(false));
 
+        // ── Real-time GPS coordinates ─────────────────────────────────────
         socket.on(
             'driver:location',
             (payload: { tripId: string; lat: number; lng: number; heading?: number; speed?: number }) => {
@@ -84,6 +100,59 @@ export function useLiveMobilityTracking(
                         updatedAt: Date.now(),
                     },
                 }));
+            },
+        );
+
+        // ── Cumulative trip distance ──────────────────────────────────────
+        socket.on(
+            'trip:distance_update',
+            (payload: { tripId: string; distanceKm: number }) => {
+                setVehicleCoords((prev) => {
+                    const existing = prev[payload.tripId];
+                    if (!existing) return prev;
+                    return {
+                        ...prev,
+                        [payload.tripId]: { ...existing, distanceKm: payload.distanceKm },
+                    };
+                });
+            },
+        );
+
+        // ── Chauffeur booking status changes (via user room) ─────────────
+        // Backend emits chauffeur:status to user_<passengerId>, but the admin/
+        // company dashboard is in the ride room — the backend uses emitToUser for
+        // this event so we receive it via the ride room only if the passenger is
+        // connected to the same socket.  We still listen to it here so that if
+        // the server adds a ride-room broadcast in future this just works.
+        socket.on(
+            'chauffeur:status',
+            (payload: { bookingId: number; status: LiveVehicleCoord['chauffeurStatus'] }) => {
+                const tripId = String(payload.bookingId);
+                setVehicleCoords((prev) => {
+                    const existing = prev[tripId];
+                    if (!existing) return prev;
+                    return {
+                        ...prev,
+                        [tripId]: {
+                            ...existing,
+                            chauffeurStatus: payload.status,
+                            ended: payload.status === 'ENDED' || payload.status === 'COMPLETED',
+                        },
+                    };
+                });
+            },
+        );
+
+        // ── Shuttle trip ended ────────────────────────────────────────────
+        socket.on(
+            'RIDE_ENDED',
+            (payload: { tripId: number; endedAt: string }) => {
+                const tripId = String(payload.tripId);
+                setVehicleCoords((prev) => {
+                    const existing = prev[tripId];
+                    if (!existing) return prev;
+                    return { ...prev, [tripId]: { ...existing, ended: true } };
+                });
             },
         );
 

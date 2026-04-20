@@ -57,7 +57,11 @@ export function BookingNotificationProvider() {
     const socket = io(`${apiUrl}/rides`, {
       auth: { token },
       transports: ["websocket"],
-      reconnectionAttempts: 5,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30_000,
+      randomizationFactor: 0.5,
     });
     socketRef.current = socket;
 
