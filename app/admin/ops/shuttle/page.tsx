@@ -80,7 +80,7 @@ function OpsShuttleContent() {
   const [polyline, setPolyline] = useState<PolylineResponse | null>(null);
   const [polylineLoading, setPolylineLoading] = useState(false);
 
-  const { driverCoord, isConnected } = useShuttleTracking(selectedTripId);
+  const { driverCoord, isConnected } = useShuttleTracking({ tripId: selectedTripId });
 
   const selectedTrip = useMemo(
     () => trips.find((t) => t.id === selectedTripId) ?? null,

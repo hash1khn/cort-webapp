@@ -98,19 +98,23 @@ function OpsChauffeurContent() {
         setError(null);
         try {
             const data = await apiClient.request<ActiveBooking[]>('/admin/bookings/active-locations');
-            const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
+            const list: ActiveBooking[] = Array.isArray(data)
+                ? data
+                : (((data as any)?.data ?? []) as ActiveBooking[]);
             setBookings(list);
             setLastRefresh(new Date());
-            // Auto-select first booking if nothing is selected
-            if (list.length > 0 && !selectedId) {
-                setSelectedId(list[0].id);
-            }
+            // Keep the current selection if it still exists after refresh.
+            // If not, fall back to the first booking (or clear selection if empty).
+            setSelectedId((prev) => {
+                if (list.length === 0) return null;
+                if (prev == null) return list[0].id;
+                return list.some((b) => b.id === prev) ? prev : list[0].id;
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load bookings');
         } finally {
             setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

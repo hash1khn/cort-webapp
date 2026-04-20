@@ -61,7 +61,7 @@ export default function CompanyRouteTrackingPage() {
     const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
     const [polyline, setPolyline] = useState<PolylineResponse | null>(null);
 
-    const { driverCoord, isConnected } = useShuttleTracking(selectedTripId);
+    const { driverCoord, isConnected } = useShuttleTracking({ tripId: selectedTripId });
 
     const selectedTrip = useMemo(
         () => trips.find((t) => t.id === selectedTripId) ?? null,
