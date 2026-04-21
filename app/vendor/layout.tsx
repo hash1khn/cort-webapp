@@ -97,56 +97,69 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     };
 
     const SidebarContent = () => (
-        <div className="flex flex-col h-full bg-[#0c225e]">
+        <div className="flex flex-col h-full bg-gradient-to-b from-[#0c225e] to-[#081845]">
             {/* Logo */}
-            <div className="px-6 py-8 flex items-center gap-3">
-                <img src="/cort-app-icon.svg" alt="CORT" className="h-8 w-8" />
-                <span className="text-white font-bold text-lg">Vendor Portal</span>
+            <div className="px-6 py-10 flex items-center gap-3">
+                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">
+                    <img src="/cort-app-icon.svg" alt="CORT" className="h-6 w-6" />
+                </div>
+                <div>
+                    <span className="text-white font-black text-xl tracking-tight block">CORT</span>
+                    <span className="text-white/50 font-bold text-[10px] uppercase tracking-[0.2em] block -mt-1">Vendor Portal</span>
+                </div>
             </div>
 
             {/* Company Switcher */}
             {activeLinks.length > 0 && (
-                <div className="px-4 mb-4 relative">
+                <div className="px-4 mb-8 relative">
                     <button
                         onClick={() => setShowCompanySwitcher(!showCompanySwitcher)}
-                        className="w-full flex items-center justify-between bg-white/10 rounded-xl px-4 py-3 text-left hover:bg-white/15 transition-colors"
+                        className="w-full flex items-center justify-between bg-white/5 rounded-2xl px-4 py-4 text-left hover:bg-white/10 transition-all border border-white/5 shadow-inner"
                     >
-                        <div>
-                            <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold mb-0.5">Company</p>
-                            <p className="text-sm font-semibold text-white truncate">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-white/40 uppercase tracking-widest font-black mb-1">Current Partner</p>
+                            <p className="text-sm font-black text-white truncate pr-2">
                                 {selectedLink?.companies?.name ?? `Link #${selectedLink?.id}`}
                             </p>
-                            <div className="flex gap-1 mt-1">
-                                {selectedLink?.serves_chauffeur && <span className="text-[10px] bg-[#f47f00]/30 text-[#f47f00] px-1.5 py-0.5 rounded">Chauffeur</span>}
-                                {selectedLink?.serves_shuttle && <span className="text-[10px] bg-blue-500/30 text-blue-300 px-1.5 py-0.5 rounded">Shuttle</span>}
+                            <div className="flex gap-1.5 mt-1.5">
+                                {selectedLink?.serves_chauffeur && <span className="text-[9px] font-black bg-[#f47f00]/20 text-[#f47f00] px-2 py-0.5 rounded-md uppercase">Chauffeur</span>}
+                                {selectedLink?.serves_shuttle && <span className="text-[9px] font-black bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md uppercase">Shuttle</span>}
                             </div>
                         </div>
-                        <ChevronDown className={cx("w-4 h-4 text-white/60 transition-transform", showCompanySwitcher && "rotate-180")} />
+                        <ChevronDown className={cx("w-4 h-4 text-white/40 transition-transform duration-300", showCompanySwitcher && "rotate-180")} />
                     </button>
                     {showCompanySwitcher && (
-                        <div className="absolute left-4 right-4 top-full mt-1 bg-white rounded-xl shadow-xl z-50 py-1 overflow-hidden">
-                            {activeLinks.map((link) => (
-                                <button
-                                    key={link.id}
-                                    onClick={() => setSelectedLink(link)}
-                                    className={cx(
-                                        "w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors",
-                                        selectedLink?.id === link.id && "bg-orange-50 text-[#f47f00] font-semibold"
-                                    )}
-                                >
-                                    <p className="font-medium">{link.companies?.name ?? `Link #${link.id}`}</p>
-                                    <p className="text-xs text-gray-400 mt-0.5">
-                                        {[link.serves_chauffeur && "Chauffeur", link.serves_shuttle && "Shuttle"].filter(Boolean).join(" · ")}
-                                    </p>
-                                </button>
-                            ))}
+                        <div className="absolute left-4 right-4 top-full mt-2 bg-white rounded-2xl shadow-2xl z-50 py-2 border border-gray-100 overflow-hidden ring-4 ring-black/5 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="px-4 py-2 border-b border-gray-50 mb-1">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Partner</p>
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto">
+                                {activeLinks.map((link) => (
+                                    <button
+                                        key={link.id}
+                                        onClick={() => setSelectedLink(link)}
+                                        className={cx(
+                                            "w-full text-left px-4 py-3 text-sm transition-all flex flex-col gap-0.5",
+                                            selectedLink?.id === link.id 
+                                                ? "bg-orange-50/50 text-[#f47f00] font-black border-l-4 border-[#f47f00]" 
+                                                : "text-gray-600 hover:bg-gray-50 border-l-4 border-transparent"
+                                        )}
+                                    >
+                                        <p className="font-bold">{link.companies?.name ?? `Link #${link.id}`}</p>
+                                        <p className="text-[10px] text-gray-400 font-medium">
+                                            {[link.serves_chauffeur && "Chauffeur", link.serves_shuttle && "Shuttle"].filter(Boolean).join(" · ")}
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Nav */}
-            <nav className="flex-1 px-3 space-y-1">
+            <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto py-2">
+                <p className="text-[10px] text-white/30 font-black uppercase tracking-[0.2em] px-4 mb-4">Main Menu</p>
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href, item.exact);
@@ -156,36 +169,41 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
                             href={item.href}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={cx(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                                "flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all relative group",
                                 active
-                                    ? "bg-[#f47f00] text-white shadow-lg shadow-[#f47f00]/30"
-                                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                                    ? "bg-[#f47f00] text-white shadow-xl shadow-[#f47f00]/20"
+                                    : "text-white/60 hover:bg-white/5 hover:text-white"
                             )}
                         >
-                            <Icon className="w-4 h-4 shrink-0" />
+                            <Icon className={cx("w-5 h-5 shrink-0 transition-transform group-hover:scale-110", active ? "text-white" : "text-white/40 group-hover:text-white")} />
                             {item.label}
+                            {active && (
+                                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                            )}
                         </Link>
                     );
                 })}
             </nav>
 
             {/* User / Logout */}
-            <div className="px-4 py-6 border-t border-white/10">
-                <div className="flex items-center gap-3 mb-3">
-                    <div className="h-8 w-8 rounded-full bg-[#f47f00] flex items-center justify-center text-white text-sm font-bold">
-                        {user.full_name?.[0]?.toUpperCase() ?? "V"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{user.full_name}</p>
-                        <p className="text-xs text-white/50 truncate">{user.email}</p>
+            <div className="px-4 py-8 border-t border-white/5 bg-black/10">
+                <div className="bg-white/5 rounded-2xl p-4 mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#f47f00] to-[#ff9b33] flex items-center justify-center text-white text-sm font-black shadow-lg">
+                            {user.full_name?.[0]?.toUpperCase() ?? "V"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-white truncate">{user.full_name}</p>
+                            <p className="text-[10px] font-bold text-white/40 truncate tracking-tight">{user.email}</p>
+                        </div>
                     </div>
                 </div>
                 <button
                     onClick={logout}
-                    className="w-full flex items-center gap-2 text-sm text-white/60 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 text-xs font-black text-white/50 hover:text-red-400 px-4 py-3 rounded-xl hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                 >
                     <LogOut className="w-4 h-4" />
-                    Sign Out
+                    SIGN OUT
                 </button>
             </div>
         </div>
