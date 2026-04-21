@@ -77,6 +77,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }
 
     const isExternalVendor = (booking as any).fulfillment_type === "EXTERNAL_VENDOR";
+    const showVendorResponses = isExternalVendor || vendorRequests.length > 0;
 
     return (
         <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -125,9 +126,14 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </dl>
             </div>
 
-            {/* Vendor Requests (only for EXTERNAL_VENDOR bookings) */}
-            {isExternalVendor && (
+            {/* Vendor requests: external bookings, or CORT_MANAGED broadcast while vendors were notified */}
+            {showVendorResponses && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    {!isExternalVendor && vendorRequests.length > 0 && (
+                        <p className="text-xs text-slate-600 mb-3">
+                            This booking was sent to Cort and to vendors. The first assignment (Cort or a vendor) confirms the trip; other pending requests are expired.
+                        </p>
+                    )}
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-base font-bold text-[#0c225e]">Vendor Responses</h2>
                         {vendorRequests.some((r) => r.status === "PENDING") && (

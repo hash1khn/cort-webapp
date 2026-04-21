@@ -44,6 +44,9 @@ export interface CreateChauffeurBookingRequest {
     service_category?: string;
     city?: string;
     no_of_days?: number;
+    /** CORT_MANAGED only: also notify vendors; Cort ops and vendors race to assign. */
+    broadcast_to_all_vendors?: boolean;
+    vendor_link_ids?: number[];
 }
 
 export interface ChauffeurTripLog {
