@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
     fetchAdminRoute,
     updateAdminRoute,
+    deleteAdminRoute,
     createRouteStop,
     updateRouteStop,
     deleteRouteStop,
@@ -14,7 +15,7 @@ import {
     clearCurrentRoute
 } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
-import { fetchAdminAvailableVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
+import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { Button } from '@/app/admin/ui/Button';
 import { Card } from '@/app/admin/ui/Card';
 import { Input } from '@/app/admin/ui/Input';
@@ -79,7 +80,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     useEffect(() => {
         // Only show shuttle drivers for shuttle routes
         dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
-        dispatch(fetchAdminAvailableVehicles({ limit: 100 }));
+        dispatch(fetchAdminVehicles({ limit: 100 }));
     }, [dispatch]);
 
     useEffect(() => {
@@ -209,6 +210,18 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleDeleteRoute = async () => {
+        if (!route) return;
+        if (!confirm(`Delete route "${route.name}"? This cannot be undone.`)) return;
+        try {
+            await dispatch(deleteAdminRoute(route.id)).unwrap();
+            toast.success('Route deleted');
+            router.replace('/admin/routes');
+        } catch {
+            toast.error('Failed to delete route');
+        }
+    };
+
     const handleStopDelete = async (stopId: number) => {
         if (!canEditRoutes) return;
         if (!confirm('Delete this stop?')) return;
@@ -335,12 +348,24 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         Route ID: {route.id} · {route.route_stops?.length || 0} stops
                     </div>
                 </div>
-                {isEditing && (
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                        <Button onClick={handleSaveDetails} disabled={!canEditRoutes}>Save Changes</Button>
-                    </div>
-                )}
+                <div className="flex gap-2">
+                    {isEditing ? (
+                        <>
+                            <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                            <Button onClick={handleSaveDetails} disabled={!canEditRoutes}>Save Changes</Button>
+                        </>
+                    ) : (
+                        canEditRoutes && (
+                            <Button
+                                variant="outline"
+                                onClick={handleDeleteRoute}
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                            >
+                                <Trash className="w-4 h-4 mr-1" /> Delete Route
+                            </Button>
+                        )
+                    )}
+                </div>
             </div>
 
             {/* Tabs */}

@@ -26,17 +26,24 @@ function AdminDashboardContent() {
   const { stats, loading, error, dateRange } = useAppSelector((state: RootState) => state.superAdminDashboard);
 
   // Local state for date inputs to allow typing before dispatch
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const getDefaultDateRange = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const toISO = (d: Date) => d.toISOString().split('T')[0];
+    return { start: toISO(firstDay), end: toISO(now) };
+  };
+  const defaults = getDefaultDateRange();
+  const [startDate, setStartDate] = useState<string>(defaults.start);
+  const [endDate, setEndDate] = useState<string>(defaults.end);
   const hasDateFilter = Boolean(startDate && endDate);
 
   // Track which button triggered the load
   const [loadingAction, setLoadingAction] = useState<'filter' | 'refresh' | null>(null);
 
   useEffect(() => {
-    // Initial fetch if no stats
+    // Initial fetch with current month range
     if (!stats && !loading && !error) {
-      dispatch(fetchDashboardStats());
+      dispatch(fetchDashboardStats({ startDate, endDate }));
     }
   }, [dispatch, stats, loading, error]);
 

@@ -10,6 +10,8 @@ import { Button } from '@/app/admin/ui/Button';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useShuttleTracking } from '@/app/lib/hooks/useShuttleTracking';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
+import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
+import { fetchAdminCompanies, selectAdminCompanies, selectAdminCompaniesStatus } from '@/app/lib/store/slices/adminCompaniesSlice';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
@@ -73,6 +75,11 @@ export default function OpsShuttlePage() {
 }
 
 function OpsShuttleContent() {
+  const dispatch = useAppDispatch();
+  const companies = useAppSelector(selectAdminCompanies);
+  const companiesStatus = useAppSelector(selectAdminCompaniesStatus);
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [trips, setTrips] = useState<ShuttleTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +102,9 @@ function OpsShuttleContent() {
       setError(null);
       const now = new Date();
       const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const data = await apiClient.request<ShuttleTrip[]>(`/shuttle-trips/today?date=${date}`);
+      const params = new URLSearchParams({ date });
+      if (selectedCompanyId) params.set('company_id', String(selectedCompanyId));
+      const data = await apiClient.request<ShuttleTrip[]>(`/shuttle-trips/today?${params.toString()}`);
       const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
       setTrips(list);
       if (list.length > 0 && !selectedTripId) {
@@ -106,7 +115,7 @@ function OpsShuttleContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedTripId]);
+  }, [selectedTripId, selectedCompanyId]);
 
   const loadPolyline = useCallback(async (tripId: number) => {
     try {
@@ -119,6 +128,18 @@ function OpsShuttleContent() {
       setPolylineLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (companiesStatus === 'idle') {
+      dispatch(fetchAdminCompanies({ limit: 100 }));
+    }
+  }, [dispatch, companiesStatus]);
+
+  useEffect(() => {
+    setSelectedTripId(null);
+    loadTrips();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompanyId]);
 
   useEffect(() => {
     loadTrips();
@@ -196,15 +217,27 @@ function OpsShuttleContent() {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <div className="text-sm font-medium text-gray-400">Operations</div>
           <h1 className="mt-1 text-2xl font-bold text-gray-900">Shuttle Tracking</h1>
         </div>
-        <Button variant="outline" onClick={loadTrips} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-3">
+          <select
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30"
+            value={selectedCompanyId ?? ''}
+            onChange={(e) => setSelectedCompanyId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">All Companies</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <Button variant="outline" onClick={loadTrips} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (
