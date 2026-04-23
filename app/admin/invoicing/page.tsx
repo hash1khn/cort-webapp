@@ -79,8 +79,8 @@ function InvoicingPageContent() {
   const [shuttleDiscountValue, setShuttleDiscountValue] = useState<string>("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
 
-  // Per-trip route state
-  const [perTripRoutes, setPerTripRoutes] = useState<ShuttleContractRoute[]>([]);
+  // Shuttle route input state (all contract routes)
+  const [shuttleRoutes, setShuttleRoutes] = useState<ShuttleContractRoute[]>([]);
   const [routeTrips, setRouteTrips] = useState<Record<number, string>>({});
   const [routeQuantities, setRouteQuantities] = useState<Record<number, string>>({});
   const [routeTripDates, setRouteTripDates] = useState<Record<number, string>>({});
@@ -162,20 +162,19 @@ function InvoicingPageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load shuttle contract to discover PER_TRIP routes when company changes
+  // Load shuttle contract routes when company changes
   useEffect(() => {
     if (!selectedCompanyId) return;
     (async () => {
       try {
         const res = await apiClient.getShuttleContract(Number(selectedCompanyId));
         const routes: ShuttleContractRoute[] = res?.data?.shuttle_contract_routes ?? [];
-        const pt = routes.filter((r) => r.billing_type === "PER_TRIP");
-        setPerTripRoutes(pt);
+        setShuttleRoutes(routes);
         const initial: Record<number, string> = {};
         const initialQuantities: Record<number, string> = {};
         const initialDates: Record<number, string> = {};
-        pt.forEach((r) => {
-          initial[r.id] = "0";
+        routes.forEach((r) => {
+          initial[r.id] = r.billing_type === "PER_TRIP" ? "0" : "1";
           initialQuantities[r.id] = String(Number(r.quantity ?? 0));
           initialDates[r.id] = "";
         });
@@ -183,7 +182,7 @@ function InvoicingPageContent() {
         setRouteQuantities(initialQuantities);
         setRouteTripDates(initialDates);
       } catch {
-        setPerTripRoutes([]);
+        setShuttleRoutes([]);
         setRouteTrips({});
         setRouteQuantities({});
       }
@@ -363,12 +362,12 @@ function InvoicingPageContent() {
         billingPeriod,
         weeklyStartDate: billingPeriod === "WEEKLY" ? weeklyStartDate : undefined,
         weeklyEndDate: billingPeriod === "WEEKLY" ? weeklyEndDate : undefined,
-        routeTrips: perTripRoutes.length > 0
-          ? perTripRoutes.map((r) => ({
+        routeTrips: shuttleRoutes.length > 0
+          ? shuttleRoutes.map((r) => ({
               routeId: r.id,
-              tripsCount: Number(routeTrips[r.id] ?? 0),
+              tripsCount: r.billing_type === "PER_TRIP" ? Number(routeTrips[r.id] ?? 0) : 0,
               quantity: Number(routeQuantities[r.id] ?? r.quantity ?? 0),
-              tripDate: routeTripDates[r.id] || undefined,
+              tripDate: r.billing_type === "PER_TRIP" ? (routeTripDates[r.id] || undefined) : undefined,
             }))
           : undefined,
         discountType: shuttleDiscountType !== "NONE" ? shuttleDiscountType : undefined,
@@ -397,8 +396,8 @@ function InvoicingPageContent() {
 
       const resetTrips: Record<number, string> = {};
       const resetQuantities: Record<number, string> = {};
-      perTripRoutes.forEach((r) => {
-        resetTrips[r.id] = "0";
+      shuttleRoutes.forEach((r) => {
+        resetTrips[r.id] = r.billing_type === "PER_TRIP" ? "0" : "1";
         resetQuantities[r.id] = String(Number(r.quantity ?? 0));
       });
       setRouteTrips(resetTrips);
@@ -738,21 +737,23 @@ function InvoicingPageContent() {
 
 
 
-          {/* Per-trip routes — trips count inputs */}
-          {perTripRoutes.length > 0 && (
+          {/* Route-level invoice overrides (quantity for both billing types) */}
+          {shuttleRoutes.length > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
-                Per-Trip Route Inputs
+                Route Inputs For This Invoice
               </label>
               <p className="text-xs text-slate-500">
-                Enter trips and quantity per route. Any route with Trips = 0 or Quantity = 0 will be excluded from invoice lines.
+                Set quantity for each route (monthly and per-trip). For per-trip routes, also set trips. Any route with Quantity = 0 is excluded.
               </p>
               <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                {perTripRoutes.map((route) => (
+                {shuttleRoutes.map((route) => (
                   <div key={route.id} className="flex items-center justify-between gap-3 px-3 py-2">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-slate-800 truncate">{route.particulars}</div>
-                      <div className="text-xs text-slate-400">{route.vehicle_type} × {route.quantity}</div>
+                      <div className="text-xs text-slate-400">
+                        {route.vehicle_type} | Contract Qty: {route.quantity} | {route.billing_type === "PER_TRIP" ? "Per Trip" : "Monthly"}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs text-slate-500">Qty:</span>
@@ -765,25 +766,29 @@ function InvoicingPageContent() {
                         }
                         className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                       />
-                      <span className="text-xs text-slate-500">Trips:</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={routeTrips[route.id] ?? "0"}
-                        onChange={(e) =>
-                          setRouteTrips((prev) => ({ ...prev, [route.id]: e.target.value }))
-                        }
-                        className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
-                      />
-                      <span className="text-xs text-slate-500">Date:</span>
-                      <input
-                        type="date"
-                        value={routeTripDates[route.id] ?? ""}
-                        onChange={(e) =>
-                          setRouteTripDates((prev) => ({ ...prev, [route.id]: e.target.value }))
-                        }
-                        className="h-8 rounded border border-slate-200 px-2 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
-                      />
+                      {route.billing_type === "PER_TRIP" && (
+                        <>
+                          <span className="text-xs text-slate-500">Trips:</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={routeTrips[route.id] ?? "0"}
+                            onChange={(e) =>
+                              setRouteTrips((prev) => ({ ...prev, [route.id]: e.target.value }))
+                            }
+                            className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                          />
+                          <span className="text-xs text-slate-500">Date:</span>
+                          <input
+                            type="date"
+                            value={routeTripDates[route.id] ?? ""}
+                            onChange={(e) =>
+                              setRouteTripDates((prev) => ({ ...prev, [route.id]: e.target.value }))
+                            }
+                            className="h-8 rounded border border-slate-200 px-2 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
