@@ -1105,7 +1105,7 @@ class ApiClient {
             billingPeriod?: 'MONTHLY' | 'WEEKLY';
             weeklyStartDate?: string;
             weeklyEndDate?: string;
-            routeTrips?: { routeId: number; tripsCount: number; tripDate?: string }[];
+            routeTrips?: { routeId: number; tripsCount: number; tripDate?: string; quantity?: number }[];
             discountType?: 'NONE' | 'PERCENTAGE' | 'FLAT';
             discountValue?: number;
             vendorId?: number;

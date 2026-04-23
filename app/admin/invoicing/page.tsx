@@ -82,6 +82,7 @@ function InvoicingPageContent() {
   // Per-trip route state
   const [perTripRoutes, setPerTripRoutes] = useState<ShuttleContractRoute[]>([]);
   const [routeTrips, setRouteTrips] = useState<Record<number, string>>({});
+  const [routeQuantities, setRouteQuantities] = useState<Record<number, string>>({});
   const [routeTripDates, setRouteTripDates] = useState<Record<number, string>>({});
 
   // Vendor state for shuttle invoice
@@ -171,13 +172,20 @@ function InvoicingPageContent() {
         const pt = routes.filter((r) => r.billing_type === "PER_TRIP");
         setPerTripRoutes(pt);
         const initial: Record<number, string> = {};
+        const initialQuantities: Record<number, string> = {};
         const initialDates: Record<number, string> = {};
-        pt.forEach((r) => { initial[r.id] = "0"; initialDates[r.id] = ""; });
+        pt.forEach((r) => {
+          initial[r.id] = "0";
+          initialQuantities[r.id] = String(Number(r.quantity ?? 0));
+          initialDates[r.id] = "";
+        });
         setRouteTrips(initial);
+        setRouteQuantities(initialQuantities);
         setRouteTripDates(initialDates);
       } catch {
         setPerTripRoutes([]);
         setRouteTrips({});
+        setRouteQuantities({});
       }
     })();
   }, [selectedCompanyId]);
@@ -356,7 +364,12 @@ function InvoicingPageContent() {
         weeklyStartDate: billingPeriod === "WEEKLY" ? weeklyStartDate : undefined,
         weeklyEndDate: billingPeriod === "WEEKLY" ? weeklyEndDate : undefined,
         routeTrips: perTripRoutes.length > 0
-          ? perTripRoutes.map((r) => ({ routeId: r.id, tripsCount: Number(routeTrips[r.id] ?? 0), tripDate: routeTripDates[r.id] || undefined }))
+          ? perTripRoutes.map((r) => ({
+              routeId: r.id,
+              tripsCount: Number(routeTrips[r.id] ?? 0),
+              quantity: Number(routeQuantities[r.id] ?? r.quantity ?? 0),
+              tripDate: routeTripDates[r.id] || undefined,
+            }))
           : undefined,
         discountType: shuttleDiscountType !== "NONE" ? shuttleDiscountType : undefined,
         discountValue: shuttleDiscountType !== "NONE" && shuttleDiscountValue !== "" ? Number(shuttleDiscountValue) : undefined,
@@ -383,8 +396,13 @@ function InvoicingPageContent() {
       setVendorCost("");
 
       const resetTrips: Record<number, string> = {};
-      perTripRoutes.forEach((r) => { resetTrips[r.id] = "0"; });
+      const resetQuantities: Record<number, string> = {};
+      perTripRoutes.forEach((r) => {
+        resetTrips[r.id] = "0";
+        resetQuantities[r.id] = String(Number(r.quantity ?? 0));
+      });
       setRouteTrips(resetTrips);
+      setRouteQuantities(resetQuantities);
     } catch (e: any) {
       console.error("Failed to generate shuttle invoice", e);
       alert(`Failed to generate shuttle invoice: ${e?.message || e}`);
@@ -698,6 +716,7 @@ function InvoicingPageContent() {
           if (!isGeneratingShuttle) setShowShuttleModal(false);
         }}
         title="Generate Shuttle Invoice"
+        size="xl"
       >
         <div className="space-y-4">
           <div className="space-y-1">
@@ -723,10 +742,10 @@ function InvoicingPageContent() {
           {perTripRoutes.length > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
-                Trips Run This Period
+                Per-Trip Route Inputs
               </label>
               <p className="text-xs text-slate-500">
-                Enter how many trips were actually made for each per-trip route. Set 0 if the trip didn&apos;t run.
+                Enter trips and quantity per route. Any route with Trips = 0 or Quantity = 0 will be excluded from invoice lines.
               </p>
               <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
                 {perTripRoutes.map((route) => (
@@ -736,6 +755,16 @@ function InvoicingPageContent() {
                       <div className="text-xs text-slate-400">{route.vehicle_type} × {route.quantity}</div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-slate-500">Qty:</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={routeQuantities[route.id] ?? String(Number(route.quantity ?? 0))}
+                        onChange={(e) =>
+                          setRouteQuantities((prev) => ({ ...prev, [route.id]: e.target.value }))
+                        }
+                        className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                      />
                       <span className="text-xs text-slate-500">Trips:</span>
                       <input
                         type="number"
