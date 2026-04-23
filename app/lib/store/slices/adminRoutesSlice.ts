@@ -10,6 +10,9 @@ export interface RouteStop {
     route_id: number;
     name: string;
     sequence_order: number;
+    morning_sequence: number | null;
+    evening_sequence: number | null;
+    direction?: 'MORNING' | 'EVENING' | 'BOTH';
     lat: number;
     lng: number;
     morning_eta?: string;
@@ -57,6 +60,7 @@ export interface CreateRouteRequest {
         morning_eta?: string;
         evening_eta?: string;
         sequence_order: number;
+        direction?: 'MORNING' | 'EVENING' | 'BOTH';
     }[];
 }
 
@@ -397,7 +401,9 @@ export const adminRoutesSlice = createSlice({
             .addCase(createRouteStop.fulfilled, (state, action) => {
                 if (state.currentRoute) {
                     state.currentRoute.route_stops = [...(state.currentRoute.route_stops || []), action.payload];
-                    state.currentRoute.route_stops.sort((a, b) => a.sequence_order - b.sequence_order);
+                    state.currentRoute.route_stops.sort(
+                        (a, b) => (a.morning_sequence ?? a.sequence_order) - (b.morning_sequence ?? b.sequence_order)
+                    );
                 }
             })
             .addCase(updateRouteStop.fulfilled, (state, action) => {
@@ -405,7 +411,9 @@ export const adminRoutesSlice = createSlice({
                     const index = state.currentRoute.route_stops.findIndex(s => s.id === action.payload.id);
                     if (index !== -1) {
                         state.currentRoute.route_stops[index] = action.payload;
-                        state.currentRoute.route_stops.sort((a, b) => a.sequence_order - b.sequence_order);
+                        state.currentRoute.route_stops.sort(
+                            (a, b) => (a.morning_sequence ?? a.sequence_order) - (b.morning_sequence ?? b.sequence_order)
+                        );
                     }
                 }
             })

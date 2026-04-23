@@ -12,6 +12,7 @@ import {
     deleteRouteStop,
     selectCurrentRoute,
     selectAdminRoutesStatus,
+    selectAdminRoutesActionStatus,
     clearCurrentRoute
 } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
@@ -22,7 +23,8 @@ import { Input } from '@/app/admin/ui/Input';
 import { Label } from '@/app/admin/ui/Label';
 import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import RosteringTab from './components/RosteringTab';
-import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X } from 'lucide-react';
+import ManageStopsTab from './components/ManageStopsTab';
+import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
@@ -32,6 +34,21 @@ import { useAuth } from '@/app/lib/contexts/auth-context';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
+
+/** Helper to format ISO time strings or Date objects to HH:mm */
+function formatTime(timeStr: string | null | undefined): string {
+    if (!timeStr) return '';
+    // If it's already HH:mm, return as is
+    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+    // If it's a full ISO string or Date, extract HH:mm
+    try {
+        const date = new Date(timeStr.includes('T') ? timeStr : `1970-01-01T${timeStr}Z`);
+        if (isNaN(date.getTime())) return timeStr;
+        return date.toISOString().substring(11, 16);
+    } catch {
+        return timeStr;
+    }
+}
 
 type PolylineResponse = { points: { lat: number; lng: number }[] };
 
@@ -43,6 +60,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const status = useAppSelector(selectAdminRoutesStatus);
     const drivers = useAppSelector(selectAdminDrivers);
     const vehicles = useAppSelector(selectAdminVehicles);
+    const actionStatus = useAppSelector(selectAdminRoutesActionStatus);
 
     const { hasCrud } = useAuth();
     const canEditRoutes =
@@ -50,7 +68,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         hasCrud('routes', 'update') ||
         hasCrud('routes', 'delete');
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'rostering'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'stops' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', assigned_vehicle_id: '', assigned_driver_id: '' });
     const [currentAssignedVehicle, setCurrentAssignedVehicle] = useState<any>(null);
@@ -65,6 +83,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         morning_eta: '',
         evening_eta: '',
         sequence_order: '',
+        direction: 'BOTH',
     });
 
     // Road-following polyline for the saved route stops
@@ -145,7 +164,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     // ---- Stop form helpers -----------------------------------------------
 
     const resetStopForm = () => {
-        setStopForm({ name: '', lat: '', lng: '', morning_eta: '', evening_eta: '', sequence_order: '' });
+        setStopForm({ name: '', lat: '', lng: '', morning_eta: '', evening_eta: '', sequence_order: '', direction: 'BOTH' });
         setEditingStopId(null);
         setIsAddingStop(false);
     };
@@ -155,9 +174,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             name: stop.name,
             lat: stop.lat?.toString() || '',
             lng: stop.lng?.toString() || '',
-            morning_eta: stop.morning_eta || '',
-            evening_eta: stop.evening_eta || '',
-            sequence_order: stop.sequence_order?.toString() || '',
+            morning_eta: stop.morning_eta ? formatTime(stop.morning_eta) : '',
+            evening_eta: stop.evening_eta ? formatTime(stop.evening_eta) : '',
+            sequence_order: stop.sequence_order?.toString() || '0',
+            direction: stop.morning_sequence != null && stop.evening_sequence != null ? 'BOTH' : (stop.morning_sequence != null ? 'MORNING' : 'EVENING'),
         });
         setEditingStopId(stop.id);
         setIsAddingStop(false);
@@ -183,8 +203,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const handleStopSubmit = async () => {
         if (!canEditRoutes) return;
         if (!route) return;
-        if (!stopForm.name || !stopForm.lat || !stopForm.lng || !stopForm.sequence_order) {
-            toast.error('Name, location, and sequence order are required');
+        if (!stopForm.name || !stopForm.lat || !stopForm.lng) {
+            toast.error('Name and location are required');
             return;
         }
         const data = {
@@ -193,7 +213,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             lng: parseFloat(stopForm.lng),
             morning_eta: stopForm.morning_eta || null,
             evening_eta: stopForm.evening_eta || null,
-            sequence_order: parseInt(stopForm.sequence_order),
+            sequence_order: parseInt(stopForm.sequence_order) || 0,
+            direction: stopForm.direction || 'BOTH',
         };
         try {
             if (isAddingStop) {
@@ -370,7 +391,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
             {/* Tabs */}
             <div className="flex border-b">
-                {(['overview', 'rostering'] as const).map((tab) => (
+                {(['overview', 'stops', 'rostering'] as const).map((tab) => (
                     <button
                         key={tab}
                         className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors capitalize flex items-center gap-2 ${activeTab === tab
@@ -379,7 +400,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                             }`}
                         onClick={() => setActiveTab(tab)}
                     >
-                        {tab === 'overview' ? <Info className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                        {tab === 'overview' ? <Info className="w-4 h-4" /> : tab === 'stops' ? <ListOrdered className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
                 ))}
@@ -511,7 +532,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         />
                                     </div>
 
-                                    {/* Name (editable after search) */}
+                                    {/* Name */}
                                     <div>
                                         <Label className="text-xs">Stop Name</Label>
                                         <Input
@@ -522,7 +543,21 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         />
                                     </div>
 
-                                    {/* Coordinates (auto-filled by search, or manual) */}
+                                    {/* Direction */}
+                                    <div>
+                                        <Label className="text-xs">Direction</Label>
+                                        <select
+                                            className="w-full h-8 px-2 mt-1 border rounded text-xs bg-white"
+                                            value={stopForm.direction || 'BOTH'}
+                                            onChange={(e) => setStopForm({ ...stopForm, direction: e.target.value })}
+                                        >
+                                            <option value="BOTH">Both</option>
+                                            <option value="MORNING">Morning Only</option>
+                                            <option value="EVENING">Evening Only</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Coordinates */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <Label className="text-xs">Lat</Label>
@@ -546,16 +581,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <Label className="text-xs">Seq</Label>
-                                            <Input
-                                                className="h-8 text-sm"
-                                                type="number"
-                                                value={stopForm.sequence_order}
-                                                onChange={(e) => setStopForm({ ...stopForm, sequence_order: e.target.value })}
-                                            />
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <Label className="text-xs">AM</Label>
                                             <Input
@@ -576,19 +602,24 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         </div>
                                     </div>
 
-                                    {stopForm.lat && stopForm.lng && (
-                                        <p className="text-[10px] text-gray-400">
-                                            📍 {parseFloat(stopForm.lat).toFixed(5)}, {parseFloat(stopForm.lng).toFixed(5)}
-                                            <span className="ml-2 text-gray-300">·</span>
-                                            <span className="ml-2 text-gray-400">or click map to adjust</span>
-                                        </p>
-                                    )}
-
-                                    <Button size="sm" className="w-full" onClick={handleStopSubmit} disabled={!canEditRoutes}>
-                                        <Save className="w-3 h-3 mr-2" /> Save Stop
+                                    <Button 
+                                        size="sm" 
+                                        className="w-full" 
+                                        onClick={handleStopSubmit} 
+                                        disabled={!canEditRoutes || actionStatus === 'loading'}
+                                    >
+                                        {actionStatus === 'loading' ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Saving...
+                                            </div>
+                                        ) : (
+                                            <><Save className="w-3 h-3 mr-2" /> Save Stop</>
+                                        )}
                                     </Button>
                                 </div>
                             )}
+
 
                             {/* Stops list */}
                             <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
@@ -607,7 +638,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             >
                                                 <div className="text-sm font-medium">{stop.name}</div>
                                                 <div className="text-xs text-gray-400">
-                                                    AM: {stop.morning_eta || '—'} · PM: {stop.evening_eta || '—'}
+                                                    AM: {formatTime(stop.morning_eta) || '—'} · PM: {formatTime(stop.evening_eta) || '—'}
                                                 </div>
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -641,6 +672,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                 </div>
             )}
+
+            {/* Stops Tab */}
+            {activeTab === 'stops' && <ManageStopsTab route={route} />}
 
             {/* Rostering Tab */}
             {activeTab === 'rostering' && <RosteringTab route={route} />}
