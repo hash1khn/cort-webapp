@@ -67,6 +67,14 @@ export interface ChauffeurTripLog {
     sst_amount?: number | null;
     total_invoice_amount?: number | null;
     savings_amount?: number | null;
+    vendor_cost?: number | null;
+    vendor_base_rent?: number | null;
+    vendor_fuel_cost?: number | null;
+    vendor_overtime_charge?: number | null;
+    vendor_distance_km?: number | null;
+    vendor_payment_status?: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID' | null;
+    vendor_amount_paid?: number | null;
+    vendor_amount_remaining?: number | null;
 }
 
 export interface DailyTripLog {

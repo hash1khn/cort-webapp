@@ -28,6 +28,7 @@ export interface RecalculatePayload {
     total_distance_km?: number;
     expense_toll?: number;
     expense_parking?: number;
+    vendor_cost?: number;
     daily_logs?: Array<{
         date: string;
         trip_type: TripType;
@@ -61,6 +62,7 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
     const [distanceKm, setDistanceKm] = useState("");
     const [toll, setToll] = useState("");
     const [parking, setParking] = useState("");
+    const [vendorCost, setVendorCost] = useState("");
 
     // Daily logs
     const [showDailyLogs, setShowDailyLogs] = useState(false);
@@ -83,6 +85,7 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
             setDistanceKm(String(booking.chauffeur_trip_logs?.total_distance_km ?? ""));
             setToll(String(booking.chauffeur_trip_logs?.expense_toll ?? "0"));
             setParking(String(booking.chauffeur_trip_logs?.expense_parking ?? "0"));
+            setVendorCost(String(booking.chauffeur_trip_logs?.vendor_cost ?? ""));
 
             // Seed daily logs from existing data
             const existingLogs = (booking.chauffeur_trip_daily_logs ?? []).map((l) => ({
@@ -149,6 +152,11 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
 
         const parsedParking = parseFloat(parking);
         if (!isNaN(parsedParking)) payload.expense_parking = parsedParking;
+
+        const parsedVendorCost = parseFloat(vendorCost);
+        if (booking.vehicles?.ownership === 'PARTNER' && !isNaN(parsedVendorCost) && parsedVendorCost >= 0) {
+            payload.vendor_cost = parsedVendorCost;
+        }
 
         if (showDailyLogs && dailyLogs.length > 0) {
             payload.daily_logs = dailyLogs.map((l) => ({
@@ -299,6 +307,19 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                                     className="h-9 rounded-md border border-border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-orange"
                                 />
                             </label>
+                            {booking.vehicles?.ownership === 'PARTNER' && (
+                                <label className="flex flex-col gap-1 col-span-2">
+                                    <span className="text-xs font-medium text-navy">Vendor Cost (Lumpsum)</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={vendorCost}
+                                        onChange={(e) => setVendorCost(e.target.value)}
+                                        placeholder="Set or correct manual vendor cost"
+                                        className="h-9 rounded-md border border-border px-3 text-sm focus:outline-none focus:ring-1 focus:ring-orange"
+                                    />
+                                </label>
+                            )}
                         </div>
                     </div>
 

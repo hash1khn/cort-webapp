@@ -943,6 +943,7 @@ class ApiClient {
         total_distance_km?: number;
         expense_toll?: number;
         expense_parking?: number;
+        vendor_cost?: number;
         daily_logs?: DailyTripLog[];
     }): Promise<{ success: boolean; invoice_amount: number; invoice_number: string; savings: number }> {
         return this.request(`/admin/bookings/${id}/recalculate`, {
