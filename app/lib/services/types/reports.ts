@@ -64,6 +64,11 @@ export interface ShuttleReport {
     route: {
         id: number;
         name: string;
+        stops?: {
+            id: number;
+            name: string;
+            sequence: number | null;
+        }[];
     } | null;
     company: {
         id: number;
@@ -83,6 +88,16 @@ export interface ShuttleReport {
         absent: number;
         details: ShuttlePassengerLog[];
     };
+    stop_logs?: {
+        stop_id: number;
+        stop_name: string | null;
+        arrived_at: string | null;
+        departed_at: string | null;
+        boarded_at: string | null;
+        drop_off_at: string | null;
+        morning_sequence: number | null;
+        evening_sequence: number | null;
+    }[];
 }
 
 export interface ReportQueryParams {

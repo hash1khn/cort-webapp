@@ -36,6 +36,17 @@ interface PaginationMeta {
   total: number;
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-PK", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function ShuttleReportsPage() {
   const company = useAppSelector(selectCompany);
 
@@ -181,14 +192,15 @@ export default function ShuttleReportsPage() {
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Absent</th>
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Assigned</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Completed At</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
               {isLoading && reports.length === 0 ? (
-                <TableSkeleton columns={10} rows={8} />
+                <TableSkeleton columns={11} rows={8} />
               ) : reports.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={11} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg
@@ -213,8 +225,7 @@ export default function ShuttleReportsPage() {
                 reports.map((report) => (
                   <tr
                     key={report.id}
-                    onClick={() => setSelectedReport(report)}
-                    className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80 cursor-pointer"
+                    className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80"
                   >
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-[var(--cort-navy)] font-medium font-mono text-xs`}>
                       {report.trip_date
@@ -265,15 +276,30 @@ export default function ShuttleReportsPage() {
                       {report.passengers.total}
                     </td>
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
-                      {report.completed_at
-                        ? new Date(report.completed_at).toLocaleString("en-PK", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })
-                        : "—"}
+                      {formatDateTime(report.completed_at)}
+                    </td>
+                    <td className={`${TABLE_CELL_CLASS} text-right`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReport(report)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--cort-navy)] transition-colors"
+                        aria-label={`View stop details for trip ${report.id}`}
+                        title="View stop details"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 5h.01M12 12h.01M12 19h.01"
+                          />
+                        </svg>
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -424,6 +450,72 @@ export default function ShuttleReportsPage() {
                 </div>
               </div>
             )}
+
+            <div>
+              <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)] uppercase mb-2">
+                Stop Logs
+              </div>
+              <div className="rounded-xl border border-[var(--border-light)] overflow-hidden">
+                {selectedReport.route?.stops && selectedReport.route.stops.length > 0 ? (
+                  <div className="divide-y divide-[var(--border-light)]">
+                    {selectedReport.route.stops.map((stop, index) => {
+                      const log = selectedReport.stop_logs?.find((item) => item.stop_id === stop.id);
+                      const isEvening = selectedReport.direction === "EVENING";
+                      const arrivedAt = formatDateTime(log?.arrived_at ?? null);
+                      const boardedAt = formatDateTime(log?.boarded_at ?? null);
+                      const isFirstEveningStop = isEvening && index === 0;
+                      const dropOffAt = isFirstEveningStop
+                        ? formatDateTime(selectedReport.started_at)
+                        : formatDateTime(log?.drop_off_at ?? null);
+
+                      return (
+                        <div
+                          key={stop.id}
+                          className="grid grid-cols-[auto,1fr,auto] items-start gap-3 px-4 py-3"
+                        >
+                          <div className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--surface-subtle)] px-2 text-xs font-semibold text-[var(--cort-navy)]">
+                            {stop.sequence ?? "—"}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-[var(--cort-navy)]">
+                              {stop.name}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)]">
+                              {isEvening ? "Dropoff from shuttle boarding logs" : "Arrival from trip stop logs"}
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-mono text-[var(--cort-navy)]">
+                            {isEvening ? (
+                              <div>
+                                <div className="text-xs text-[var(--text-muted)]">
+                                  {isFirstEveningStop ? "Trip started at" : "Dropoff time"}
+                                </div>
+                                <div>{dropOffAt}</div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div>
+                                  <div className="text-xs text-[var(--text-muted)]">Arrived at</div>
+                                  <div>{arrivedAt}</div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-[var(--text-muted)]">Boarded at</div>
+                                  <div>{boardedAt}</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
+                    No stop logs found for this trip.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </Modal>

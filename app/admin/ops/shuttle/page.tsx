@@ -184,6 +184,9 @@ function OpsShuttleContent() {
     if (!polyline?.points?.length) return [];
 
     let points = polyline.points;
+    const isActiveTrip =
+      selectedTrip?.status === 'STARTED' || selectedTrip?.status === 'IN_PROGRESS';
+    const shouldGrayDefaultRoute = isActiveTrip && !!driverCoord;
 
     // Trim already-travelled portion: find the polyline point nearest to the
     // driver and slice from there forward — no extra API calls needed.
@@ -202,8 +205,11 @@ function OpsShuttleContent() {
       points = points.slice(nearestIdx);
     }
 
-    return [{ positions: points.map((p) => [p.lat, p.lng] as [number, number]), color: '#0C225E' }];
-  }, [polyline, driverCoord]);
+    return [{
+      positions: points.map((p) => [p.lat, p.lng] as [number, number]),
+      color: shouldGrayDefaultRoute ? '#9CA3AF' : '#0C225E',
+    }];
+  }, [polyline, driverCoord, selectedTrip?.status]);
 
   const mapCenter = useMemo((): [number, number] => {
     if (driverCoord) return [driverCoord.lat, driverCoord.lng];
@@ -301,7 +307,7 @@ function OpsShuttleContent() {
                 )}
               </div>
 
-              {selectedTripId === trip.id && (
+              {selectedTripId === trip.id && (trip.status === 'STARTED' || trip.status === 'IN_PROGRESS') && (
                 <div className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${isConnected ? 'text-green-600' : 'text-gray-400'}`}>
                   <Radio className="w-3 h-3" />
                   {isConnected ? 'Live tracking active' : 'Connecting...'}
