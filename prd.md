@@ -6,6 +6,9 @@
 
 
 
+
+
+
 Project Scope of Work: Cort Enterprise Mobility Platform (Phase 1 MVP)
 Project Name: Cort Enterprise Mobility Platform
 Version: 2.1 (Consolidated MVP Scope)
