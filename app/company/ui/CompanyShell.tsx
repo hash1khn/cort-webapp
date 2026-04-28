@@ -118,14 +118,9 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           {/* Logo Area */}
           <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
             <img
-              src="/cort-app-icon.svg"
-              alt="Cort"
-              className={cx("absolute h-14 w-14 object-contain transition-all duration-300", (collapsed && !isMobile) ? "opacity-100 scale-100" : "opacity-0 scale-90")}
-            />
-            <img
-              src="/logo.svg"
-              alt="Cort"
-              className={cx("absolute h-14 w-auto object-contain transition-all duration-300", (collapsed && !isMobile) ? "opacity-0 scale-90" : "opacity-100 scale-100")}
+              src="/traflinq-logo-no-tagline-Photoroom.png"
+              alt="TrafLinq"
+              className={cx("h-14 w-auto object-contain transition-all duration-300", (collapsed && !isMobile) ? "scale-75" : "scale-100")}
             />
           </div>
         </div>
@@ -233,7 +228,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <Menu size={24} />
         </button>
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img src="/logo.svg" alt="Cort" className="h-10 w-auto" />
+          <img src="/traflinq-logo-no-tagline-Photoroom.png" alt="TrafLinq" className="h-10 w-auto" />
         </div>
         <div className="w-10" /> {/* Spacer */}
       </header>
