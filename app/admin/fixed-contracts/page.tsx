@@ -13,6 +13,7 @@ import {
   selectAdminPricingState,
   resetActionStatus,
 } from "../../lib/store/slices/adminPricingSlice";
+import { apiClient, FixedTermContract } from "../../lib/services/api-client";
 import { Plus, Trash2, Save, Car, User, DollarSign, Power, PowerOff, Pencil, X } from "lucide-react";
 
 export default function FixedTermContractsPage() {
@@ -48,6 +49,14 @@ function FixedTermContractsContent() {
     ownerName: "",
     monthlyAmount: "",
   });
+  const [settlingContractId, setSettlingContractId] = useState<number | null>(null);
+  const [settlementData, setSettlementData] = useState({
+    amount: "",
+    billingMonth: "",
+    paymentMethod: "",
+    notes: "",
+  });
+  const [isSubmittingSettlement, setIsSubmittingSettlement] = useState(false);
 
   useEffect(() => {
     dispatch(fetchFixedTermContracts());
@@ -100,7 +109,7 @@ function FixedTermContractsContent() {
     );
   };
 
-  const handleEditClick = (contract: any) => {
+  const handleEditClick = (contract: FixedTermContract) => {
     setEditingId(contract.id);
     setIsAdding(false);
     setFormData({
@@ -110,7 +119,7 @@ function FixedTermContractsContent() {
     });
   };
 
-  const handleToggleActive = (contract: any) => {
+  const handleToggleActive = (contract: FixedTermContract) => {
     setTogglingId(contract.id); // Track toggle specifically
     dispatch(
       updateFixedTermContractAsync({
@@ -123,6 +132,44 @@ function FixedTermContractsContent() {
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this contract?")) {
       dispatch(deleteFixedTermContractAsync(id));
+    }
+  };
+
+  const handleOpenSettlement = (contract: FixedTermContract) => {
+    setSettlingContractId(contract.id);
+    setSettlementData({
+      amount: Number(contract.current_month_due?.amount_remaining ?? contract.monthly_amount).toString(),
+      billingMonth: contract.current_month_due?.billing_month
+        ? new Date(contract.current_month_due.billing_month).toISOString().split("T")[0]
+        : "",
+      paymentMethod: "",
+      notes: "",
+    });
+  };
+
+  const handleSubmitSettlement = async () => {
+    if (!settlingContractId) return;
+    if (!settlementData.amount || Number(settlementData.amount) <= 0) {
+      alert("Please enter a valid payment amount");
+      return;
+    }
+
+    try {
+      setIsSubmittingSettlement(true);
+      await apiClient.settleFixedTermContract(settlingContractId, {
+        amount: Number(settlementData.amount),
+        billingMonth: settlementData.billingMonth || undefined,
+        paymentMethod: settlementData.paymentMethod || undefined,
+        notes: settlementData.notes || undefined,
+      });
+      await dispatch(fetchFixedTermContracts());
+      setSettlingContractId(null);
+      setSettlementData({ amount: "", billingMonth: "", paymentMethod: "", notes: "" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to record payment";
+      alert(message);
+    } finally {
+      setIsSubmittingSettlement(false);
     }
   };
 
@@ -225,13 +272,16 @@ function FixedTermContractsContent() {
                 <th className="px-6 py-4">Car Description</th>
                 <th className="px-6 py-4">Owner Name</th>
                 <th className="px-6 py-4 text-right">Monthly Amount</th>
+                <th className="px-6 py-4 text-right">This Month Paid</th>
+                <th className="px-6 py-4 text-right">This Month Remaining</th>
+                <th className="px-6 py-4">Payment</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0c225e] border-t-transparent" />
                       <span>Loading contracts...</span>
@@ -240,7 +290,7 @@ function FixedTermContractsContent() {
                 </tr>
               ) : fixedTermContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     No fixed-term contracts found.
                   </td>
                 </tr>
@@ -260,8 +310,40 @@ function FixedTermContractsContent() {
                     <td className="px-6 py-4 text-right font-bold text-slate-900">
                       PKR {Number(contract.monthly_amount).toLocaleString()}
                     </td>
+                    <td className="px-6 py-4 text-right text-slate-700">
+                      PKR {Number(contract.current_month_due?.amount_paid ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right font-semibold text-[#0c225e]">
+                      <div>PKR {Number(contract.current_month_due?.amount_remaining ?? contract.monthly_amount).toLocaleString()}</div>
+                      <div className="text-xs font-normal text-amber-700">
+                        Overdue: PKR {Number(contract.overdue_amount ?? 0).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        contract.payment_status === "FULLY_PAID"
+                          ? "bg-green-100 text-green-700"
+                          : contract.payment_status === "PARTIALLY_PAID"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-700"
+                      }`}>
+                        {contract.payment_status === "FULLY_PAID"
+                          ? "Fully Paid"
+                          : contract.payment_status === "PARTIALLY_PAID"
+                            ? "Partially Paid"
+                            : "Unpaid"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenSettlement(contract)}
+                          disabled={!canUpdate || actionStatus === "loading"}
+                          title="Record Payment"
+                          className="rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                        >
+                          Settle
+                        </button>
                         <button
                           onClick={() => handleEditClick(contract)}
                           disabled={!canUpdate || actionStatus === "loading"}
@@ -312,6 +394,19 @@ function FixedTermContractsContent() {
                       .reduce((sum, c) => sum + Number(c.monthly_amount), 0)
                       .toLocaleString()}
                   </td>
+                  <td className="px-6 py-4 text-right text-emerald-700">
+                    PKR {fixedTermContracts
+                      .filter(c => c.is_active)
+                      .reduce((sum, c) => sum + Number(c.current_month_due?.amount_paid ?? 0), 0)
+                      .toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-right text-amber-700">
+                    PKR {fixedTermContracts
+                      .filter(c => c.is_active)
+                      .reduce((sum, c) => sum + Number(c.current_month_due?.amount_remaining ?? c.monthly_amount), 0)
+                      .toLocaleString()}
+                  </td>
+                  <td></td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -319,6 +414,81 @@ function FixedTermContractsContent() {
           </table>
         </div>
       </div>
+
+      {settlingContractId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#0c225e]">Record Fixed-Contract Payment</h3>
+              <button
+                onClick={() => setSettlingContractId(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid gap-4">
+              <input
+                type="number"
+                placeholder="Amount"
+                value={settlementData.amount}
+                onChange={(e) => setSettlementData((prev) => ({ ...prev, amount: e.target.value }))}
+                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+              />
+              <select
+                value={settlementData.billingMonth}
+                onChange={(e) => setSettlementData((prev) => ({ ...prev, billingMonth: e.target.value }))}
+                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+              >
+                <option value="">Oldest unpaid month</option>
+                {(fixedTermContracts.find((c) => c.id === settlingContractId)?.monthly_dues ?? [])
+                  .filter((due) => Number(due.amount_remaining) > 0)
+                  .map((due) => {
+                    const monthLabel = new Date(due.billing_month).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                    });
+                    const monthValue = new Date(due.billing_month).toISOString().split("T")[0];
+                    return (
+                      <option key={due.id} value={monthValue}>
+                        {monthLabel} - Remaining PKR {Number(due.amount_remaining).toLocaleString()}
+                      </option>
+                    );
+                  })}
+              </select>
+              <input
+                type="text"
+                placeholder="Payment Method (optional)"
+                value={settlementData.paymentMethod}
+                onChange={(e) => setSettlementData((prev) => ({ ...prev, paymentMethod: e.target.value }))}
+                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+              />
+              <textarea
+                placeholder="Notes (optional)"
+                value={settlementData.notes}
+                onChange={(e) => setSettlementData((prev) => ({ ...prev, notes: e.target.value }))}
+                rows={3}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#f47f00]"
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setSettlingContractId(null)}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitSettlement}
+                disabled={isSubmittingSettlement}
+                className="rounded-lg bg-[#0c225e] px-5 py-2 text-sm font-bold text-white hover:bg-[#0a1a4a] disabled:opacity-50"
+              >
+                {isSubmittingSettlement ? "Saving..." : "Save Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

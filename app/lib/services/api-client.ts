@@ -20,8 +20,10 @@ import {
     ShuttleContractRoute,
     CreateShuttleContractRequest,
     FixedTermContract,
+    FixedTermContractPayment,
     CreateFixedTermContractRequest,
     UpdateFixedTermContractRequest,
+    SettleFixedTermContractRequest,
     // Bookings
     CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams,
     DailyTripLog, AddPaymentRequest,
@@ -850,6 +852,20 @@ class ApiClient {
         });
     }
 
+    async settleFixedTermContract(
+        id: number,
+        data: SettleFixedTermContractRequest,
+    ): Promise<{ data: { payment: FixedTermContractPayment } }> {
+        return this.request<{ data: { payment: FixedTermContractPayment } }>(`/contracts/fixed-term/${id}/settle`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getFixedTermPayments(id: number): Promise<{ data: { payments: FixedTermContractPayment[] } }> {
+        return this.request<{ data: { payments: FixedTermContractPayment[] } }>(`/contracts/fixed-term/${id}/payments`);
+    }
+
     // ===== SYSTEM SETTINGS =====
 
     async getSystemSetting(key: string): Promise<SystemSettingResponse> {
@@ -1121,7 +1137,7 @@ class ApiClient {
 
     async settleShuttleInvoice(
         invoiceId: number,
-        data: { amount: number; paymentType?: 'PARTIAL' | 'FINAL'; paymentMethod?: string; notes?: string }
+        data: { amount: number; paymentType?: 'PARTIAL' | 'FINAL'; paymentMethod?: string; notes?: string; paymentDate?: string }
     ) {
         return this.request(`/invoices/${invoiceId}/settle`, {
             method: 'POST',

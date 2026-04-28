@@ -114,8 +114,10 @@ export type {
     ShuttleContract,
     CreateShuttleContractRequest,
     FixedTermContract,
+    FixedTermContractPayment,
     CreateFixedTermContractRequest,
     UpdateFixedTermContractRequest,
+    SettleFixedTermContractRequest,
 } from './pricing';
 
 // Fleet (Fuel & Maintenance)

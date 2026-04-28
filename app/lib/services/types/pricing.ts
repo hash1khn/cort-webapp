@@ -111,6 +111,35 @@ export interface FixedTermContract {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    total_due?: string;
+    total_paid?: string;
+    amount_remaining_total?: string;
+    overdue_amount?: string;
+    current_month_due?: FixedTermMonthlyDue | null;
+    monthly_dues?: FixedTermMonthlyDue[];
+    payment_status?: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID';
+}
+
+export interface FixedTermMonthlyDue {
+    id: number;
+    fixed_term_contract_id: number;
+    billing_month: string;
+    due_amount: string;
+    amount_paid: string;
+    amount_remaining: string;
+    payment_status: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID' | null;
+}
+
+export interface FixedTermContractPayment {
+    id: number;
+    fixed_term_contract_id: number;
+    amount: string;
+    payment_type: 'PARTIAL' | 'FINAL' | null;
+    payment_method: string | null;
+    payment_date: string | null;
+    notes: string | null;
+    created_at: string | null;
+    fixed_term_contract_monthly_dues?: FixedTermMonthlyDue | null;
 }
 
 export interface CreateFixedTermContractRequest {
@@ -130,6 +159,14 @@ export interface UpdateFixedTermContractRequest {
     isActive?: boolean;
     endDate?: string | null;
     notes?: string | null;
+}
+
+export interface SettleFixedTermContractRequest {
+    amount: number;
+    paymentType?: 'PARTIAL' | 'FINAL';
+    paymentMethod?: string;
+    notes?: string;
+    billingMonth?: string;
 }
 
 export interface SystemSetting {
