@@ -1,6 +1,8 @@
 export interface SuperAdminDashboardStats {
     totalRevenue: MetricComparison;
     totalCOGS: MetricComparison;
+    chauffeurRevenue: MetricComparison;
+    shuttleRevenue: MetricComparison;
     grossProfit: MetricComparison;
     netMargin: MetricComparison;
     ridesBreakdown: BreakdownItem[];
@@ -9,7 +11,8 @@ export interface SuperAdminDashboardStats {
     repairExpenses: BreakdownItem[];
     oilMaintenanceExpenses: BreakdownItem[];
     revenueByClient: BreakdownItem[];
-    profitPerRide: number;
+    chauffeurProfitPerRide: number;
+    shuttleProfitPerRide: number;
     costPerRide: number;
     totalReceivables: number;
     totalPayables: number;

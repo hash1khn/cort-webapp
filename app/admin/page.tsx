@@ -176,15 +176,17 @@ function AdminDashboardContent() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Total Revenue" metric={stats.totalRevenue} type="currency" />
+            <MetricCard label="Chauffeur Revenue" metric={stats.chauffeurRevenue} type="currency" />
+            <MetricCard label="Shuttle Revenue" metric={stats.shuttleRevenue} type="currency" />
             <MetricCard label="COGS" metric={stats.totalCOGS} type="currency" />
             <MetricCard label="Gross Profit" metric={stats.grossProfit} type="currency" />
             <MetricCard label="Net Margin" metric={stats.netMargin} type="percentage" />
+            <MetricCard label="Chauffeur Profit/Ride" metric={{ current: stats.chauffeurProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+            <MetricCard label="Shuttle Profit/Ride" metric={{ current: stats.shuttleProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard label="Profit per Ride" metric={{ current: stats.profitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <MetricCard label="Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-
             <MetricCard
               label="Receivables"
               metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
@@ -221,7 +223,6 @@ function AdminDashboardContent() {
                 </div>
               }
             />
-
             <MetricCard label="Payables" metric={{ current: stats.totalPayables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
           </div>
 
