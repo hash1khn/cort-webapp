@@ -75,8 +75,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col items-center justify-center px-6 py-8">
           <img
-            src="/Asset-1@2x (1).png"
-            alt="Cort"
+            src="/traflinq_dark_no_tagline-PhotoRoom.png"
+            alt="TrafLinq"
             className="h-14 w-auto drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)]"
           />
         </div>
@@ -137,7 +137,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <Menu size={24} />
         </button>
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img src="/logo.svg" alt="Cort" className="h-10 w-auto" />
+          <img src="/traflinq_dark_no_tagline.png" alt="TrafLinq" className="h-10 w-auto" />
         </div>
         <div className="w-10" /> {/* Spacer */}
       </header>
