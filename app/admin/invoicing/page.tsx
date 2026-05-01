@@ -98,7 +98,13 @@ function InvoicingPageContent() {
   const [settlePaymentType, setSettlePaymentType] = useState<"PARTIAL" | "FINAL">("PARTIAL");
   const [settlePaymentMethod, setSettlePaymentMethod] = useState<string>("");
   const [settleNotes, setSettleNotes] = useState<string>("");
+  const [settlePaymentDate, setSettlePaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isSettling, setIsSettling] = useState(false);
+
+  // View logs state
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [activeInvoiceLogs, setActiveInvoiceLogs] = useState<any>(null);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   const fetchInvoices = useCallback(async (page: number, companyId?: number) => {
     setIsLoading(true);
@@ -416,6 +422,7 @@ function InvoicingPageContent() {
     setSettlePaymentType("PARTIAL");
     setSettlePaymentMethod("");
     setSettleNotes("");
+    setSettlePaymentDate(new Date().toISOString().split('T')[0]);
     setShowSettleModal(true);
   };
 
@@ -433,6 +440,7 @@ function InvoicingPageContent() {
         paymentType: settlePaymentType,
         paymentMethod: settlePaymentMethod || undefined,
         notes: settleNotes || undefined,
+        paymentDate: settlePaymentDate || undefined,
       });
       fetchInvoices(currentPage, filterCompanyId);
       fetchStats();
@@ -443,6 +451,21 @@ function InvoicingPageContent() {
       alert(`Failed to record payment: ${e?.message || e}`);
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const openLogsModal = async (inv: Invoice) => {
+    setIsLoadingLogs(true);
+    setShowLogsModal(true);
+    try {
+      const res = await apiClient.getShuttleInvoicePayments(inv.id);
+      setActiveInvoiceLogs(res.data);
+    } catch (e) {
+      console.error("Failed to fetch logs", e);
+      alert("Failed to fetch payment logs");
+      setShowLogsModal(false);
+    } finally {
+      setIsLoadingLogs(false);
     }
   };
 
@@ -686,6 +709,16 @@ function InvoicingPageContent() {
                             title="Record Payment"
                           >
                             Settle
+                          </button>
+                        )}
+                        {inv.shuttle_contract_id && (
+                          <button
+                            type="button"
+                            onClick={() => openLogsModal(inv)}
+                            className="text-blue-700 hover:text-blue-900 font-semibold text-xs border border-blue-300 rounded px-2 py-1 hover:bg-blue-50"
+                            title="View Payment Logs"
+                          >
+                            Logs
                           </button>
                         )}
                       </div>
@@ -1078,6 +1111,18 @@ function InvoicingPageContent() {
 
             <div className="space-y-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Payment Date
+              </label>
+              <input
+                type="date"
+                value={settlePaymentDate}
+                onChange={(e) => setSettlePaymentDate(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Payment Method (Optional)
               </label>
               <select
@@ -1125,6 +1170,69 @@ function InvoicingPageContent() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Payment Logs Modal */}
+      <Modal
+        isOpen={showLogsModal}
+        onClose={() => {
+          setShowLogsModal(false);
+          setActiveInvoiceLogs(null);
+        }}
+        title={`Payment History: ${activeInvoiceLogs?.invoice_number || ""}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {isLoadingLogs ? (
+            <div className="py-10 text-center text-slate-500">Loading history...</div>
+          ) : activeInvoiceLogs?.shuttle_invoice_payments?.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2">Date</th>
+                    <th className="px-4 py-2">Amount</th>
+                    <th className="px-4 py-2">Method</th>
+                    <th className="px-4 py-2">Notes</th>
+                    <th className="px-4 py-2">Recorded By</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {activeInvoiceLogs.shuttle_invoice_payments.map((p: any) => (
+                    <tr key={p.id}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {new Date(p.payment_date).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-navy">
+                        PKR {Number(p.amount).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{p.payment_method || "—"}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{p.notes || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {p.users?.full_name || "System"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-10 text-center text-slate-500">No payment records found.</div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={() => setShowLogsModal(false)}
+              className="px-4 py-2 text-sm font-bold text-white bg-[#0c225e] rounded-lg hover:bg-[#0a1a4a]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

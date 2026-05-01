@@ -183,4 +183,5 @@ export interface AddPaymentRequest {
     payment_type?: 'PARTIAL' | 'FINAL';
     payment_method?: string;
     notes?: string;
+    payment_date?: string;
 }

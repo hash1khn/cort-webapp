@@ -7,6 +7,7 @@ export const PaymentForm = memo(function PaymentForm({ bookingId, onSuccess }: {
     const [amount, setAmount] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("CASH");
     const [notes, setNotes] = useState("");
+    const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -24,6 +25,7 @@ export const PaymentForm = memo(function PaymentForm({ bookingId, onSuccess }: {
                 payment_type: "PARTIAL",
                 payment_method: paymentMethod,
                 notes: notes || undefined,
+                payment_date: paymentDate || undefined,
             });
 
             alert("Payment recorded successfully!");
@@ -55,6 +57,19 @@ export const PaymentForm = memo(function PaymentForm({ bookingId, onSuccess }: {
                         onChange={(e) => setAmount(e.target.value)}
                         className="w-full h-10 px-3 rounded-md border border-border bg-white text-sm outline-none focus:ring-2 focus:ring-blue/40"
                         placeholder="Enter amount"
+                        required
+                    />
+                </div>
+
+                <div>
+                    <label className="text-xs font-medium text-ink block mb-1">
+                        Payment Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="date"
+                        value={paymentDate}
+                        onChange={(e) => setPaymentDate(e.target.value)}
+                        className="w-full h-10 px-3 rounded-md border border-border bg-white text-sm outline-none focus:ring-2 focus:ring-blue/40"
                         required
                     />
                 </div>
