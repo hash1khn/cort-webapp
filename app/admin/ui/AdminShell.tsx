@@ -75,7 +75,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col items-center justify-center px-6 py-8">
           <img
-            src="/traflinq_dark_no_tagline-PhotoRoom.png"
+            src="/traflinq_dark_no_tagline-Photoroom.png"
             alt="TrafLinq"
             className="h-14 w-auto drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)]"
           />

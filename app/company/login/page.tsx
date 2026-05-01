@@ -62,7 +62,7 @@ export default function CompanyLoginPage() {
           <div className="flex flex-col items-center">
             <div className="mb-6 rounded-2xl bg-white/5 p-6 backdrop-blur-sm ring-1 ring-white/10">
               <img
-                src="/traflinq_dark_no_tagline-PhotoRoom.png"
+                src="/traflinq_dark_no_tagline-Photoroom.png"
                 alt="TrafLinq"
                 className="h-28 w-auto"
               />
