@@ -121,9 +121,9 @@ function InvoicingPageContent() {
     }
   }, []);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (companyId?: number) => {
     try {
-      const res = await apiClient.getInvoiceStats() as any;
+      const res = await apiClient.getInvoiceStats(companyId) as any;
       const raw = res?.data ?? res;
       setStats({
         totalCollectable: raw?.totalCollectable ?? 0,
@@ -140,8 +140,8 @@ function InvoicingPageContent() {
   }, [currentPage, filterCompanyId, fetchInvoices]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    fetchStats(filterCompanyId);
+  }, [filterCompanyId, fetchStats]);
 
   // Load companies for shuttle invoice generation
   useEffect(() => {
@@ -242,7 +242,7 @@ function InvoicingPageContent() {
     try {
       await apiClient.updateInvoiceStatus(id, newStatus);
       setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv));
-      fetchStats();
+      fetchStats(filterCompanyId);
       alert("Status updated successfully");
     } catch (error: any) {
       console.error("Failed to update status:", error);
@@ -384,7 +384,7 @@ function InvoicingPageContent() {
 
       // Refresh invoices and stats
       fetchInvoices(currentPage, filterCompanyId);
-      fetchStats();
+      fetchStats(filterCompanyId);
 
       alert("Shuttle invoice generated successfully.");
       setShowShuttleModal(false);
@@ -443,7 +443,7 @@ function InvoicingPageContent() {
         paymentDate: settlePaymentDate || undefined,
       });
       fetchInvoices(currentPage, filterCompanyId);
-      fetchStats();
+      fetchStats(filterCompanyId);
       alert(`Payment of PKR ${amount.toLocaleString()} recorded successfully.`);
       setShowSettleModal(false);
       setSettlingInvoice(null);
@@ -474,7 +474,7 @@ function InvoicingPageContent() {
     try {
       await apiClient.deleteInvoice(id);
       setInvoices(prev => prev.filter(inv => inv.id !== id));
-      fetchStats();
+      fetchStats(filterCompanyId);
       alert("Invoice deleted successfully.");
     } catch (e: any) {
       alert(`Failed to delete invoice: ${e?.message || e}`);
