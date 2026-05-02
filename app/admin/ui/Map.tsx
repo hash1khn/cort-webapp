@@ -174,6 +174,18 @@ export default function Map({
           font-family: inherit;
           z-index: 1;
         }
+        
+        /* Dark Theme Support for Leaflet */
+        [data-theme='dark'] .leaflet-layer,
+        [data-theme='dark'] .leaflet-control-zoom-in,
+        [data-theme='dark'] .leaflet-control-zoom-out,
+        [data-theme='dark'] .leaflet-control-attribution {
+          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        
+        [data-theme='dark'] .leaflet-container {
+          background: #1a1a1a;
+        }
       `;
       document.head.appendChild(style);
     }
