@@ -43,13 +43,13 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     if (!isMounted) return null;
 
     return createPortal(
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 modal-overlay ${isClosing ? "modal-overlay-closing" : ""}`}>
-            <div className={`w-full max-w-2xl transform overflow-hidden rounded-[2.5rem] bg-white shadow-2xl transition-all max-h-[90vh] flex flex-col ring-1 ring-slate-900/5 modal-panel ${isClosing ? "modal-panel-closing" : ""}`}>
-                <div className="flex items-center justify-between border-b border-slate-100 px-8 py-6 bg-white shrink-0">
-                    <h3 className="text-[10px] font-black text-[var(--cort-navy)] uppercase tracking-[0.2em]">{title}</h3>
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 modal-overlay ${isClosing ? "modal-overlay-closing" : ""}`}>
+            <div className={`w-full max-w-2xl transform overflow-hidden rounded-[2.5rem] bg-[var(--bg-card)] shadow-2xl transition-all max-h-[90vh] flex flex-col ring-1 ring-white/[0.07] modal-panel ${isClosing ? "modal-panel-closing" : ""}`}>
+                <div className="flex items-center justify-between border-b border-[var(--border-input)] px-8 py-6 bg-[var(--bg-card)] shrink-0">
+                    <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">{title}</h3>
                     <button
                         onClick={onClose}
-                        className="rounded-xl p-2.5 text-slate-400 hover:bg-slate-50 hover:text-[var(--cort-orange)] transition-all hover:rotate-90 border border-transparent hover:border-slate-100 shadow-sm hover:shadow-md"
+                        className="rounded-xl p-2.5 text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-all hover:rotate-90 border border-transparent hover:border-[var(--border-input)]"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +67,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                         </svg>
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-8 bg-[var(--surface-subtle)]/30">
+                <div className="flex-1 overflow-y-auto p-8 bg-[var(--bg-page)]">
                     {children}
                 </div>
             </div>

@@ -253,17 +253,17 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <Card className="p-0 overflow-hidden border-none shadow-2xl bg-navy min-h-[600px] flex flex-col rounded-4xl">
+        <Card className="p-0 overflow-hidden border-none shadow-2xl bg-[var(--bg-page)] min-h-[600px] flex flex-col rounded-4xl">
             {/* Header Area */}
-            <div className="m-4 mb-0 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-navy text-white rounded-4xl border border-white/5">
-                <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md p-4 px-6 rounded-3xl border border-white/10">
+            <div className="m-4 mb-0 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-4xl border border-[var(--border-default)]">
+                <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md p-4 px-6 rounded-3xl border border-[var(--border-input)]">
                     <div className="relative">
                         <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-25"></div>
                         <div className="relative w-3 h-3 bg-red-500 rounded-full border border-white/20"></div>
                     </div>
                     <div>
-                        <h2 className="text-xl font-black tracking-tight uppercase text-white">Live Mobility Command Center</h2>
-                        <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase mb-0">Real-time Operational Overview</p>
+                        <h2 className="text-xl font-black tracking-tight uppercase text-[var(--text-primary)]">Live Mobility Command Center</h2>
+                        <p className="text-[var(--text-secondary)] text-[10px] font-bold tracking-widest uppercase mb-0">Real-time Operational Overview</p>
                     </div>
                 </div>
 
@@ -272,8 +272,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors
                         ${isConnected
                             ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                            : 'bg-white/5 border-white/10 text-white/40'}`}>
-                        <Radio size={11} className={isConnected ? 'text-green-400' : 'text-white/30'} />
+                            : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
+                        <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
                         {isConnected ? 'Live' : 'Connecting…'}
                     </div>
 
@@ -288,20 +288,20 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
                         title="Refresh trips"
                     >
-                        <RefreshCw size={16} className={`text-white ${tripsLoading ? 'animate-spin' : ''}`} />
+                        <RefreshCw size={16} className={`text-[var(--text-primary)] ${tripsLoading ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
             </div>
 
             {/* Counters Strip */}
-            <div className="m-4 mt-5 px-6 py-4 bg-white/5 border border-white/10 rounded-4xl flex flex-wrap md:flex-nowrap justify-between gap-4 shadow-sm">
+            <div className="m-4 mt-5 px-6 py-4 bg-white/5 border border-[var(--border-input)] rounded-4xl flex flex-wrap md:flex-nowrap justify-between gap-4 shadow-sm">
                 {stats.map((stat, idx) => (
                     <div key={idx} className="flex-1 flex flex-col items-center">
-                        <div className="flex items-center gap-2 text-white mb-1 justify-center">
+                        <div className="flex items-center gap-2 text-[var(--text-primary)] mb-1 justify-center">
                             <span className="p-1 px-1.5 rounded-md bg-white/20 text-orange">{stat.icon}</span>
                             <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">{stat.label}</span>
                         </div>
-                        <div className="text-3xl font-black text-navy">{stat.value}</div>
+                        <div className="text-3xl font-black text-[var(--text-primary)]">{stat.value}</div>
                     </div>
                 ))}
             </div>
@@ -312,7 +312,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 <div className="flex-1 relative order-2 lg:order-1">
                     <div className="absolute inset-0 p-4">
                         {/* Outer wrapper — clips map to rounded corners */}
-                        <div className="w-full h-full rounded-4xl overflow-hidden border border-white/10 shadow-inner relative">
+                        <div className="w-full h-full rounded-4xl overflow-hidden border border-[var(--border-input)] shadow-inner relative">
                             <Map
                                 height="100%"
                                 markers={markers}
@@ -328,13 +328,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 ${liveCount > 0
                                     ? 'bg-green-900/80 border-green-500/40'
                                     : trips.length > 0
-                                        ? 'bg-navy/90 border-white/20'
-                                        : 'bg-navy/80 border-white/10'}`}>
+                                        ? 'bg-[var(--bg-card)]/90 border-white/20'
+                                        : 'bg-[var(--bg-card)]/80 border-[var(--border-input)]'}`}>
                                 <div className={`w-2 h-2 rounded-full flex-shrink-0
                                     ${liveCount > 0 ? 'bg-green-400 animate-pulse'
                                         : trips.length > 0 ? 'bg-orange animate-pulse'
                                             : 'bg-white/30'}`} />
-                                <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                                <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
                                     {tripsLoading
                                         ? 'Syncing…'
                                         : liveCount > 0
@@ -345,9 +345,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </span>
                             </div>
                             {lastRefreshed && (
-                                <div className="bg-navy/80 backdrop-blur-md border border-white/10 p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm">
-                                    <Clock size={10} className="text-white/50" />
-                                    <span className="text-[9px] font-bold text-white/50 uppercase tracking-wider">
+                                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-input)] p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm">
+                                    <Clock size={10} className="text-[var(--text-muted)]" />
+                                    <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
                                         Synced {lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
@@ -355,8 +355,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         </div>
 
                         {/* Legend — outside overflow-hidden so it isn't clipped */}
-                        <div className="absolute bottom-8 right-8 z-[500] bg-navy backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
-                            <span className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1 font-mono">Live Legend</span>
+                        <div className="absolute bottom-8 right-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
+                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 font-mono">Live Legend</span>
                             {hasShuttle && (
                                 <div className="flex items-center gap-3">
                                     <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
@@ -380,18 +380,18 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </div>
                             )}
                             {trips.length === 0 && !tripsLoading && (
-                                <p className="text-[9px] text-white/40 font-bold mt-1">No trips today</p>
+                                <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">No trips today</p>
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Sidebar */}
-                <div className="w-full lg:w-80 m-4 lg:ml-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-white">
+                <div className="w-full lg:w-80 m-4 lg:ml-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-[var(--text-primary)]">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-navy">Active Alerts</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">Active Alerts</h3>
                         {hasChauffeur && (dashboardStats?.chauffeur.unassignedBookings ?? 0) > 0 && (
-                            <span className="px-2 py-0.5 rounded-full bg-navy/20 text-navy text-[9px] font-black uppercase border border-navy/10">
+                            <span className="px-2 py-0.5 rounded-full bg-white/20 text-[var(--text-primary)] text-[9px] font-black uppercase border border-[var(--border-input)]">
                                 {dashboardStats!.chauffeur.unassignedBookings} Unassigned
                             </span>
                         )}
@@ -405,15 +405,15 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 onClick={() => router.push('/company/bookings')}
                             >
                                 <div className="flex items-start gap-3">
-                                    <AlertTriangle size={16} className="text-navy mt-1 shrink-0" />
+                                    <AlertTriangle size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-white">Unassigned Bookings</div>
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">Unassigned Bookings</div>
                                         <div className="text-[10px] text-white font-bold leading-tight mt-1">
                                             {dashboardStats!.chauffeur.unassignedBookings} booking{dashboardStats!.chauffeur.unassignedBookings !== 1 ? 's' : ''} pending driver assignment.
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
-                                            <Clock size={10} className="text-white/60" />
-                                            <span className="text-[9px] text-white/60 font-black">Needs attention</span>
+                                            <Clock size={10} className="text-[var(--text-secondary)]" />
+                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">Needs attention</span>
                                         </div>
                                     </div>
                                 </div>
@@ -427,15 +427,15 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 onClick={() => hasChauffeur ? router.push('/company/bookings') : hasShuttle ? router.push('/company/routes') : undefined}
                             >
                                 <div className="flex items-start gap-3">
-                                    <Calendar size={16} className="text-navy mt-1 shrink-0" />
+                                    <Calendar size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-white">Upcoming Bookings</div>
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">Upcoming Bookings</div>
                                         <div className="text-[10px] text-white font-bold leading-tight mt-1">
                                             {mobility.upcomingBookings} ride{mobility.upcomingBookings !== 1 ? 's' : ''} in the next 7 days.
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
-                                            <Clock size={10} className="text-white/60" />
-                                            <span className="text-[9px] text-white/60 font-black">Next 7 days</span>
+                                            <Clock size={10} className="text-[var(--text-secondary)]" />
+                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">Next 7 days</span>
                                         </div>
                                     </div>
                                 </div>
@@ -446,10 +446,10 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         {trips.length > 0 && (
                             <div className="p-3 rounded-2xl bg-white/10 border border-white/20">
                                 <div className="flex items-start gap-3">
-                                    <Navigation size={16} className="text-navy mt-1 shrink-0" />
+                                    <Navigation size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-white">On the Map</div>
-                                        <div className="text-[10px] text-white/80 font-bold leading-tight mt-1">
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">On the Map</div>
+                                        <div className="text-[10px] text-[var(--text-secondary)] font-bold leading-tight mt-1">
                                             {hasShuttle && shuttleCount > 0 && `${shuttleCount} shuttle${shuttleCount !== 1 ? 's' : ''}`}
                                             {hasShuttle && shuttleCount > 0 && hasChauffeur && chauffeurCount > 0 && ' · '}
                                             {hasChauffeur && chauffeurCount > 0 && `${chauffeurCount} chauffeur ride${chauffeurCount !== 1 ? 's' : ''}`}
@@ -465,8 +465,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             mobility.upcomingBookings === 0 &&
                             trips.length === 0 && (
                             <div className="p-3 rounded-2xl bg-white/10 border border-white/20">
-                                <div className="text-[11px] font-black text-white text-center py-2">✓ All Clear</div>
-                                <div className="text-[10px] text-white/70 font-bold text-center">No active alerts at this time.</div>
+                                <div className="text-[11px] font-black text-[var(--text-primary)] text-center py-2">✓ All Clear</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] font-bold text-center">No active alerts at this time.</div>
                             </div>
                         )}
 
@@ -474,7 +474,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         {hasShuttle && (
                             <button
                                 onClick={() => router.push('/company/routes')}
-                                className="w-full mt-2 py-3 rounded-xl bg-navy hover:bg-navy/80 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
+                                className="w-full mt-2 py-3 rounded-xl bg-[var(--bg-page)] hover:bg-[var(--bg-card)] text-[var(--text-primary)] text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
                             >
                                 Track Routes Live →
                             </button>
@@ -482,7 +482,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         {!hasShuttle && hasChauffeur && (
                             <button
                                 onClick={() => router.push('/company/bookings')}
-                                className="w-full mt-2 py-3 rounded-xl bg-navy hover:bg-navy/80 text-white text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
+                                className="w-full mt-2 py-3 rounded-xl bg-[var(--bg-page)] hover:bg-[var(--bg-card)] text-[var(--text-primary)] text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
                             >
                                 View Bookings →
                             </button>
@@ -491,13 +491,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
 
                     {/* Service performance */}
                     <div className="pt-4 border-t border-white/15">
-                        <div className="text-[10px] font-black text-navy uppercase tracking-widest mb-3 opacity-60">Service Performance</div>
+                        <div className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest mb-3 opacity-60">Service Performance</div>
                         <div className="space-y-3">
                             {onTimeRate !== null && (
                                 <div>
-                                    <div className="flex justify-between text-[10px] font-bold text-white mb-1.5 uppercase tracking-tighter">
+                                    <div className="flex justify-between text-[10px] font-bold text-[var(--text-primary)] mb-1.5 uppercase tracking-tighter">
                                         <span>On-Time Rate</span>
-                                        <span className="text-navy font-black">{onTimeRate}%</span>
+                                        <span className="text-white font-black">{onTimeRate}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
                                         <div className="h-full bg-white shadow-[0_0_8px_white]" style={{ width: `${onTimeRate}%` }}></div>
@@ -506,9 +506,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             )}
                             {fleetUtilization !== null && (
                                 <div>
-                                    <div className="flex justify-between text-[10px] font-bold text-white mb-1.5 uppercase tracking-tighter">
+                                    <div className="flex justify-between text-[10px] font-bold text-[var(--text-primary)] mb-1.5 uppercase tracking-tighter">
                                         <span>Shuttle Utilization</span>
-                                        <span className="text-navy font-black">{fleetUtilization}%</span>
+                                        <span className="text-white font-black">{fleetUtilization}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
                                         <div className="h-full bg-white shadow-[0_0_8px_white]" style={{ width: `${fleetUtilization}%` }}></div>
@@ -516,7 +516,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </div>
                             )}
                             {onTimeRate === null && fleetUtilization === null && (
-                                <p className="text-[10px] text-white/40 font-bold text-center py-1">Collecting data…</p>
+                                <p className="text-[10px] text-[var(--text-muted)] font-bold text-center py-1">Collecting data…</p>
                             )}
                         </div>
                     </div>

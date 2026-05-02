@@ -97,7 +97,7 @@ export default function RoutesPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center">
-          <div className="text-lg font-bold text-[var(--cort-navy)]">Shuttle Service Disabled</div>
+          <div className="text-lg font-bold text-[var(--text-primary)]">Shuttle Service Disabled</div>
           <div className="mt-2 text-sm text-[var(--text-muted)]">
             Shuttle service is not enabled for your company. Please contact Cort Super Admin.
           </div>
@@ -156,18 +156,18 @@ export default function RoutesPage() {
               return (
                 <div
                   key={route.id}
-                  className="rounded-2xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 p-5 hover:bg-white hover:shadow-sm transition-all"
+                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-5 hover:bg-[var(--bg-subtle)] hover:shadow-sm transition-all"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold text-[var(--cort-navy)]">{route.name}</h3>
+                          <h3 className="text-lg font-semibold text-[var(--text-primary)]">{route.name}</h3>
                           <span className="rounded-full bg-[var(--cort-orange)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--cort-orange)]">
                             Route ID: {route.id}
                           </span>
                           <Link href={`/company/routes/${route.id}/track`}>
-                            <Button variant="outline" size="sm" className="h-7 py-0 px-2 text-[10px] gap-1 border-[var(--cort-navy)]/20 text-[var(--cort-navy)] hover:bg-[var(--cort-navy)] hover:text-white">
+                            <Button variant="outline" size="sm" className="h-7 py-0 px-2 text-[10px] gap-1 border-[var(--border-input)] text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)]">
                               <Activity className="w-3 h-3" />
                               Track Route
                             </Button>
@@ -181,7 +181,7 @@ export default function RoutesPage() {
                       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ASSIGNED DRIVER</div>
-                          <div className="mt-1 text-sm text-[var(--cort-navy)]">
+                          <div className="mt-1 text-sm text-[var(--text-primary)]">
                             {driver?.full_name ? (
                               <div>
                                 <div className="font-medium">{driver.full_name}</div>
@@ -197,7 +197,7 @@ export default function RoutesPage() {
 
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ASSIGNED VEHICLE</div>
-                          <div className="mt-1 text-sm text-[var(--cort-navy)]">
+                          <div className="mt-1 text-sm text-[var(--text-primary)]">
                             {vehicle ? (
                               <div>
                                 <div className="font-medium">
@@ -212,14 +212,14 @@ export default function RoutesPage() {
 
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">STOPS</div>
-                          <div className="mt-1 text-sm text-[var(--cort-navy)]">
+                          <div className="mt-1 text-sm text-[var(--text-primary)]">
                             {stops.length} stop{stops.length !== 1 ? "s" : ""}
                           </div>
                         </div>
 
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ASSIGNED EMPLOYEES</div>
-                          <div className="mt-1 text-sm text-[var(--cort-navy)]">
+                          <div className="mt-1 text-sm text-[var(--text-primary)]">
                             {employees.length > 0 ? (
                               <div className="max-h-24 overflow-y-auto scrollbar-thin">
                                 {employees.map((emp, i) => (
@@ -248,10 +248,10 @@ export default function RoutesPage() {
                                 className={cx(
                                   "rounded-md border px-3 py-1.5 text-xs",
                                   idx === 0
-                                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
                                     : idx === stops.length - 1
                                       ? "border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]"
-                                      : "border-[var(--border-light)] bg-white text-[var(--cort-navy)]",
+                                      : "border-[var(--border-default)] bg-[var(--bg-subtle)] text-[var(--text-secondary)]",
                                 )}
                               >
                                 <div className="font-medium">{stop.name}</div>

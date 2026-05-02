@@ -93,11 +93,11 @@ export function AutocompleteInput({
                 }}
                 placeholder={placeholder}
                 required={required}
-                className={`h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-700 ${className || ''}`}
+                className={`h-11 w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] px-4 text-sm outline-none transition-all placeholder:text-[var(--text-placeholder)] focus:border-[#fe8503] focus:ring-4 focus:ring-[#fe8503]/10 text-[var(--text-primary)] ${className || ''}`}
             />
 
             {isOpen && suggestions.length > 0 && (
-                <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] shadow-2xl">
                     <ul className="max-h-60 overflow-y-auto py-1">
                         {suggestions.map((suggestion, index) => (
                             <li
@@ -108,8 +108,8 @@ export function AutocompleteInput({
                                 }}
                                 onMouseEnter={() => setHighlightedIndex(index)}
                                 className={`cursor-pointer px-4 py-2.5 text-sm transition-colors ${index === highlightedIndex
-                                        ? "bg-indigo-50 text-indigo-700"
-                                        : "text-slate-700 hover:bg-slate-50"
+                                        ? "bg-[#fe8503]/10 text-[#fe8503]"
+                                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]"
                                     }`}
                             >
                                 {suggestion}

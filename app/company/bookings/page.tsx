@@ -112,10 +112,10 @@ export default function BookingsPage() {
           company.services_enabled.chauffeur_enabled ? (
             <button
               onClick={() => setIsModalOpen(true)}
-              className="group relative flex items-center gap-2.5 rounded-xl bg-[var(--cort-orange)] px-6 py-3 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0 active:shadow-md overflow-hidden"
+              className="group relative flex items-center gap-2.5 rounded-xl bg-[var(--cort-orange)] px-6 py-3 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0 active:shadow-md overflow-hidden"
             >
               <div className="absolute inset-0 bg-white/10 translate-y-full transition-transform group-hover:translate-y-0" />
-              <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-[var(--text-primary)] transition-transform group-hover:scale-110 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
               <span className="relative z-10">New Booking</span>
@@ -132,7 +132,7 @@ export default function BookingsPage() {
               <input
                 type="text"
                 placeholder="Search transactions, passengers, or fleet..."
-                className="w-full h-12 pl-11 pr-4 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 text-sm focus:outline-none focus:ring-4 focus:ring-[var(--cort-orange)]/10 focus:border-[var(--cort-orange)] transition-all placeholder:text-[var(--text-muted)] text-[var(--cort-navy)] font-medium"
+                className="w-full h-12 pl-11 pr-4 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 text-sm focus:outline-none focus:ring-4 focus:ring-[var(--cort-orange)]/10 focus:border-[var(--cort-orange)] transition-all placeholder:text-[var(--text-muted)] text-[var(--text-primary)] font-medium"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -144,7 +144,7 @@ export default function BookingsPage() {
           <div className="w-[220px]">
             <div className="group relative">
               <select
-                className="w-full h-12 pl-10 pr-10 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 text-sm focus:outline-none focus:ring-4 focus:ring-[var(--cort-orange)]/10 focus:border-[var(--cort-orange)] transition-all appearance-none text-[var(--cort-navy)] font-bold cursor-pointer"
+                className="w-full h-12 pl-10 pr-10 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 text-sm focus:outline-none focus:ring-4 focus:ring-[var(--cort-orange)]/10 focus:border-[var(--cort-orange)] transition-all appearance-none text-[var(--text-primary)] font-bold cursor-pointer"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -194,7 +194,7 @@ export default function BookingsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                       </div>
-                      <span className="font-bold text-lg text-[var(--cort-navy)]">No records found</span>
+                      <span className="font-bold text-lg text-[var(--text-primary)]">No records found</span>
                       <span className="text-sm mt-1">Try adjusting your filters to find what you're looking for.</span>
                     </div>
                   </td>
@@ -206,34 +206,34 @@ export default function BookingsPage() {
                     <tr
                       key={booking.id}
                       onClick={() => !isPending && setSelectedBooking(booking)}
-                      className={`group transition-all duration-300 bg-white border border-[var(--border-light)] hover:border-[var(--cort-orange)]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 rounded-2xl ${isPending ? "cursor-default" : "cursor-pointer"}`}
+                      className={`group transition-all duration-300 bg-[var(--bg-card)] border border-[var(--border-default)] hover:border-[var(--cort-orange)]/30 hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 rounded-2xl ${isPending ? "cursor-default" : "cursor-pointer"}`}
                     >
-                      <td className="px-6 py-5 first:rounded-l-2xl font-bold text-[var(--cort-navy)]">#{booking.id}</td>
+                      <td className="px-6 py-5 first:rounded-l-2xl font-bold text-[var(--text-primary)]">#{booking.id}</td>
                       <td className="px-6 py-5">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[var(--surface-subtle)]/50 text-[var(--cort-navy)] text-[10px] font-bold border border-[var(--border-light)] uppercase tracking-tight">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[var(--bg-subtle)] text-[var(--text-primary)] text-[10px] font-bold border border-[var(--border-input)] uppercase tracking-tight">
                           {booking.service_category || "Standard"}
                         </span>
                       </td>
-                      <td className="px-6 py-5 font-bold text-[var(--cort-navy)]">
+                      <td className="px-6 py-5 font-bold text-[var(--text-primary)]">
                         {getPassengerName(booking)}
                       </td>
                       <td className="px-6 py-5 text-[var(--text-muted)] capitalize font-medium">{booking.package_selected.replace(/_/g, " ")}</td>
                       <td className="px-6 py-5">
-                        <div className="max-w-[180px] truncate text-[var(--text-muted)] group-hover:text-[var(--cort-navy)] transition-colors" title={booking.pickup_address || "No address"}>
+                        <div className="max-w-[180px] truncate text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors" title={booking.pickup_address || "No address"}>
                           {booking.pickup_address || "-"}
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-[var(--cort-navy)] font-bold">
+                      <td className="px-6 py-5 text-[var(--text-primary)] font-bold">
                         {booking.city || "—"}
                       </td>
-                      <td className="px-6 py-5 text-[var(--cort-navy)] font-medium">
+                      <td className="px-6 py-5 text-[var(--text-primary)] font-medium">
                         <div className="flex flex-col">
                            <span className="font-bold">{formatDateTime(booking.scheduled_for).split(' at ')[0]}</span>
                            <span className="text-[10px] text-[var(--text-muted)]">{formatDateTime(booking.scheduled_for).split(' at ')[1]}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-[var(--cort-navy)] font-bold text-center">
-                        <span className="bg-[var(--surface-subtle)]/30 px-2 py-1 rounded-md">{booking.no_of_days || 1}</span>
+                      <td className="px-6 py-5 text-[var(--text-primary)] font-bold text-center">
+                        <span className="bg-[var(--bg-subtle)] px-2 py-1 rounded-md">{booking.no_of_days || 1}</span>
                       </td>
                       <td className="px-6 py-5">
                         {(() => {
@@ -245,7 +245,7 @@ export default function BookingsPage() {
                             COMPLETED: { bg: "bg-emerald-500/10", text: "text-emerald-600", border: "border-emerald-200/50", dot: "bg-emerald-500" },
                             CANCELLED: { bg: "bg-rose-500/10", text: "text-rose-600", border: "border-rose-200/50", dot: "bg-rose-500" },
                           };
-                          const style = statusStyles[booking.status] || { bg: "bg-slate-500/10", text: "text-slate-600", border: "border-slate-200/50", dot: "bg-slate-500" };
+                          const style = statusStyles[booking.status] || { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/20", dot: "bg-slate-500" };
 
                           return (
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black border ${style.bg} ${style.text} ${style.border} uppercase tracking-widest`}>
@@ -258,7 +258,7 @@ export default function BookingsPage() {
                       <td className="px-6 py-5 text-right last:rounded-r-2xl">
                         <button
                           disabled={isPending}
-                          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isPending ? "text-[var(--text-muted)]/20 cursor-default" : "text-[var(--cort-orange)] bg-[var(--cort-orange)]/5 hover:bg-[var(--cort-orange)] hover:text-white hover:shadow-lg hover:shadow-[var(--cort-orange)]/20 active:scale-95"}`}
+                          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${isPending ? "text-[var(--text-muted)]/20 cursor-default" : "text-[var(--cort-orange)] bg-[var(--cort-orange)]/5 hover:bg-[var(--cort-orange)] hover:text-[var(--text-primary)] hover:shadow-lg hover:shadow-[var(--cort-orange)]/20 active:scale-95"}`}
                         >
                           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -305,10 +305,10 @@ export default function BookingsPage() {
           >
             <div className="flex flex-col gap-8 relative pb-4">
               {/* Status Header */}
-              <div className="flex items-center justify-between bg-gradient-to-br from-[var(--cort-navy)] to-[#0c1a45] p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
+              <div className="flex items-center justify-between bg-gradient-to-br from-[var(--cort-navy)] to-[#0c1a45] p-6 rounded-[2rem] text-[var(--text-primary)] shadow-xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
                 <div className="relative z-10">
-                  <div className="text-[10px] text-white/50 uppercase tracking-[0.2em] font-black mb-2">Current Status</div>
+                  <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.2em] font-black mb-2">Current Status</div>
                   <div className={`inline-flex items-center rounded-full px-4 py-1.5 text-xs font-black border backdrop-blur-md ${selectedBooking.status === 'PENDING' ? "bg-amber-500/10 text-amber-300 border-amber-500/30" :
                     selectedBooking.status === 'COMPLETED' ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" :
                       selectedBooking.status === 'CANCELLED' ? "bg-rose-500/10 text-rose-300 border-rose-500/30" :
@@ -323,8 +323,8 @@ export default function BookingsPage() {
                   </div>
                 </div>
                 <div className="text-right relative z-10">
-                  <div className="text-[10px] text-white/50 uppercase tracking-[0.2em] font-black mb-2">Scheduled For</div>
-                  <div className="text-xl font-black text-white tracking-tighter">{formatDateTime(selectedBooking.scheduled_for)}</div>
+                  <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.2em] font-black mb-2">Scheduled For</div>
+                  <div className="text-xl font-black text-[var(--text-primary)] tracking-tighter">{formatDateTime(selectedBooking.scheduled_for)}</div>
                 </div>
               </div>
 
@@ -334,28 +334,28 @@ export default function BookingsPage() {
                   <h4 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] flex items-center gap-2 px-1">
                     <span className="w-1.5 h-1.5 bg-[var(--cort-orange)] rounded-full"></span> Trip Details
                   </h4>
-                  <div className="bg-[var(--surface-subtle)]/30 backdrop-blur-sm p-6 rounded-[1.5rem] border border-[var(--border-light)] space-y-5">
+                  <div className="bg-[var(--bg-card)] backdrop-blur-sm p-6 rounded-[1.5rem] border border-[var(--border-default)] space-y-5">
                     <div className="grid grid-cols-2 gap-4 text-xs">
                        <div>
                           <div className="text-[9px] text-[var(--text-muted)] font-black uppercase mb-1">Type</div>
-                          <div className="font-bold text-[var(--cort-navy)] capitalize">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
+                          <div className="font-bold text-[var(--text-primary)] capitalize">{selectedBooking.trip_type.replace(/_/g, " ")}</div>
                        </div>
                        <div>
                           <div className="text-[9px] text-[var(--text-muted)] font-black uppercase mb-1">Category</div>
-                          <div className="font-bold text-[var(--cort-navy)]">{selectedBooking.service_category || "—"}</div>
+                          <div className="font-bold text-[var(--text-primary)]">{selectedBooking.service_category || "—"}</div>
                        </div>
                        <div>
                           <div className="text-[9px] text-[var(--text-muted)] font-black uppercase mb-1">Package</div>
-                          <div className="font-bold text-[var(--cort-navy)] capitalize">{selectedBooking.package_selected.replace(/_/g, " ")}</div>
+                          <div className="font-bold text-[var(--text-primary)] capitalize">{selectedBooking.package_selected.replace(/_/g, " ")}</div>
                        </div>
                        <div>
                           <div className="text-[9px] text-[var(--text-muted)] font-black uppercase mb-1">Duration</div>
-                          <div className="font-bold text-[var(--cort-navy)]">{selectedBooking.no_of_days || 1} Days</div>
+                          <div className="font-bold text-[var(--text-primary)]">{selectedBooking.no_of_days || 1} Days</div>
                        </div>
                     </div>
-                    <div className="pt-4 border-t border-[var(--border-light)]/50">
+                    <div className="pt-4 border-t border-[var(--border-default)]">
                       <div className="text-[9px] text-[var(--text-muted)] font-black uppercase mb-2">Pickup Address</div>
-                      <div className="flex items-start gap-2.5 text-xs font-bold text-[var(--cort-navy)] bg-white/80 p-4 rounded-xl border border-[var(--border-light)] shadow-sm">
+                      <div className="flex items-start gap-2.5 text-xs font-bold text-[var(--text-secondary)] bg-[var(--bg-subtle)] p-4 rounded-xl border border-[var(--border-default)]">
                         <svg className="w-4 h-4 text-[var(--cort-orange)] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         <span className="leading-relaxed">{selectedBooking.pickup_address || "—"}</span>
                       </div>
@@ -370,12 +370,12 @@ export default function BookingsPage() {
                     <h4 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] flex items-center gap-2 px-1 mb-4">
                       <span className="w-1.5 h-1.5 bg-[var(--cort-orange)] rounded-full"></span> Passenger
                     </h4>
-                    <div className="flex items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-[var(--border-light)] shadow-sm group hover:border-[var(--cort-orange)]/30 transition-all">
+                    <div className="flex items-center gap-4 bg-[var(--bg-card)] p-4 rounded-[1.5rem] border border-[var(--border-default)] group hover:border-[#fe8503]/30 transition-all">
                       <div className="w-12 h-12 rounded-2xl bg-[var(--cort-orange)]/10 flex items-center justify-center text-[var(--cort-orange)] font-black text-lg shadow-inner">
                         {selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name?.charAt(0) || "P"}
                       </div>
                       <div>
-                        <div className="text-sm font-black text-[var(--cort-navy)]">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown Passenger"}</div>
+                        <div className="text-sm font-black text-[var(--text-primary)]">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.full_name || "Unknown Passenger"}</div>
                         <div className="text-[10px] text-[var(--text-muted)] font-bold mt-0.5">{selectedBooking.users_chauffeur_bookings_passenger_idTousers?.email || "No email provided"}</div>
                       </div>
                     </div>
@@ -389,18 +389,18 @@ export default function BookingsPage() {
                       </h4>
                       <div className="grid grid-cols-1 gap-4">
                         {/* Driver & Vehicle combined or separate cards */}
-                        <div className="bg-[var(--cort-navy)]/5 p-4 rounded-[1.5rem] border border-[var(--border-light)] flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-xl bg-white border border-[var(--border-light)] flex items-center justify-center text-[var(--text-muted)]">
+                        <div className="bg-[var(--bg-subtle)] p-4 rounded-[1.5rem] border border-[var(--border-default)] flex items-center gap-4">
+                           <div className="w-10 h-10 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-input)] flex items-center justify-center text-[var(--text-muted)]">
                               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                            </div>
                            <div className="flex-1">
                               <div className="text-[8px] text-[var(--text-muted)] font-black uppercase">Chauffeur</div>
-                              <div className="text-xs font-black text-[var(--cort-navy)]">{selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "Assigning..."}</div>
+                              <div className="text-xs font-black text-[var(--text-primary)]">{selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "Assigning..."}</div>
                            </div>
-                           <div className="w-px h-8 bg-[var(--border-light)]" />
+                           <div className="w-px h-8 bg-white/10" />
                            <div className="flex-1 pl-2">
                               <div className="text-[8px] text-[var(--text-muted)] font-black uppercase">Fleet Unit</div>
-                              <div className="text-xs font-black text-[var(--cort-navy)]">{selectedBooking.vehicles ? selectedBooking.vehicles.model : "Pending"}</div>
+                              <div className="text-xs font-black text-[var(--text-primary)]">{selectedBooking.vehicles ? selectedBooking.vehicles.model : "Pending"}</div>
                               {selectedBooking.vehicles?.plate_number && <div className="text-[9px] font-mono text-[var(--cort-orange)] font-bold">{selectedBooking.vehicles.plate_number}</div>}
                            </div>
                         </div>
@@ -416,9 +416,9 @@ export default function BookingsPage() {
                   <h4 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] flex items-center gap-2 px-1">
                     <span className="w-1.5 h-1.5 bg-[var(--cort-orange)] rounded-full"></span> Trip Logs
                   </h4>
-                  <div className="border border-[var(--border-light)] rounded-[1.5rem] overflow-hidden bg-white shadow-sm">
+                  <div className="border border-[var(--border-default)] rounded-[1.5rem] overflow-hidden bg-[var(--bg-card)]">
                     <table className="w-full text-[10px] text-left">
-                      <thead className="bg-[var(--surface-subtle)]/50 text-[var(--text-muted)] font-black uppercase tracking-widest">
+                      <thead className="bg-[var(--bg-subtle)] text-[var(--text-muted)] font-black uppercase tracking-widest">
                         <tr>
                           <th className="px-5 py-3">Date</th>
                           <th className="px-5 py-3">Type</th>
@@ -427,34 +427,34 @@ export default function BookingsPage() {
                           <th className="px-5 py-3 text-center">Accom.</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[var(--border-light)]/50">
+                      <tbody className="divide-y divide-[var(--border-default)]">
                         {selectedBooking.chauffeur_trip_daily_logs.map((log, idx) => (
-                          <tr key={idx} className="hover:bg-[var(--surface-subtle)]/20 transition-colors">
-                            <td className="px-5 py-3.5 font-black text-[var(--cort-navy)]">
+                          <tr key={idx} className="hover:bg-[var(--bg-subtle)] transition-colors">
+                            <td className="px-5 py-3.5 font-black text-[var(--text-primary)]">
                               {new Date(log.log_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
                             </td>
                             <td className="px-5 py-3.5">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black tracking-tighter uppercase ${log.trip_type === 'OUT_STATION' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black tracking-tighter uppercase ${log.trip_type === 'OUT_STATION' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                 {log.trip_type.replace(/_/g, " ")}
                               </span>
                             </td>
-                            <td className="px-5 py-3.5 font-bold text-[var(--cort-navy)]">{log.hours_used ? `${Number(log.hours_used).toFixed(1)} hrs` : '-'}</td>
+                            <td className="px-5 py-3.5 font-bold text-[var(--text-secondary)]">{log.hours_used ? `${Number(log.hours_used).toFixed(1)} hrs` : '-'}</td>
                             <td className="px-5 py-3.5 text-center">
                               {log.is_full_day ? (
-                                <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm">
-                                  <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                                  <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                 </div>
                               ) : (
-                                <span className="text-[var(--border-light)]">—</span>
+                                <span className="text-[var(--text-placeholder)]">—</span>
                               )}
                             </td>
                             <td className="px-5 py-3.5 text-center">
                               {log.apply_accommodation ? (
-                                <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-sm">
-                                  <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto">
+                                  <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                 </div>
                               ) : (
-                                <span className="text-[var(--border-light)]">—</span>
+                                <span className="text-[var(--text-placeholder)]">—</span>
                               )}
                             </td>
                           </tr>
@@ -465,11 +465,11 @@ export default function BookingsPage() {
                 </div>
               )}
 
-              <div className="flex justify-end pt-5 border-t border-[var(--border-light)]">
+              <div className="flex justify-end pt-5 border-t border-[var(--border-input)]">
                 <button
                   type="button"
                   onClick={() => setSelectedBooking(null)}
-                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[var(--border-light)] bg-white px-10 text-sm font-black text-[var(--cort-navy)] hover:bg-[var(--surface-subtle)] shadow-sm transition-all hover:border-[var(--cort-orange)]/30 active:scale-95"
+                  className="inline-flex h-12 items-center justify-center rounded-xl border border-[var(--border-input)] bg-[var(--bg-subtle)] px-10 text-sm font-black text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-all active:scale-95"
                 >
                   Close View
                 </button>

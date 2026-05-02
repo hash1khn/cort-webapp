@@ -21,8 +21,8 @@ function DirectionBadge({ direction }: { direction: string }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
         isEvening
-          ? "bg-indigo-100 text-indigo-700"
-          : "bg-amber-100 text-amber-700"
+          ? "bg-indigo-500/20 text-indigo-400"
+          : "bg-amber-500/20 text-amber-400"
       }`}
     >
       {isEvening ? "🌙" : "☀️"} {direction}
@@ -109,7 +109,7 @@ export default function ShuttleReportsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center flex flex-col items-center justify-center py-12">
-          <div className="text-lg font-bold text-[var(--cort-navy)]">
+          <div className="text-lg font-bold text-[var(--text-primary)]">
             Shuttle Service Disabled
           </div>
           <div className="mt-2 text-sm text-[var(--text-muted)]">
@@ -128,12 +128,12 @@ export default function ShuttleReportsPage() {
         title="Shuttle Reports"
         action={
           <>
-            <div className="flex items-center gap-2 bg-white/50 p-1 rounded-xl border border-[var(--border-light)] backdrop-blur-sm">
+            <div className="flex items-center gap-2 bg-[var(--bg-subtle)] p-1 rounded-xl border border-[var(--border-strong)] backdrop-blur-sm">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--cort-navy)] focus:ring-0"
+                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
                 placeholder="Start Date"
               />
               <span className="text-[var(--text-muted)]">/</span>
@@ -141,17 +141,17 @@ export default function ShuttleReportsPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--cort-navy)] focus:ring-0"
+                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
                 placeholder="End Date"
               />
             </div>
             <button
               type="button"
-              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
+              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
               onClick={() => alert("Export to CSV coming soon")}
             >
               <svg
-                className="w-4 h-4 text-white"
+                className="w-4 h-4 text-[var(--text-primary)]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -171,7 +171,7 @@ export default function ShuttleReportsPage() {
 
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
-          <div className="mt-1 text-sm font-medium text-[var(--cort-navy)]">
+          <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">
             Completed shuttle trips with route, vehicle, driver and boarding summary
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function ShuttleReportsPage() {
                     key={report.id}
                     className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80"
                   >
-                    <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-[var(--cort-navy)] font-medium font-mono text-xs`}>
+                    <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-[var(--text-primary)] font-medium font-mono text-xs`}>
                       {report.trip_date
                         ? new Date(report.trip_date).toLocaleDateString("en-PK", {
                             year: "numeric",
@@ -239,18 +239,18 @@ export default function ShuttleReportsPage() {
                     <td className={TABLE_CELL_CLASS}>
                       <DirectionBadge direction={report.direction} />
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--cort-navy)]`}>
+                    <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>
                       #{report.id}
                     </td>
                     <td className={TABLE_CELL_CLASS}>
-                      <div className="font-semibold text-[var(--cort-navy)] text-sm">
+                      <div className="font-semibold text-[var(--text-primary)] text-sm">
                         {report.route?.name || "—"}
                       </div>
                     </td>
                     <td className={TABLE_CELL_CLASS}>
                       {report.vehicle ? (
                         <>
-                          <div className="text-[var(--cort-navy)] font-medium">
+                          <div className="text-[var(--text-primary)] font-medium">
                             {report.vehicle.make} {report.vehicle.model}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] font-mono">
@@ -262,7 +262,7 @@ export default function ShuttleReportsPage() {
                       )}
                     </td>
                     <td className={TABLE_CELL_CLASS}>
-                      <div className="text-[var(--cort-navy)] font-medium text-sm">
+                      <div className="text-[var(--text-primary)] font-medium text-sm">
                         {report.driver?.full_name || "—"}
                       </div>
                     </td>
@@ -272,7 +272,7 @@ export default function ShuttleReportsPage() {
                     <td className={`${TABLE_CELL_CLASS} text-right font-mono text-rose-500 font-semibold`}>
                       {report.passengers.absent}
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right font-mono text-[var(--cort-navy)]`}>
+                    <td className={`${TABLE_CELL_CLASS} text-right font-mono text-[var(--text-primary)]`}>
                       {report.passengers.total}
                     </td>
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
@@ -282,7 +282,7 @@ export default function ShuttleReportsPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedReport(report)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--cort-navy)] transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-colors"
                         aria-label={`View stop details for trip ${report.id}`}
                         title="View stop details"
                       >
@@ -322,7 +322,7 @@ export default function ShuttleReportsPage() {
                     onClick={() => handlePageChange(page)}
                     className={`h-7 w-7 rounded text-xs font-medium transition-colors ${
                       page === pagination.page
-                        ? "bg-[var(--cort-navy)] text-white"
+                        ? "bg-[#fe8503] text-[var(--text-primary)]"
                         : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)]"
                     }`}
                   >
@@ -347,7 +347,7 @@ export default function ShuttleReportsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-xs text-[var(--text-muted)] mb-1">Date</div>
-                <div className="font-semibold text-[var(--cort-navy)]">
+                <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.trip_date
                     ? new Date(selectedReport.trip_date).toLocaleDateString("en-PK", {
                         year: "numeric",
@@ -363,20 +363,20 @@ export default function ShuttleReportsPage() {
               </div>
               <div>
                 <div className="text-xs text-[var(--text-muted)] mb-1">Route</div>
-                <div className="font-semibold text-[var(--cort-navy)]">
+                <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.route?.name || "—"}
                 </div>
               </div>
               <div>
                 <div className="text-xs text-[var(--text-muted)] mb-1">Driver</div>
-                <div className="font-semibold text-[var(--cort-navy)]">
+                <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.driver?.full_name || "—"}
                 </div>
               </div>
               {selectedReport.vehicle && (
                 <div className="col-span-2">
                   <div className="text-xs text-[var(--text-muted)] mb-1">Vehicle</div>
-                  <div className="font-semibold text-[var(--cort-navy)]">
+                  <div className="font-semibold text-[var(--text-primary)]">
                     {selectedReport.vehicle.make} {selectedReport.vehicle.model}{" "}
                     <span className="font-mono text-xs text-[var(--text-muted)]">
                       ({selectedReport.vehicle.plate_number})
@@ -393,7 +393,7 @@ export default function ShuttleReportsPage() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-[var(--surface-subtle)] px-4 py-3 text-center">
-                  <div className="text-2xl font-bold text-[var(--cort-navy)]">
+                  <div className="text-2xl font-bold text-[var(--text-primary)]">
                     {selectedReport.passengers.total}
                   </div>
                   <div className="text-xs text-[var(--text-muted)] mt-1">Assigned</div>
@@ -426,7 +426,7 @@ export default function ShuttleReportsPage() {
                       className="flex items-center justify-between px-4 py-2.5"
                     >
                       <div>
-                        <div className="font-medium text-sm text-[var(--cort-navy)]">
+                        <div className="font-medium text-sm text-[var(--text-primary)]">
                           {log.employee?.full_name || "Unknown"}
                         </div>
                         <div className="text-xs text-[var(--text-muted)]">
@@ -473,18 +473,18 @@ export default function ShuttleReportsPage() {
                           key={stop.id}
                           className="grid grid-cols-[auto,1fr,auto] items-start gap-3 px-4 py-3"
                         >
-                          <div className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--surface-subtle)] px-2 text-xs font-semibold text-[var(--cort-navy)]">
+                          <div className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--surface-subtle)] px-2 text-xs font-semibold text-[var(--text-primary)]">
                             {stop.sequence ?? "—"}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-[var(--cort-navy)]">
+                            <div className="text-sm font-medium text-[var(--text-primary)]">
                               {stop.name}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">
                               {isEvening ? "Dropoff from shuttle boarding logs" : "Arrival from trip stop logs"}
                             </div>
                           </div>
-                          <div className="text-right text-sm font-mono text-[var(--cort-navy)]">
+                          <div className="text-right text-sm font-mono text-[var(--text-primary)]">
                             {isEvening ? (
                               <div>
                                 <div className="text-xs text-[var(--text-muted)]">

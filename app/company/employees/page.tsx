@@ -18,7 +18,7 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cx(
-        "h-9 rounded-lg border border-[var(--border-light)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--cort-navy)] shadow-sm",
+        "h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--text-primary)] shadow-sm",
         props.className,
       )}
     />
@@ -99,7 +99,7 @@ export default function EmployeesPage() {
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-[var(--cort-navy)]">Read-Only Roster</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">Read-Only Roster</div>
               <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
                 This roster is synced from the Cort Admin portal. You can update contact details or deactivate status, but main record creation happens centrally.
               </div>
@@ -135,7 +135,7 @@ export default function EmployeesPage() {
                   return (
                     <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
                       <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{e.employee_id || "—"}</td>
-                      <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--cort-navy)]`}>{e.full_name}</td>
+                      <td className={`${TABLE_CELL_CLASS} font-bold text-white`}>{e.full_name}</td>
                       <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
@@ -144,7 +144,7 @@ export default function EmployeesPage() {
                             placeholder="Phone"
                           />
                         ) : (
-                          <span className="text-[var(--cort-navy)] font-medium">{e.phone || "—"}</span>
+                          <span className="text-[var(--text-secondary)] font-medium">{e.phone || "—"}</span>
                         )}
                       </td>
                       <td className={TABLE_CELL_CLASS}>
@@ -155,13 +155,13 @@ export default function EmployeesPage() {
                             placeholder="Email"
                           />
                         ) : (
-                          <span className="text-[var(--cort-navy)]">{e.email || "—"}</span>
+                          <span className="text-[var(--text-secondary)]">{e.email || "—"}</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-slate-500">{e.department || "—"}</td>
+                      <td className="px-6 py-4 text-[var(--text-muted)]">{e.department || "—"}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${e.status.toLowerCase() === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          'bg-rose-50 text-rose-700 border-rose-200'
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${e.status.toLowerCase() === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          'bg-rose-500/10 text-rose-400 border-rose-500/20'
                           }`}>
                           <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${e.status.toLowerCase() === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                           {e.status}
@@ -174,14 +174,14 @@ export default function EmployeesPage() {
                               <button
                                 type="button"
                                 onClick={() => saveEdit(e)}
-                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--cort-orange)] px-3 text-xs font-bold text-white shadow-sm hover:bg-[var(--cort-orange-hover)] transition-colors"
+                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--cort-orange)] px-3 text-xs font-bold text-[var(--text-primary)] shadow-sm hover:bg-[var(--cort-orange-hover)] transition-colors"
                               >
                                 Save
                               </button>
                               <button
                                 type="button"
                                 onClick={cancelEdit}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-light)] bg-white px-3 text-xs font-bold text-[var(--cort-navy)] hover:bg-[var(--surface-subtle)] transition-colors"
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-input)] bg-[var(--bg-subtle)] px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] transition-colors"
                               >
                                 Cancel
                               </button>
@@ -199,7 +199,7 @@ export default function EmployeesPage() {
                               <button
                                 type="button"
                                 onClick={() => handleDeactivate(e)}
-                                className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-[var(--text-muted)] hover:text-rose-600 hover:bg-rose-50' : 'text-[var(--text-muted)] hover:text-emerald-600 hover:bg-emerald-50'}`}
+                                className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10' : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10'}`}
                                 title={e.status.toLowerCase() === "active" ? "Deactivate User" : "Activate User"}
                               >
                                 {e.status.toLowerCase() === "active" ? (

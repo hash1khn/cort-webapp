@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { CompanyShell } from "./ui/CompanyShell";
-import { Provider } from "react-redux";
+import { CompanyThemeProvider } from "./lib/theme-context";import { Provider } from "react-redux";
 import { companyStore } from "../lib/store/company-store";
 import { useAuth } from "../lib/contexts/auth-context";
 import { ProtectedRoute } from "../lib/components/protected-route";
@@ -25,7 +25,9 @@ export default function CompanyLayout({ children }: { children: ReactNode }) {
       redirectTo="/login"
     >
       <Provider store={companyStore}>
-        <CompanyShell>{children}</CompanyShell>
+        <CompanyThemeProvider>
+          <CompanyShell>{children}</CompanyShell>
+        </CompanyThemeProvider>
       </Provider>
     </ProtectedRoute>
   );

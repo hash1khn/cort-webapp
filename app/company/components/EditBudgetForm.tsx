@@ -44,18 +44,18 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-                <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm border border-rose-100 flex items-start gap-2">
+                <div className="bg-red-500/10 text-red-400 p-3 rounded-lg text-sm border border-red-500/20 flex items-start gap-2">
                     <div className="w-1 h-1 rounded-full bg-rose-500 mt-2 shrink-0" />
                     {error}
                 </div>
             )}
 
             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                     Monthly Budget (PKR)
                 </label>
                 <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-muted)]">
                         <CreditCard className="w-4 h-4" />
                     </div>
                     <input
@@ -68,28 +68,28 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
                             const val = e.target.value.replace(/[^0-9]/g, '');
                             setBudget(val);
                         }}
-                        className="w-full pl-10 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 transition-shadow transition-colors"
+                        className="w-full pl-10 pr-3 py-2 bg-[var(--bg-card)] border border-[var(--border-input)] text-[var(--text-primary)] rounded-xl focus:ring-2 focus:ring-[#fe8503]/20 focus:border-[#fe8503] transition-shadow transition-colors"
                         placeholder="e.g. 1500000"
                     />
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[var(--text-muted)] mt-1">
                     Set a monthly limit to track your spending effectively.
                 </p>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t border-slate-100">
+            <div className="flex gap-3 pt-4 border-t border-[var(--border-input)]">
                 <button
                     type="button"
                     onClick={onCancel}
                     disabled={isSubmitting}
-                    className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 font-medium transition-colors"
+                    className="flex-1 px-4 py-2 border border-[var(--border-input)] text-[var(--text-secondary)] rounded-xl hover:bg-[var(--row-hover)] font-medium transition-colors"
                 >
                     Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isSubmitting || !budget}
-                    className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 bg-[#fe8503] text-[var(--text-primary)] rounded-xl hover:bg-[#f07a00] font-medium transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSubmitting ? (
                         <>

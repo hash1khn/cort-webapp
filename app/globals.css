@@ -1,58 +1,141 @@
 @import "tailwindcss";
 
 :root {
-    /* PRIMARY PALETTE - 2 Colors Only */
+    /* ── Brand (never change between themes) ─────────────────────── */
     --cort-navy: #0c225e;
     --cort-navy-dark: #0a1844;
-    --cort-navy-border: #1a3a5c;
-    --cort-orange: #f47f00;
-    --cort-orange-hover: #e67c00;
+    --cort-orange: #fe8503;
+    --cort-orange-hover: #f07a00;
+    --cort-navy-hover: #1a3a5c;
 
-    /* NEUTRAL PALETTE */
-    --surface-white: #ffffff;
-    --surface-subtle: #f9fafb;
-    --surface-muted: #f3f4f6;
-    --surface-card: #f0f4f8;
-    --border-light: #e5e7eb;
-    --border-dark: #d1d5db;
-    
-    /* TEXT HIERARCHY */
-    --text-primary: #0c225e;      /* Navy */
-    --text-secondary: #374151;    /* Charcoal Gray */
-    --text-muted: #9ca3af;        /* Slate Gray */
-    --text-light: #d1d5db;        /* Light Gray */
-    
-    /* SHADOWS - Premium */
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
-    --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.18);
-    
-    /* BRAND ACCENTS (Status Only) */
+    /* ── Semantic tokens — DARK MODE (default) ───────────────────── */
+    --bg-page: #080b14;
+    --bg-card: #0d1120;
+    --bg-card-hover: #111827;
+    --bg-subtle: rgba(255,255,255,0.04);
+    --bg-input: #0d1120;
+    --bg-input-focus: #080b14;
+    --bg-sidebar: #0d1120;
+    --bg-header: #080b14;
+
+    --border-default: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.12);
+    --border-input: rgba(255,255,255,0.10);
+
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255,255,255,0.65);
+    --text-muted: rgba(255,255,255,0.35);
+    --text-light: rgba(255,255,255,0.12);
+    --text-placeholder: rgba(255,255,255,0.25);
+
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.3);
+    --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.4);
+    --shadow-modal: 0 24px 48px rgba(0,0,0,0.6);
+
+    --nav-active-bg: rgba(254,133,3,0.10);
+    --nav-active-text: #fe8503;
+    --nav-inactive-text: rgba(255,255,255,0.40);
+    --nav-hover-bg: rgba(255,255,255,0.04);
+    --nav-group-label: rgba(255,255,255,0.25);
+    --nav-border: rgba(255,255,255,0.06);
+    --nav-footer-bg: rgba(255,255,255,0.02);
+
+    --row-hover: rgba(255,255,255,0.04);
+    --divider: rgba(255,255,255,0.07);
+
+    /* LEGACY aliases — kept for CSS-var references that still exist */
+    --surface-white: #0d1120;
+    --surface-subtle: rgba(255,255,255,0.025);
+    --surface-muted: rgba(255,255,255,0.04);
+    --surface-card: rgba(255,255,255,0.03);
+    --border-light: rgba(255,255,255,0.07);
+    --border-dark: rgba(255,255,255,0.12);
+    --background: #080b14;
+    --foreground: #ffffff;
+    --surface: #080b14;
+    --border: rgba(255,255,255,0.07);
+    --muted: rgba(255,255,255,0.35);
+    --text-main: #ffffff;
+    --glass-border: rgba(255,255,255,0.07);
+    --cort-navy-border: rgba(255,255,255,0.08);
+
+    /* BRAND ACCENTS */
     --accent-success: #10b981;
     --accent-warning: #f59e0b;
     --accent-danger: #ef4444;
     --accent-info: #3b82f6;
-    
-    /* LEGACY - Kept for backwards compatibility */
+
+    /* LEGACY */
     --cort-purple: #670e4c;
     --cort-blue: #09347d;
     --cort-teal: #6db9ca;
-    --cort-red: #d32f2f;
-    --cort-green: #388e3c;
-
-    --background: #F3F4F6;
-    --foreground: #111827;
-    --surface: #f5f5f5;
-    --border: rgba(17, 24, 39, 0.10);
-    --muted: rgba(17, 24, 39, 0.65);
+    --cort-red: #ef4444;
+    --cort-green: #10b981;
 
     --premium-gold: #D4AF37;
     --premium-dark: #050a14;
     --premium-gradient: linear-gradient(135deg, #0f172a 0%, #000000 100%);
-    --glass-border: rgba(0, 0, 0, 0.06);
-    --text-main: #1f2937;
+
+    /* Shadows (legacy) */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+    --shadow-xl: 0 12px 32px rgba(0,0,0,0.6);
+}
+
+/* ── Light Mode overrides ────────────────────────────────────────── */
+[data-theme="light"] {
+    --bg-page: #f4f6fb;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8faff;
+    --bg-subtle: rgba(0,0,0,0.03);
+    --bg-input: #ffffff;
+    --bg-input-focus: #f8faff;
+    --bg-sidebar: #ffffff;
+    --bg-header: #f4f6fb;
+
+    --border-default: rgba(0,0,0,0.07);
+    --border-strong: rgba(0,0,0,0.12);
+    --border-input: rgba(0,0,0,0.12);
+
+    --text-primary: #0f172a;
+    --text-secondary: rgba(15,23,42,0.65);
+    --text-muted: rgba(15,23,42,0.45);
+    --text-light: rgba(15,23,42,0.15);
+    --text-placeholder: rgba(15,23,42,0.30);
+
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+    --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.10);
+    --shadow-modal: 0 24px 48px rgba(0,0,0,0.15);
+
+    --nav-active-bg: rgba(254,133,3,0.08);
+    --nav-active-text: #fe8503;
+    --nav-inactive-text: rgba(15,23,42,0.45);
+    --nav-hover-bg: rgba(0,0,0,0.04);
+    --nav-group-label: rgba(15,23,42,0.30);
+    --nav-border: rgba(0,0,0,0.07);
+    --nav-footer-bg: rgba(0,0,0,0.02);
+
+    --row-hover: rgba(0,0,0,0.03);
+    --divider: rgba(0,0,0,0.07);
+
+    /* LEGACY aliases for light */
+    --surface-white: #ffffff;
+    --surface-subtle: rgba(0,0,0,0.025);
+    --surface-muted: rgba(0,0,0,0.04);
+    --surface-card: rgba(0,0,0,0.02);
+    --border-light: rgba(0,0,0,0.07);
+    --border-dark: rgba(0,0,0,0.12);
+    --background: #f4f6fb;
+    --foreground: #0f172a;
+    --surface: #f4f6fb;
+    --border: rgba(0,0,0,0.07);
+    --muted: rgba(15,23,42,0.45);
+    --text-main: #0f172a;
+    --glass-border: rgba(0,0,0,0.07);
+    --cort-navy-border: rgba(0,0,0,0.08);
+    --text-muted: rgba(15,23,42,0.45);
 }
 
 @theme inline {
@@ -186,8 +269,8 @@
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
+    background: var(--bg-page);
+    color: var(--text-primary);
 }
 
 /* Page transition when changing routes (e.g. sidebar nav) */

@@ -81,7 +81,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
         ...insight,
         savings: insight.savings.toLocaleString(),
         icon: insight.iconType === 'bus' ? <Bus className="w-8 h-8" /> : <Route className="w-8 h-8" />,
-        color: insight.iconType === 'bus' ? "bg-[var(--cort-orange)] text-white" : "bg-[var(--cort-navy)] text-white",
+        color: insight.iconType === 'bus' ? "bg-[#fe8503] text-[var(--text-primary)]" : "bg-[var(--bg-card)] text-[var(--text-primary)]",
         affectedEmployees: insight.affectedEmployees.map(emp => ({
             ...emp,
             currentCost: `PKR ${emp.currentCost.toLocaleString()}`
@@ -101,8 +101,8 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                     </div>
                     <div className="flex flex-col items-center">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-3xl font-black text-[var(--cort-navy)] uppercase tracking-tight">Power Insights</h2>
-                            <span className="flex items-center gap-1 bg-gradient-to-r from-[var(--cort-navy)] to-[var(--cort-navy-hover)] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-[0_2px_10px_rgba(0,0,0,0.1)] border border-white/10">
+                            <h2 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tight">Power Insights</h2>
+                            <span className="flex items-center gap-1 bg-gradient-to-r from-[#fe8503] to-[#f07a00] text-[var(--text-primary)] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-[0_2px_10px_rgba(0,0,0,0.1)] border border-[var(--border-input)]">
                                 <Crown size={10} className="fill-current" />
                                 Premium
                             </span>
@@ -121,9 +121,9 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                     >
                         {/* Independent Blur and Unlock UI per Card */}
                         <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 backdrop-blur-[2px]">
-                            <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                                <Lock size={16} className="text-[var(--cort-navy)]" />
-                                <span className="text-xs font-black uppercase tracking-[0.1em] text-[var(--cort-navy)]">Open Full Analysis</span>
+                            <div className="bg-[var(--bg-subtle)] px-6 py-3 rounded-2xl shadow-xl flex items-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                                <Lock size={16} className="text-[var(--text-primary)]" />
+                                <span className="text-xs font-black uppercase tracking-[0.1em] text-[var(--text-primary)]">Open Full Analysis</span>
                             </div>
                         </div>
 
@@ -141,7 +141,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                             <p className="text-sm opacity-80 leading-relaxed max-w-[90%]">{insight.description}</p>
                         </div>
 
-                        <div className="relative z-10 mt-6 pt-6 border-t border-white/10 flex items-end justify-between filter blur-[4px] opacity-60 group-hover:blur-0 group-hover:opacity-100 transition-all duration-500">
+                        <div className="relative z-10 mt-6 pt-6 border-t border-[var(--border-input)] flex items-end justify-between filter blur-[4px] opacity-60 group-hover:blur-0 group-hover:opacity-100 transition-all duration-500">
                             <div className="flex flex-col">
                                 <span className="text-[11px] font-black uppercase opacity-60 tracking-widest mb-1">Potential Monthly Savings</span>
                                 <div className="text-5xl font-black tracking-tighter flex items-baseline">
@@ -164,21 +164,21 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                     <div className="relative">
                         {/* Premium Modal Overlay */}
                         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center">
-                            <div className="bg-white/95 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.15)] border border-white/50 max-w-sm w-full animate-in fade-in zoom-in duration-300">
-                                <div className="w-16 h-16 bg-gradient-to-tr from-[var(--cort-navy)] to-[var(--cort-navy-hover)] rounded-2xl flex items-center justify-center text-white mb-5 mx-auto shadow-xl">
+                            <div className="bg-[var(--bg-card)] backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)] border border-[var(--border-input)] max-w-sm w-full animate-in fade-in zoom-in duration-300">
+                                <div className="w-16 h-16 bg-gradient-to-tr from-[#fe8503] to-[#f07a00] rounded-2xl flex items-center justify-center text-[var(--text-primary)] mb-5 mx-auto shadow-xl">
                                     <Lock size={32} strokeWidth={2.5} />
                                 </div>
-                                <h3 className="text-2xl font-black text-[var(--cort-navy)] mb-2 tracking-tight">Full Impact Analysis</h3>
+                                <h3 className="text-2xl font-black text-[var(--text-primary)] mb-2 tracking-tight">Full Impact Analysis</h3>
                                 <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed font-medium">
                                     {selectedInsight.premiumMessage}
                                 </p>
-                                <button className="w-full py-3.5 bg-[var(--cort-navy)] text-white rounded-xl font-black uppercase tracking-[0.15em] text-[10px] hover:bg-[var(--cort-navy-hover)] transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+                                <button className="w-full py-3.5 bg-[#fe8503] text-[var(--text-primary)] rounded-xl font-black uppercase tracking-[0.15em] text-[10px] hover:bg-[#f07a00] transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
                                     <span>Activate Efficiency Suite</span>
                                     <ArrowRight size={14} />
                                 </button>
                                 <button
                                     onClick={() => setSelectedInsight(null)}
-                                    className="mt-4 text-[10px] font-bold text-[var(--text-muted)] hover:text-[var(--cort-navy)] uppercase tracking-widest"
+                                    className="mt-4 text-[10px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] uppercase tracking-widest"
                                 >
                                     Dismiss for now
                                 </button>
@@ -193,7 +193,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                     {selectedInsight.icon}
                                 </div>
                                 <div>
-                                    <h3 className="text-2xl font-black text-[var(--cort-navy)] tracking-tight">{selectedInsight.title}</h3>
+                                    <h3 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">{selectedInsight.title}</h3>
                                     <p className="text-[var(--text-secondary)] text-sm mt-1 leading-relaxed">
                                         {selectedInsight.longDescription}
                                     </p>
@@ -204,7 +204,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                             <div className="p-6 rounded-[2rem] bg-[var(--surface-muted)] border border-[var(--border-light)] flex flex-col md:flex-row justify-between items-center gap-6">
                                 <div className="flex flex-col items-center md:items-start">
                                     <span className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Estimated Savings</span>
-                                    <div className="text-4xl font-black text-[var(--cort-navy)] tracking-tight">
+                                    <div className="text-4xl font-black text-[var(--text-primary)] tracking-tight">
                                         <span className="text-xl font-medium opacity-40 mr-1 uppercase">Rs.</span>
                                         {selectedInsight.savings}
                                         <span className="text-lg font-medium opacity-40 ml-1">/ mo</span>
@@ -215,7 +215,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                     <span className="text-[10px] font-black uppercase text-[var(--text-muted)] tracking-widest mb-1">Impact Radius</span>
                                     <div className="flex items-center gap-2">
                                         <Users className="text-[var(--cort-orange)]" size={24} />
-                                        <span className="text-2xl font-black text-[var(--cort-navy)]">{selectedInsight.affectedEmployees.length} Employees</span>
+                                        <span className="text-2xl font-black text-[var(--text-primary)]">{selectedInsight.affectedEmployees.length} Employees</span>
                                     </div>
                                 </div>
                             </div>
@@ -225,15 +225,15 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                 {/* Affected Employees */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2">
-                                        <Users size={18} className="text-[var(--cort-navy)]" />
-                                        <h4 className="text-sm font-black uppercase tracking-widest text-[var(--cort-navy)]">Affected Employees</h4>
+                                        <Users size={18} className="text-[#fe8503]" />
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">Affected Employees</h4>
                                     </div>
-                                    <div className="rounded-2xl border border-[var(--border-light)] overflow-hidden">
-                                        <div className="max-h-[300px] overflow-y-auto divide-y divide-[var(--border-light)]">
+                                    <div className="rounded-2xl border border-[var(--border-input)] overflow-hidden">
+                                        <div className="max-h-[300px] overflow-y-auto divide-y divide-white/[0.06]">
                                             {selectedInsight.affectedEmployees.map((emp: any, i: number) => (
-                                                <div key={i} className="p-4 flex justify-between items-center hover:bg-[var(--surface-subtle)] transition-colors">
+                                                <div key={i} className="p-4 flex justify-between items-center hover:bg-[var(--bg-subtle)] transition-colors">
                                                     <div>
-                                                        <div className="font-bold text-[var(--cort-navy)] text-sm">{emp.name}</div>
+                                                        <div className="font-bold text-[var(--text-primary)] text-sm">{emp.name}</div>
                                                         <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-tighter">{emp.dept}</div>
                                                     </div>
                                                     <div className="text-right">
@@ -249,31 +249,31 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                 {/* Revised Route */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2">
-                                        <Route size={18} className="text-[var(--cort-navy)]" />
-                                        <h4 className="text-sm font-black uppercase tracking-widest text-[var(--cort-navy)]">Revised Route</h4>
+                                        <Route size={18} className="text-[#fe8503]" />
+                                        <h4 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">Revised Route</h4>
                                     </div>
-                                    <div className="p-6 rounded-[2rem] border border-[var(--border-light)] bg-[var(--surface-card)] h-full">
+                                    <div className="p-6 rounded-[2rem] border border-[var(--border-input)] bg-[var(--bg-subtle)] h-full">
                                         <div className="flex items-center gap-3 mb-6">
                                             <div className="w-10 h-10 rounded-full bg-[var(--cort-orange)]/10 flex items-center justify-center text-[var(--cort-orange)]">
                                                 <Bus size={20} />
                                             </div>
                                             <div>
                                                 <div className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)]">Route Name</div>
-                                                <div className="font-bold text-[var(--cort-navy)]">{selectedInsight.revisedRoute.name}</div>
+                                                <div className="font-bold text-[var(--text-primary)]">{selectedInsight.revisedRoute.name}</div>
                                             </div>
                                         </div>
 
                                         <div className="relative pl-6 space-y-6">
                                             {/* Vertical Line */}
-                                            <div className="absolute left-2.5 top-1 bottom-1 w-0.5 bg-gradient-to-b from-[var(--cort-orange)] to-[var(--cort-navy)] opacity-30"></div>
+                                            <div className="absolute left-2.5 top-1 bottom-1 w-0.5 bg-gradient-to-b from-[#fe8503] to-white/20 opacity-30"></div>
 
                                             {selectedInsight.revisedRoute.stops.map((stop: string, i: number) => (
                                                 <div key={i} className="relative flex items-center gap-4">
-                                                    <div className={`absolute -left-[1.125rem] w-3 h-3 rounded-full border-2 border-white ${i === 0 ? 'bg-[var(--cort-orange)]' :
-                                                        i === selectedInsight.revisedRoute.stops.length - 1 ? 'bg-[var(--cort-navy)]' :
-                                                            'bg-white border-[var(--border-light)]'
+                                                    <div className={`absolute -left-[1.125rem] w-3 h-3 rounded-full border-2 border-white/20 ${i === 0 ? 'bg-[#fe8503]' :
+                                                        i === selectedInsight.revisedRoute.stops.length - 1 ? 'bg-white/40' :
+                                                            'bg-white/10'
                                                         }`}></div>
-                                                    <div className="text-sm font-bold text-[var(--cort-navy)]">{stop}</div>
+                                                    <div className="text-sm font-bold text-[var(--text-primary)]">{stop}</div>
                                                 </div>
                                             ))}
                                         </div>

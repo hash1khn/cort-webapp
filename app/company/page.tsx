@@ -173,7 +173,7 @@ export default function CompanyDashboardPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           Error loading company: {error}
         </div>
       </div>
@@ -197,7 +197,7 @@ export default function CompanyDashboardPage() {
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dashboard-section dashboard-section-delay-1">
         {/* Welcome Banner - Premium Background Image (Dark Theme - No Fade) */}
-        <div className="lg:col-span-2 relative rounded-[2rem] bg-[var(--cort-navy)] p-6 sm:p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] border border-[var(--cort-navy-border)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all duration-200 group">
+        <div className="lg:col-span-2 relative rounded-[2rem] bg-[#0c1a3d] p-6 sm:p-8 shadow-[0_2px_16px_rgba(0,0,0,0.4)] border border-[var(--border-default)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all duration-200 group">
 
           {/* Background Image Layer */}
           <div
@@ -211,15 +211,15 @@ export default function CompanyDashboardPage() {
 
           <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between h-full">
             <div className="flex flex-col justify-center mt-auto sm:mt-0">
-              <div className="flex items-center gap-2 text-white text-opacity-70 mb-1">
-                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-sm bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+              <div className="flex items-center gap-2 text-[var(--text-primary)] text-opacity-70 mb-1">
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-sm bg-white/5 px-2 py-0.5 rounded-full border border-[var(--border-input)]">
                   {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)] mb-2 leading-tight">
                 Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
               </h1>
-              <p className="text-white text-opacity-80 max-w-xl text-base sm:text-lg">
+              <p className="text-[var(--text-primary)] text-opacity-80 max-w-xl text-base sm:text-lg">
                 {hasChauffeur
                   ? <>You have <span className="text-white font-bold">{todayBookingsCount}</span> upcoming bookings.</>
                   : <>Your mobility services are active.</>
@@ -230,9 +230,9 @@ export default function CompanyDashboardPage() {
             {hasChauffeur && (
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="group relative flex items-center justify-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap w-full sm:w-auto"
+                className="group relative flex items-center justify-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md whitespace-nowrap w-full sm:w-auto"
               >
-                <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 text-[var(--text-primary)] transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>New Booking</span>

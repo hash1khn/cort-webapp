@@ -122,12 +122,12 @@ export default function CompanyInvoicingPage() {
                             ) : (
                                 invoices.map((inv) => (
                                     <tr key={inv.id} className="group hover:bg-[var(--surface-subtle)]/80 transition-colors border-b border-transparent">
-                                        <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--cort-navy)] font-mono`}>#{inv.invoice_number}</td>
-                                        <td className={`${TABLE_CELL_CLASS} font-medium text-[var(--cort-navy)]`}>{inv.billing_month}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-bold text-white font-mono`}>#{inv.invoice_number}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-medium text-white`}>{inv.billing_month}</td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-muted)]`}>
                                             {new Date(inv.generated_at).toLocaleDateString()}
                                         </td>
-                                        <td className={`${TABLE_CELL_CLASS} text-right font-bold text-[var(--cort-navy)] text-base`}>
+                                        <td className={`${TABLE_CELL_CLASS} text-right font-bold text-[var(--text-primary)] text-base`}>
                                             <span className="text-[var(--text-muted)] text-xs font-normal mr-1">PKR</span>
                                             {Number(inv.total_amount).toLocaleString()}
                                         </td>
@@ -172,7 +172,7 @@ export default function CompanyInvoicingPage() {
                                                 <button
                                                     onClick={() => viewPdf(inv.id)}
                                                     disabled={viewingId === inv.id}
-                                                    className="text-[var(--cort-navy)] hover:text-[var(--cort-navy)]/80 font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                                                    className="text-[var(--text-secondary)] hover:text-white font-medium text-sm disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
                                                 >
                                                     {viewingId === inv.id ? (
                                                         <>

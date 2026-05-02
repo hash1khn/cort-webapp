@@ -20,7 +20,7 @@ export function PageHeader({
         <div className="flex items-center gap-2 text-[var(--text-muted)] mb-1">
           <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--cort-navy)]">{title}</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)]">{title}</h1>
         {description && (
           <p className="mt-2 text-[var(--text-muted)] max-w-2xl text-sm">{description}</p>
         )}
