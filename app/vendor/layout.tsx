@@ -50,11 +50,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
     // Guard: only COMPANY_VENDOR
     useEffect(() => {
-        if (loading) return;
+        if (loading || pathname === "/vendor/login") return;
         if (!isAuthenticated || user?.role !== UserRole.COMPANY_VENDOR) {
-            router.replace("/");
+            router.replace("/vendor/login");
         }
-    }, [loading, isAuthenticated, user, router]);
+    }, [loading, isAuthenticated, user, router, pathname]);
 
     // Initialize selected link from localStorage or first link
     useEffect(() => {
@@ -73,14 +73,20 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         setShowCompanySwitcher(false);
     }, []);
 
-    if (loading || !user || user.role !== UserRole.COMPANY_VENDOR) {
+    const isLogin = pathname === "/vendor/login";
+
+    if (loading) {
+        return <div className="flex items-center justify-center min-h-screen"><div className="w-8 h-8 border-4 border-[#f47f00] border-t-transparent rounded-full animate-spin" /></div>;
+    }
+
+    if (isLogin) return <>{children}</>;
+
+    if (!user || user.role !== UserRole.COMPANY_VENDOR) {
         return <div className="flex items-center justify-center min-h-screen"><div className="w-8 h-8 border-4 border-[#f47f00] border-t-transparent rounded-full animate-spin" /></div>;
     }
 
     const links = user.vendor_links ?? [];
     const activeLinks = links.filter((l) => l.is_active);
-    const isLogin = pathname === "/vendor/login";
-    if (isLogin) return <>{children}</>;
 
     const navItems = [
         { href: "/vendor", label: "Dashboard", icon: LayoutDashboard, exact: true },
