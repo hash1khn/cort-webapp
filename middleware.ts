@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
             return NextResponse.rewrite(new URL("/vendor/login", request.url));
         }
 
-        if (!pathname.startsWith("/vendor")) {
+        if (!pathname.startsWith("/vendor") && !pathname.startsWith("/admin") && !pathname.startsWith("/company")) {
             return NextResponse.rewrite(new URL(`/vendor${pathname}`, request.url));
         }
     }
