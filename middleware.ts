@@ -6,8 +6,8 @@ export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Define domains
-    const ADMIN_DOMAIN = "admin.cort.com.pk";
-    const PORTAL_DOMAIN = "portal.cort.com.pk";
+    const ADMIN_DOMAIN = "admin.traflinq.com";
+    const PORTAL_DOMAIN = "portal.traflinq.com";
 
     // Check if we are on the Admin domain
     if (hostname && hostname.includes(ADMIN_DOMAIN)) {
@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
 
         // Determine the new URL path
         // We want to serve content from /admin/* without showing /admin in the URL
-        // So admin.cort.com.pk/dashboard servers /admin/dashboard
+        // So admin.traflinq.com/dashboard serves /admin/dashboard
 
         // If the path already starts with /admin (unlikely if we are hiding it, but possible),
         // we might not need to rewrite, or we might want to handle it.
