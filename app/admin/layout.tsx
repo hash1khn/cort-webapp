@@ -20,14 +20,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     pathname === "/";
 
   if (isLoginPage) {
-    return <>{children}</>;
+    return <div data-theme="light">{children}</div>;
   }
 
   return (
     <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.INTERNAL_STAFF]} redirectTo="/admin/login">
       <Provider store={adminStore}>
         <AdminAbilityProvider>
-          <AdminShell>{children}</AdminShell>
+          <div data-theme="light">
+            <AdminShell>{children}</AdminShell>
+          </div>
         </AdminAbilityProvider>
       </Provider>
     </ProtectedRoute>
