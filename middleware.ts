@@ -8,6 +8,19 @@ export function middleware(request: NextRequest) {
     // Define domains
     const ADMIN_DOMAIN = "admin.traflinq.com";
     const PORTAL_DOMAIN = "portal.traflinq.com";
+    const VENDOR_DOMAIN = "vendor.traflinq.com";
+
+    // Check if we are on the Vendor domain
+    if (hostname && hostname.includes(VENDOR_DOMAIN)) {
+        // Redirect root to login
+        if (pathname === "/") {
+            return NextResponse.rewrite(new URL("/vendor/login", request.url));
+        }
+
+        if (!pathname.startsWith("/vendor")) {
+            return NextResponse.rewrite(new URL(`/vendor${pathname}`, request.url));
+        }
+    }
 
     // Check if we are on the Admin domain
     if (hostname && hostname.includes(ADMIN_DOMAIN)) {
