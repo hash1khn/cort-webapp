@@ -537,6 +537,12 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                                 Contracts &amp; pricing
                             </Link>
                         )}
+                        <Link
+                            href={`/admin/companies/${id}/fleet`}
+                            className="inline-flex h-9 items-center justify-center rounded-lg border border-green-600 bg-white px-4 text-sm font-semibold text-green-700 shadow-sm hover:bg-green-50 transition-colors"
+                        >
+                            Fleet Efficiency
+                        </Link>
                         <button
                             type="button"
                             onClick={handleExportCredentials}
