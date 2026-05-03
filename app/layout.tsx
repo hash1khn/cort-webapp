@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cort Portal",
-  description: "Cort Portal",
+  title: "Traflinq Portal",
+  description: "Traflinq Portal",
 };
 
 export default function RootLayout({
