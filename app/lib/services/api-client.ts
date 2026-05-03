@@ -1,6 +1,19 @@
 import { LoginRequest, LoginResponse, ProfileResponse, SignupRequest, StaffPermissions } from '../types/auth-types';
 import {
     PaginatedResponse,
+    // Multi-mode platform
+    Pagination,
+    CompanyFeature,
+    ExternalVendor,
+    CompanyVendorLink,
+    VendorDashboardStats,
+    BookingVendorRequest,
+    VendorVehicle,
+    VendorDriver,
+    VendorRoute,
+    PoolVehicle,
+    PoolDriver,
+    TrackerConfig,
     // Companies
     CreateCompanyRequest, QueryCompanyParams, Company, CompanyResponse, UpdateCompanyRequest,
     // Employees
@@ -891,6 +904,7 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.status) query.append('status', params.status);
         if (params.search) query.append('search', params.search);
+        if (params.fulfillment_type) query.append('fulfillment_type', params.fulfillment_type);
 
         const queryString = query.toString();
         const endpoint = `/admin/bookings${queryString ? `?${queryString}` : ''}`;
@@ -1009,6 +1023,7 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.status) query.append('status', params.status);
         if (params.search) query.append('search', params.search);
+        if (params.fulfillment_type) query.append('fulfillment_type', params.fulfillment_type);
 
         const queryString = query.toString();
         const endpoint = `/companies/${companyId}/chauffeur-bookings${queryString ? `?${queryString}` : ''}`;
@@ -1305,6 +1320,380 @@ class ApiClient {
 
     async getUpcomingMaintenance(): Promise<UpcomingMaintenanceResponse> {
         return this.request<UpcomingMaintenanceResponse>('/vehicle-maintenance/upcoming');
+    }
+
+    // ===== COMPANY FEATURES =====
+
+    async getCompanyFeatures(companyId: number) {
+        return this.request<{ success: boolean; data: CompanyFeature[] }>(`/companies/${companyId}/features`);
+    }
+
+    async upsertCompanyFeature(companyId: number, dto: { feature_key: string; is_enabled: boolean; config?: Record<string, unknown> }) {
+        return this.request<{ success: boolean; data: CompanyFeature }>(`/admin/companies/${companyId}/features`, {
+            method: 'PUT',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async bulkUpsertCompanyFeatures(companyId: number, features: { feature_key: string; is_enabled: boolean; config?: Record<string, unknown> }[]) {
+        return this.request<{ success: boolean; data: CompanyFeature[] }>(`/admin/companies/${companyId}/features/bulk`, {
+            method: 'PUT',
+            body: JSON.stringify({ features }),
+        });
+    }
+
+    // ===== EXTERNAL VENDORS (admin) =====
+
+    async getExternalVendors(params?: { page?: number; limit?: number; search?: string; company_id?: number }) {
+        const query = new URLSearchParams();
+        if (params?.page) query.append('page', String(params.page));
+        if (params?.limit) query.append('limit', String(params.limit));
+        if (params?.search) query.append('search', params.search);
+        if (params?.company_id) query.append('company_id', String(params.company_id));
+        return this.request<{ success: boolean; data: { data: ExternalVendor[]; pagination: Pagination } }>(`/admin/external-vendors?${query}`);
+    }
+
+    async getExternalVendor(id: number) {
+        return this.request<{ success: boolean; data: ExternalVendor }>(`/admin/external-vendors/${id}`);
+    }
+
+    async createExternalVendor(dto: { name: string; contact_email: string; password: string; contact_phone?: string }) {
+        return this.request<{ success: boolean; data: ExternalVendor }>('/admin/external-vendors', {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateExternalVendor(id: number, dto: { name?: string; contact_phone?: string; is_active?: boolean }) {
+        return this.request<{ success: boolean; data: ExternalVendor }>(`/admin/external-vendors/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deactivateExternalVendor(id: number) {
+        return this.request<{ success: boolean }>(`/admin/external-vendors/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async createVendorLink(vendorId: number, dto: { company_id: number; serves_chauffeur?: boolean; serves_shuttle?: boolean }) {
+        return this.request<{ success: boolean; data: CompanyVendorLink }>(`/admin/external-vendors/${vendorId}/links`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async getVendorLinks(vendorId: number) {
+        return this.request<{ success: boolean; data: CompanyVendorLink[] }>(`/admin/external-vendors/${vendorId}/links`);
+    }
+
+    async updateVendorLink(linkId: number, dto: { serves_chauffeur?: boolean; serves_shuttle?: boolean; is_active?: boolean }) {
+        return this.request<{ success: boolean; data: CompanyVendorLink }>(`/admin/external-vendors/links/${linkId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async removeVendorLink(linkId: number) {
+        return this.request<{ success: boolean }>(`/admin/external-vendors/links/${linkId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getCompanyExternalVendors(companyId: number) {
+        return this.request<{ success: boolean; data: CompanyVendorLink[] }>(`/admin/companies/${companyId}/external-vendors`);
+    }
+
+    // ===== VENDOR DASHBOARD =====
+
+    async getVendorDashboard() {
+        return this.request<{ success: boolean; data: VendorDashboardStats }>('/vendor/dashboard');
+    }
+
+    async getVendorRequests(params?: { link_id?: number; status?: string; page?: number; limit?: number }) {
+        const query = new URLSearchParams();
+        if (params?.link_id) query.append('link_id', String(params.link_id));
+        if (params?.status) query.append('status', params.status);
+        if (params?.page) query.append('page', String(params.page));
+        if (params?.limit) query.append('limit', String(params.limit));
+        return this.request<{ success: boolean; data: { data: BookingVendorRequest[]; pagination: Pagination } }>(`/vendor/requests?${query}`);
+    }
+
+    async assignVendorRequest(requestId: number, dto: { vehicle_id: number; driver_user_id: string }) {
+        return this.request<{ success: boolean; data: BookingVendorRequest }>(`/vendor/requests/${requestId}/assign`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async rejectVendorRequest(requestId: number) {
+        return this.request<{ success: boolean; data: BookingVendorRequest }>(`/vendor/requests/${requestId}/reject`, {
+            method: 'PATCH',
+        });
+    }
+
+    async getVendorBookings(params?: { link_id?: number; status?: string; page?: number; limit?: number }) {
+        const query = new URLSearchParams();
+        if (params?.link_id) query.append('link_id', String(params.link_id));
+        if (params?.status) query.append('status', params.status);
+        if (params?.page) query.append('page', String(params.page));
+        if (params?.limit) query.append('limit', String(params.limit));
+        return this.request<{ success: boolean; data: { data: ChauffeurBooking[]; pagination: Pagination } }>(`/vendor/bookings?${query}`);
+    }
+
+    async vendorUpdateStatus(bookingId: number, status: 'OTW' | 'ARRIVED') {
+        return this.request<{ success: boolean }>(`/vendor/bookings/${bookingId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
+        });
+    }
+
+    async vendorStartTrip(bookingId: number) {
+        return this.request<{ success: boolean; data: { success: boolean } }>(`/vendor/bookings/${bookingId}/start`, {
+            method: 'PATCH',
+        });
+    }
+
+    async vendorEndTrip(bookingId: number, dto: {
+        total_distance_km: number;
+        expense_toll?: number;
+        expense_parking?: number;
+        end_time?: string;
+        start_time?: string;
+    }) {
+        return this.request<{ success: boolean; data: { success: boolean } }>(`/vendor/bookings/${bookingId}/end`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    // ===== VENDOR FLEET =====
+
+    async getVendorVehicles(linkId: number) {
+        return this.request<{ success: boolean; data: VendorVehicle[] }>(`/vendor/fleet/vehicles?link_id=${linkId}`);
+    }
+
+    async createVendorVehicle(dto: {
+        company_vendor_link_id: number;
+        plate_number: string;
+        make: string;
+        model: string;
+        year: number;
+        color?: string;
+        category: string;
+        fuel_avg_city: number;
+        fuel_avg_highway: number;
+    }) {
+        return this.request<{ success: boolean; data: VendorVehicle }>('/vendor/fleet/vehicles', {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateVendorVehicle(id: number, dto: Partial<{ plate_number: string; make: string; model: string; year: number; color: string; category: string; fuel_avg_city: number; fuel_avg_highway: number }>) {
+        return this.request<{ success: boolean; data: VendorVehicle }>(`/vendor/fleet/vehicles/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async removeVendorVehicle(id: number) {
+        return this.request<{ success: boolean }>(`/vendor/fleet/vehicles/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getVendorDrivers(linkId: number) {
+        return this.request<{ success: boolean; data: VendorDriver[] }>(`/vendor/fleet/drivers?link_id=${linkId}`);
+    }
+
+    async createVendorDriver(dto: {
+        company_vendor_link_id: number;
+        email: string;
+        password: string;
+        full_name: string;
+        phone?: string;
+        driver_type: string;
+        cnic_number?: string;
+        license_number?: string;
+    }) {
+        return this.request<{ success: boolean; data: VendorDriver }>('/vendor/fleet/drivers', {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async removeVendorDriver(userId: string) {
+        return this.request<{ success: boolean }>(`/vendor/fleet/drivers/${userId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // ===== VENDOR ROUTES =====
+
+    async getVendorRoutes(linkId?: number) {
+        const query = linkId ? `?link_id=${linkId}` : '';
+        return this.request<{ success: boolean; data: VendorRoute[] }>(`/vendor/routes${query}`);
+    }
+
+    async getVendorRoute(routeId: number) {
+        return this.request<{ success: boolean; data: VendorRoute }>(`/vendor/routes/${routeId}`);
+    }
+
+    async createVendorRoute(dto: {
+        name: string;
+        company_vendor_link_id: number;
+        assigned_vehicle_id?: number;
+        assigned_driver_id?: string;
+        stops?: Array<{ name: string; lat?: number; lng?: number; morning_eta?: string; evening_eta?: string; sequence_order: number }>;
+    }) {
+        return this.request<{ success: boolean; data: VendorRoute }>('/vendor/routes', {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateVendorRoute(routeId: number, dto: {
+        name?: string;
+        assigned_vehicle_id?: number | null;
+        assigned_driver_id?: string | null;
+    }) {
+        return this.request<{ success: boolean; data: VendorRoute }>(`/vendor/routes/${routeId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async getVendorRoutePolyline(routeId: number) {
+        return this.request<{ points: { lat: number; lng: number }[] }>(`/vendor/routes/${routeId}/polyline`);
+    }
+
+    async previewVendorRoutePolyline(stops: { lat: number; lng: number }[]) {
+        return this.request<{ points: { lat: number; lng: number }[] }>('/vendor/routes/preview-polyline', {
+            method: 'POST',
+            body: JSON.stringify({ stops }),
+        });
+    }
+
+    async addVendorRouteStop(routeId: number, dto: {
+        name: string;
+        sequence_order: number;
+        lat?: number;
+        lng?: number;
+        morning_eta?: string;
+        evening_eta?: string;
+    }) {
+        return this.request<{ success: boolean; data: unknown }>(`/vendor/routes/${routeId}/stops`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateVendorRouteStop(stopId: number, dto: {
+        name?: string;
+        sequence_order?: number;
+        lat?: number;
+        lng?: number;
+        morning_eta?: string | null;
+        evening_eta?: string | null;
+    }) {
+        return this.request<{ success: boolean; data: unknown }>(`/vendor/routes/stops/${stopId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deleteVendorRouteStop(stopId: number) {
+        return this.request<{ success: boolean }>(`/vendor/routes/stops/${stopId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // ===== COMPANY POOL =====
+
+    async getPoolVehicles(companyId: number) {
+        return this.request<{ success: boolean; data: PoolVehicle[] }>(`/companies/${companyId}/pool/vehicles`);
+    }
+
+    async createPoolVehicle(companyId: number, dto: {
+        plate_number: string;
+        make: string;
+        model: string;
+        year: number;
+        color?: string;
+        category: string;
+        fuel_avg_city: number;
+        fuel_avg_highway: number;
+    }) {
+        return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updatePoolVehicle(companyId: number, vehicleId: number, dto: Record<string, unknown>) {
+        return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles/${vehicleId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deactivatePoolVehicle(companyId: number, vehicleId: number) {
+        return this.request<{ success: boolean }>(`/companies/${companyId}/pool/vehicles/${vehicleId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async getPoolDrivers(companyId: number) {
+        return this.request<{ success: boolean; data: PoolDriver[] }>(`/companies/${companyId}/pool/drivers`);
+    }
+
+    async invitePoolDriver(companyId: number, dto: {
+        email: string;
+        password: string;
+        full_name: string;
+        phone?: string;
+        driver_type: string;
+        cnic_number?: string;
+        license_number?: string;
+    }) {
+        return this.request<{ success: boolean; data: PoolDriver }>(`/companies/${companyId}/pool/drivers`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deactivatePoolDriver(companyId: number, userId: string) {
+        return this.request<{ success: boolean }>(`/companies/${companyId}/pool/drivers/${userId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // ===== BOOKING VENDOR REQUESTS =====
+
+    async getBookingVendorRequests(companyId: number, bookingId: number) {
+        return this.request<{ success: boolean; data: BookingVendorRequest[] }>(`/companies/${companyId}/chauffeur-bookings/${bookingId}/vendor-requests`);
+    }
+
+    async confirmVendorForBooking(companyId: number, bookingId: number, requestId: number) {
+        return this.request<{ success: boolean; data: ChauffeurBooking }>(`/companies/${companyId}/chauffeur-bookings/${bookingId}/confirm-vendor`, {
+            method: 'PATCH',
+            body: JSON.stringify({ request_id: requestId }),
+        });
+    }
+
+    // ===== TRACKER CONFIG =====
+
+    async getTrackerConfig(companyId: number) {
+        return this.request<{ success: boolean; data: TrackerConfig }>(`/companies/${companyId}/tracker/config`);
+    }
+
+    async upsertTrackerConfig(companyId: number, dto: { api_endpoint?: string; api_key?: string; config?: Record<string, unknown> }) {
+        return this.request<{ success: boolean; data: TrackerConfig }>(`/companies/${companyId}/tracker/config`, {
+            method: 'PUT',
+            body: JSON.stringify(dto),
+        });
     }
 
     // ===== DASHBOARD =====

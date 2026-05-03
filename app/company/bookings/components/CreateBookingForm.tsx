@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
 import { fetchContract, selectAllowedVehicleModels } from "../../../lib/store/slices/contractSlice";
+import { fetchCompanyFeatures, selectCompanyFeatures, selectCompanyFeaturesStatus } from "../../../lib/store/slices/companySlice";
 import Map from "../../../admin/ui/Map";
 import { useGooglePlacesAutocomplete } from "../../../hooks/useGooglePlacesAutocomplete";
 import { AutocompleteInput } from "../../../components/AutocompleteInput";
@@ -13,6 +14,7 @@ import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
 import { selectContract } from "../../../lib/store/slices/contractSlice";
 import OutstationEstimatePanel from "./OutstationEstimatePanel";
+import { PoolVehicle, PoolDriver, CompanyVendorLink, VendorVehicle } from "../../../lib/services/types/multi-mode";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -97,16 +99,100 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const employees = useAppSelector(selectEmployees);
     const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
     const contract = useAppSelector(selectContract);
+    const features = useAppSelector(selectCompanyFeatures);
+    const featuresStatus = useAppSelector(selectCompanyFeaturesStatus);
+    const featuresLoading = featuresStatus === 'idle' || featuresStatus === 'loading';
 
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
+    // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
+    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
+    const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
+    const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
+    const [poolVehicleId, setPoolVehicleId] = useState<number | null>(null);
+    const [poolDriverId, setPoolDriverId] = useState<string | null>(null);
+
+    // Vendor state for EXTERNAL_VENDOR fulfillment
+    const [vendorLinks, setVendorLinks] = useState<CompanyVendorLink[]>([]);
+    const [vendorVehicleMap, setVendorVehicleMap] = useState<Record<number, VendorVehicle[]>>({});
+    const [vendorMode, setVendorMode] = useState<"all" | number>("all"); // "all" or specific link id
+    const [vendorsLoading, setVendorsLoading] = useState(false);
+    /** CORT_MANAGED + external feature: also fan out to vendors (first assignment wins). */
+    const [broadcastToAllVendors, setBroadcastToAllVendors] = useState(false);
 
     useEffect(() => {
-        if (company?.id) {
-            dispatch(fetchEmployees(company.id.toString()));
-            dispatch(fetchContract());
-        }
+        if (!company?.id) return;
+        const companyId = Number(company.id);
+
+        dispatch(fetchEmployees(company.id.toString()));
+        dispatch(fetchContract());
+        dispatch(fetchCompanyFeatures(companyId));
+
+        // Prefetch all mode data in parallel so it is ready before the user clicks any option.
+        // This also prevents duplicate fetches when switching between fulfillment types.
+        setVendorsLoading(true);
+
+        Promise.all([
+            apiClient.getPoolVehicles(companyId).catch(() => ({ data: [] as PoolVehicle[] })),
+            apiClient.getPoolDrivers(companyId).catch(() => ({ data: [] as PoolDriver[] })),
+            apiClient.getCompanyExternalVendors(companyId).catch(() => ({ data: [] as CompanyVendorLink[] })),
+        ]).then(async ([poolVehiclesRes, poolDriversRes, vendorsRes]) => {
+            setPoolVehicles(poolVehiclesRes.data);
+            setPoolDrivers(poolDriversRes.data);
+
+            const chauffeurLinks = (vendorsRes.data as CompanyVendorLink[]).filter(
+                (l) => l.serves_chauffeur && l.is_active,
+            );
+            setVendorLinks(chauffeurLinks);
+
+            // Fetch vehicles for every vendor link in parallel
+            const vehicleMap: Record<number, VendorVehicle[]> = {};
+            await Promise.all(
+                chauffeurLinks.map(async (link) => {
+                    try {
+                        const vr = await apiClient.getVendorVehicles(link.id);
+                        vehicleMap[link.id] = vr.data;
+                    } catch {
+                        vehicleMap[link.id] = [];
+                    }
+                }),
+            );
+            setVendorVehicleMap(vehicleMap);
+        }).catch(() => {}).finally(() => {
+            setVendorsLoading(false);
+        });
     }, [dispatch, company?.id]);
+
+    const availableFulfillmentTypes = useMemo(() => {
+        const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [];
+        if (features.find((f) => f.feature_key === "chauffeur_cort_managed")?.is_enabled) {
+            opts.push({ value: "CORT_MANAGED", label: "CORT Managed" });
+        }
+        if (features.find((f) => f.feature_key === "chauffeur_external_vendor")?.is_enabled) {
+            opts.push({ value: "EXTERNAL_VENDOR", label: "External Vendor" });
+        }
+        if (features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled) {
+            opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
+        }
+        return opts;
+    }, [features]);
+
+    const showBroadcastOption = useMemo(() => {
+        return (
+            availableFulfillmentTypes.some((o) => o.value === "CORT_MANAGED") &&
+            availableFulfillmentTypes.some((o) => o.value === "EXTERNAL_VENDOR")
+        );
+    }, [availableFulfillmentTypes]);
+
+    // Auto-select first available fulfillment type after features load
+    useEffect(() => {
+        if (!featuresLoading && availableFulfillmentTypes.length > 0) {
+            if (!availableFulfillmentTypes.find((o) => o.value === fulfillmentType)) {
+                setFulfillmentType(availableFulfillmentTypes[0].value);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [featuresLoading, availableFulfillmentTypes]);
 
     const [serviceCategory, setServiceCategory] = useState<string>("Chauffeur Ride");
     const [passengerId, setPassengerId] = useState<string>("");
@@ -149,6 +235,46 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         return employees.filter((e) => e.status === "ACTIVE");
     }, [employees]);
 
+    // Unique vehicle models from vendor vehicles (filtered by selected vendor for EXTERNAL_VENDOR)
+    const vendorCarModels = useMemo(() => {
+        let vehicles: VendorVehicle[] = [];
+        if (vendorMode === "all") {
+            vehicles = Object.values(vendorVehicleMap).flat();
+        } else {
+            vehicles = vendorVehicleMap[vendorMode] ?? [];
+        }
+        const seen = new Set<string>();
+        const models: string[] = [];
+        for (const v of vehicles) {
+            const key = `${v.make} ${v.model}`.trim();
+            if (key && !seen.has(key)) {
+                seen.add(key);
+                models.push(key);
+            }
+        }
+        return models;
+    }, [vendorVehicleMap, vendorMode]);
+
+    // Union of contract and vendor models when racing Cort + vendors (non–event shuttle)
+    const cortBroadcastCarModels = useMemo(() => {
+        if (isEventShuttle || !broadcastToAllVendors || fulfillmentType !== "CORT_MANAGED") return null;
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const m of allowedVehicleModels) {
+            if (m && !seen.has(m)) {
+                seen.add(m);
+                out.push(m);
+            }
+        }
+        for (const m of vendorCarModels) {
+            if (m && !seen.has(m)) {
+                seen.add(m);
+                out.push(m);
+            }
+        }
+        return out;
+    }, [isEventShuttle, broadcastToAllVendors, fulfillmentType, allowedVehicleModels, vendorCarModels]);
+
     // Derive the contract rate for the selected vehicle model (used for outstation cost estimate)
     const selectedContractRate = useMemo(() => {
         if (!contract?.chauffeur_contract_rates || !vehicleModel || vehicleModel === "Other") return null;
@@ -184,11 +310,18 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             noOfDays >= 1;
 
         if (tripType === "out_station") {
-            return basicFields && destinationCities.length > 0;
+            if (!basicFields || destinationCities.length === 0) return false;
+        } else if (!basicFields) {
+            return false;
         }
 
-        return basicFields;
-    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays]);
+        if (fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors && !isEventShuttle) {
+            if (vendorsLoading || vendorLinks.length === 0) return false;
+            if (!cortBroadcastCarModels || cortBroadcastCarModels.length === 0) return false;
+        }
+
+        return true;
+    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays, fulfillmentType, broadcastToAllVendors, vendorsLoading, vendorLinks.length, cortBroadcastCarModels]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -286,6 +419,21 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 apiData.passenger_id = passengerId;
             }
 
+            apiData.fulfillment_type = fulfillmentType;
+            if (fulfillmentType === "SELF_MANAGED") {
+                if (poolVehicleId) apiData.vehicle_id = poolVehicleId;
+                if (poolDriverId) apiData.driver_id = poolDriverId;
+            }
+            if (fulfillmentType === "EXTERNAL_VENDOR" && vendorMode !== "all") {
+                apiData.vendor_link_ids = [vendorMode];
+            }
+            if (fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors) {
+                apiData.broadcast_to_all_vendors = true;
+                if (vendorMode !== "all") {
+                    apiData.vendor_link_ids = [vendorMode];
+                }
+            }
+
             await apiClient.createChauffeurBooking(Number(company.id), apiData);
 
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
@@ -318,6 +466,176 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <div className="flex flex-col gap-6">
+                {/* Fulfillment Type Selector */}
+                {featuresLoading ? (
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 animate-pulse">
+                        <div className="h-2.5 w-28 bg-orange-200 rounded mb-4"></div>
+                        <div className="flex gap-2">
+                            <div className="h-9 w-28 bg-orange-200 rounded-xl"></div>
+                            <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
+                        </div>
+                    </div>
+                ) : availableFulfillmentTypes.length > 1 && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">Fulfillment Type</p>
+                        <div className="flex flex-wrap gap-2">
+                            {availableFulfillmentTypes.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                        setFulfillmentType(opt.value);
+                                        setVehicleModel("");
+                                        setPoolVehicleId(null);
+                                        if (opt.value !== "CORT_MANAGED") setBroadcastToAllVendors(false);
+                                    }}
+                                    className={cx(
+                                        "px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all",
+                                        fulfillmentType === opt.value
+                                            ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                            : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-orange)]/50"
+                                    )}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                        {fulfillmentType === "CORT_MANAGED" && showBroadcastOption && (
+                            <div className="mt-4 space-y-3 border-t border-orange-100/80 pt-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={broadcastToAllVendors}
+                                        onChange={(e) => {
+                                            const on = e.target.checked;
+                                            setBroadcastToAllVendors(on);
+                                            setVehicleModel("");
+                                            if (on) setVendorMode("all");
+                                        }}
+                                        className="mt-1 rounded border-slate-300 text-[var(--cort-orange)] focus:ring-[var(--cort-orange)]"
+                                    />
+                                    <span className="text-sm text-[var(--cort-navy)] leading-snug">
+                                        <span className="font-bold">Also send to all available vendors</span>
+                                        <span className="block text-xs font-medium text-slate-600 mt-1">
+                                            Cort operations and your vendors are notified in one booking. Whichever assigns a driver first wins; other paths are closed automatically.
+                                        </span>
+                                    </span>
+                                </label>
+                                {broadcastToAllVendors && (
+                                    <>
+                                        {vendorsLoading ? (
+                                            <div className="text-xs text-slate-400 font-medium animate-pulse px-1">Loading vendors…</div>
+                                        ) : vendorLinks.length === 0 ? (
+                                            <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
+                                                No active chauffeur vendors linked — turn off this option or link vendors first.
+                                            </p>
+                                        ) : (
+                                            <>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">Send vendor requests to</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setVendorMode("all"); setVehicleModel(""); }}
+                                                        className={cx(
+                                                            "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
+                                                            vendorMode === "all"
+                                                                ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
+                                                                : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                        )}
+                                                    >
+                                                        All vendors ({vendorLinks.length})
+                                                    </button>
+                                                    {vendorLinks.map((link) => (
+                                                        <button
+                                                            key={link.id}
+                                                            type="button"
+                                                            onClick={() => { setVendorMode(link.id); setVehicleModel(""); }}
+                                                            className={cx(
+                                                                "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
+                                                                vendorMode === link.id
+                                                                    ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
+                                                                    : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                            )}
+                                                        >
+                                                            {link.external_vendors?.name ?? `Vendor #${link.id}`}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {fulfillmentType === "EXTERNAL_VENDOR" && (
+                            <div className="mt-3 space-y-2">
+                                {vendorsLoading ? (
+                                    <div className="text-xs text-slate-400 font-medium animate-pulse px-1">Loading vendors…</div>
+                                ) : vendorLinks.length === 0 ? (
+                                    <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
+                                        No active chauffeur vendors linked to your company.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">Send Request To</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setVendorMode("all"); setVehicleModel(""); }}
+                                                className={cx(
+                                                    "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
+                                                    vendorMode === "all"
+                                                        ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
+                                                        : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                )}
+                                            >
+                                                All Vendors ({vendorLinks.length})
+                                            </button>
+                                            {vendorLinks.map((link) => (
+                                                <button
+                                                    key={link.id}
+                                                    type="button"
+                                                    onClick={() => { setVendorMode(link.id); setVehicleModel(""); }}
+                                                    className={cx(
+                                                        "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
+                                                        vendorMode === link.id
+                                                            ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
+                                                            : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                    )}
+                                                >
+                                                    {link.external_vendors?.name ?? `Vendor #${link.id}`}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 px-1">
+                                            {vendorMode === "all"
+                                                ? "Request will be sent to all linked chauffeur vendors."
+                                                : `Request will be sent only to ${vendorLinks.find((l) => l.id === vendorMode)?.external_vendors?.name ?? "selected vendor"}.`}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {fulfillmentType === "SELF_MANAGED" && (
+                            <div className="mt-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">Pool Driver</label>
+                                    <select
+                                        value={poolDriverId ?? ""}
+                                        onChange={(e) => setPoolDriverId(e.target.value || null)}
+                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                    >
+                                        <option value="">— Select Driver —</option>
+                                        {poolDrivers.map((d) => (
+                                            <option key={d.user_id} value={d.user_id}>{d.users.full_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Service Configuration Section */}
                 <CardSection
                     title="Service Configuration"
@@ -383,6 +701,61 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                     <option key={opt} value={opt}>{opt}</option>
                                 ))}
                             </Select>
+                        ) : fulfillmentType === "EXTERNAL_VENDOR" ? (
+                            <Select
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                                required
+                                disabled={vendorsLoading || vendorCarModels.length === 0}
+                            >
+                                <option value="">
+                                    {vendorsLoading ? "Loading vendor vehicles…" : vendorCarModels.length === 0 ? "No vendor vehicles available" : "Select vehicle type"}
+                                </option>
+                                {vendorCarModels.map((model) => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                                <option value="Other">Other (Special Request)</option>
+                            </Select>
+                        ) : fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors && cortBroadcastCarModels ? (
+                            <Select
+                                value={vehicleModel}
+                                onChange={(e) => setVehicleModel(e.target.value)}
+                                required
+                                disabled={vendorsLoading || cortBroadcastCarModels.length === 0}
+                            >
+                                <option value="">
+                                    {vendorsLoading ? "Loading…" : cortBroadcastCarModels.length === 0 ? "No matching vehicle types" : "Select vehicle type (contract + vendor fleet)"}
+                                </option>
+                                {cortBroadcastCarModels.map((model) => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                                <option value="Other">Other (Special Request)</option>
+                            </Select>
+                        ) : fulfillmentType === "SELF_MANAGED" ? (
+                            <Select
+                                value={poolVehicleId !== null ? String(poolVehicleId) : ""}
+                                onChange={(e) => {
+                                    const id = Number(e.target.value) || null;
+                                    setPoolVehicleId(id);
+                                    if (id) {
+                                        const v = poolVehicles.find((pv) => pv.id === id);
+                                        setVehicleModel(v ? `${v.make} ${v.model}` : "");
+                                    } else {
+                                        setVehicleModel("");
+                                    }
+                                }}
+                                required
+                                disabled={poolVehicles.length === 0}
+                            >
+                                <option value="">
+                                    {poolVehicles.length === 0 ? "No pool vehicles available" : "Select pool vehicle"}
+                                </option>
+                                {poolVehicles.map((v) => (
+                                    <option key={v.id} value={v.id}>
+                                        {v.plate_number} — {v.make} {v.model}
+                                    </option>
+                                ))}
+                            </Select>
                         ) : (
                             <Select
                                 value={vehicleModel}
@@ -399,14 +772,24 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 <option value="Other">Other (Special Request)</option>
                             </Select>
                         )}
-                        {!isEventShuttle && allowedVehicleModels.length === 0 && (
+                        {!isEventShuttle && fulfillmentType === "CORT_MANAGED" && allowedVehicleModels.length === 0 && (
                             <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
                                 No vehicles whitelisted.
                             </div>
                         )}
+                        {!isEventShuttle && fulfillmentType === "EXTERNAL_VENDOR" && !vendorsLoading && vendorCarModels.length === 0 && (
+                            <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
+                                No vendor vehicles found.
+                            </div>
+                        )}
+                        {!isEventShuttle && fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors && !vendorsLoading && cortBroadcastCarModels && cortBroadcastCarModels.length === 0 && (
+                            <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
+                                No overlap between your contract vehicle list and vendor fleets. Add models or disable &quot;Also send to vendors&quot;.
+                            </div>
+                        )}
                     </Field>
 
-                    {!isEventShuttle && vehicleModel === "Other" && (
+                    {!isEventShuttle && fulfillmentType !== "SELF_MANAGED" && vehicleModel === "Other" && (
                         <Field label="Specify Vehicle" required>
                             <AutocompleteInput
                                 value={customVehicleModel}

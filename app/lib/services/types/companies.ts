@@ -39,6 +39,9 @@ export interface Company {
     logo_url: string | null;
     is_shuttle_enabled: boolean;
     is_chauffeur_enabled: boolean;
+    is_cort_managed: boolean | null;
+    is_external_vendor_managed: boolean | null;
+    is_own_pooled_cars_managed: boolean | null;
     created_at: string;
     updated_at: string;
     vehicle_whitelists?: VehicleWhitelist[];

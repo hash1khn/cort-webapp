@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
-import { fetchCompanyProfile, selectCompany } from "../../lib/store/slices/companySlice";
+import { fetchCompanyProfile, fetchCompanyFeatures, selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import {
   LayoutDashboard,
   Users,
@@ -17,12 +17,19 @@ import {
   ChevronRight,
   LogOut,
   Menu,
+  Car,
+  BarChart2,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { useCompanyTheme } from "../lib/theme-context";
 import { Sun, Moon } from "lucide-react";
 
-const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_enabled: boolean }) => {
+type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
+type FeatureLike = { feature_key: string; is_enabled: boolean };
+
+const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[]) => {
+  const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
+
   const groups = [
     {
       title: "",
@@ -38,7 +45,6 @@ const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_ena
       title: "Administration",
       items: [
         { href: "/company/employees", label: "Employees", icon: Users },
-        { href: "/company/invoicing", label: "Invoices", icon: Receipt },
       ]
     }
   ];
@@ -59,7 +65,22 @@ const getNavGroups = (servicesEnabled: { shuttle_enabled: boolean; chauffeur_ena
     groups[1].items.push({ href: "/company/reports/chauffeur", label: "Chauffeur Reports", icon: FileSpreadsheet });
   }
 
-  // Filter out empty groups if any
+  // Pool Fleet — only show if chauffeur_self_managed feature is enabled
+  if (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) {
+    groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
+  }
+
+  // Fleet Analytics — show if shuttle or chauffeur is enabled
+  if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
+    groups[1].items.push({ href: "/company/fleet-analytics", label: "Fleet Analytics", icon: BarChart2 });
+  }
+
+  // Invoices — only show if chauffeur_cort_managed feature is enabled
+  if (hasFeature("chauffeur_cort_managed")) {
+    groups[2].items.push({ href: "/company/invoicing", label: "Invoices", icon: Receipt });
+  }
+
+  // Filter out empty groups
   return groups.filter(g => g.items.length > 0);
 };
 
@@ -75,12 +96,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useCompanyTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const features = useAppSelector(selectCompanyFeatures);
   const companyId = user?.company_id?.toString();
 
-  // ✅ FIX: Add dependency tracking to prevent unnecessary refetches
   useEffect(() => {
     if (companyId && !company) {
       dispatch(fetchCompanyProfile(companyId));
+    }
+    if (companyId) {
+      dispatch(fetchCompanyFeatures(Number(companyId)));
     }
   }, [companyId, company, dispatch]);
 
@@ -101,7 +125,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled);
+    const navGroups = getNavGroups(servicesEnabled, features);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -110,7 +134,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, servicesEnabled]);
+  }, [pathname, servicesEnabled, features]);
 
   if (isLogin) return <>{children}</>;
 
@@ -129,7 +153,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(

@@ -163,3 +163,20 @@ export type {
     CreateExpenseRequest,
     ExpenseFilterParams,
 } from './expenses';
+
+// Multi-mode fleet platform
+export type {
+    Pagination,
+    CompanyFeatureKey,
+    CompanyFeature,
+    ExternalVendor,
+    CompanyVendorLink,
+    VendorDashboardStats,
+    BookingVendorRequest,
+    VendorVehicle,
+    VendorDriver,
+    VendorRoute,
+    PoolVehicle,
+    PoolDriver,
+    TrackerConfig,
+} from './multi-mode';

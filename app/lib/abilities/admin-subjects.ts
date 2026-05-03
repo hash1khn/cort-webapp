@@ -22,6 +22,9 @@ export const ADMIN_SUBJECTS = {
   expenses: "Expenses",
   invoicing: "Invoicing",
   fixed_contracts: "FixedContracts",
+  external_vendors: "ExternalVendors",
+  company_features: "CompanyFeatures",
+  vendor_fleet: "VendorFleet",
 } as const satisfies Record<PermissionKey, string>;
 
 export type AdminSubject = (typeof ADMIN_SUBJECTS)[PermissionKey];

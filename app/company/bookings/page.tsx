@@ -20,7 +20,7 @@ export default function BookingsPage() {
   const company = useAppSelector(selectCompany);
   const bookings = useAppSelector(selectBookings);
   const { page: reduxPage, limit, pages: totalPages } = useAppSelector(selectPagination);
-  const { search, status } = useAppSelector(selectFilters);
+  const { search, status, fulfillmentType } = useAppSelector(selectFilters);
   const statusState = useAppSelector(selectBookingsStatus);
   const isLoading = statusState === 'loading';
 
@@ -35,12 +35,14 @@ export default function BookingsPage() {
   // Local state for inputs to allow debouncing
   const [searchQuery, setSearchQuery] = useState(search);
   const [statusFilter, setStatusFilter] = useState(status);
+  const [fulfillmentFilter, setFulfillmentFilter] = useState(fulfillmentType);
 
   // Sync local state with Redux when it changes (e.g., on mount or navigation back)
   useEffect(() => {
     setSearchQuery(search);
     setStatusFilter(status);
-  }, [search, status]);
+    setFulfillmentFilter(fulfillmentType);
+  }, [search, status, fulfillmentType]);
 
   // Check for action param to open modal
   useEffect(() => {
@@ -55,12 +57,12 @@ export default function BookingsPage() {
   // Debounce search and update Redux filters
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery !== search || statusFilter !== status) {
-        dispatch(setFilters({ search: searchQuery, status: statusFilter }));
+      if (searchQuery !== search || statusFilter !== status || fulfillmentFilter !== fulfillmentType) {
+        dispatch(setFilters({ search: searchQuery, status: statusFilter, fulfillmentType: fulfillmentFilter }));
       }
-    }, 500);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, statusFilter, search, status, dispatch]);
+  }, [searchQuery, statusFilter, fulfillmentFilter, search, status, fulfillmentType, dispatch]);
 
   // Track last fetched params to avoid duplicates
   const [lastFetchedParams, setLastFetchedParams] = useState<string>("");
@@ -69,7 +71,7 @@ export default function BookingsPage() {
   useEffect(() => {
     if (!company?.id) return;
 
-    const currentParams = JSON.stringify({ currentPage, limit, status, search });
+    const currentParams = JSON.stringify({ currentPage, limit, status, search, fulfillmentType });
     if (currentParams === lastFetchedParams && statusState !== 'idle') return;
 
     setLastFetchedParams(currentParams);
@@ -78,15 +80,16 @@ export default function BookingsPage() {
       page: currentPage,
       limit,
       status,
-      search
+      search,
+      fulfillment_type: fulfillmentType || undefined,
     }));
-  }, [dispatch, company?.id, currentPage, limit, status, search, lastFetchedParams, statusState]);
+  }, [dispatch, company?.id, currentPage, limit, status, search, fulfillmentType, lastFetchedParams, statusState]);
 
   const handleBookingCreated = () => {
     setIsModalOpen(false);
     if (company?.id) {
       setCurrentPage(1); // Reset local page
-      dispatch(fetchBookings({ companyId: company.id, page: 1, limit, status, search }));
+      dispatch(fetchBookings({ companyId: company.id, page: 1, limit, status, search, fulfillment_type: fulfillmentType || undefined }));
     }
   };
 
@@ -164,6 +167,26 @@ export default function BookingsPage() {
               </svg>
             </div>
           </div>
+          <div className="w-[200px]">
+            <div className="group relative">
+              <select
+                className="w-full h-12 pl-10 pr-10 rounded-xl border border-[var(--border-light)] bg-[var(--surface-subtle)]/30 text-sm focus:outline-none focus:ring-4 focus:ring-[var(--cort-orange)]/10 focus:border-[var(--cort-orange)] transition-all appearance-none text-[var(--cort-navy)] font-bold cursor-pointer"
+                value={fulfillmentFilter}
+                onChange={(e) => setFulfillmentFilter(e.target.value)}
+              >
+                <option value="">All Types</option>
+                <option value="CORT_MANAGED">CORT Managed</option>
+                <option value="EXTERNAL_VENDOR">Vendor Managed</option>
+                <option value="SELF_MANAGED">Own Pool Cars</option>
+              </select>
+              <svg className="absolute left-3.5 top-4 w-4 h-4 text-[var(--text-muted)] group-focus-within:text-[var(--cort-orange)] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+              </svg>
+              <svg className="absolute right-3.5 top-4 w-4 h-4 text-[var(--text-muted)] pointer-events-none group-focus-within:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         <div className="overflow-x-auto px-1">
@@ -172,6 +195,7 @@ export default function BookingsPage() {
               <tr className="text-[var(--text-muted)] uppercase text-[10px] font-bold tracking-widest">
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Service</th>
+                <th className="px-6 py-4">Fulfillment</th>
                 <th className="px-6 py-4">Passenger</th>
                 <th className="px-6 py-4">Package</th>
                 <th className="px-6 py-4">Pickup</th>
@@ -187,7 +211,7 @@ export default function BookingsPage() {
                 <TableSkeleton columns={10} rows={8} />
               ) : bookings.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-20 text-center">
+                  <td colSpan={11} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <div className="bg-[var(--surface-subtle)]/50 p-6 rounded-3xl mb-4 shadow-inner">
                         <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,7 +238,27 @@ export default function BookingsPage() {
                           {booking.service_category || "Standard"}
                         </span>
                       </td>
-                      <td className="px-6 py-5 font-bold text-[var(--text-primary)]">
+                      <td className="px-6 py-5">
+                        {(() => {
+                          const ft = booking.fulfillment_type;
+                          const ftStyles: Record<string, string> = {
+                            CORT_MANAGED: "bg-blue-50 text-blue-700 border-blue-200",
+                            EXTERNAL_VENDOR: "bg-orange-50 text-orange-700 border-orange-200",
+                            SELF_MANAGED: "bg-purple-50 text-purple-700 border-purple-200",
+                          };
+                          const ftLabels: Record<string, string> = {
+                            CORT_MANAGED: "CORT",
+                            EXTERNAL_VENDOR: "Vendor",
+                            SELF_MANAGED: "Pool",
+                          };
+                          return (
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold border uppercase tracking-tight ${ftStyles[ft] ?? "bg-slate-50 text-slate-600 border-slate-200"}`}>
+                              {ftLabels[ft] ?? ft}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-6 py-5 font-bold text-[var(--cort-navy)]">
                         {getPassengerName(booking)}
                       </td>
                       <td className="px-6 py-5 text-[var(--text-muted)] capitalize font-medium">{booking.package_selected.replace(/_/g, " ")}</td>

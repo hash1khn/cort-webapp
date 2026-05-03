@@ -36,6 +36,9 @@ const PERMISSION_LABELS: Record<PermissionKey, string> = {
   expenses: "Expenses",
   invoicing: "Invoicing",
   fixed_contracts: "Fixed-Term Contracts",
+  external_vendors: "External Vendors",
+  company_features: "Company Features",
+  vendor_fleet: "Vendor Fleet",
 };
 
 const CRUD_META: { key: CrudAction; short: string; title: string }[] = [

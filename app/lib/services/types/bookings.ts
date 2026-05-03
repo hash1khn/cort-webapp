@@ -19,8 +19,10 @@ export enum TripType {
 export enum TripStatus {
     PENDING = 'PENDING',
     ASSIGNED = 'ASSIGNED',
+    OTW = 'OTW',
     ARRIVED = 'ARRIVED',
     IN_PROGRESS = 'IN_PROGRESS',
+    DROPPED_OFF = 'DROPPED_OFF',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED',
     ENDED = 'ENDED',
@@ -42,6 +44,9 @@ export interface CreateChauffeurBookingRequest {
     service_category?: string;
     city?: string;
     no_of_days?: number;
+    /** CORT_MANAGED only: also notify vendors; Cort ops and vendors race to assign. */
+    broadcast_to_all_vendors?: boolean;
+    vendor_link_ids?: number[];
 }
 
 export interface ChauffeurTripLog {
@@ -107,7 +112,7 @@ export interface ChauffeurBooking {
     trip_type: TripType;
     scheduled_for: string;
     status: TripStatus;
-    fulfillment_type: 'CORT_MANAGED' | 'CLIENT_SELF_MANAGED';
+    fulfillment_type: 'CORT_MANAGED' | 'EXTERNAL_VENDOR' | 'SELF_MANAGED';
     internal_cost_center_code: string | null;
     city?: string; // City of the booking
     service_category?: string;
@@ -146,6 +151,7 @@ export interface QueryChauffeurBookingParams {
     limit?: number;
     status?: string;
     search?: string;
+    fulfillment_type?: 'CORT_MANAGED' | 'EXTERNAL_VENDOR' | 'SELF_MANAGED';
 }
 
 export interface ChauffeurBookingResponse {
