@@ -99,14 +99,8 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
     const SidebarContent = () => (
         <div className="flex flex-col h-full bg-gradient-to-b from-[#0c225e] to-[#081845]">
             {/* Logo */}
-            <div className="px-6 py-10 flex items-center gap-3">
-                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/10">
-                    <img src="/cort-app-icon.svg" alt="CORT" className="h-6 w-6" />
-                </div>
-                <div>
-                    <span className="text-white font-black text-xl tracking-tight block">CORT</span>
-                    <span className="text-white/50 font-bold text-[10px] uppercase tracking-[0.2em] block -mt-1">Vendor Portal</span>
-                </div>
+            <div className="px-6 py-10 flex items-center">
+                <img src="/traflinq_dark_no_tagline-Photoroom.png" alt="Traflinq" className="h-15 w-auto" />
             </div>
 
             {/* Company Switcher */}
