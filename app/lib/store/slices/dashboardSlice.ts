@@ -48,17 +48,14 @@ export type DashboardStats = {
         chauffeur_enabled: boolean;
         shuttle_enabled: boolean;
     };
-    costLeakage: {
+    costLeakage?: {
         insights: {
-            id: string;
-            title: string;
-            description: string;
-            savings: number;
-            longDescription: string;
-            iconType: string;
-            affectedEmployees: { name: string; dept: string; currentCost: number }[];
-            revisedRouteName: string;
-            revisedRouteStops: string[];
+            id: number;
+            insight_type: string;
+            severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+            estimated_saving_pkr: number;
+            data: { summary: string; recommendation: string; metric_value?: number };
+            generated_at: string;
         }[];
     };
     monthlyBudget?: number;

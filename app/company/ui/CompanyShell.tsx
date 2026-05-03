@@ -18,6 +18,7 @@ import {
   LogOut,
   Menu,
   Car,
+  BarChart2,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 
@@ -65,6 +66,11 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
   // Pool Fleet — only show if chauffeur_self_managed feature is enabled
   if (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) {
     groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
+  }
+
+  // Fleet Analytics — show if shuttle or chauffeur is enabled
+  if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
+    groups[1].items.push({ href: "/company/fleet-analytics", label: "Fleet Analytics", icon: BarChart2 });
   }
 
   // Invoices — only show if chauffeur_cort_managed feature is enabled
