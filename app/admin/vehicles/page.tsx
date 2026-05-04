@@ -216,6 +216,7 @@ function VehiclesPageContent() {
                             <tr>
                                 <th className="px-6 py-4">Vehicle</th>
                                 <th className="px-6 py-4">Category</th>
+                                <th className="px-6 py-4"> Seat Capacity</th>
                                 <th className="px-6 py-4">Year</th>
                                 <th className="px-6 py-4">Ownership</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
@@ -224,15 +225,15 @@ function VehiclesPageContent() {
                         <tbody className="divide-y divide-slate-100">
                             {isLoading && vehicles.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading vehicles...</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">Loading vehicles...</td>
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-red-500">{error}</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-red-500">{error}</td>
                                 </tr>
                             ) : vehicles.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                                         <div className="flex flex-col items-center gap-2">
                                             <span className="font-medium">No vehicles found</span>
                                             <button type="button" onClick={handleCreateNew} disabled={!canCreate} className="text-sm text-[#f47f00] hover:underline disabled:opacity-50 disabled:no-underline">
@@ -251,6 +252,9 @@ function VehiclesPageContent() {
                                         <Badge color="gray">
                                             {vehicle.category}
                                         </Badge>
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-600">
+                                        {vehicle.seat_capacity || 0}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600">
                                         {vehicle.year}
