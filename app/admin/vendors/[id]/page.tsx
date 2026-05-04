@@ -210,6 +210,7 @@ export default function VendorDetailsPage() {
                                 <th className="px-6 py-4 font-semibold text-slate-700">Date</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Type</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Reference / Passenger</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Charged Against</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Vehicle</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Vendor Cost</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-center">Status</th>
@@ -219,13 +220,13 @@ export default function VendorDetailsPage() {
                         <tbody className="divide-y divide-slate-100">
                             {logsStatus === 'loading' ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         Loading logs...
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         No logs found matching criteria.
                                     </td>
                                 </tr>
@@ -250,6 +251,19 @@ export default function VendorDetailsPage() {
                                             <td className="px-6 py-4">
                                                 <div className="text-slate-900 font-medium">{log.passenger || 'N/A'}</div>
                                                 <div className="text-xs text-slate-500">{log.details || '-'}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {log.invoice_id ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                                                        Invoice #{log.invoice_id}
+                                                    </span>
+                                                ) : log.booking_id ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                                                        Booking #{log.booking_id}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400">—</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-slate-900">{log.vehicle || 'N/A'}</div>

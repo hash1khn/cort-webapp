@@ -185,6 +185,7 @@ export default function VendorLogsPage() {
                                     <th className="px-4 py-3 text-left">Type</th>
                                     <th className="px-4 py-3 text-left">Vehicle / Vendor</th>
                                     <th className="px-4 py-3 text-left">Reference / Passenger</th>
+                                    <th className="px-4 py-3 text-left">Charged Against</th>
                                     <th className="px-4 py-3 text-right">Vendor Distance</th>
                                     <th className="px-4 py-3 text-right">Cost</th>
                                     <th className="px-4 py-3 text-center">Status</th>
@@ -212,6 +213,19 @@ export default function VendorLogsPage() {
                                         <td className="px-4 py-3 text-ink">
                                             <div className="font-medium">{log.passenger || '-'}</div>
                                             <div className="text-xs text-muted">{log.details}</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {log.invoice_id ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded px-2 py-0.5">
+                                                    Invoice #{log.invoice_id}
+                                                </span>
+                                            ) : log.booking_id ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">
+                                                    Booking #{log.booking_id}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted">—</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-right text-ink">
                                             {log.distance != null
