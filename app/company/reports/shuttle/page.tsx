@@ -192,15 +192,14 @@ export default function ShuttleReportsPage() {
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Absent</th>
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Assigned</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Completed At</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
               {isLoading && reports.length === 0 ? (
-                <TableSkeleton columns={11} rows={8} />
+                <TableSkeleton columns={10} rows={8} />
               ) : reports.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg
@@ -225,7 +224,8 @@ export default function ShuttleReportsPage() {
                 reports.map((report) => (
                   <tr
                     key={report.id}
-                    className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80"
+                    onClick={() => setSelectedReport(report)}
+                    className="group transition-colors border-b border-transparent hover:bg-[var(--surface-subtle)]/80 cursor-pointer"
                   >
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-[var(--text-primary)] font-medium font-mono text-xs`}>
                       {report.trip_date
@@ -277,29 +277,6 @@ export default function ShuttleReportsPage() {
                     </td>
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
                       {formatDateTime(report.completed_at)}
-                    </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right`}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedReport(report)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] transition-colors"
-                        aria-label={`View stop details for trip ${report.id}`}
-                        title="View stop details"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 5h.01M12 12h.01M12 19h.01"
-                          />
-                        </svg>
-                      </button>
                     </td>
                   </tr>
                 ))
