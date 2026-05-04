@@ -216,12 +216,18 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       {/* ── Fuel Leakage Flags ── */}
       {fuelFlags.length > 0 && (
         <section>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">
-            Flagged Fuel Variance
-            <span className="ml-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-              {fuelFlags.length} flagged
-            </span>
-          </h3>
+          <div className="mb-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-gray-900">Flagged Fuel Variance</h3>
+              <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                {fuelFlags.length} flagged
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-gray-400">
+              Variance&nbsp;% = (actual&nbsp;km&nbsp;÷&nbsp;avg&nbsp;city) − (expected&nbsp;km&nbsp;÷&nbsp;avg&nbsp;city) ÷ expected&nbsp;litres × 100.
+              Flagged when high for 3+ consecutive days.
+            </p>
+          </div>
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
             <table className="min-w-full text-sm divide-y divide-gray-100">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
