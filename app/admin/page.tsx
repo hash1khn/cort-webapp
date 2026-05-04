@@ -202,6 +202,15 @@ function AdminDashboardContent() {
           {/* Main Grid */}
           <section>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Featured Full-Width Metric: Unassigned Bookings */}
+              <div className="sm:col-span-2 lg:col-span-4">
+                <MetricCard 
+                  label="Critical: Unassigned Bookings" 
+                  metric={{ current: stats.totalUnassignedBookings, previous: 0, percentageChange: 0, trend: 'neutral' }} 
+                  type="number" 
+                />
+              </div>
+
               <MetricCard label="Total Revenue" metric={stats.totalRevenue} type="currency" />
               <MetricCard label="Chauffeur Revenue" metric={stats.chauffeurRevenue} type="currency" />
               <MetricCard label="Shuttle Revenue" metric={stats.shuttleRevenue} type="currency" />
