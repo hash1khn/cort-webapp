@@ -1,14 +1,16 @@
 "use client";
 
 import { FleetEfficiencyPanel } from "../components/FleetEfficiencyPanel";
+import { PageHeader } from "../components/PageLayout";
 
 export default function FleetAnalyticsPage() {
     return (
-        <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-[#0c225e]">Fleet Analytics</h1>
-                <p className="text-sm text-gray-500 mt-1">Shuttle metrics, fuel variance tracking, and AI-generated fleet insights for your company</p>
-            </div>
+        <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+            <PageHeader
+                label="Insights"
+                title="Fleet Analytics"
+                description="Shuttle metrics, fuel variance tracking, and AI-generated fleet insights for your company"
+            />
             <FleetEfficiencyPanel />
         </div>
     );

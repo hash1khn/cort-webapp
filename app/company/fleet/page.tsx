@@ -7,6 +7,8 @@ import { apiClient } from "../../lib/services/api-client";
 import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/types/multi-mode";
 import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
+import { Card } from "../components/DashboardComponents";
+import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -154,38 +156,69 @@ export default function CompanyFleetPage() {
     };
 
     if (!featureLoaded) {
-        return <div className="p-8 text-sm text-gray-400">Loading…</div>;
-    }
-
-    if (!isEnabled) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="text-center max-w-sm">
-                    <div className="text-4xl mb-4">🚗</div>
-                    <h2 className="text-lg font-bold text-gray-800 mb-2">Pool Fleet Not Enabled</h2>
-                    <p className="text-sm text-gray-500">The self-managed fleet feature is not enabled for your company. Contact your CORT account manager to enable it.</p>
+            <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+                <div className="flex items-center justify-center py-24">
+                    <div className="text-sm text-[var(--text-muted)]">Loading fleet data…</div>
                 </div>
             </div>
         );
     }
 
-    return (
-        <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-[#0c225e]">Pool Fleet</h1>
-                <p className="text-sm text-gray-500 mt-1">Manage your company&apos;s own vehicles and drivers for self-managed chauffeur bookings</p>
+    if (!isEnabled) {
+        return (
+            <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+                <PageHeader label="Self-Managed Fleet" title="Pool Fleet" description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings" />
+                <Card className="flex items-center justify-center min-h-[400px]">
+                    <div className="text-center max-w-sm">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--surface-subtle)] mb-4">
+                            <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
+                        </div>
+                        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">Pool Fleet Not Enabled</h2>
+                        <p className="text-sm text-[var(--text-muted)]">The self-managed fleet feature is not enabled for your company. Contact your CORT account manager to enable it.</p>
+                    </div>
+                </Card>
             </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+            <PageHeader
+                label="Self-Managed Fleet"
+                title="Pool Fleet"
+                description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings"
+                action={
+                    activeTab === "vehicles" ? (
+                        <button
+                            onClick={() => setShowAddVehicle(true)}
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
+                        >
+                            + Add Vehicle
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => setShowAddDriver(true)}
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
+                        >
+                            + Invite Driver
+                        </button>
+                    )
+                }
+            />
 
             {/* Tab Nav */}
-            <div className="border-b border-gray-200">
+            <div className="border-b border-[var(--border-light)]">
                 <nav className="-mb-px flex space-x-8">
                     {(["vehicles", "drivers"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={cx(
-                                "whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium",
-                                activeTab === tab ? "border-[#f47f00] text-[#f47f00]" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                "whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors",
+                                activeTab === tab
+                                    ? "border-[var(--cort-orange)] text-[var(--cort-orange)]"
+                                    : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]"
                             )}
                         >
                             {tab === "vehicles" ? "Pool Vehicles" : "Pool Drivers"}
@@ -196,38 +229,44 @@ export default function CompanyFleetPage() {
 
             {/* Vehicles Tab */}
             {activeTab === "vehicles" && (
-                <div className="space-y-4">
-                    <div className="flex justify-end">
-                        <button onClick={() => setShowAddVehicle(true)} className={saveBtnCls}>+ Add Vehicle</button>
+                <Card className={TABLE_CARD_CLASS}>
+                    <div className={TABLE_TOP_BAR_CLASS}>
+                        <p className="text-sm text-[var(--text-muted)]">Pool vehicles registered under your company for self-managed bookings.</p>
                     </div>
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm text-left">
+                            <thead>
+                                <tr className="border-b border-[var(--border-light)]">
                                     {["Plate", "Make / Model", "Year", "Category", "Status", "Actions"].map((h) => (
-                                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                        <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {vehiclesLoading ? (
-                                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
                                 ) : vehicles.length === 0 ? (
-                                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No pool vehicles yet</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
                                 ) : vehicles.map((v) => (
-                                    <tr key={v.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-mono text-xs font-medium">{v.plate_number}</td>
-                                        <td className="px-4 py-3">{v.make} {v.model}</td>
-                                        <td className="px-4 py-3">{v.year}</td>
-                                        <td className="px-4 py-3">{formatVehicleCategory(v.category)}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", v.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                    <tr key={v.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
+                                        <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{v.plate_number}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{v.make} {v.model}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.year}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{formatVehicleCategory(v.category)}</td>
+                                        <td className={TABLE_CELL_CLASS}>
+                                            <span className={cx(
+                                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border",
+                                                v.status === "ACTIVE"
+                                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
+                                            )}>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full mr-1.5", v.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
                                                 {v.status ?? "—"}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className={TABLE_CELL_CLASS}>
                                             {v.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateVehicle(v.id)} className="text-xs text-red-500 hover:underline">Deactivate</button>
+                                                <button onClick={() => handleDeactivateVehicle(v.id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
                                             )}
                                         </td>
                                     </tr>
@@ -235,43 +274,49 @@ export default function CompanyFleetPage() {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </Card>
             )}
 
             {/* Drivers Tab */}
             {activeTab === "drivers" && (
-                <div className="space-y-4">
-                    <div className="flex justify-end">
-                        <button onClick={() => setShowAddDriver(true)} className={saveBtnCls}>+ Invite Driver</button>
+                <Card className={TABLE_CARD_CLASS}>
+                    <div className={TABLE_TOP_BAR_CLASS}>
+                        <p className="text-sm text-[var(--text-muted)]">Pool drivers assigned to your company for chauffeur bookings.</p>
                     </div>
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm text-left">
+                            <thead>
+                                <tr className="border-b border-[var(--border-light)]">
                                     {["Name", "Email", "Phone", "Type", "Status", "Actions"].map((h) => (
-                                        <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                                        <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {driversLoading ? (
-                                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
                                 ) : drivers.length === 0 ? (
-                                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No pool drivers yet</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool drivers yet</td></tr>
                                 ) : drivers.map((d) => (
-                                    <tr key={d.user_id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-medium text-gray-900">{d.users.full_name}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.users.email}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.users.phone ?? "—"}</td>
-                                        <td className="px-4 py-3 text-gray-600">{d.driver_type}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={cx("inline-flex px-2 py-0.5 rounded-full text-xs font-medium", d.users.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                    <tr key={d.user_id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
+                                        <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{d.users.full_name}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{d.users.email}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-muted)]`}>{d.users.phone ?? "—"}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-muted)]`}>{d.driver_type}</td>
+                                        <td className={TABLE_CELL_CLASS}>
+                                            <span className={cx(
+                                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border",
+                                                d.users.status === "ACTIVE"
+                                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
+                                            )}>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full mr-1.5", d.users.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
                                                 {d.users.status ?? "—"}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className={TABLE_CELL_CLASS}>
                                             {d.users.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-red-500 hover:underline">Deactivate</button>
+                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
                                             )}
                                         </td>
                                     </tr>
@@ -279,7 +324,7 @@ export default function CompanyFleetPage() {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </Card>
             )}
 
             {/* Add Vehicle Modal */}
@@ -337,11 +382,11 @@ export default function CompanyFleetPage() {
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-lg font-bold text-[var(--text-primary)]">{title}</h2>
+                    <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-2xl leading-none transition-colors">×</button>
                 </div>
                 {children}
             </div>
@@ -352,12 +397,12 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{label}</label>
             {children}
         </div>
     );
 }
 
-const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#f47f00]";
-const saveBtnCls = "bg-[#f47f00] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d96e00] disabled:opacity-50";
-const cancelBtnCls = "border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50";
+const inputCls = "w-full h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--text-primary)] shadow-sm";
+const saveBtnCls = "bg-[var(--cort-orange)] text-[var(--text-primary)] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 transition-colors";
+const cancelBtnCls = "border border-[var(--border-light)] text-[var(--text-secondary)] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--surface-subtle)] transition-colors";
