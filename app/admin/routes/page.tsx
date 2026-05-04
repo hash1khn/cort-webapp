@@ -4,13 +4,13 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
-import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight, RefreshCw, Bus, Building2 } from 'lucide-react';
+import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight, Bus, Building2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminRoutes, selectAdminRoutes, selectAdminRoutesStatus } from '@/app/lib/store/slices/adminRoutesSlice';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan, useAdminAbility } from '@/app/lib/abilities/AdminAbilityProvider';
 import { ADMIN_SUBJECTS } from '@/app/lib/abilities/admin-subjects';
-import { apiClient } from '@/app/lib/services/api-client';
+import { useAuth } from '@/app/lib/contexts/auth-context';
 
 export default function RoutesPage() {
     return (
@@ -25,30 +25,12 @@ export default function RoutesPage() {
 function RoutesPageContent() {
     const dispatch = useAppDispatch();
     const ability = useAdminAbility();
+    const { hasPermission } = useAuth();
+    const canOpsShuttle = hasPermission('ops_shuttle');
     const canCreate = ability.can('create', ADMIN_SUBJECTS.routes);
     const routes = useAppSelector(selectAdminRoutes);
     const status = useAppSelector(selectAdminRoutesStatus);
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
-    const [generating, setGenerating] = useState(false);
-    const [generateResult, setGenerateResult] = useState<{ message: string; createdCount: number } | null>(null);
-    const [generateError, setGenerateError] = useState<string | null>(null);
-
-    const handleGenerateTrips = async () => {
-        setGenerating(true);
-        setGenerateResult(null);
-        setGenerateError(null);
-        try {
-            const result = await apiClient.request<{ message: string; createdCount: number }>(
-                '/shuttle-trips/trigger-daily-generation',
-                { method: 'POST' },
-            );
-            setGenerateResult(result);
-        } catch (err) {
-            setGenerateError(err instanceof Error ? err.message : 'Failed to generate trips');
-        } finally {
-            setGenerating(false);
-        }
-    };
 
     useEffect(() => {
         if (status === 'idle') {
@@ -111,14 +93,14 @@ function RoutesPageContent() {
                             Back to Companies
                         </Button>
                     )}
-                    <Button variant="outline" onClick={handleGenerateTrips} disabled={generating}>
-                        {generating ? (
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                            <Bus className="w-4 h-4 mr-2" />
-                        )}
-                        Generate Daily Trips
-                    </Button>
+                    {canOpsShuttle ? (
+                        <Link href="/admin/routes/shuttle-trips">
+                            <Button variant="outline">
+                                <Bus className="mr-2 h-4 w-4" />
+                                Shuttle trip scheduling
+                            </Button>
+                        </Link>
+                    ) : null}
                     {canCreate ? (
                         <Link href="/admin/routes/create">
                             <Button>
@@ -134,17 +116,6 @@ function RoutesPageContent() {
                     )}
                 </div>
             </div>
-
-            {generateResult && (
-                <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-700">
-                    {generateResult.message}
-                </div>
-            )}
-            {generateError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-                    {generateError}
-                </div>
-            )}
 
             {status === 'loading' && (
                 <div className="text-center py-12">
