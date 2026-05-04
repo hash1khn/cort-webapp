@@ -79,6 +79,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     // Stop form
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
     const [isAddingStop, setIsAddingStop] = useState(false);
+    const [isSavingStop, setIsSavingStop] = useState(false);
     const [stopForm, setStopForm] = useState({
         name: '',
         lat: '',
@@ -241,6 +242,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             }
         }
         try {
+            setIsSavingStop(true);
             if (isAddingStop) {
                 await dispatch(createRouteStop({ routeId: route.id, data })).unwrap();
                 toast.success('Stop added');
@@ -252,6 +254,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             schedulePolylineRefresh();
         } catch {
             toast.error('Failed to save stop');
+        } finally {
+            setIsSavingStop(false);
         }
     };
 
@@ -672,9 +676,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         size="sm" 
                                         className="w-full" 
                                         onClick={handleStopSubmit} 
-                                        disabled={!canEditRoutes || actionStatus === 'loading'}
+                                        disabled={!canEditRoutes || isSavingStop}
                                     >
-                                        {actionStatus === 'loading' ? (
+                                        {isSavingStop ? (
                                             <div className="flex items-center gap-2">
                                                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                 Saving...
