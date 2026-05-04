@@ -10,12 +10,15 @@ import { FuelPriceAlert } from "./components/FuelPriceAlert";
 import { RootState } from "../lib/store/store";
 import { PermissionGate } from "./components/PermissionGate";
 import { AdminCan } from "../lib/abilities/AdminAbilityProvider";
+import { Calendar, Filter, RefreshCcw, AlertCircle, LayoutDashboard } from "lucide-react";
 
 export default function AdminDashboardPage() {
   return (
     <PermissionGate permission="dashboard">
       <AdminCan I="read" a="Dashboard">
-        <AdminDashboardContent />
+        <div className="min-h-screen bg-[#F8FAFC]">
+          <AdminDashboardContent />
+        </div>
       </AdminCan>
     </PermissionGate>
   );
@@ -76,187 +79,238 @@ function AdminDashboardContent() {
 
   if (error) {
     return (
-      <div className="p-6 text-center">
-        <div className="text-red-600 mb-4">Error loading dashboard: {error}</div>
-        <button onClick={() => handleRefreshData('refresh')} className="px-4 py-2 bg-navy text-white rounded-md">Retry</button>
+      <div className="p-12 text-center max-w-md mx-auto">
+        <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 shadow-sm">
+          <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6 text-rose-600">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-navy mb-2">Something went wrong</h2>
+          <p className="text-slate-500 mb-8 text-sm leading-relaxed">{error}</p>
+          <button 
+            onClick={() => handleRefreshData('refresh')} 
+            className="w-full py-3 bg-navy text-white rounded-xl font-semibold shadow-lg shadow-navy/20 hover:shadow-navy/30 transition-all hover:-translate-y-0.5"
+          >
+            Retry Loading
+          </button>
+        </div>
       </div>
     );
   }
 
   if (loading && !stats) {
     return (
-      <div className="p-6 text-center text-muted">
-        Loading dashboard data...
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-slate-100 border-t-navy rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <LayoutDashboard className="w-6 h-6 text-navy/20" />
+          </div>
+        </div>
+        <div className="text-sm font-medium text-slate-400 animate-pulse">Initializing dashboard...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="p-6 lg:p-10 space-y-10">
       {/* Fuel Price Alert */}
       <FuelPriceAlert />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-muted">Overview</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
-            Super Admin Dashboard
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => handleDateChange('start', e.target.value)}
-              className="h-10 flex-1 sm:w-36 rounded-md border border-border px-3 text-sm"
-            />
-            <span className="text-muted">-</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => handleDateChange('end', e.target.value)}
-              className="h-10 flex-1 sm:w-36 rounded-md border border-border px-3 text-sm"
-            />
+      {/* Premium Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-navy/5 border border-navy/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-navy animate-pulse" />
+            <span className="text-[11px] font-bold text-navy uppercase tracking-wider">System Overview</span>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <h1 className="text-3xl font-extrabold tracking-tight text-navy lg:text-4xl">
+            Super Admin <span className="text-slate-400 font-light">Dashboard</span>
+          </h1>
+          <p className="text-slate-500 text-sm font-medium">Real-time financial performance and fleet metrics.</p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-full sm:w-auto">
+            <div className="flex items-center gap-2 px-3 border-r border-slate-100">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => handleDateChange('start', e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-navy focus:ring-0 w-28"
+              />
+            </div>
+            <div className="flex items-center gap-2 px-3">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => handleDateChange('end', e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold text-navy focus:ring-0 w-28"
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               onClick={() => handleRefreshData('filter')}
               disabled={loading}
-              className="flex-1 sm:flex-none inline-flex h-10 items-center justify-center gap-2 rounded-md bg-navy px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-navy px-6 text-[13px] font-bold text-white shadow-lg shadow-navy/20 hover:shadow-navy/30 hover:-translate-y-0.5 transition-all disabled:opacity-50"
             >
               {loading && loadingAction === 'filter' ? (
-                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : null}
-              <span>{loading && loadingAction === 'filter' ? 'Loading...' : 'Apply Filter'}</span>
+                <RefreshCcw className="animate-spin h-4 w-4" />
+              ) : (
+                <Filter className="h-4 w-4" />
+              )}
+              <span>Apply Filters</span>
             </button>
             <button
               onClick={() => handleRefreshData('refresh')}
               disabled={loading}
-              className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-white px-3 text-sm font-semibold text-navy hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-navy shadow-sm hover:bg-slate-50 hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
               title="Refresh Data"
             >
-              {loading && loadingAction === 'refresh' ? (
-                <svg className="animate-spin h-4 w-4 text-navy" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                  <path d="M16 21h5v-5" />
-                </svg>
-              )}
+              <RefreshCcw className={`h-4 w-4 ${loading && loadingAction === 'refresh' ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Unassigned Bookings Banner */}
-      {stats && (
-        <div className="bg-white p-4 rounded-lg border border-border shadow-sm flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-navy">Total Unassigned Bookings</h2>
-            <p className="text-muted text-sm">Action required for these bookings</p>
+      {/* Critical Status Banner */}
+      {stats && stats.totalUnassignedBookings > 0 && (
+        <div className="relative overflow-hidden bg-white border border-rose-100 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(225,29,72,0.1)] flex flex-col md:flex-row items-center justify-between gap-4 group">
+          <div className="absolute top-0 right-0 p-4 -mr-6 -mt-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+            <AlertCircle size={140} />
           </div>
-          <div className="text-3xl font-bold text-red-600">
-            {stats.totalUnassignedBookings || 0}
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 border border-rose-100">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-navy">Unassigned Bookings Detected</h2>
+              <p className="text-slate-500 text-sm font-medium">There are {stats.totalUnassignedBookings} bookings that require immediate driver allocation.</p>
+            </div>
           </div>
+          <button className="px-6 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:shadow-rose-300 transition-all hover:scale-[1.02]">
+            Take Action Now
+          </button>
         </div>
       )}
 
-      {/* Metrics Grid */}
+      {/* Data Content */}
       {stats && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard label="Total Revenue" metric={stats.totalRevenue} type="currency" />
-            <MetricCard label="Chauffeur Revenue" metric={stats.chauffeurRevenue} type="currency" />
-            <MetricCard label="Shuttle Revenue" metric={stats.shuttleRevenue} type="currency" />
-            <MetricCard label="COGS" metric={stats.totalCOGS} type="currency" />
-            <MetricCard label="Gross Profit" metric={stats.grossProfit} type="currency" />
-            <MetricCard label="Net Margin" metric={stats.netMargin} type="percentage" />
-            <MetricCard label="Chauffeur Profit/Ride" metric={{ current: stats.chauffeurProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-            <MetricCard label="Shuttle Profit/Ride" metric={{ current: stats.shuttleProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-          </div>
+        <div className="space-y-12">
+          {/* Main Grid */}
+          <section>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard label="Total Revenue" metric={stats.totalRevenue} type="currency" />
+              <MetricCard label="Chauffeur Revenue" metric={stats.chauffeurRevenue} type="currency" />
+              <MetricCard label="Shuttle Revenue" metric={stats.shuttleRevenue} type="currency" />
+              <MetricCard label="COGS" metric={stats.totalCOGS} type="currency" />
+              <MetricCard label="Gross Profit" metric={stats.grossProfit} type="currency" />
+              <MetricCard label="Net Margin" metric={stats.netMargin} type="percentage" />
+              <MetricCard label="Chauffeur Profit/Ride" metric={{ current: stats.chauffeurProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+              <MetricCard label="Shuttle Profit/Ride" metric={{ current: stats.shuttleProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+            </div>
+          </section>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <MetricCard label="Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-            <MetricCard
-              label="Receivables"
-              metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
-              type="currency"
-              overlayContent={
-                <div className="flex flex-col bg-white w-full h-full max-h-64 rounded-xl overflow-hidden">
-                  <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-orange-800 uppercase tracking-wider">Outstanding by Client</span>
-                  </div>
-                  <div className="overflow-y-auto w-full flex-1">
-                    {stats.receivablesByClient && stats.receivablesByClient.length > 0 ? (
-                      <div className="divide-y divide-orange-50">
-                        {stats.receivablesByClient.map((client, i) => {
-                          const max = Math.max(...stats.receivablesByClient.map(c => c.value));
-                          const percent = (client.value / max) * 100;
-                          return (
-                            <div key={i} className="px-4 py-2 hover:bg-orange-50/50 transition-colors relative">
-                              <div className="absolute inset-y-1 left-2 bg-orange-100/40 rounded" style={{ width: `calc(${percent}% - 16px)`, minWidth: '4px' }} />
-                              <div className="flex justify-between items-center relative z-10 w-full gap-4">
-                                <span className="text-xs font-medium text-navy truncate max-w-[140px]">{client.name}</span>
-                                <span className="text-xs font-bold text-slate-800 shrink-0">
-                                  {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(client.value)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+          <section>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <MetricCard label="Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+              <MetricCard
+                label="Receivables"
+                metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
+                type="currency"
+                overlayContent={
+                  <div className="flex flex-col bg-white w-full h-full max-h-72 rounded-2xl overflow-hidden border border-slate-100 shadow-2xl">
+                    <div className="bg-orange-50/80 backdrop-blur-sm px-5 py-4 border-b border-orange-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                        <span className="text-[11px] font-bold text-orange-900 uppercase tracking-widest">Client Balances</span>
                       </div>
-                    ) : (
-                      <div className="p-4 text-center text-xs text-slate-500">No pending receivables</div>
-                    )}
+                    </div>
+                    <div className="overflow-y-auto w-full flex-1 p-2">
+                      {stats.receivablesByClient && stats.receivablesByClient.length > 0 ? (
+                        <div className="space-y-1">
+                          {stats.receivablesByClient.map((client, i) => {
+                            const max = Math.max(...stats.receivablesByClient.map(c => c.value));
+                            const percent = (client.value / max) * 100;
+                            return (
+                              <div key={i} className="px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors relative group/row">
+                                <div className="flex justify-between items-center relative z-10 w-full gap-4">
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-bold text-navy truncate">{client.name}</span>
+                                    <div className="w-full mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className="h-full bg-orange-400 rounded-full" style={{ width: `${percent}%` }} />
+                                    </div>
+                                  </div>
+                                  <span className="text-xs font-extrabold text-navy/80 shrink-0">
+                                    {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(client.value)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center">
+                          <p className="text-xs font-medium text-slate-400">No pending receivables</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              }
-            />
-            <MetricCard label="Payables" metric={{ current: stats.totalPayables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-          </div>
+                }
+              />
+              <MetricCard label="Payables" metric={{ current: stats.totalPayables, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+            </div>
+          </section>
 
           {hasDateFilter && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <MetricCard
-                label="Current Filter Receivable"
-                metric={{ current: stats.currentPeriodReceivables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
-                type="currency"
-              />
-              <MetricCard
-                label="Current Filter Payable"
-                metric={{ current: stats.currentPeriodPayables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
-                type="currency"
-              />
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="bg-white/50 backdrop-blur-xl p-0.5 rounded-2xl border border-blue-100 shadow-xl shadow-blue-500/5 overflow-hidden">
+                <MetricCard
+                  label="Current Filter Total Receivable"
+                  metric={{ current: stats.currentPeriodReceivables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
+                  type="currency"
+                />
+              </div>
+              <div className="bg-white/50 backdrop-blur-xl p-0.5 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/5 overflow-hidden">
+                <MetricCard
+                  label="Current Filter Total Payable"
+                  metric={{ current: stats.currentPeriodPayables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
+                  type="currency"
+                />
+              </div>
             </div>
           )}
 
-          {/* Charts */}
-          <DashboardCharts
-            ridesBreakdown={stats.ridesBreakdown}
-            expensesBreakdown={stats.expensesBreakdown}
-            revenueBreakdown={stats.revenueBreakdown}
-          />
+          {/* Charts Section */}
+          <section className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1 bg-navy rounded-full" />
+              <h2 className="text-xl font-bold text-navy">Performance Analytics</h2>
+            </div>
+            <DashboardCharts
+              ridesBreakdown={stats.ridesBreakdown}
+              expensesBreakdown={stats.expensesBreakdown}
+              revenueBreakdown={stats.revenueBreakdown}
+            />
+          </section>
 
-          {/* Tables */}
-          <DashboardTables
-            revenueByClient={stats.revenueByClient}
-            fuelExpenses={stats.fuelExpenses}
-            repairExpenses={stats.repairExpenses}
-            overdueInvoices={stats.overdueInvoices}
-            problemReports={stats.problemReports}
-          />
-        </>
+          {/* Tables Section */}
+          <section className="space-y-6">
+             <div className="flex items-center gap-3">
+              <div className="h-6 w-1 bg-navy rounded-full" />
+              <h2 className="text-xl font-bold text-navy">Operational Details</h2>
+            </div>
+            <DashboardTables
+              revenueByClient={stats.revenueByClient}
+              fuelExpenses={stats.fuelExpenses}
+              repairExpenses={stats.repairExpenses}
+              overdueInvoices={stats.overdueInvoices}
+              problemReports={stats.problemReports}
+            />
+          </section>
+        </div>
       )}
     </div>
   );
