@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { apiClient } from '@/app/lib/services/api-client';
-import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X } from 'lucide-react';
+import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
+
+const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,6 +19,8 @@ type ShuttleMetricsSummary = {
 
 type ShuttleMetric = {
   id: number;
+  shuttle_trip_id: number;
+  route_id: number | null;
   trip_date: string;
   direction: string;
   occupancy_pct: string | null;
@@ -23,6 +29,21 @@ type ShuttleMetric = {
   fuel_variance_pct: string | null;
   actual_distance_km: string | null;
   planned_distance_km: string | null;
+};
+
+type RouteComparison = {
+  id: number;
+  planned_points: { lat: number; lng: number }[];
+  actual_points: { lat: number; lng: number }[];
+  total_distance_km: number | null;
+  idle_minutes: number | null;
+  metrics: {
+    planned_distance_km: number | null;
+    actual_distance_km: number | null;
+    detour_ratio: number | null;
+    occupancy_pct: number | null;
+    fuel_variance_pct: number | null;
+  } | null;
 };
 
 type FuelFlag = {
@@ -88,6 +109,10 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
   const [insights, setInsights] = useState<FleetInsight[]>([]);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedTripForMap, setSelectedTripForMap] = useState<number | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [routeComparison, setRouteComparison] = useState<RouteComparison | null>(null);
+  const [mapLoading, setMapLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,6 +136,27 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
   }, [companyId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const loadRouteComparison = useCallback(async (shuttleTripId: number, routeId: number | null) => {
+    if (selectedTripForMap === shuttleTripId) {
+      setSelectedTripForMap(null);
+      setRouteComparison(null);
+      setSelectedRouteId(null);
+      return;
+    }
+    setSelectedTripForMap(shuttleTripId);
+    setSelectedRouteId(routeId);
+    setRouteComparison(null);
+    setMapLoading(true);
+    try {
+      const data = await apiClient.request<RouteComparison>(`/admin/shuttle-trips/${shuttleTripId}/route-comparison`);
+      setRouteComparison(data);
+    } catch {
+      setRouteComparison(null);
+    } finally {
+      setMapLoading(false);
+    }
+  }, [selectedTripForMap]);
 
   const triggerGenerate = async () => {
     setGenerating(true);
@@ -273,11 +319,12 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                   <th className="px-4 py-3 text-right">Detour</th>
                   <th className="px-4 py-3 text-right">Idle (min)</th>
                   <th className="px-4 py-3 text-right">Fuel Var.</th>
+                  <th className="px-4 py-3 text-right">Route</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {recentMetrics.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50/50">
+                  <tr key={m.id} className={`hover:bg-gray-50/50 ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-50/40' : ''}`}>
                     <td className="px-4 py-2.5">{new Date(m.trip_date).toLocaleDateString()}</td>
                     <td className="px-4 py-2.5 text-gray-500">{m.direction}</td>
                     <td className={`px-4 py-2.5 text-right ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-orange-500' : 'text-gray-800'}`}>
@@ -290,13 +337,144 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                     <td className={`px-4 py-2.5 text-right ${m.fuel_variance_pct && Math.abs(parseFloat(m.fuel_variance_pct)) > 15 ? 'text-red-600' : 'text-gray-800'}`}>
                       {pct(m.fuel_variance_pct)}
                     </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        onClick={() => loadRouteComparison(m.shuttle_trip_id, m.route_id)}
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      >
+                        <MapIcon className="h-3 w-3" />
+                        {selectedTripForMap === m.shuttle_trip_id ? 'Close' : 'View'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* ── Route Map Overlay ── */}
+          {selectedTripForMap !== null && (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <MapIcon className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-semibold text-gray-900">Route Map Overlay</span>
+                  <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-600" /> Planned
+                    <span className="inline-block h-2.5 w-6 rounded-sm bg-orange-500 ml-1" /> Actual
+                  </span>
+                </div>
+                <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {mapLoading ? (
+                <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+                  <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading route data…
+                </div>
+              ) : routeComparison ? (
+                <RouteMapOverlay comparison={routeComparison} routeInsight={insights.find(i => i.insight_type === 'ROUTE_DETOUR' && i.route_id === selectedRouteId) ?? null} />
+              ) : (
+                <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+                  No route data available for this trip.
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
+    </div>
+  );
+}
+
+function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteComparison; routeInsight: FleetInsight | null }) {
+  const plannedPolyline: MapPolyline | null = comparison.planned_points.length > 1
+    ? { positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]), color: '#2563eb', weight: 4, opacity: 0.85 }
+    : null;
+  const actualPolyline: MapPolyline | null = comparison.actual_points.length > 1
+    ? { positions: comparison.actual_points.map(p => [p.lat, p.lng] as [number, number]), color: '#f97316', weight: 3, opacity: 0.9, dashArray: '6 4' }
+    : null;
+  const polylines = [plannedPolyline, actualPolyline].filter(Boolean) as MapPolyline[];
+
+  // Start/end markers from planned route
+  const markers: MapMarker[] = [];
+  if (comparison.planned_points.length > 0) {
+    const first = comparison.planned_points[0];
+    const last = comparison.planned_points[comparison.planned_points.length - 1];
+    markers.push({ id: 'start', position: [first.lat, first.lng], label: 'Start', color: '#22c55e', type: 'pickup' });
+    markers.push({ id: 'end', position: [last.lat, last.lng], label: 'End', color: '#ef4444', type: 'dropoff' });
+  }
+
+  const m = comparison.metrics;
+  const detour = m?.detour_ratio ?? null;
+  const detourPct = detour !== null ? ((detour - 1) * 100).toFixed(1) : null;
+
+  return (
+    <div className="flex flex-col lg:flex-row">
+      <div className="flex-1 min-h-0" style={{ height: 360 }}>
+        {polylines.length > 0 || markers.length > 0 ? (
+          <Map markers={markers} polylines={polylines} height="360px" />
+        ) : (
+          <div className="flex items-center justify-center h-full bg-gray-50 text-sm text-gray-400">
+            No polyline data recorded for this trip.
+          </div>
+        )}
+      </div>
+      <div className="w-full lg:w-64 p-4 border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col gap-4">
+        {/* Detour badge */}
+        {detour !== null && (
+          <div className={`rounded-lg px-3 py-2.5 text-center ${detour > 1.15 ? 'bg-red-50 border border-red-200' : detour > 1.05 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200'}`}>
+            <p className="text-xs text-gray-500 mb-0.5">Detour Ratio</p>
+            <p className={`text-2xl font-bold ${detour > 1.15 ? 'text-red-600' : detour > 1.05 ? 'text-orange-600' : 'text-green-600'}`}>
+              {detour.toFixed(2)}×
+            </p>
+            {detourPct && <p className="text-xs text-gray-500">+{detourPct}% extra distance</p>}
+          </div>
+        )}
+        {/* Stats */}
+        <div className="space-y-2 text-sm">
+          {m?.planned_distance_km != null && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-gray-500">
+                <span className="inline-block h-2 w-4 rounded-sm bg-blue-600" /> Planned
+              </span>
+              <span className="font-medium">{m.planned_distance_km.toFixed(2)} km</span>
+            </div>
+          )}
+          {m?.actual_distance_km != null && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-gray-500">
+                <span className="inline-block h-2 w-4 rounded-sm bg-orange-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg,#f97316 0 4px,transparent 4px 8px)' }} /> Actual
+              </span>
+              <span className="font-medium">{m.actual_distance_km.toFixed(2)} km</span>
+            </div>
+          )}
+          {comparison.idle_minutes != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Idle time</span>
+              <span className="font-medium">{comparison.idle_minutes.toFixed(0)} min</span>
+            </div>
+          )}
+          {m?.fuel_variance_pct != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Fuel variance</span>
+              <span className={`font-medium ${Math.abs(m.fuel_variance_pct) > 15 ? 'text-red-600' : 'text-gray-800'}`}>
+                {m.fuel_variance_pct > 0 ? '+' : ''}{m.fuel_variance_pct.toFixed(1)}%
+              </span>
+            </div>
+          )}
+        </div>
+        {/* AI insight */}
+        {routeInsight && (
+          <div className="rounded-lg bg-purple-50 border border-purple-200 p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Navigation className="h-3.5 w-3.5 text-purple-600" />
+              <span className="text-xs font-semibold text-purple-800">AI Note</span>
+            </div>
+            <p className="text-xs text-purple-700">{routeInsight.data.recommendation}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
