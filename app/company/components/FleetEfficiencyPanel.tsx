@@ -194,6 +194,7 @@ export function FleetEfficiencyPanel() {
   // Feature flags
   const [shuttleEnabled, setShuttleEnabled] = useState(false);
   const [chauffeurEnabled, setChauffeurEnabled] = useState(false);
+  const [poolEnabled, setPoolEnabled] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
 
   // Shuttle state
@@ -203,6 +204,9 @@ export function FleetEfficiencyPanel() {
 
   // Chauffeur state
   const [chauffeurUtil, setChauffeurUtil] = useState<{ summary: ChauffeurUtilizationSummary; bookings: ChauffeurUtilizationRow[] } | null>(null);
+
+  // Pool state
+  const [poolUtil, setPoolUtil] = useState<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] } | null>(null);
 
   // Shared
   const [insights, setInsights] = useState<FleetInsight[]>([]);
@@ -223,6 +227,10 @@ export function FleetEfficiencyPanel() {
       const isShuttle = company?.services_enabled?.shuttle_enabled ?? false;
       const isChauffeur = company?.services_enabled?.chauffeur_enabled ?? false;
 
+      // pool enabled = company has own pool cars managed
+      const companyRes = await apiClient.getCompany(companyId).catch(() => ({ data: null }));
+      const isPool = companyRes.data?.is_own_pooled_cars_managed ?? false;
+
       const featuresRes = await apiClient.getCompanyFeatures(companyId).catch(() => ({ data: [] }));
       const isAi = featuresRes.data.find(
         (f: { feature_key: string; is_enabled: boolean }) => f.feature_key === 'ai_insights'
@@ -230,12 +238,13 @@ export function FleetEfficiencyPanel() {
 
       setShuttleEnabled(isShuttle);
       setChauffeurEnabled(isChauffeur);
+      setPoolEnabled(isPool);
       setAiEnabled(isAi);
 
       if (!isAi) return;
 
       // 2. Fetch only what's enabled
-      const [metricsRes, fuelRes, insightsRes, chauffeurRes] = await Promise.allSettled([
+      const [metricsRes, fuelRes, insightsRes, chauffeurRes, poolRes] = await Promise.allSettled([
         isShuttle
           ? apiClient.request<{ summary: ShuttleMetricsSummary; metrics: ShuttleMetric[] }>('/company/fleet-metrics')
           : Promise.resolve(null),
@@ -246,6 +255,9 @@ export function FleetEfficiencyPanel() {
         isChauffeur
           ? apiClient.request<{ summary: ChauffeurUtilizationSummary; bookings: ChauffeurUtilizationRow[] }>('/company/chauffeur-utilization')
           : Promise.resolve(null),
+        isPool
+          ? apiClient.request<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] }>('/company/pool-utilization')
+          : Promise.resolve(null),
       ]);
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
@@ -255,6 +267,7 @@ export function FleetEfficiencyPanel() {
       if (fuelRes.status === 'fulfilled' && fuelRes.value) setFuelFlags(fuelRes.value);
       if (insightsRes.status === 'fulfilled') setInsights(insightsRes.value);
       if (chauffeurRes.status === 'fulfilled' && chauffeurRes.value) setChauffeurUtil(chauffeurRes.value);
+      if (poolRes.status === 'fulfilled' && poolRes.value) setPoolUtil(poolRes.value);
     } finally {
       setLoading(false);
     }
@@ -303,7 +316,8 @@ export function FleetEfficiencyPanel() {
 
   const shuttleInsights = insights.filter(i => SHUTTLE_INSIGHT_TYPES.has(i.insight_type));
   const chauffeurInsights = insights.filter(i => CHAUFFEUR_INSIGHT_TYPES.has(i.insight_type));
-  const showGenerate = aiEnabled && (shuttleEnabled || chauffeurEnabled);
+  const poolInsights = insights.filter(i => POOL_INSIGHT_TYPES.has(i.insight_type));
+  const showGenerate = aiEnabled && (shuttleEnabled || chauffeurEnabled || poolEnabled);
 
   return (
     <div className="space-y-10">

@@ -270,6 +270,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const handleStopDelete = async (stopId: number) => {
         if (!canEditRoutes) return;
         if (!confirm('Delete this stop?')) return;
+        if (!route) return;
         try {
             await dispatch(deleteRouteStop({ stopId, routeId: route.id })).unwrap();
             toast.success('Stop deleted');

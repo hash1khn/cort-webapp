@@ -40,7 +40,7 @@ type PoolInsight = {
     insight_type: string;
     severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     estimated_saving_pkr: string;
-    data: { summary: string; recommendation: string };
+    data: { summary: string; recommendation: string; metric_value?: number | string | null };
     generated_at: string;
 };
 
@@ -575,11 +575,14 @@ function InsightCard({ insight }: { insight: PoolInsight }) {
                 <Car className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide">Pool Utilization</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide">{insight.insight_type.replace(/_/g, ' ')}</span>
                         <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-white/10">{insight.severity}</span>
                     </div>
                     <p className="text-sm font-medium">{insight.data.summary}</p>
                     <p className="text-xs mt-1 opacity-80">{insight.data.recommendation}</p>
+                    {insight.data.metric_value != null && (
+                        <p className="text-xs mt-1 font-mono opacity-70">Metric: {insight.data.metric_value}</p>
+                    )}
                     {insight.estimated_saving_pkr && parseFloat(insight.estimated_saving_pkr) > 0 && (
                         <p className="text-xs mt-2 font-semibold">
                             Est. saving: PKR {parseFloat(insight.estimated_saving_pkr).toLocaleString()} / month
