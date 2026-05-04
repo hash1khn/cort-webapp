@@ -590,7 +590,10 @@ function InvoicingPageContent() {
               ) : (
                 invoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-zinc-50/50">
-                    <td className="px-4 py-3 font-medium text-navy">{inv.invoice_number}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-navy">{inv.invoice_number}</div>
+                      <div className="text-xs text-slate-400">ID #{inv.id}</div>
+                    </td>
                     <td className="px-4 py-3 text-navy">{inv.companies?.name || "Unknown"}</td>
                     <td className="px-4 py-3 text-navy">
                       <div>{formatInvoicePeriod(inv)}</div>
