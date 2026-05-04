@@ -70,8 +70,8 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
     groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
   }
 
-  // Fleet Analytics — show if shuttle or chauffeur is enabled
-  if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
+  // Fleet Analytics — only show if ai_insights feature is enabled
+  if (hasFeature("ai_insights")) {
     groups[1].items.push({ href: "/company/fleet-analytics", label: "Fleet Analytics", icon: BarChart2 });
   }
 
