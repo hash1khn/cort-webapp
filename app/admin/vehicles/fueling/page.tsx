@@ -7,14 +7,12 @@ import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityPr
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import {
     fetchFuelRecords,
-    fetchFuelStats,
     createFuelRecord,
     updateFuelRecord,
     deleteFuelRecord,
     fetchAdminVehicles,
     markFuelRecordsAsPaid,
     selectFuelRecords,
-    selectFuelStats,
     selectFuelStatus,
     selectFuelActionStatus,
     selectAdminVehicles,
@@ -41,6 +39,12 @@ export default function FuelingPage() {
     );
 }
 
+// Current-month defaults (computed once at module load)
+const _now = new Date();
+const _pad = (n: number) => String(n).padStart(2, '0');
+const DEFAULT_MONTH_START = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-01`;
+const DEFAULT_MONTH_END = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate())}`;
+
 function FuelingPageContent() {
     const dispatch = useAppDispatch();
     const ability = useAdminAbility();
@@ -49,7 +53,6 @@ function FuelingPageContent() {
     const canDelete = ability.can("delete", ADMIN_SUBJECTS.fuel_records);
 
     const records = useAppSelector(selectFuelRecords);
-    const stats = useAppSelector(selectFuelStats);
     const vehicles = useAppSelector(selectAdminVehicles);
     const status = useAppSelector(selectFuelStatus);
     const actionStatus = useAppSelector(selectFuelActionStatus);
@@ -60,11 +63,11 @@ function FuelingPageContent() {
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedRecord, setSelectedRecord] = useState<FuelRecord | null>(null);
 
-    // Filters - Initialize from Redux
+    // Filters - Initialize from Redux (fall back to current month for dates)
     const [filterVehicleId, setFilterVehicleId] = useState<number | "ALL">(savedFilters.filterVehicleId);
     const [filterBilled, setFilterBilled] = useState<boolean | "ALL">(savedFilters.filterBilled);
-    const [startDate, setStartDate] = useState(savedFilters.startDate);
-    const [endDate, setEndDate] = useState(savedFilters.endDate);
+    const [startDate, setStartDate] = useState(savedFilters.startDate || DEFAULT_MONTH_START);
+    const [endDate, setEndDate] = useState(savedFilters.endDate || DEFAULT_MONTH_END);
 
     // Bulk Selection State
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -76,8 +79,8 @@ function FuelingPageContent() {
     useEffect(() => {
         setFilterVehicleId(savedFilters.filterVehicleId);
         setFilterBilled(savedFilters.filterBilled);
-        setStartDate(savedFilters.startDate);
-        setEndDate(savedFilters.endDate);
+        setStartDate(savedFilters.startDate || DEFAULT_MONTH_START);
+        setEndDate(savedFilters.endDate || DEFAULT_MONTH_END);
     }, [savedFilters]);
 
     const loadData = useCallback(() => {
@@ -88,7 +91,6 @@ function FuelingPageContent() {
         if (endDate) params.end_date = endDate;
 
         dispatch(fetchFuelRecords(params));
-        dispatch(fetchFuelStats());
     }, [dispatch, filterVehicleId, filterBilled, startDate, endDate]);
 
     useEffect(() => {
@@ -325,6 +327,15 @@ function FuelingPageContent() {
     const isLoading = status === 'loading';
     const isSubmitting = actionStatus === 'loading';
 
+    // Compute stats from the currently-filtered records so they always match
+    const computedStats = useMemo(() => {
+        const total_fuel_cost = records.reduce((sum, r) => sum + Number(r.fuel_cost), 0);
+        const average_fuel_rate = records.length > 0
+            ? records.reduce((sum, r) => sum + Number(r.current_fuel_rate), 0) / records.length
+            : 0;
+        return { total_fuel_cost, average_fuel_rate, total_records: records.length };
+    }, [records]);
+
     // Count unpaid records for select all logic
     const unpaidRecordsCount = records.filter(r => !r.billed).length;
     const isAllSelected = unpaidRecordsCount > 0 && selectedIds.length === unpaidRecordsCount;
@@ -370,19 +381,18 @@ function FuelingPageContent() {
             </div>
 
             {/* Stats Cards */}
-            {stats && (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL FUEL COST</div>
-                        <div className="mt-2 text-2xl font-bold text-navy">PKR {Number(stats.total_fuel_cost).toFixed(2)}</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {computedStats.total_fuel_cost.toFixed(2)}</div>
                     </div>
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">AVERAGE FUEL RATE</div>
-                        <div className="mt-2 text-2xl font-bold text-navy">PKR {Number(stats.average_fuel_rate).toFixed(2)}/L</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">PKR {computedStats.average_fuel_rate.toFixed(2)}/L</div>
                     </div>
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">TOTAL RECORDS</div>
-                        <div className="mt-2 text-2xl font-bold text-navy">{stats.total_records}</div>
+                        <div className="mt-2 text-2xl font-bold text-navy">{computedStats.total_records}</div>
                     </div>
                     <div className="rounded-xl border border-border bg-white p-4">
                         <div className="text-xs font-semibold tracking-wider text-muted">AVG MILEAGE</div>
@@ -396,7 +406,6 @@ function FuelingPageContent() {
                         )}
                     </div>
                 </div>
-            )}
 
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4">
                 <select
