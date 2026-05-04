@@ -11,6 +11,8 @@ import {
     Clock,
     RefreshCw,
     Radio,
+    MapPin,
+    X,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
@@ -50,6 +52,8 @@ interface TripEntry {
     /** Last known REST position (stop coord / pickup coord) */
     restLat: number | null;
     restLng: number | null;
+    /** Full raw trip object — shuttles only, used for the click detail panel */
+    rawTrip?: any;
 }
 
 const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
@@ -62,6 +66,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const [tripsLoading, setTripsLoading] = useState(true);
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
     const [defaultCenter, setDefaultCenter] = useState<[number, number]>([24.8607, 67.0011]);
+    const [selectedShuttleTrip, setSelectedShuttleTrip] = useState<any | null>(null);
+    const [tripEmployees, setTripEmployees] = useState<any[]>([]);
+    const [tripEmployeesLoading, setTripEmployeesLoading] = useState(false);
 
     // Clock tick
     useEffect(() => {
@@ -145,22 +152,46 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         label: `${routeName} ${direction} — ${trip.status}${occupancyStr}`,
                         restLat,
                         restLng,
+                        rawTrip: trip,
                     });
                 }
             }
 
             // ── Chauffeur bookings ────────────────────────────────────────────
+            // Fetch OTW + ARRIVED + IN_PROGRESS in parallel — these are the same
+            // three statuses the dashboard activeRides counter uses.
             if (hasChauffeur && chauffeurResp.status === 'fulfilled' && chauffeurResp.value !== null) {
-                const raw = chauffeurResp.value;
-                // SerializePaginatedResponse wraps as { data: { data: [], pagination: {} } }
-                // Handle all possible shapes defensively
-                const list: any[] = Array.isArray(raw)
-                    ? raw
-                    : Array.isArray(raw?.data?.data)
-                        ? raw.data.data
-                        : Array.isArray(raw?.data)
-                            ? raw.data
+                const [otw, arrived] = await Promise.allSettled([
+                    apiClient.request<any>(`/companies/${companyId}/chauffeur-bookings?status=OTW&limit=50`),
+                    apiClient.request<any>(`/companies/${companyId}/chauffeur-bookings?status=ARRIVED&limit=50`),
+                ]);
+
+                const extractList = (res: PromiseSettledResult<any>): any[] => {
+                    if (res.status !== 'fulfilled') return [];
+                    const raw = res.value;
+                    return Array.isArray(raw)
+                        ? raw
+                        : Array.isArray(raw?.data?.data)
+                            ? raw.data.data
+                            : Array.isArray(raw?.data)
+                                ? raw.data
+                                : [];
+                };
+
+                // IN_PROGRESS was already fetched via chauffeurResp
+                const inProgressRaw = chauffeurResp.value;
+                const inProgressList: any[] = Array.isArray(inProgressRaw)
+                    ? inProgressRaw
+                    : Array.isArray(inProgressRaw?.data?.data)
+                        ? inProgressRaw.data.data
+                        : Array.isArray(inProgressRaw?.data)
+                            ? inProgressRaw.data
                             : [];
+
+                const allBookings = [...extractList(otw), ...extractList(arrived), ...inProgressList];
+                // Deduplicate by id
+                const seen = new Set<number>();
+                const list = allBookings.filter(b => { if (seen.has(b.id)) return false; seen.add(b.id); return true; });
 
                 for (const booking of list) {
                     const passengerName =
@@ -168,6 +199,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         booking.users_chauffeur_bookings_passenger_idTousers?.full_name ??
                         'Passenger';
 
+                    // pickup_lat/lng come from PostGIS and are NOT returned by the standard
+                    // Prisma endpoint — they will be null here. The socket tracking hook
+                    // (useLiveMobilityTracking) will supply live coordinates once the driver
+                    // emits a location update; the marker uses defaultCenter as a temporary
+                    // placeholder until the first socket update arrives.
                     collected.push({
                         id: booking.id as number,
                         type: 'chauffeur',
@@ -203,21 +239,25 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const { vehicleCoords, isConnected } = useLiveMobilityTracking(trackingInput);
 
     // ── Build map markers: socket coords override REST fallback ───────────────
+    // If neither source has coords yet (e.g. chauffeur booking before first socket
+    // update, since pickup_lat/lng aren't returned by the Prisma endpoint), fall back
+    // to the city default so the marker is visible and snaps to real position once the
+    // socket fires its first update.
     const markers = useMemo((): MapMarker[] => {
         return trips.flatMap((trip) => {
             const live = vehicleCoords[String(trip.id)];
             const hasLive = live && live.updatedAt > 0 && live.lat !== 0 && live.lng !== 0;
-            const lat = hasLive ? live.lat : trip.restLat;
-            const lng = hasLive ? live.lng : trip.restLng;
-            if (lat === null || lng === null) return [];
+            const lat = hasLive ? live.lat : (trip.restLat ?? defaultCenter[0]);
+            const lng = hasLive ? live.lng : (trip.restLng ?? defaultCenter[1]);
+            const isPending = !hasLive && trip.restLat === null;
             return [{
                 id: `${trip.type}-${trip.id}`,
                 position: [lat, lng] as [number, number],
-                label: trip.label + (hasLive ? ' 🔴' : ''),
+                label: trip.label + (hasLive ? ' 🔴' : isPending ? ' ⏳' : ''),
                 type: trip.type,
             }];
         });
-    }, [trips, vehicleCoords]);
+    }, [trips, vehicleCoords, defaultCenter]);
 
     // Auto-center: prefer first live socket coord, then first REST coord
     const mapCenter = useMemo((): [number, number] => {
@@ -234,6 +274,27 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     );
     const shuttleCount = trips.filter((t) => t.type === 'shuttle').length;
     const chauffeurCount = trips.filter((t) => t.type === 'chauffeur').length;
+
+    // ── Shuttle marker click: show onboard detail panel ───────────────────────
+    const handleMarkerClick = useCallback(async (markerId: string) => {
+        const firstDash = markerId.indexOf('-');
+        const type = markerId.slice(0, firstDash);
+        const tripId = Number(markerId.slice(firstDash + 1));
+        if (type !== 'shuttle' || isNaN(tripId)) return;
+        const entry = trips.find(t => t.type === 'shuttle' && t.id === tripId);
+        if (!entry) return;
+        setSelectedShuttleTrip(entry.rawTrip ?? { id: tripId, label: entry.label });
+        setTripEmployees([]);
+        setTripEmployeesLoading(true);
+        try {
+            const data = await apiClient.request<any[]>(`/shuttle-trips/${tripId}/employees`);
+            setTripEmployees(Array.isArray(data) ? data : []);
+        } catch {
+            setTripEmployees([]);
+        } finally {
+            setTripEmployeesLoading(false);
+        }
+    }, [trips]);
 
     // ── Service performance ────────────────────────────────────────────────────
     const onTimeRate = useMemo(() => {
@@ -319,6 +380,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 center={mapCenter}
                                 zoom={12}
                                 className="!rounded-none !border-0 !shadow-none grayscale-[0.2] brightness-[0.9] contrast-[1.1]"
+                                onMarkerClick={handleMarkerClick}
                             />
                         </div>
 
@@ -353,6 +415,125 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </div>
                             )}
                         </div>
+
+                        {/* Shuttle detail panel — slides in when a shuttle marker is clicked */}
+                        {selectedShuttleTrip && (
+                            <div className="absolute top-4 right-4 bottom-4 w-72 z-[600] flex flex-col bg-[var(--bg-card)] border border-[var(--border-default)] rounded-4xl shadow-2xl overflow-hidden">
+                                {/* Header */}
+                                <div className="p-4 border-b border-[var(--border-default)]">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                    selectedShuttleTrip.direction === 'MORNING'
+                                                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                        : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                                }`}>
+                                                    {selectedShuttleTrip.direction === 'MORNING' ? '↑ Morning' : '↓ Evening'}
+                                                </span>
+                                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                    {selectedShuttleTrip.status}
+                                                </span>
+                                            </div>
+                                            <h3 className="text-sm font-black text-[var(--text-primary)] leading-tight">
+                                                {selectedShuttleTrip.routes?.name ?? `Route ${selectedShuttleTrip.route_id}`}
+                                            </h3>
+                                            {selectedShuttleTrip.routes?.vehicles && (
+                                                <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-medium">
+                                                    {[selectedShuttleTrip.routes.vehicles.model, selectedShuttleTrip.routes.vehicles.plate_number].filter(Boolean).join(' · ')}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedShuttleTrip(null)}
+                                            className="p-1.5 rounded-xl bg-[var(--surface-subtle)] hover:bg-[var(--border-default)] transition-colors flex-shrink-0"
+                                        >
+                                            <X size={13} className="text-[var(--text-primary)]" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Current stop */}
+                                {(() => {
+                                    const stops: any[] = selectedShuttleTrip.routes?.route_stops ?? [];
+                                    const currentStop = stops.find((s: any) => s.id === selectedShuttleTrip.current_stop_id);
+                                    if (!currentStop) return null;
+                                    return (
+                                        <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center gap-3">
+                                            <div className="w-7 h-7 rounded-full bg-[var(--cort-orange)]/10 flex items-center justify-center flex-shrink-0">
+                                                <MapPin size={12} className="text-[var(--cort-orange)]" />
+                                            </div>
+                                            <div>
+                                                <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Current Stop</div>
+                                                <div className="text-xs font-bold text-[var(--text-primary)]">{currentStop.name}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Occupancy */}
+                                <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Users size={13} className="text-[var(--text-muted)]" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Passengers</span>
+                                    </div>
+                                    <span className="text-sm font-black text-[var(--text-primary)]">
+                                        {selectedShuttleTrip.routes?._count?.employee_route_assignments ?? '—'}
+                                    </span>
+                                </div>
+
+                                {/* Employee list */}
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="px-4 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Assigned Employees</span>
+                                    </div>
+                                    <div className="p-3 space-y-2">
+                                        {tripEmployeesLoading ? (
+                                            Array.from({ length: 4 }).map((_, i) => (
+                                                <div key={i} className="flex items-center gap-3 p-2.5 rounded-2xl bg-[var(--surface-subtle)] animate-pulse">
+                                                    <div className="w-7 h-7 rounded-full bg-[var(--border-default)]" />
+                                                    <div className="flex-1 space-y-1.5">
+                                                        <div className="h-2.5 bg-[var(--border-default)] rounded w-3/4" />
+                                                        <div className="h-2 bg-[var(--border-default)] rounded w-1/2" />
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : tripEmployees.length === 0 ? (
+                                            <div className="py-8 flex flex-col items-center gap-2">
+                                                <Users size={20} className="text-[var(--text-muted)] opacity-40" />
+                                                <p className="text-[10px] text-[var(--text-muted)] font-bold">No employees assigned</p>
+                                            </div>
+                                        ) : (
+                                            tripEmployees.map((emp: any, i: number) => (
+                                                <div key={emp.id ?? i} className="flex items-center gap-3 p-2.5 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-light)]">
+                                                    <div className="w-7 h-7 rounded-full bg-[var(--cort-orange)]/10 flex items-center justify-center flex-shrink-0">
+                                                        <span className="text-[10px] font-black text-[var(--cort-orange)]">
+                                                            {(emp.users?.full_name ?? '?').charAt(0).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[11px] font-bold text-[var(--text-primary)] truncate">
+                                                            {emp.users?.full_name ?? 'Unknown'}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                            {emp.route_stops?.name && (
+                                                                <span className="text-[9px] text-[var(--text-muted)] font-medium flex items-center gap-0.5">
+                                                                    <MapPin size={8} />
+                                                                    {emp.route_stops.name}
+                                                                </span>
+                                                            )}
+                                                            {emp.users?.department && (
+                                                                <span className="text-[9px] text-[var(--text-muted)] truncate">{emp.users.department}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Legend — outside overflow-hidden so it isn't clipped */}
                         <div className="absolute bottom-8 right-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
