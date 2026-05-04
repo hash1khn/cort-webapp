@@ -23,6 +23,7 @@ export const initialVehicleFormData: VehicleFormData = {
     ownership: OwnershipType.OWNED,
     fuel_avg_city: 0,
     fuel_avg_highway: 0,
+    seat_capacity: 0,
     rent_per_day_city: 0,
     rent_per_day_outstation: 0,
     vendor_id: undefined,
@@ -90,6 +91,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             ownership: vehicle.ownership,
             fuel_avg_city: vehicle.fuel_avg_city,
             fuel_avg_highway: vehicle.fuel_avg_highway,
+            seat_capacity: vehicle.seat_capacity || 0,
             owner_company_id: vehicle.owner_company_id || undefined,
             rent_per_day_city: vehicle.rent_per_day_city || 0,
             rent_per_day_outstation: vehicle.rent_per_day_outstation || 0,
@@ -202,16 +204,29 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     />
                 </div>
             </div>
-            <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Plate Number</label>
-                <input
-                    type="text"
-                    value={formData.plate_number}
-                    onChange={(e) => handleChange("plate_number", e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
-                    placeholder="ABC-123"
-                    disabled={isSaving}
-                />
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Plate Number</label>
+                    <input
+                        type="text"
+                        value={formData.plate_number}
+                        onChange={(e) => handleChange("plate_number", e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        placeholder="ABC-123"
+                        disabled={isSaving}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Seat Capacity</label>
+                    <input
+                        type="number"
+                        value={formData.seat_capacity}
+                        onChange={(e) => handleChange("seat_capacity", parseInt(e.target.value) || 0)}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
+                        placeholder="4"
+                        disabled={isSaving}
+                    />
+                </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>

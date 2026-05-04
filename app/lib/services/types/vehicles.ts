@@ -25,6 +25,7 @@ export interface CreateVehicleRequest {
     ownership: OwnershipType;
     fuel_avg_city: number;
     fuel_avg_highway: number;
+    seat_capacity: number;
     owner_company_id?: number;
     vendor_id?: number;
     rent_per_day_city?: number;
@@ -66,6 +67,7 @@ export interface Vehicle {
     ownership: OwnershipType;
     fuel_avg_city: number;
     fuel_avg_highway: number;
+    seat_capacity: number;
     owner_company_id: number | null;
     created_at?: string;
     updated_at?: string;
