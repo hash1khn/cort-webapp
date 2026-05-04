@@ -73,6 +73,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const [editForm, setEditForm] = useState({ name: '', assigned_vehicle_id: '', assigned_driver_id: '' });
     const [currentAssignedVehicle, setCurrentAssignedVehicle] = useState<any>(null);
 
+    // Direction toggle for the overview map
+    const [mapDirection, setMapDirection] = useState<'MORNING' | 'EVENING'>('MORNING');
+
     // Stop form
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
     const [isAddingStop, setIsAddingStop] = useState(false);
@@ -148,17 +151,26 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const fetchSavedPolyline = useCallback(async () => {
         if (!id) return;
         try {
-            const data = await apiClient.request<PolylineResponse>(`/routes/${id}/polyline`);
+            const data = await apiClient.request<PolylineResponse>(`/routes/${id}/polyline?direction=${mapDirection}`);
             setSavedPolyline(data.points.map((p) => [p.lat, p.lng] as [number, number]));
         } catch {
             setSavedPolyline([]);
         }
-    }, [id]);
+    }, [id, mapDirection]);
 
-    // Re-fetch polyline after a stop is saved/deleted
+    // Re-fetch polyline when direction toggle changes or after a stop is saved/deleted
+    useEffect(() => {
+        if (route?.id) {
+            setSavedPolyline([]); // clear stale polyline immediately so fallback renders correct direction
+            fetchSavedPolyline();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapDirection]);
+
     const schedulePolylineRefresh = useCallback(() => {
+        setSavedPolyline([]); // clear stale polyline immediately
         if (polylineDebounceRef.current) clearTimeout(polylineDebounceRef.current);
-        polylineDebounceRef.current = setTimeout(fetchSavedPolyline, 800);
+        polylineDebounceRef.current = setTimeout(fetchSavedPolyline, 3000);
     }, [fetchSavedPolyline]);
 
     // ---- Stop form helpers -----------------------------------------------
@@ -216,12 +228,24 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             sequence_order: parseInt(stopForm.sequence_order) || 0,
             direction: stopForm.direction || 'BOTH',
         };
+        // Duplicate guard: prevent adding a stop at the exact same lat/lng as an existing one
+        if (isAddingStop) {
+            const duplicate = route.route_stops?.find(
+                (s) =>
+                    Math.abs((s.lat ?? 0) - data.lat) < 0.0001 &&
+                    Math.abs((s.lng ?? 0) - data.lng) < 0.0001
+            );
+            if (duplicate) {
+                toast.error(`A stop at this location already exists: "${duplicate.name}"`);
+                return;
+            }
+        }
         try {
             if (isAddingStop) {
                 await dispatch(createRouteStop({ routeId: route.id, data })).unwrap();
                 toast.success('Stop added');
             } else if (editingStopId) {
-                await dispatch(updateRouteStop({ stopId: editingStopId, data })).unwrap();
+                await dispatch(updateRouteStop({ stopId: editingStopId, routeId: route.id, data })).unwrap();
                 toast.success('Stop updated');
             }
             resetStopForm();
@@ -247,7 +271,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         if (!canEditRoutes) return;
         if (!confirm('Delete this stop?')) return;
         try {
-            await dispatch(deleteRouteStop(stopId)).unwrap();
+            await dispatch(deleteRouteStop({ stopId, routeId: route.id })).unwrap();
             toast.success('Stop deleted');
             if (editingStopId === stopId) resetStopForm();
             schedulePolylineRefresh();
@@ -292,7 +316,18 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     const mapMarkers: MapMarker[] = (() => {
         const base: MapMarker[] = (route?.route_stops ?? [])
-            .filter((s) => s.lat != null && s.lng != null && !isNaN(Number(s.lat)) && !isNaN(Number(s.lng)))
+            .filter((s) => {
+                if (s.lat == null || s.lng == null || isNaN(Number(s.lat)) || isNaN(Number(s.lng))) return false;
+                // Only show stops that belong to the active direction
+                return mapDirection === 'MORNING'
+                    ? s.morning_sequence != null
+                    : s.evening_sequence != null;
+            })
+            .sort((a, b) =>
+                mapDirection === 'MORNING'
+                    ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
+                    : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
+            )
             .map((s) => {
                 if (editingStopId === s.id && stopForm.lat && stopForm.lng) {
                     return {
@@ -305,7 +340,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 return {
                     id: s.id.toString(),
                     position: [s.lat, s.lng] as [number, number],
-                    label: `${s.sequence_order}. ${s.name}`,
+                    label: `${mapDirection === 'MORNING' ? (s.morning_sequence ?? s.sequence_order) : (s.evening_sequence ?? s.sequence_order)}. ${s.name}`,
                     color: '#6366f1',
                 };
             });
@@ -321,15 +356,20 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         return base;
     })();
 
-    // Use road-following polyline; fall back to straight-line while it loads
+    // Use road-following polyline; fall back to straight-line for the active direction while it loads
     const mapPolylines: MapPolyline[] = savedPolyline.length >= 2
         ? [{ positions: savedPolyline, color: '#0C225E' }]
         : (() => {
-            const stops = route?.route_stops?.filter(
-                (s) => s.lat != null && s.lng != null,
-            ) ?? [];
-            return stops.length > 1
-                ? [{ positions: stops.map((s) => [s.lat, s.lng] as [number, number]), color: '#6366f1' }]
+            const dirStops = (route?.route_stops ?? []).filter(
+                (s) => s.lat != null && s.lng != null &&
+                    (mapDirection === 'MORNING' ? s.morning_sequence != null : s.evening_sequence != null),
+            ).sort((a, b) =>
+                mapDirection === 'MORNING'
+                    ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
+                    : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
+            );
+            return dirStops.length > 1
+                ? [{ positions: dirStops.map((s) => [s.lat, s.lng] as [number, number]), color: '#6366f1' }]
                 : [];
         })();
 
@@ -481,22 +521,47 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Map */}
-                        <Card className="col-span-2 overflow-hidden" style={{ height: '520px' }}>
-                            <Map
-                                height="100%"
-                                markers={mapMarkers}
-                                polylines={mapPolylines}
-                                onMarkerClick={handleMarkerClick}
-                                onMapClick={handleMapClick}
-                            />
-                        </Card>
+                        <div className="col-span-2 flex flex-col gap-2" style={{ height: '520px' }}>
+                            {/* Direction toggle */}
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={() => setMapDirection('MORNING')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                        mapDirection === 'MORNING'
+                                            ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                                            : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    ☀ Morning route
+                                </button>
+                                <button
+                                    onClick={() => setMapDirection('EVENING')}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                        mapDirection === 'EVENING'
+                                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
+                                            : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    🌙 Evening route
+                                </button>
+                            </div>
+                            <Card className="overflow-hidden flex-1">
+                                <Map
+                                    height="100%"
+                                    markers={mapMarkers}
+                                    polylines={mapPolylines}
+                                    onMarkerClick={handleMarkerClick}
+                                    onMapClick={handleMapClick}
+                                />
+                            </Card>
+                        </div>
 
                         {/* Stops Sidebar */}
                         <Card className="p-4 flex flex-col" style={{ maxHeight: '520px' }}>
                             <div className="flex justify-between items-center mb-3 shrink-0">
                                 <h3 className="font-semibold flex items-center gap-2">
                                     <MapPin className="w-4 h-4" />
-                                    Stops ({route.route_stops?.length || 0})
+                                    {mapDirection === 'MORNING' ? 'Morning' : 'Evening'} Stops
                                 </h3>
                                 {!isAddingStop && !editingStopId && (
                                     <Button
@@ -623,13 +688,24 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
                             {/* Stops list */}
                             <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
-                                {(route.route_stops ?? []).map((stop) => (
+                                {(route.route_stops ?? [])
+                                    .filter(stop =>
+                                        mapDirection === 'MORNING'
+                                            ? stop.morning_sequence != null
+                                            : stop.evening_sequence != null
+                                    )
+                                    .sort((a, b) =>
+                                        mapDirection === 'MORNING'
+                                            ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
+                                            : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
+                                    )
+                                    .map((stop) => (
                                     <div
                                         key={stop.id}
                                         className="relative pl-6 border-l-2 border-gray-200 pb-3 last:pb-0 group"
                                     >
                                         <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#6366f1] border-2 border-white flex items-center justify-center text-[8px] text-white font-bold">
-                                            {stop.sequence_order}
+                                            {mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order)}
                                         </div>
                                         <div className="flex justify-between items-start">
                                             <div
@@ -674,7 +750,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             )}
 
             {/* Stops Tab */}
-            {activeTab === 'stops' && <ManageStopsTab route={route} />}
+            {activeTab === 'stops' && <ManageStopsTab route={route} onStopMutated={schedulePolylineRefresh} />}
 
             {/* Rostering Tab */}
             {activeTab === 'rostering' && <RosteringTab route={route} />}

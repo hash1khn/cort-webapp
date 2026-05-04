@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/app/admin/ui/Button';
 import { Card } from '@/app/admin/ui/Card';
 import { Input } from '@/app/admin/ui/Input';
 import { Label } from '@/app/admin/ui/Label';
+import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import { useAppDispatch } from '@/app/lib/store/hooks';
 import {
     createRouteStop,
@@ -13,13 +15,17 @@ import {
     Route,
     RouteStop,
 } from '@/app/lib/store/slices/adminRoutesSlice';
-import { Trash, Edit, Plus, Save, X, Sunrise, Sunset, ArrowLeftRight } from 'lucide-react';
+import { Trash, Edit, Plus, Save, X, Sunrise, Sunset, ArrowLeftRight, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import type { MapMarker } from '@/app/admin/ui/Map';
+
+const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
 type StopDirection = 'MORNING' | 'EVENING' | 'BOTH';
 
 interface ManageStopsTabProps {
     route: Route;
+    onStopMutated?: () => void;
 }
 
 const DIRECTION_OPTIONS: { value: StopDirection; label: string }[] = [
@@ -100,11 +106,12 @@ function SequenceInput({
     );
 }
 
-export default function ManageStopsTab({ route }: ManageStopsTabProps) {
+export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabProps) {
     const dispatch = useAppDispatch();
     const [isSaving, setIsSaving] = useState(false);
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
     const [isAdding, setIsAdding] = useState(false);
+    const [originalDirection, setOriginalDirection] = useState<StopDirection | null>(null);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -130,10 +137,12 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
         });
         setEditingStopId(null);
         setIsAdding(false);
+        setOriginalDirection(null);
     };
 
     const handleEditClick = (stop: RouteStop) => {
         const dir = deriveDirection(stop);
+        setOriginalDirection(dir);
         setFormData({
             name: stop.name,
             lat: stop.lat?.toString() || '',
@@ -153,6 +162,7 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
         const nextMorning = Math.max(0, ...(route.route_stops ?? []).map(s => s.morning_sequence ?? 0)) + 1;
         const nextEvening = Math.max(0, ...(route.route_stops ?? []).map(s => s.evening_sequence ?? 0)) + 1;
         resetForm();
+        setOriginalDirection(null);
         setFormData(f => ({
             ...f,
             morning_sequence: nextMorning.toString(),
@@ -163,17 +173,41 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
 
     // When direction changes in the form, clear sequences that no longer apply
     const handleDirectionChange = (dir: StopDirection) => {
+        const nextMorning = Math.max(0, ...(route.route_stops ?? []).map(s => s.morning_sequence ?? 0)) + 1;
+        const nextEvening = Math.max(0, ...(route.route_stops ?? []).map(s => s.evening_sequence ?? 0)) + 1;
+
         setFormData(f => ({
             ...f,
             direction: dir,
-            morning_sequence: dir === 'EVENING' ? '' : f.morning_sequence,
-            evening_sequence: dir === 'MORNING' ? '' : f.evening_sequence,
+            morning_sequence:
+                dir === 'EVENING'
+                    ? ''
+                    : dir === 'BOTH'
+                        ? (f.morning_sequence || nextMorning.toString())
+                        : f.morning_sequence,
+            evening_sequence:
+                dir === 'MORNING'
+                    ? ''
+                    : dir === 'BOTH'
+                        ? (f.evening_sequence || nextEvening.toString())
+                        : f.evening_sequence,
         }));
     };
 
     const handleSubmit = async () => {
         if (!formData.name || !formData.lat || !formData.lng) {
             toast.error('Name, Latitude, and Longitude are required');
+            return;
+        }
+
+        // For BOTH-direction stops, force explicit sequence values for both lists.
+        // This prevents silent auto-assignment when toggling from single-direction to BOTH.
+        if (formData.direction === 'BOTH' && (!formData.morning_sequence || !formData.evening_sequence)) {
+            if (editingStopId && originalDirection && originalDirection !== 'BOTH') {
+                toast.error('When changing from Morning/Evening only to Both, set both sequence positions');
+            } else {
+                toast.error('Both Morning and Evening sequence positions are required for Both directions');
+            }
             return;
         }
 
@@ -202,9 +236,10 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
                 await dispatch(createRouteStop({ routeId: route.id, data })).unwrap();
                 toast.success('Stop added successfully');
             } else if (editingStopId) {
-                await dispatch(updateRouteStop({ stopId: editingStopId, data })).unwrap();
+                await dispatch(updateRouteStop({ stopId: editingStopId, routeId: route.id, data })).unwrap();
                 toast.success('Stop updated successfully');
             }
+            onStopMutated?.();
             resetForm();
         } catch {
             toast.error('Failed to save stop');
@@ -216,8 +251,9 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
     const handleDelete = async (id: number) => {
         if (confirm('Are you sure you want to delete this stop?')) {
             try {
-                await dispatch(deleteRouteStop(id)).unwrap();
+                await dispatch(deleteRouteStop({ stopId: id, routeId: route.id })).unwrap();
                 toast.success('Stop deleted successfully');
+                onStopMutated?.();
             } catch {
                 toast.error('Failed to delete stop');
             }
@@ -233,10 +269,58 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
         .sort((a, b) => (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0));
 
     // Shared form fields used in both add and edit panels
-    const renderFormFields = () => (
+    const handleAddressSelect = useCallback(({ name, lat, lng }: { name: string; lat: number; lng: number; fullAddress: string }) => {
+        setFormData(f => ({ ...f, name, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+    }, []);
+
+    const handleMapClick = useCallback((lat: number, lng: number) => {
+        setFormData(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+        toast.info('Coordinates updated from map click');
+    }, []);
+
+    const renderFormFields = () => {
+        const mapMarkers: MapMarker[] = formData.lat && formData.lng ? [{
+            id: 'form-pin',
+            position: [parseFloat(formData.lat), parseFloat(formData.lng)],
+            label: formData.name || 'New Stop',
+            color: '#6366f1',
+        }] : [];
+
+        return (
         <div className="space-y-4">
+            {/* Address search — fills name + lat/lng */}
+            <div>
+                <Label>Search Location <span className="text-red-500">*</span></Label>
+                <StopAddressSearch
+                    onSelect={handleAddressSelect}
+                    defaultValue={formData.name}
+                    placeholder="Search address or place..."
+                    className="mt-1"
+                />
+            </div>
+
+            {/* Mini map — shows pin and accepts click to adjust */}
+            <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: 200 }}>
+                <Map
+                    height="100%"
+                    markers={mapMarkers}
+                    onMapClick={handleMapClick}
+                    center={
+                        formData.lat && formData.lng
+                            ? [parseFloat(formData.lat), parseFloat(formData.lng)]
+                            : undefined
+                    }
+                />
+            </div>
+            {formData.lat && formData.lng && (
+                <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {parseFloat(formData.lat).toFixed(5)}, {parseFloat(formData.lng).toFixed(5)} · Click map to adjust
+                </p>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Name */}
+                {/* Name — editable after autocomplete */}
                 <div className="col-span-1 md:col-span-2">
                     <Label>Stop Name <span className="text-red-500">*</span></Label>
                     <Input
@@ -258,24 +342,6 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
-                </div>
-
-                {/* Lat / Lng */}
-                <div>
-                    <Label>Latitude <span className="text-red-500">*</span></Label>
-                    <Input
-                        value={formData.lat}
-                        onChange={e => setFormData({ ...formData, lat: e.target.value })}
-                        placeholder="3.1390"
-                    />
-                </div>
-                <div>
-                    <Label>Longitude <span className="text-red-500">*</span></Label>
-                    <Input
-                        value={formData.lng}
-                        onChange={e => setFormData({ ...formData, lng: e.target.value })}
-                        placeholder="101.6869"
-                    />
                 </div>
 
                 {/* ETAs */}
@@ -336,6 +402,7 @@ export default function ManageStopsTab({ route }: ManageStopsTabProps) {
             </p>
         </div>
     );
+    };
 
     return (
         <div className="space-y-6">

@@ -1,10 +1,161 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useRef, useState } from "react";
+import { Loader } from "@googlemaps/js-api-loader";
 import type { VehicleLocation } from "./page";
+
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+
+let mapsPromise: Promise<void> | null = null;
+function loadMaps(): Promise<void> {
+    if (typeof google !== "undefined" && google.maps?.Map) return Promise.resolve();
+    if (!mapsPromise) {
+        const loader = new Loader({ apiKey: API_KEY, version: "weekly", libraries: ["marker"] });
+        mapsPromise = loader.load().then(() => { /* noop */ });
+    }
+    return mapsPromise;
+}
+
+function makeMarkerEl(moving: boolean, selected: boolean): HTMLElement {
+    const bg = moving ? "#16a34a" : "#6b7280";
+    const size = selected ? 44 : 34;
+    const border = selected ? "3px solid #f47f00" : "3px solid white";
+    const div = document.createElement("div");
+    div.style.cssText = [
+        `width:${size}px`, `height:${size}px`, `border-radius:50%`,
+        `background:${bg}`, `border:${border}`,
+        "box-shadow:0 2px 8px rgba(0,0,0,0.35)",
+        "display:flex", "align-items:center", "justify-content:center",
+        `font-size:${selected ? 18 : 14}px`, "cursor:pointer",
+    ].join(";");
+    div.textContent = moving ? "🚗" : "🅿";
+    return div;
+}
+
+interface Props {
+    vehicles: VehicleLocation[];
+    selected: VehicleLocation | null;
+    onSelect: (v: VehicleLocation) => void;
+}
+
+export default function TrackerMap({ vehicles, selected, onSelect }: Props) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const [mapReady, setMapReady] = useState(false);
+    const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+    const fittedRef = useRef(false);
+
+    type MarkerEntry = { adv: google.maps.marker.AdvancedMarkerElement; vehicle: VehicleLocation };
+    const markersRef = useRef<Map<string, MarkerEntry>>(new Map());
+
+    const onSelectRef = useRef(onSelect);
+    useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        let cancelled = false;
+        loadMaps().then(() => {
+            if (cancelled || !containerRef.current || mapRef.current) return;
+            mapRef.current = new google.maps.Map(containerRef.current, {
+                center: { lat: 24.9, lng: 67.06 },
+                zoom: 12,
+                mapId: "DEMO_MAP_ID",
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+            });
+            infoWindowRef.current = new google.maps.InfoWindow();
+            setMapReady(true);
+        });
+        return () => { cancelled = true; };
+    }, []);
+
+    // ── Sync vehicle markers ──────────────────────────────────────────────────
+    useEffect(() => {
+        if (!mapReady || !mapRef.current) return;
+        const existing = markersRef.current;
+        const newKeys = new Set(vehicles.map((v) => v.RegNo));
+
+        // Remove stale
+        existing.forEach((_, key) => {
+            if (!newKeys.has(key)) {
+                existing.get(key)!.adv.map = null;
+                existing.delete(key);
+            }
+        });
+
+        vehicles.forEach((v) => {
+            const lat = parseFloat(v.Lat);
+            const lng = parseFloat(v.Long);
+            if (isNaN(lat) || isNaN(lng)) return;
+            const moving = v.VehStatus?.toLowerCase() === "moving";
+            const isSelected = selected?.RegNo === v.RegNo;
+
+            if (existing.has(v.RegNo)) {
+                const entry = existing.get(v.RegNo)!;
+                entry.adv.position = { lat, lng };
+                entry.adv.content = makeMarkerEl(moving, isSelected);
+                entry.vehicle = v;
+            } else {
+                const adv = new google.maps.marker.AdvancedMarkerElement({
+                    map: mapRef.current!,
+                    position: { lat, lng },
+                    content: makeMarkerEl(moving, isSelected),
+                    title: v.RegNo,
+                });
+                adv.addListener("click", () => {
+                    const entry = existing.get(v.RegNo);
+                    const vehicle = entry?.vehicle ?? v;
+                    onSelectRef.current(vehicle);
+
+                    const content = `
+                        <div style="font-size:13px;min-width:180px;line-height:1.6">
+                            <p style="font-weight:700;color:#0c225e;margin:0 0 2px">${vehicle.RegNo}</p>
+                            <p style="color:#6b7280;margin:0 0 2px">${vehicle.VrnMake} ${vehicle.VrnModle} · ${vehicle.VrnColor}</p>
+                            <p style="color:${moving ? "#16a34a" : "#6b7280"};font-weight:${moving ? 600 : 400};margin:0 0 2px">
+                                ${vehicle.VehStatus}${moving ? ` · ${vehicle.Speed} km/h` : ""}
+                            </p>
+                            <p style="color:#9ca3af;font-size:11px;margin:0 0 2px">${vehicle.Location}</p>
+                            <p style="color:#d1d5db;font-size:10px;margin:0 0 4px">Updated: ${vehicle.GpsDateTime}</p>
+                            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank"
+                               style="color:#f47f00;font-size:11px;text-decoration:none">
+                                Open in Google Maps →
+                            </a>
+                        </div>`;
+                    infoWindowRef.current?.setContent(content);
+                    infoWindowRef.current?.open({ anchor: adv, map: mapRef.current });
+                });
+                existing.set(v.RegNo, { adv, vehicle: v });
+            }
+        });
+
+        // Auto-fit on first load
+        if (!fittedRef.current && vehicles.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            let valid = 0;
+            vehicles.forEach((v) => {
+                const lat = parseFloat(v.Lat);
+                const lng = parseFloat(v.Long);
+                if (!isNaN(lat) && !isNaN(lng)) { bounds.extend({ lat, lng }); valid++; }
+            });
+            if (valid > 0) { mapRef.current.fitBounds(bounds, 40); fittedRef.current = true; }
+        }
+    }, [mapReady, vehicles, selected]);
+
+    // ── Pan to selected ───────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!mapReady || !mapRef.current || !selected) return;
+        const lat = parseFloat(selected.Lat);
+        const lng = parseFloat(selected.Long);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            mapRef.current.panTo({ lat, lng });
+            mapRef.current.setZoom(16);
+        }
+    }, [mapReady, selected]);
+
+    return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+}
 
 // ── Custom coloured marker ────────────────────────────────────────────────────
 function makeIcon(moving: boolean, selected: boolean) {

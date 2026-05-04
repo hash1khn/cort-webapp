@@ -251,14 +251,18 @@ export const removeEmployeeFromRoute = createAsyncThunk(
 
 
 // Stop Management Thunks
+// All three thunks return { routeId, stops[] } so the slice always replaces
+// route_stops from server truth (fixes stale sequence display after mutations).
 export const createRouteStop = createAsyncThunk(
     'adminRoutes/createRouteStop',
     async ({ routeId, data }: { routeId: number; data: any }, { rejectWithValue }) => {
         try {
-            return await apiClient.request<RouteStop>(`/routes/${routeId}/stops`, {
+            await apiClient.request<RouteStop>(`/routes/${routeId}/stops`, {
                 method: 'POST',
                 body: JSON.stringify(data),
             });
+            const fresh = await apiClient.request<Route>(`/routes/${routeId}`);
+            return { routeId, stops: fresh.route_stops ?? [] };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to create stop');
         }
@@ -267,12 +271,14 @@ export const createRouteStop = createAsyncThunk(
 
 export const updateRouteStop = createAsyncThunk(
     'adminRoutes/updateRouteStop',
-    async ({ stopId, data }: { stopId: number; data: any }, { rejectWithValue }) => {
+    async ({ stopId, routeId, data }: { stopId: number; routeId: number; data: any }, { rejectWithValue }) => {
         try {
-            return await apiClient.request<RouteStop>(`/routes/stops/${stopId}`, {
+            await apiClient.request<RouteStop>(`/routes/stops/${stopId}`, {
                 method: 'PATCH',
                 body: JSON.stringify(data),
             });
+            const fresh = await apiClient.request<Route>(`/routes/${routeId}`);
+            return { routeId, stops: fresh.route_stops ?? [] };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to update stop');
         }
@@ -281,12 +287,13 @@ export const updateRouteStop = createAsyncThunk(
 
 export const deleteRouteStop = createAsyncThunk(
     'adminRoutes/deleteRouteStop',
-    async (stopId: number, { rejectWithValue }) => {
+    async ({ stopId, routeId }: { stopId: number; routeId: number }, { rejectWithValue }) => {
         try {
             await apiClient.request<void>(`/routes/stops/${stopId}`, {
                 method: 'DELETE',
             });
-            return stopId;
+            const fresh = await apiClient.request<Route>(`/routes/${routeId}`);
+            return { routeId, stops: fresh.route_stops ?? [] };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to delete stop');
         }
@@ -404,29 +411,21 @@ export const adminRoutesSlice = createSlice({
             .addCase(removeEmployeeFromRoute.fulfilled, (state, action) => {
                 state.assignments = state.assignments.filter(a => a.user_id !== action.payload);
             })
-            // Stop Management
+            // Stop Management — always replace route_stops from fresh server data
+            // so sibling sequences are always accurate after any mutation.
             .addCase(createRouteStop.fulfilled, (state, action) => {
-                if (state.currentRoute) {
-                    state.currentRoute.route_stops = [...(state.currentRoute.route_stops || []), action.payload];
-                    state.currentRoute.route_stops.sort(
-                        (a, b) => (a.morning_sequence ?? a.sequence_order) - (b.morning_sequence ?? b.sequence_order)
-                    );
+                if (state.currentRoute && state.currentRoute.id === action.payload.routeId) {
+                    state.currentRoute.route_stops = action.payload.stops;
                 }
             })
             .addCase(updateRouteStop.fulfilled, (state, action) => {
-                if (state.currentRoute && state.currentRoute.route_stops) {
-                    const index = state.currentRoute.route_stops.findIndex(s => s.id === action.payload.id);
-                    if (index !== -1) {
-                        state.currentRoute.route_stops[index] = action.payload;
-                        state.currentRoute.route_stops.sort(
-                            (a, b) => (a.morning_sequence ?? a.sequence_order) - (b.morning_sequence ?? b.sequence_order)
-                        );
-                    }
+                if (state.currentRoute && state.currentRoute.id === action.payload.routeId) {
+                    state.currentRoute.route_stops = action.payload.stops;
                 }
             })
             .addCase(deleteRouteStop.fulfilled, (state, action) => {
-                if (state.currentRoute && state.currentRoute.route_stops) {
-                    state.currentRoute.route_stops = state.currentRoute.route_stops.filter(s => s.id !== action.payload);
+                if (state.currentRoute && state.currentRoute.id === action.payload.routeId) {
+                    state.currentRoute.route_stops = action.payload.stops;
                 }
             });
     },

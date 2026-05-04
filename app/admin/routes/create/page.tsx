@@ -22,6 +22,8 @@ import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
+type StopDirection = 'MORNING' | 'EVENING' | 'BOTH';
+
 interface Stop {
     id: string;
     name: string;
@@ -29,6 +31,7 @@ interface Stop {
     lng: number;
     morningEta: string;
     eveningEta: string;
+    direction: StopDirection;
 }
 
 type PolylineResponse = { points: { lat: number; lng: number }[] };
@@ -97,6 +100,7 @@ function CreateRoutePageContent() {
             lng,
             morningEta: '08:00',
             eveningEta: '18:00',
+            direction: 'BOTH',
         };
         setStops((prev) => {
             const updated = [...prev, newStop];
@@ -115,6 +119,7 @@ function CreateRoutePageContent() {
             lng,
             morningEta: '08:00',
             eveningEta: '18:00',
+            direction: 'BOTH',
         };
         setStops((prev) => {
             const updated = [...prev, newStop];
@@ -150,9 +155,10 @@ function CreateRoutePageContent() {
                     name: stop.name,
                     lat: stop.lat,
                     lng: stop.lng,
-                    morning_eta: stop.morningEta,
-                    evening_eta: stop.eveningEta,
+                    morning_eta: stop.direction !== 'EVENING' ? stop.morningEta : undefined,
+                    evening_eta: stop.direction !== 'MORNING' ? stop.eveningEta : undefined,
                     sequence_order: index + 1,
+                    direction: stop.direction,
                 })),
             })).unwrap();
             toast.success('Route created successfully!');
@@ -314,25 +320,41 @@ function CreateRoutePageContent() {
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs pl-10">
+                                    <div className="grid grid-cols-3 gap-2 text-xs pl-10">
                                         <div>
-                                            <label className="block text-gray-500 mb-0.5">AM pickup</label>
-                                            <input
-                                                type="time"
-                                                value={stop.morningEta}
-                                                onChange={(e) => handleStopChange(stop.id, 'morningEta', e.target.value)}
-                                                className="border rounded px-1.5 py-0.5 w-full text-xs"
-                                            />
+                                            <label className="block text-gray-500 mb-0.5">Direction</label>
+                                            <select
+                                                value={stop.direction}
+                                                onChange={(e) => handleStopChange(stop.id, 'direction', e.target.value)}
+                                                className="border rounded px-1 py-0.5 w-full text-xs bg-white"
+                                            >
+                                                <option value="BOTH">Both</option>
+                                                <option value="MORNING">AM only</option>
+                                                <option value="EVENING">PM only</option>
+                                            </select>
                                         </div>
-                                        <div>
-                                            <label className="block text-gray-500 mb-0.5">PM dropoff</label>
-                                            <input
-                                                type="time"
-                                                value={stop.eveningEta}
-                                                onChange={(e) => handleStopChange(stop.id, 'eveningEta', e.target.value)}
-                                                className="border rounded px-1.5 py-0.5 w-full text-xs"
-                                            />
-                                        </div>
+                                        {stop.direction !== 'EVENING' && (
+                                            <div>
+                                                <label className="block text-gray-500 mb-0.5">AM pickup</label>
+                                                <input
+                                                    type="time"
+                                                    value={stop.morningEta}
+                                                    onChange={(e) => handleStopChange(stop.id, 'morningEta', e.target.value)}
+                                                    className="border rounded px-1.5 py-0.5 w-full text-xs"
+                                                />
+                                            </div>
+                                        )}
+                                        {stop.direction !== 'MORNING' && (
+                                            <div>
+                                                <label className="block text-gray-500 mb-0.5">PM dropoff</label>
+                                                <input
+                                                    type="time"
+                                                    value={stop.eveningEta}
+                                                    onChange={(e) => handleStopChange(stop.id, 'eveningEta', e.target.value)}
+                                                    className="border rounded px-1.5 py-0.5 w-full text-xs"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     <p className="text-[10px] text-gray-400 pl-10 mt-1">
                                         {stop.lat.toFixed(5)}, {stop.lng.toFixed(5)}

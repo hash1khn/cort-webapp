@@ -1,38 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix for default marker icons in Next.js/Leaflet
-const DefaultIcon = L.icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-// Create custom marker icons
-function createCustomIcon(color: string, icon: string = '📍') {
-  const size = 32;
-  const svgIcon = `
-    <svg width="${size}" height="${size}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2" opacity="0.9"/>
-      <text x="16" y="22" font-size="16" text-anchor="middle" fill="white">${icon}</text>
-    </svg>
-  `;
-  return L.divIcon({
-    html: svgIcon,
-    className: 'custom-marker',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size],
-    popupAnchor: [0, -size],
-  });
-}
+import { useEffect, useRef, useState } from 'react';
 
 export type MapMarker = {
   id: string;
@@ -61,88 +29,55 @@ type MapProps = {
   className?: string;
 };
 
-// Component to handle map click events
-function MapClickHandler({
-  onMapClick,
-}: {
-  onMapClick?: (lat: number, lng: number) => void;
-}) {
-  const map = useMap();
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 
-  useEffect(() => {
-    if (!onMapClick) return;
-
-    const handleClick = (e: L.LeafletMouseEvent) => {
-      onMapClick(e.latlng.lat, e.latlng.lng);
-    };
-
-    map.on('click', handleClick);
-    return () => {
-      map.off('click', handleClick);
-    };
-  }, [map, onMapClick]);
-
-  return null;
+let mapsPromise: Promise<void> | null = null;
+function loadMaps(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.google?.maps?.Map) return Promise.resolve();
+  if (!mapsPromise) {
+    mapsPromise = new Promise<void>((resolve, reject) => {
+      // Reuse the script tag the Places hook may have already added
+      if (document.querySelector('script[data-gm-loader]')) {
+        // Script is in-flight; poll until google.maps is available
+        const poll = setInterval(() => {
+          if (window.google?.maps?.Map) { clearInterval(poll); resolve(); }
+        }, 50);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.dataset.gmLoader = 'true';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Google Maps'));
+      document.head.appendChild(script);
+    });
+  }
+  return mapsPromise;
 }
 
-// Component to handle map resize
-function MapResizeHandler() {
-  const map = useMap();
+/** Build an SVG string for use as a google.maps.Marker icon data URI */
+function makeMarkerSvg(marker: MapMarker): string {
+  const type = marker.type ?? marker.id;
+  const isVehicle = type === 'driver' || type === 'chauffeur' || type === 'shuttle';
+  const bg = isVehicle ? '#f47f00' : (marker.color ?? '#6366f1');
+  const emoji = type === 'shuttle' ? '🚌' : isVehicle ? '🚗' : '';
+  const labelText = !isVehicle && marker.label
+    ? (marker.label.length <= 3 ? marker.label : marker.label.slice(0, 2))
+    : '';
+  const size = 34;
 
-  useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-  }, [map]);
-
-  return null;
-}
-
-// Component to handle dynamic centering (used only when explicit center is provided)
-function MapReCenter({ center }: { center: [number, number] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    map.flyTo(center, map.getZoom());
-  }, [center, map]);
-
-  return null;
-}
-
-// Auto-fit the viewport to cover all markers
-function FitBoundsToContent({
-  markers,
-}: {
-  markers: MapMarker[];
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    const coords: [number, number][] = [
-      ...markers.map((m) => m.position),
-    ];
-
-    if (coords.length === 0) return;
-
-    if (coords.length === 1) {
-      map.setView(coords[0], 14);
-      return;
-    }
-
-    const bounds = L.latLngBounds(coords);
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
-    // Re-fit whenever content changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // stringify to avoid referential inequality on every render
-    JSON.stringify(markers.map((m) => m.position)),
-  ]);
-
-  return null;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="17" cy="17" r="15" fill="${bg}" stroke="white" stroke-width="3"/>
+    ${emoji ? `<text x="17" y="22" font-size="14" text-anchor="middle" dominant-baseline="middle">${emoji}</text>` : ''}
+    ${labelText ? `<text x="17" y="17" font-size="11" font-weight="700" fill="white" text-anchor="middle" dominant-baseline="middle">${labelText}</text>` : ''}
+  </svg>`;
 }
 
 export default function Map({
-  center = [24.8607, 67.0011],
+  center,
   zoom = 13,
   markers = [],
   polylines = [],
@@ -151,154 +86,143 @@ export default function Map({
   onMarkerClick,
   className = '',
 }: MapProps) {
-  const [mounted, setMounted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const gmMarkersRef = useRef<{ marker: google.maps.Marker; id: string }[]>([]);
+  const gmPolylinesRef = useRef<google.maps.Polyline[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
+  // Keep latest callbacks in refs so effects don't re-run on every render
+  const onMapClickRef = useRef(onMapClick);
+  const onMarkerClickRef = useRef(onMarkerClick);
+  useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
+  useEffect(() => { onMarkerClickRef.current = onMarkerClick; }, [onMarkerClick]);
+
+  // Inject ping keyframe once
   useEffect(() => {
-    setMounted(true);
-
-    // Inject custom styles
-    const styleId = 'leaflet-custom-styles';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
-      style.id = styleId;
-      style.textContent = `
-        .custom-marker {
-          background: transparent !important;
-          border: none !important;
-        }
-        .custom-popup .leaflet-popup-content-wrapper {
-          border-radius: 8px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .leaflet-container {
-          font-family: inherit;
-          z-index: 1;
-        }
-        
-        /* Dark Theme Support for Leaflet */
-        [data-theme='dark'] .leaflet-layer,
-        [data-theme='dark'] .leaflet-control-zoom-in,
-        [data-theme='dark'] .leaflet-control-zoom-out,
-        [data-theme='dark'] .leaflet-control-attribution {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-        
-        [data-theme='dark'] .leaflet-container {
-          background: #1a1a1a;
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    const id = 'cort-gmap-styles';
+    if (document.getElementById(id)) return;
+    const s = document.createElement('style');
+    s.id = id;
+    s.textContent = '@keyframes cort-ping{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.85}}';
+    document.head.appendChild(s);
   }, []);
 
-  const getMarkerIcon = (marker: MapMarker) => {
-    const type = marker.type || marker.id;
+  // ── Initialise map (once) ─────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    loadMaps().then(() => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+      const defaultCenter = center
+        ? { lat: center[0], lng: center[1] }
+        : { lat: 24.8607, lng: 67.0011 };
 
-    if (type === 'pickup') {
-      return createCustomIcon('#22c55e', '📍');
-    } else if (type === 'dropoff') {
-      return createCustomIcon('#ef4444', '📍');
-    } else if (type === 'driver') {
-      // Premium pulsing driver marker
-      const svgIcon = `
-        <div class="relative flex items-center justify-center">
-          <div class="absolute w-12 h-12 bg-[#f47f00] rounded-full opacity-30 animate-ping"></div>
-          <div class="absolute w-8 h-8 bg-[#f47f00] rounded-full opacity-20 animate-pulse"></div>
-          <div class="relative z-10 w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-[#f47f00]">
-            <span class="text-xl">🚗</span>
-          </div>
-        </div>
-      `;
-      return L.divIcon({
-        html: svgIcon,
-        className: 'custom-driver-marker',
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-        popupAnchor: [0, -24],
+      mapRef.current = new google.maps.Map(containerRef.current, {
+        center: defaultCenter,
+        zoom,
+        disableDefaultUI: false,
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        clickableIcons: false,
       });
-    } else if (type === 'chauffeur') {
-      return L.icon({
-        iconUrl: '/car_birdeye.png',
-        iconSize: [38, 38],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20],
+      infoWindowRef.current = new google.maps.InfoWindow();
+
+      mapRef.current.addListener('click', (e: google.maps.MapMouseEvent) => {
+        if (e.latLng) onMapClickRef.current?.(e.latLng.lat(), e.latLng.lng());
       });
-    } else if (type === 'shuttle') {
-      return L.icon({
-        iconUrl: '/bus_birdeye.png',
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-        popupAnchor: [0, -24],
+
+      setMapReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync markers ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+
+    gmMarkersRef.current.forEach(({ marker }) => { marker.setMap(null); });
+    gmMarkersRef.current = [];
+
+    markers.forEach((marker) => {
+      const gmMarker = new google.maps.Marker({
+        map: mapRef.current!,
+        position: { lat: marker.position[0], lng: marker.position[1] },
+        title: marker.label,
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(makeMarkerSvg(marker))}`,
+          scaledSize: new google.maps.Size(34, 34),
+          anchor: new google.maps.Point(17, 17),
+        },
       });
-    } else if (marker.color) {
-      return createCustomIcon(marker.color, '📍');
+      if (marker.label) {
+        const iw = infoWindowRef.current!;
+        gmMarker.addListener('click', () => {
+          iw.setContent(`<div style="font-size:12px;font-weight:600">${marker.label}</div>`);
+          iw.open({ anchor: gmMarker, map: mapRef.current });
+          onMarkerClickRef.current?.(marker.id);
+        });
+      } else {
+        gmMarker.addListener('click', () => onMarkerClickRef.current?.(marker.id));
+      }
+      gmMarkersRef.current.push({ marker: gmMarker, id: marker.id });
+    });
+
+    // Auto-fit bounds when no explicit center was given
+    if (!center && markers.length > 0) {
+      if (markers.length === 1) {
+        mapRef.current.panTo({ lat: markers[0].position[0], lng: markers[0].position[1] });
+        mapRef.current.setZoom(14);
+      } else {
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach((m) => bounds.extend({ lat: m.position[0], lng: m.position[1] }));
+        mapRef.current.fitBounds(bounds, 40);
+      }
     }
-    // Return explicit DefaultIcon instead of undefined
-    return DefaultIcon;
-  };
+  }, [mapReady, markers, center]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!mounted) {
-    return (
-      <div className={`rounded-lg overflow-hidden border border-border shadow-lg bg-gray-100 flex items-center justify-center ${className}`} style={{ height }}>
-        <p className="text-gray-500">Loading Map...</p>
-      </div>
-    );
-  }
+  // ── Sync polylines ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+
+    gmPolylinesRef.current.forEach((p) => p.setMap(null));
+    gmPolylinesRef.current = [];
+
+    polylines.forEach((pl) => {
+      const path = pl.positions.map(([lat, lng]) => ({ lat, lng }));
+      const isDashed = !!pl.dashArray;
+      const line = new google.maps.Polyline({
+        path,
+        map: mapRef.current!,
+        strokeColor: pl.color ?? '#0C225E',
+        strokeWeight: pl.weight ?? 4,
+        strokeOpacity: isDashed ? 0 : (pl.opacity ?? 0.85),
+        ...(isDashed ? {
+          icons: [{
+            icon: { path: 'M 0,-1 0,1', strokeOpacity: pl.opacity ?? 1, scale: pl.weight ?? 4 },
+            offset: '0',
+            repeat: '12px',
+          }],
+        } : {}),
+      });
+      gmPolylinesRef.current.push(line);
+    });
+  }, [mapReady, polylines]);
+
+  // ── Pan to explicit center when it changes ────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !center) return;
+    mapRef.current.panTo({ lat: center[0], lng: center[1] });
+  }, [mapReady, center]);
 
   return (
     <div
+      ref={containerRef}
       className={`rounded-lg overflow-hidden border border-border shadow-lg ${className}`}
-      style={{ height }}
-    >
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={19}
-        />
-        <MapResizeHandler />
-        {/* Auto-fit when there's content; fall back to explicit center otherwise */}
-        {markers.length > 0
-          ? <FitBoundsToContent markers={markers} />
-          : <MapReCenter center={center} />}
-        {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
-
-        {/* Render polylines */}
-        {polylines.map((pl, idx) => (
-          <Polyline
-            key={idx}
-            positions={pl.positions}
-            pathOptions={{
-              color: pl.color ?? '#0C225E',
-              weight: pl.weight ?? 4,
-              opacity: pl.opacity ?? 0.8,
-              dashArray: pl.dashArray,
-            }}
-          />
-        ))}
-
-        {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            position={marker.position}
-            icon={getMarkerIcon(marker)}
-            eventHandlers={{
-              click: () => onMarkerClick?.(marker.id),
-            }}
-          >
-            {marker.label && (
-              <Popup className="custom-popup">{marker.label}</Popup>
-            )}
-          </Marker>
-        ))}
-
-      </MapContainer>
-    </div>
+      style={{ height, width: '100%' }}
+    />
   );
 }
+
