@@ -9,10 +9,40 @@ import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
+import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
+
+// ─── Analytics types ──────────────────────────────────────────────────────────
+
+type PoolVehicleRow = {
+    vehicle_id: number;
+    plate_number: string;
+    make: string | null;
+    model: string | null;
+    category: string | null;
+    trips_count: number;
+    total_hours_booked: number;
+    utilization_pct: number;
+};
+
+type PoolUtilizationSummary = {
+    total_pool_vehicles: number;
+    avg_utilization_pct: number;
+    idle_vehicle_count: number;
+    underutilized_count: number;
+};
+
+type PoolInsight = {
+    id: number;
+    insight_type: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    estimated_saving_pkr: string;
+    data: { summary: string; recommendation: string };
+    generated_at: string;
+};
 
 const VEHICLE_CATEGORIES = Object.values(VehicleCategory);
 const DRIVER_TYPES = ["PERMANENT", "PART_TIME", "CONTRACT"];
@@ -37,7 +67,7 @@ export default function CompanyFleetPage() {
 
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
     const [featureLoaded, setFeatureLoaded] = useState(false);
-    const [activeTab, setActiveTab] = useState<"vehicles" | "drivers">("vehicles");
+    const [activeTab, setActiveTab] = useState<"vehicles" | "drivers" | "analytics">("vehicles");
 
     // Vehicles state
     const [vehicles, setVehicles] = useState<PoolVehicle[]>([]);
@@ -52,6 +82,12 @@ export default function CompanyFleetPage() {
     const [showAddDriver, setShowAddDriver] = useState(false);
     const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
     const [driverSaving, setDriverSaving] = useState(false);
+
+    // Analytics state
+    const [poolUtil, setPoolUtil] = useState<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] } | null>(null);
+    const [poolInsights, setPoolInsights] = useState<PoolInsight[]>([]);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [generating, setGenerating] = useState(false);
 
     useEffect(() => {
         if (!companyId) return;
@@ -82,11 +118,38 @@ export default function CompanyFleetPage() {
         finally { setDriversLoading(false); }
     }, [companyId]);
 
+    const fetchAnalytics = useCallback(async () => {
+        if (!companyId) return;
+        setAnalyticsLoading(true);
+        try {
+            const [utilRes, insightsRes] = await Promise.allSettled([
+                apiClient.request<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] }>('/company/pool-utilization'),
+                apiClient.request<PoolInsight[]>('/company/fleet-insights'),
+            ]);
+            if (utilRes.status === 'fulfilled') setPoolUtil(utilRes.value);
+            if (insightsRes.status === 'fulfilled') {
+                setPoolInsights((insightsRes.value as PoolInsight[]).filter(i => i.insight_type === 'POOL_UTILIZATION'));
+            }
+        } catch { /* silent */ }
+        finally { setAnalyticsLoading(false); }
+    }, [companyId]);
+
+    const triggerGenerate = async () => {
+        setGenerating(true);
+        try {
+            await apiClient.request<{ generated: number }>('/company/fleet-insights/generate', { method: 'POST' });
+            await fetchAnalytics();
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     useEffect(() => {
         if (!isEnabled) return;
         if (activeTab === "vehicles") fetchVehicles();
         if (activeTab === "drivers") fetchDrivers();
-    }, [activeTab, isEnabled, fetchVehicles, fetchDrivers]);
+        if (activeTab === "analytics") fetchAnalytics();
+    }, [activeTab, isEnabled, fetchVehicles, fetchDrivers, fetchAnalytics]);
 
     const handleAddVehicle = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -210,7 +273,7 @@ export default function CompanyFleetPage() {
             {/* Tab Nav */}
             <div className="border-b border-[var(--border-light)]">
                 <nav className="-mb-px flex space-x-8">
-                    {(["vehicles", "drivers"] as const).map((tab) => (
+                    {(["vehicles", "drivers", "analytics"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -221,7 +284,7 @@ export default function CompanyFleetPage() {
                                     : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]"
                             )}
                         >
-                            {tab === "vehicles" ? "Pool Vehicles" : "Pool Drivers"}
+                            {tab === "vehicles" ? "Pool Vehicles" : tab === "drivers" ? "Pool Drivers" : "Analytics"}
                         </button>
                     ))}
                 </nav>
@@ -327,6 +390,124 @@ export default function CompanyFleetPage() {
                 </Card>
             )}
 
+            {/* Analytics Tab */}
+            {activeTab === "analytics" && (
+                <div className="space-y-6">
+                    {/* Header row with generate button */}
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-base font-bold text-[var(--text-primary)]">Pool Fleet Analytics</h2>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">Last 30 days · 300 available hours per vehicle</p>
+                        </div>
+                        <button
+                            onClick={triggerGenerate}
+                            disabled={generating}
+                            className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <RefreshCw className={cx("h-4 w-4", generating && "animate-spin")} />
+                            {generating ? "Generating…" : "Run AI Analysis"}
+                        </button>
+                    </div>
+
+                    {analyticsLoading ? (
+                        <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
+                            <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading analytics…
+                        </div>
+                    ) : (
+                        <>
+                            {/* AI Insights */}
+                            {poolInsights.length > 0 && (
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {poolInsights.map(i => <InsightCard key={i.id} insight={i} />)}
+                                </div>
+                            )}
+
+                            {/* KPI Cards */}
+                            {poolUtil && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                                        <KpiCard label="Pool vehicles" value={poolUtil.summary.total_pool_vehicles.toString()} icon={<Car className="h-5 w-5 text-violet-400" />} />
+                                        <KpiCard
+                                            label="Avg utilization"
+                                            value={`${poolUtil.summary.avg_utilization_pct}%`}
+                                            icon={<Clock className="h-5 w-5 text-blue-400" />}
+                                            good={poolUtil.summary.avg_utilization_pct >= 30}
+                                        />
+                                        <KpiCard
+                                            label="Idle vehicles"
+                                            value={poolUtil.summary.idle_vehicle_count.toString()}
+                                            icon={<AlertTriangle className="h-5 w-5 text-amber-400" />}
+                                            good={poolUtil.summary.idle_vehicle_count === 0}
+                                        />
+                                        <KpiCard
+                                            label="Underutilized (<30%)"
+                                            value={poolUtil.summary.underutilized_count.toString()}
+                                            icon={<TrendingDown className="h-5 w-5 text-rose-400" />}
+                                            good={poolUtil.summary.underutilized_count === 0}
+                                        />
+                                    </div>
+
+                                    {/* Per-vehicle utilization table */}
+                                    {poolUtil.vehicles.length > 0 && (
+                                        <Card className={TABLE_CARD_CLASS}>
+                                            <div className={TABLE_TOP_BAR_CLASS}>
+                                                <div className="flex items-center gap-2">
+                                                    <BarChart2 className="h-4 w-4 text-violet-400" />
+                                                    <span className="text-sm font-semibold text-[var(--text-primary)]">Vehicle Utilization</span>
+                                                </div>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full text-sm text-left">
+                                                    <thead>
+                                                        <tr className="border-b border-[var(--border-light)]">
+                                                            {["Vehicle", "Category", "Trips", "Hours Used", "Utilization"].map(h => (
+                                                                <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-[var(--border-light)]/50">
+                                                        {poolUtil.vehicles.map(v => (
+                                                            <tr key={v.vehicle_id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
+                                                                <td className={TABLE_CELL_CLASS}>
+                                                                    <div className="font-bold text-[var(--text-primary)]">{v.plate_number}</div>
+                                                                    {(v.make || v.model) && (
+                                                                        <div className="text-xs text-[var(--text-muted)]">{[v.make, v.model].filter(Boolean).join(' ')}</div>
+                                                                    )}
+                                                                </td>
+                                                                <td className={TABLE_CELL_CLASS}>
+                                                                    {v.category ? (
+                                                                        <span className="inline-flex items-center rounded-full bg-violet-500/10 text-violet-400 text-xs font-bold border border-violet-500/20 px-2.5 py-0.5">
+                                                                            {v.category}
+                                                                        </span>
+                                                                    ) : "—"}
+                                                                </td>
+                                                                <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.trips_count}</td>
+                                                                <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.total_hours_booked}h</td>
+                                                                <td className={TABLE_CELL_CLASS}>
+                                                                    <UtilBar pct={v.utilization_pct} />
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </Card>
+                                    )}
+                                </>
+                            )}
+
+                            {!poolUtil && poolInsights.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)]">
+                                    <BarChart2 className="h-8 w-8 mb-3 opacity-30" />
+                                    <p className="text-sm font-medium">No analytics data yet</p>
+                                    <p className="text-xs mt-1 opacity-60">Click &quot;Run AI Analysis&quot; to generate pool fleet insights.</p>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* Add Vehicle Modal */}
             {showAddVehicle && (
                 <Modal title="Add Pool Vehicle" onClose={() => setShowAddVehicle(false)}>
@@ -374,6 +555,59 @@ export default function CompanyFleetPage() {
                     </form>
                 </Modal>
             )}
+        </div>
+    );
+}
+
+// ─── Analytics sub-components ────────────────────────────────────────────────
+
+function severityColor(s: string) {
+    if (s === 'CRITICAL') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+    if (s === 'HIGH') return 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border-[var(--cort-orange)]/20';
+    if (s === 'MEDIUM') return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+}
+
+function InsightCard({ insight }: { insight: PoolInsight }) {
+    return (
+        <div className={cx('rounded-2xl border p-4', severityColor(insight.severity))}>
+            <div className="flex items-start gap-3">
+                <Car className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide">Pool Utilization</span>
+                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-white/10">{insight.severity}</span>
+                    </div>
+                    <p className="text-sm font-medium">{insight.data.summary}</p>
+                    <p className="text-xs mt-1 opacity-80">{insight.data.recommendation}</p>
+                    {insight.estimated_saving_pkr && parseFloat(insight.estimated_saving_pkr) > 0 && (
+                        <p className="text-xs mt-2 font-semibold">
+                            Est. saving: PKR {parseFloat(insight.estimated_saving_pkr).toLocaleString()} / month
+                        </p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function KpiCard({ label, value, icon, good }: { label: string; value: string; icon: React.ReactNode; good?: boolean }) {
+    return (
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
+            <div className="flex items-center gap-2 mb-2">{icon}<span className="text-xs text-[var(--text-muted)] font-medium">{label}</span></div>
+            <p className={cx('text-2xl font-bold', good === true ? 'text-emerald-400' : good === false ? 'text-rose-400' : 'text-[var(--text-primary)]')}>{value}</p>
+        </div>
+    );
+}
+
+function UtilBar({ pct }: { pct: number }) {
+    const color = pct >= 80 ? 'bg-emerald-500' : pct >= 30 ? 'bg-yellow-400' : 'bg-rose-500';
+    return (
+        <div className="flex items-center gap-2">
+            <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
+                <div className={cx('h-full rounded-full', color)} style={{ width: `${Math.min(100, pct)}%` }} />
+            </div>
+            <span className={cx('text-xs font-bold w-10 text-right', pct < 30 ? 'text-rose-400' : 'text-[var(--text-secondary)]')}>{pct}%</span>
         </div>
     );
 }
