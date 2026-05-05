@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { DriverType, ChauffeurBooking, TripType, apiClient } from "../../../lib/services/api-client";
 import { type MapMarker } from "../../ui/Map";
-import Modal from "../../../company/bookings/components/Modal";
+import { Modal } from "../../components/ui/Modal";
 import Pagination from "../../../components/ui/Pagination";
 import { useAuth } from "../../../lib/contexts/auth-context";
 import { cx } from "../../components/ui/cx";

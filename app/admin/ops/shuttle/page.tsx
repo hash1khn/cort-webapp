@@ -254,7 +254,7 @@ function OpsShuttleContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Trip list */}
-        <div className="lg:col-span-1 flex flex-col gap-3 overflow-y-auto">
+        <div className="lg:col-span-1 flex flex-col gap-3 overflow-y-auto max-h-[50vh] lg:max-h-none">
           {loading && (
             <div className="text-center py-12 text-gray-400">
               <p>Loading today&apos;s trips...</p>
@@ -338,14 +338,15 @@ function OpsShuttleContent() {
             </div>
           )}
 
-          <Map
-            center={mapCenter}
-            zoom={13}
-            markers={mapMarkers}
-            polylines={mapPolylines}
-            height="600px"
-            className="flex-1"
-          />
+          <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: 'clamp(300px, 55vh, 600px)' }}>
+            <Map
+              center={mapCenter}
+              zoom={13}
+              markers={mapMarkers}
+              polylines={mapPolylines}
+              height="100%"
+            />
+          </div>
         </div>
       </div>
     </div>

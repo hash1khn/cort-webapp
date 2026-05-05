@@ -140,7 +140,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <Menu size={24} />
         </button>
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <img src="/traflinq_dark_no_tagline.png" alt="TrafLinq" className="h-10 w-auto" />
+          <img src="/traflinq_light_no_tagline.png" alt="TrafLinq" className="h-10 w-auto" />
         </div>
         <div className="w-10" /> {/* Spacer */}
       </header>
