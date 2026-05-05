@@ -75,8 +75,8 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
     groups[1].items.push({ href: "/company/fleet-analytics", label: "Fleet Analytics", icon: BarChart2 });
   }
 
-  // Invoices — only show if chauffeur_cort_managed feature is enabled
-  if (hasFeature("chauffeur_cort_managed")) {
+  // Invoices — show if either cort-managed service is enabled
+  if (hasFeature("chauffeur_cort_managed") || hasFeature("shuttle_cort_managed")) {
     groups[2].items.push({ href: "/company/invoicing", label: "Invoices", icon: Receipt });
   }
 
