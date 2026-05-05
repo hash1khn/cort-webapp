@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { toast, Toaster } from "sonner";
 import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useWebPush } from "../../lib/hooks/useWebPush";
 
 function playNotificationSound() {
@@ -41,6 +42,7 @@ type ImmediateAlert = {
 export function BookingNotificationProvider() {
   const socketRef = useRef<Socket | null>(null);
   const [immediateAlerts, setImmediateAlerts] = useState<ImmediateAlert[]>([]);
+  const router = useRouter();
 
   const isAuthenticated =
     typeof window !== "undefined" ? !!localStorage.getItem("auth_token") : false;
@@ -114,7 +116,8 @@ export function BookingNotificationProvider() {
           {immediateAlerts.map((alert) => (
             <div
               key={alert.id}
-              className="pointer-events-auto flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3 shadow-xl animate-pulse"
+              onClick={() => { router.push("/admin/bookings/pending"); dismiss(alert.id); }}
+              className="pointer-events-auto cursor-pointer flex items-start gap-3 rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3 shadow-xl animate-pulse hover:bg-red-100 transition-colors"
             >
               <div className="mt-0.5 flex-shrink-0 text-xl">🚨</div>
               <div className="flex-1 min-w-0">
@@ -128,7 +131,7 @@ export function BookingNotificationProvider() {
                 </div>
               </div>
               <button
-                onClick={() => dismiss(alert.id)}
+                onClick={(e) => { e.stopPropagation(); dismiss(alert.id); }}
                 className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
                 aria-label="Dismiss alert"
               >

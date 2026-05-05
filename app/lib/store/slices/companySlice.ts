@@ -6,34 +6,6 @@ import { CompanyFeature } from '../../services/types/multi-mode';
 const STALE_TIME_MS = 120_000; // 2 minutes — company profile rarely changes
 const FEATURES_STALE_TIME_MS = 300_000; // 5 minutes — feature flags change rarely
 
-// Session-storage cache key for feature flags (cleared on logout)
-const FEATURES_CACHE_KEY = 'cort_company_features_v1';
-
-function readFeaturesCache(): Pick<CompanyState, 'features' | 'featuresLastFetched'> {
-    if (typeof window === 'undefined') return { features: [], featuresLastFetched: null };
-    try {
-        const raw = sessionStorage.getItem(FEATURES_CACHE_KEY);
-        if (!raw) return { features: [], featuresLastFetched: null };
-        const parsed = JSON.parse(raw) as { features: CompanyFeature[]; lastFetched: number };
-        if (Array.isArray(parsed.features) && parsed.lastFetched) {
-            return { features: parsed.features, featuresLastFetched: parsed.lastFetched };
-        }
-    } catch { /* ignore */ }
-    return { features: [], featuresLastFetched: null };
-}
-
-function writeFeaturesCache(features: CompanyFeature[]) {
-    if (typeof window === 'undefined') return;
-    try {
-        sessionStorage.setItem(FEATURES_CACHE_KEY, JSON.stringify({ features, lastFetched: Date.now() }));
-    } catch { /* ignore */ }
-}
-
-function clearFeaturesCache() {
-    if (typeof window === 'undefined') return;
-    try { sessionStorage.removeItem(FEATURES_CACHE_KEY); } catch { /* ignore */ }
-}
-
 // Define types based on backend structure
 export interface Company {
     id: number;
@@ -62,17 +34,14 @@ interface CompanyState {
     featuresLastFetched: number | null;
 }
 
-const cachedFeatures = readFeaturesCache();
-
 const initialState: CompanyState = {
     company: null,
     status: 'idle',
     error: null,
     lastFetched: null,
-    // Seed from sessionStorage so feature-gated nav items appear instantly on next load
-    features: cachedFeatures.features,
-    featuresStatus: cachedFeatures.features.length > 0 ? 'succeeded' : 'idle',
-    featuresLastFetched: cachedFeatures.featuresLastFetched,
+    features: [],
+    featuresStatus: 'idle',
+    featuresLastFetched: null,
 };
 
 // Async thunk to fetch company profile
@@ -143,7 +112,6 @@ export const companySlice = createSlice({    name: 'company',
             state.features = [];
             state.featuresStatus = 'idle';
             state.featuresLastFetched = null;
-            clearFeaturesCache();
         },
         invalidateCompanyCache: (state) => {
             state.lastFetched = null;
@@ -172,7 +140,6 @@ export const companySlice = createSlice({    name: 'company',
                 state.featuresStatus = 'succeeded';
                 state.featuresLastFetched = Date.now();
                 state.features = action.payload;
-                writeFeaturesCache(action.payload);
             })
             .addCase(fetchCompanyFeatures.rejected, (state) => {
                 state.featuresStatus = 'failed';
