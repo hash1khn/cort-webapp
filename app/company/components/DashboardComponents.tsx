@@ -171,9 +171,9 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     const hasOutstanding = outstandingAmount > 0;
 
     return (
-        <Card className={`group relative overflow-hidden bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] h-full transition-all duration-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 flex flex-col justify-between`}>
+        <Card className={`group relative bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] h-full transition-all duration-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:z-[100] flex flex-col justify-between`}>
             {/* Background Icon matching Savings card */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 {hasOutstanding ? (
                     <Wallet size={120} className="text-[var(--accent-danger)]" />
                 ) : (
@@ -204,15 +204,15 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
                             
                             {/* Invoices Tooltip */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
-                                    <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-white font-bold text-[10px] uppercase">
+                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
+                                    <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
                                         Recent Outstanding Invoices
                                     </div>
-                                    <div className="divide-y divide-white/[0.04] max-h-48 overflow-y-auto">
+                                    <div className="divide-y divide-[var(--border-default)] max-h-48 overflow-y-auto">
                                         {invoices.map((inv, idx) => (
                                             <div key={idx} className="px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="font-mono text-[10px] text-white font-bold">{inv.invoice_number}</span>
+                                                    <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold">{inv.invoice_number}</span>
                                                     <span className="text-[var(--accent-danger)] font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center mt-0.5">
@@ -346,15 +346,15 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
 
                             {/* Hover Tooltip/List */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute bottom-full left-0 mb-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
-                                    <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-white font-bold text-[10px] uppercase">
+                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
+                                    <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
                                         Recent Outstanding Invoices
                                     </div>
-                                    <div className="divide-y divide-white/[0.04] max-h-48 overflow-y-auto">
+                                    <div className="divide-y divide-[var(--border-default)] max-h-48 overflow-y-auto">
                                         {invoices.map((inv, idx) => (
                                             <div key={idx} className="px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors">
                                                 <div className="flex justify-between items-center">
-                                                    <span className="font-mono text-[10px] text-white font-bold">{inv.invoice_number}</span>
+                                                    <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold">{inv.invoice_number}</span>
                                                     <span className="text-[var(--accent-danger)] font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center mt-0.5">
