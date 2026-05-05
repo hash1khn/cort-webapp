@@ -14,6 +14,39 @@ interface PaginationMeta {
     total: number;
 }
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatBillingMonth(value: string): string {
+    if (!value) return "—";
+
+    // Weekly format: "4/2026 W0427-0430"
+    const weeklyMatch = value.match(/^(\d+)\/(\d{4})\s+W(\d{2})(\d{2})-(\d{2})(\d{2})$/);
+    if (weeklyMatch) {
+        const year = weeklyMatch[2];
+        const startMonth = parseInt(weeklyMatch[3], 10) - 1;
+        const startDay = parseInt(weeklyMatch[4], 10);
+        const endMonth = parseInt(weeklyMatch[5], 10) - 1;
+        const endDay = parseInt(weeklyMatch[6], 10);
+
+        const startStr = `${MONTH_NAMES[startMonth]} ${startDay}`;
+        const endStr = startMonth === endMonth
+            ? `${endDay}`
+            : `${MONTH_NAMES[endMonth]} ${endDay}`;
+
+        return `${startStr} – ${endStr}, ${year}`;
+    }
+
+    // Monthly format: "4/2026"
+    const monthlyMatch = value.match(/^(\d+)\/(\d{4})$/);
+    if (monthlyMatch) {
+        const month = parseInt(monthlyMatch[1], 10) - 1;
+        const year = monthlyMatch[2];
+        return `${MONTH_NAMES[month] ?? monthlyMatch[1]} ${year}`;
+    }
+
+    return value;
+}
+
 export default function CompanyInvoicingPage() {
     const { user } = useAuth();
 
@@ -123,7 +156,7 @@ export default function CompanyInvoicingPage() {
                                 invoices.map((inv) => (
                                     <tr key={inv.id} className="group hover:bg-[var(--surface-subtle)]/80 transition-colors border-b border-transparent">
                                         <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)] font-mono`}>#{inv.invoice_number}</td>
-                                        <td className={`${TABLE_CELL_CLASS} font-medium text-[var(--text-primary)]`}>{inv.billing_month}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-medium text-[var(--text-primary)]`}>{formatBillingMonth(inv.billing_month)}</td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-muted)]`}>
                                             {new Date(inv.generated_at).toLocaleDateString()}
                                         </td>
