@@ -8,7 +8,7 @@ import { apiClient } from "../../lib/services/api-client";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader } from "../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
-import { Activity } from "lucide-react";
+import { Activity, Sunrise, Sunset } from "lucide-react";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -36,6 +36,8 @@ type RouteStop = {
   route_id: number;
   name: string;
   sequence_order: number;
+  morning_sequence?: number | null;
+  evening_sequence?: number | null;
   morning_eta?: string | null;
   evening_eta?: string | null;
 };
@@ -54,6 +56,69 @@ type CompanyRoute = {
     };
   }[];
 };
+
+// Renders a single ordered stop list for either morning or evening
+function StopList({
+  stops,
+  direction,
+}: {
+  stops: RouteStop[];
+  direction: "MORNING" | "EVENING";
+}) {
+  const sorted = [...stops]
+    .filter((s) =>
+      direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null
+    )
+    .sort((a, b) =>
+      direction === "MORNING"
+        ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
+        : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
+    );
+
+  if (sorted.length === 0) {
+    return (
+      <div className="text-xs text-[var(--text-muted)] italic">No stops configured.</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {sorted.map((stop, idx) => {
+        const eta =
+          direction === "MORNING"
+            ? formatTime(stop.morning_eta)
+            : formatTime(stop.evening_eta);
+        const seq =
+          direction === "MORNING" ? stop.morning_sequence : stop.evening_sequence;
+        const isFirst = idx === 0;
+        const isLast = idx === sorted.length - 1;
+
+        return (
+          <div
+            key={stop.id}
+            className={cx(
+              "rounded-md border px-3 py-1.5 text-xs",
+              isFirst
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                : isLast
+                  ? "border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]"
+                  : "border-[var(--border-default)] bg-[var(--bg-subtle)] text-[var(--text-secondary)]",
+            )}
+          >
+            <div className="font-semibold">
+              {seq}. {stop.name}
+            </div>
+            {eta && (
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                {direction === "MORNING" ? "Pickup" : "Drop-off"}: {eta}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function RoutesPage() {
   const company = useAppSelector(selectCompany);
@@ -213,7 +278,8 @@ export default function RoutesPage() {
                         <div>
                           <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">STOPS</div>
                           <div className="mt-1 text-sm text-[var(--text-primary)]">
-                            {stops.length} stop{stops.length !== 1 ? "s" : ""}
+                            {stops.filter((s) => s.morning_sequence != null).length} morning ·{" "}
+                            {stops.filter((s) => s.evening_sequence != null).length} evening
                           </div>
                         </div>
 
@@ -235,37 +301,32 @@ export default function RoutesPage() {
                         </div>
                       </div>
 
+                      {/* Morning Route */}
                       <div className="mt-4">
-                        <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)]">ROUTE STOPS</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {stops.map((stop, idx) => {
-                            const pickup = formatTime(stop.morning_eta);
-                            const dropoff = formatTime(stop.evening_eta);
-
-                            return (
-                              <div
-                                key={stop.id}
-                                className={cx(
-                                  "rounded-md border px-3 py-1.5 text-xs",
-                                  idx === 0
-                                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                                    : idx === stops.length - 1
-                                      ? "border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]"
-                                      : "border-[var(--border-default)] bg-[var(--bg-subtle)] text-[var(--text-secondary)]",
-                                )}
-                              >
-                                <div className="font-medium">{stop.name}</div>
-                                {(pickup || dropoff) && (
-                                  <div className="text-xs text-[var(--text-muted)]">
-                                    {pickup && <span>Pickup: {pickup}</span>}
-                                    {pickup && dropoff && <span className="mx-1">·</span>}
-                                    {dropoff && <span>Drop-off: {dropoff}</span>}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sunrise className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-xs font-semibold tracking-wider text-amber-600 uppercase">
+                            Morning Route
+                          </span>
+                          <span className="text-xs text-[var(--text-muted)]">
+                            ({stops.filter((s) => s.morning_sequence != null).length} stops)
+                          </span>
                         </div>
+                        <StopList stops={stops} direction="MORNING" />
+                      </div>
+
+                      {/* Evening Route */}
+                      <div className="mt-4">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Sunset className="w-3.5 h-3.5 text-indigo-500" />
+                          <span className="text-xs font-semibold tracking-wider text-indigo-600 uppercase">
+                            Evening Route
+                          </span>
+                          <span className="text-xs text-[var(--text-muted)]">
+                            ({stops.filter((s) => s.evening_sequence != null).length} stops)
+                          </span>
+                        </div>
+                        <StopList stops={stops} direction="EVENING" />
                       </div>
                     </div>
                   </div>
