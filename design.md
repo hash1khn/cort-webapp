@@ -5,6 +5,9 @@ Primary Backgrounds: White or Light Grey Tint (#F5F5F5).
 
 Core Color Palette:
 
+
+
+
 Corporate Anchor (Headers/Nav): Deep Navy (#0c225e). Used for top bars, sidebars, and primary text.
 
 Primary Action (CTAs): Cort Orange (#f47f00). Used for "Book Now," "Submit," "Confirm," and "Accept."
