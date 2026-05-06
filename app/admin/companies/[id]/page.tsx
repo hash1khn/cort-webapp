@@ -10,6 +10,7 @@ import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import { useAuth } from "../../../lib/contexts/auth-context";
+import { BenchmarksModal } from "../components/BenchmarksModal";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -118,6 +119,9 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
     const [newEmpEmail, setNewEmpEmail] = useState("");
     const [newEmpPhone, setNewEmpPhone] = useState("");
     const [newEmpPassword, setNewEmpPassword] = useState("");
+
+    // Benchmarks Modal
+    const [isBenchmarksModalOpen, setIsBenchmarksModalOpen] = useState(false);
     const [newEmpId, setNewEmpId] = useState("");
     const [newEmpDepartment, setNewEmpDepartment] = useState("");
     const [isCreatingEmp, setIsCreatingEmp] = useState(false);
@@ -543,6 +547,13 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                         >
                             Fleet Efficiency
                         </Link>
+                        <button
+                            type="button"
+                            onClick={() => setIsBenchmarksModalOpen(true)}
+                            className="inline-flex h-9 items-center justify-center rounded-lg border border-emerald-600 bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+                        >
+                            Pre-CORT Benchmarks
+                        </button>
                         <button
                             type="button"
                             onClick={handleExportCredentials}
@@ -1198,6 +1209,14 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
                     </div>
                 </div>
             </Modal>
+
+            {/* Benchmarks Modal */}
+            <BenchmarksModal
+                companyId={Number(id)}
+                companyName={company.name}
+                isOpen={isBenchmarksModalOpen}
+                onClose={() => setIsBenchmarksModalOpen(false)}
+            />
         </div>
     );
 }

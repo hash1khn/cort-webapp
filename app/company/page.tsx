@@ -25,6 +25,7 @@ import {
 import DashboardSkeleton from "./components/DashboardSkeleton";
 import LiveMobilityCenter from "./components/LiveMobilityCenter";
 import CostLeakageDetector from "./components/CostLeakageDetector";
+import SavingsCard from "./components/SavingsCard";
 
 export default function CompanyDashboardPage() {
   const dispatch = useAppDispatch();
@@ -261,6 +262,11 @@ export default function CompanyDashboardPage() {
       {/* Live Mobility Command Center - NEW */}
       <div className="w-full dashboard-section dashboard-section-delay-3">
         <LiveMobilityCenter data={data.mobility} />
+      </div>
+
+      {/* Savings Realisation Card - shown only when admin has configured pre-CORT benchmarks */}
+      <div className="w-full dashboard-section dashboard-section-delay-3">
+        <SavingsCard />
       </div>
 
       {/* 2. Main Analytics Grid */}
