@@ -9,6 +9,7 @@ import { TrendingDown, TrendingUp, Sparkles } from 'lucide-react';
 type SavingsResult = {
   period: { from: string; to: string; days: number };
   benchmark_total_pkr: number;
+  monthly_benchmark_total_pkr: number;
   actual_total_pkr: number;
   delta_pkr: number;
   savings_pct: number | null;
@@ -119,6 +120,11 @@ export default function SavingsCard() {
           <p className="text-xs text-gray-400 mb-1">Before CORT</p>
           <p className="text-sm font-bold text-gray-700">{pkr(result.benchmark_total_pkr)}</p>
           <p className="text-xs text-gray-400 mt-0.5">prorated</p>
+          {result.monthly_benchmark_total_pkr > 0 && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {pkr(result.monthly_benchmark_total_pkr)}<span className="text-gray-300">/mo baseline</span>
+            </p>
+          )}
         </div>
         <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
           <p className="text-xs text-gray-400 mb-1">With CORT</p>

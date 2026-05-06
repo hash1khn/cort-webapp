@@ -11,6 +11,7 @@ type BenchmarkRow = {
   service_type: 'SHUTTLE' | 'CHAUFFEUR';
   vehicle_category: string | null;
   coaster_seater_size: string | null;
+  cost_type: 'FIXED' | 'VARIABLE';
   monthly_cost: number;
   quantity: number;
   vendor_name: string | null;
@@ -23,6 +24,7 @@ type NewBenchmarkForm = {
   service_type: 'SHUTTLE' | 'CHAUFFEUR';
   vehicle_category: string;
   coaster_seater_size: string;
+  cost_type: 'FIXED' | 'VARIABLE';
   monthly_cost: string;
   quantity: string;
   vendor_name: string;
@@ -39,6 +41,7 @@ const EMPTY_FORM: NewBenchmarkForm = {
   service_type: 'SHUTTLE',
   vehicle_category: '',
   coaster_seater_size: '',
+  cost_type: 'VARIABLE',
   monthly_cost: '',
   quantity: '1',
   vendor_name: '',
@@ -104,8 +107,9 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
           service_type: form.service_type,
           vehicle_category: form.vehicle_category || null,
           coaster_seater_size: form.vehicle_category === 'COASTER' ? (form.coaster_seater_size || null) : null,
+          cost_type: form.cost_type,
           monthly_cost: parseFloat(form.monthly_cost),
-          quantity: parseInt(form.quantity, 10) || 1,
+          quantity: form.cost_type === 'FIXED' ? 1 : (parseInt(form.quantity, 10) || 1),
           vendor_name: form.vendor_name || null,
           effective_from: form.effective_from,
           effective_to: form.effective_to || null,
@@ -198,13 +202,20 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                               : b.vehicle_category}
                           </span>
                         )}
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                          b.cost_type === 'FIXED' ? 'bg-orange-100 text-orange-700' : 'bg-sky-100 text-sky-700'
+                        }`}>
+                          {b.cost_type === 'FIXED' ? 'Fixed' : 'Variable'}
+                        </span>
                         {b.vendor_name && (
                           <span className="text-xs text-gray-400 truncate">— {b.vendor_name}</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {pkr(b.monthly_cost * b.quantity)}/month
-                        {b.quantity > 1 ? ` (${b.quantity} × ${pkr(b.monthly_cost)})` : ''}
+                        {b.cost_type === 'FIXED'
+                          ? <>{pkr(b.monthly_cost)}<span className="text-gray-400">/month (lump sum)</span></>
+                          : <>{pkr(b.monthly_cost * b.quantity)}<span className="text-gray-400">/month ({b.quantity} × {pkr(b.monthly_cost)})</span></>
+                        }
                         {' · '}from {b.effective_from}
                         {b.effective_to ? ` to ${b.effective_to}` : ' (ongoing)'}
                       </p>
@@ -220,6 +231,18 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   </div>
                 ))}
               </div>
+              {/* Grand total footer */}
+              {benchmarks.length > 0 && (() => {
+                const grandTotal = benchmarks.reduce((sum, b) =>
+                  sum + (b.cost_type === 'FIXED' ? b.monthly_cost : b.monthly_cost * b.quantity), 0
+                );
+                return (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c225e] rounded-b-xl">
+                    <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">Total monthly benchmark</span>
+                    <span className="text-sm font-bold text-white">{pkr(grandTotal)}<span className="text-white/60 font-normal text-xs">/month</span></span>
+                  </div>
+                );
+              })()}
             </div>
           ) : !showForm ? (
             <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 px-6 py-10 text-center">
@@ -316,9 +339,24 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   />
                 </div>
 
+                {/* Cost type */}
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Cost type *</label>
+                  <select
+                    value={form.cost_type}
+                    onChange={(e) => setForm((f) => ({ ...f, cost_type: e.target.value as 'FIXED' | 'VARIABLE' }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  >
+                    <option value="VARIABLE">Variable (per vehicle × quantity)</option>
+                    <option value="FIXED">Fixed (lump sum)</option>
+                  </select>
+                </div>
+
                 {/* Monthly cost */}
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">Monthly cost (PKR) *</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">
+                    {form.cost_type === 'FIXED' ? 'Monthly lump sum (PKR) *' : 'Monthly cost per vehicle (PKR) *'}
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -330,17 +368,31 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   />
                 </div>
 
-                {/* Quantity */}
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">Quantity (vehicles / units)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.quantity}
-                    onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  />
-                </div>
+                {/* Quantity — only for VARIABLE */}
+                {form.cost_type === 'VARIABLE' && (
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block font-medium">Number of vehicles / units</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.quantity}
+                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                )}
+
+                {/* Live cost preview */}
+                {form.monthly_cost && (
+                  <div className={`col-span-2 rounded-lg px-3 py-2 text-xs font-medium ${form.cost_type === 'FIXED' ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'bg-sky-50 text-sky-700 border border-sky-100'}`}>
+                    Total monthly: {pkr(
+                      form.cost_type === 'FIXED'
+                        ? parseFloat(form.monthly_cost) || 0
+                        : (parseFloat(form.monthly_cost) || 0) * (parseInt(form.quantity, 10) || 1)
+                    )}/month
+                    {form.cost_type === 'VARIABLE' && ` (${parseInt(form.quantity, 10) || 1} × ${pkr(parseFloat(form.monthly_cost) || 0)})`}
+                  </div>
+                )}
 
                 {/* Effective from */}
                 <div>
