@@ -10,6 +10,7 @@ type BenchmarkRow = {
   id: number;
   service_type: 'SHUTTLE' | 'CHAUFFEUR';
   vehicle_category: string | null;
+  coaster_seater_size: string | null;
   monthly_cost: number;
   quantity: number;
   vendor_name: string | null;
@@ -21,6 +22,7 @@ type BenchmarkRow = {
 type NewBenchmarkForm = {
   service_type: 'SHUTTLE' | 'CHAUFFEUR';
   vehicle_category: string;
+  coaster_seater_size: string;
   monthly_cost: string;
   quantity: string;
   vendor_name: string;
@@ -31,9 +33,12 @@ type NewBenchmarkForm = {
 
 const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'HIACE', 'VAN', 'COASTER', 'BUS'];
 
+const COASTER_SEATER_OPTIONS = ['7 Seater', '14 Seater', '24 Seater', '32 Seater', '48 Seater', '62 Seater'];
+
 const EMPTY_FORM: NewBenchmarkForm = {
   service_type: 'SHUTTLE',
   vehicle_category: '',
+  coaster_seater_size: '',
   monthly_cost: '',
   quantity: '1',
   vendor_name: '',
@@ -98,6 +103,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
         body: JSON.stringify({
           service_type: form.service_type,
           vehicle_category: form.vehicle_category || null,
+          coaster_seater_size: form.vehicle_category === 'COASTER' ? (form.coaster_seater_size || null) : null,
           monthly_cost: parseFloat(form.monthly_cost),
           quantity: parseInt(form.quantity, 10) || 1,
           vendor_name: form.vendor_name || null,
@@ -186,7 +192,11 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                             : 'bg-purple-100 text-purple-700'
                         }`}>{b.service_type}</span>
                         {b.vehicle_category && (
-                          <span className="text-xs text-gray-500 font-medium">{b.vehicle_category}</span>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {b.vehicle_category === 'COASTER' && b.coaster_seater_size
+                              ? `Coaster (${b.coaster_seater_size})`
+                              : b.vehicle_category}
+                          </span>
                         )}
                         {b.vendor_name && (
                           <span className="text-xs text-gray-400 truncate">— {b.vendor_name}</span>
@@ -276,6 +286,23 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                     ))}
                   </select>
                 </div>
+
+                {/* Coaster seater size — shown only when COASTER is selected */}
+                {form.vehicle_category === 'COASTER' && (
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block font-medium">Coaster seater size</label>
+                    <select
+                      value={form.coaster_seater_size}
+                      onChange={(e) => setForm((f) => ({ ...f, coaster_seater_size: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    >
+                      <option value="">— Select size —</option>
+                      {COASTER_SEATER_OPTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Vendor name */}
                 <div>
