@@ -182,7 +182,9 @@ export function useLiveMobilityTracking(
                 }
                 joinedRoomsRef.current.add(tripId);
 
-                // Pre-seed type in coords so we know shuttle vs chauffeur even before first ping
+                // Pre-seed type metadata only (no lat/lng) so we know shuttle vs chauffeur
+                // before the first GPS ping arrives. updatedAt:0 signals "no real position yet"
+                // and is filtered out of the returned coords below.
                 setVehicleCoords((prev) => {
                     if (prev[tripId]) return prev;
                     return {
@@ -214,5 +216,11 @@ export function useLiveMobilityTracking(
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tripIdsKey]);
 
-    return { vehicleCoords, isConnected };
+    // Exclude pre-seeded placeholder entries (updatedAt === 0) — these have no real GPS
+    // position yet and would cause map markers to briefly appear at (0, 0).
+    const activeVehicleCoords = Object.fromEntries(
+        Object.entries(vehicleCoords).filter(([, v]) => v.updatedAt > 0),
+    );
+
+    return { vehicleCoords: activeVehicleCoords, isConnected };
 }
