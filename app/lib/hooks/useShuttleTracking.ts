@@ -60,11 +60,14 @@ export function useShuttleTracking({
     const socketRef = useRef<Socket | null>(null);
     const tripIdRef = useRef<string | null>(null);
 
-    const [driverCoord, setDriverCoord] = useState<DriverCoord | null>(null);
+    const [liveDriverCoord, setLiveDriverCoord] = useState<DriverCoord | null>(null);
+    const [fallbackDriverCoord, setFallbackDriverCoord] = useState<DriverCoord | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [distanceKm, setDistanceKm] = useState<number | null>(null);
     const [currentStopName, setCurrentStopName] = useState<string | null>(null);
     const [nextStopName, setNextStopName] = useState<string | null>(null);
+
+    const driverCoord = liveDriverCoord ?? fallbackDriverCoord;
 
     // Keep callback refs stable so we don't remount the socket on every render
     const onStopArrivedRef = useRef(onStopArrived);
@@ -77,6 +80,25 @@ export function useShuttleTracking({
     onAttendanceMarkedRef.current = onAttendanceMarked;
     onRideEndedRef.current = onRideEnded;
     onDistanceUpdateRef.current = onDistanceUpdate;
+
+    useEffect(() => {
+        if (!tripId) return;
+
+        // ── Seed initial driver position from Redis (survives page reloads) ──
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+        if (token) {
+            fetch(`${API_URL}/shuttle-trips/${tripId}/last-location`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then((r) => r.ok ? r.json() : null)
+                .then((data: { lat: number; lng: number } | null) => {
+                    if (data?.lat != null && data?.lng != null) {
+                        setFallbackDriverCoord({ lat: data.lat, lng: data.lng });
+                    }
+                })
+                .catch(() => { /* best-effort — silently ignore */ });
+        }
+    }, [tripId]);
 
     useEffect(() => {
         if (!tripId) return;
@@ -119,12 +141,14 @@ export function useShuttleTracking({
         socket.on(
             'driver:location',
             (payload: { lat: number; lng: number; heading?: number; speed?: number }) => {
-                setDriverCoord({
+                setLiveDriverCoord({
                     lat: payload.lat,
                     lng: payload.lng,
                     heading: payload.heading,
                     speed: payload.speed,
                 });
+                // Once live data starts flowing, fallback seed should not influence UI.
+                setFallbackDriverCoord(null);
             },
         );
 
@@ -164,7 +188,8 @@ export function useShuttleTracking({
             socketRef.current = null;
             tripIdRef.current = null;
             setIsConnected(false);
-            setDriverCoord(null);
+            setLiveDriverCoord(null);
+            setFallbackDriverCoord(null);
             setDistanceKm(null);
             setCurrentStopName(null);
             setNextStopName(null);
