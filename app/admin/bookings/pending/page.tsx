@@ -827,6 +827,89 @@ export default function BookingsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Trip Images (Meter readings, Parking, Tolls) */}
+                {selectedBooking.chauffeur_trip_logs && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 border-b border-border pb-1">Trip Evidence / Images</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {selectedBooking.chauffeur_trip_logs.meter_reading_start_image_url && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted uppercase font-semibold">Start Meter</span>
+                          <a 
+                            href={selectedBooking.chauffeur_trip_logs.meter_reading_start_image_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="block aspect-square rounded-lg overflow-hidden border border-border bg-surface hover:ring-2 hover:ring-blue/30 transition-all shadow-sm"
+                          >
+                            <img 
+                              src={selectedBooking.chauffeur_trip_logs.meter_reading_start_image_url} 
+                              alt="Start Meter" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </a>
+                        </div>
+                      )}
+                      {selectedBooking.chauffeur_trip_logs.meter_reading_end_image_url && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted uppercase font-semibold">End Meter</span>
+                          <a 
+                            href={selectedBooking.chauffeur_trip_logs.meter_reading_end_image_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="block aspect-square rounded-lg overflow-hidden border border-border bg-surface hover:ring-2 hover:ring-blue/30 transition-all shadow-sm"
+                          >
+                            <img 
+                              src={selectedBooking.chauffeur_trip_logs.meter_reading_end_image_url} 
+                              alt="End Meter" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </a>
+                        </div>
+                      )}
+                      {selectedBooking.chauffeur_trip_logs.expense_parking_image_url && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted uppercase font-semibold">Parking</span>
+                          <a 
+                            href={selectedBooking.chauffeur_trip_logs.expense_parking_image_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="block aspect-square rounded-lg overflow-hidden border border-border bg-surface hover:ring-2 hover:ring-blue/30 transition-all shadow-sm"
+                          >
+                            <img 
+                              src={selectedBooking.chauffeur_trip_logs.expense_parking_image_url} 
+                              alt="Parking Receipt" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </a>
+                        </div>
+                      )}
+                      {selectedBooking.chauffeur_trip_logs.expense_toll_image_url && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted uppercase font-semibold">Toll</span>
+                          <a 
+                            href={selectedBooking.chauffeur_trip_logs.expense_toll_image_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="block aspect-square rounded-lg overflow-hidden border border-border bg-surface hover:ring-2 hover:ring-blue/30 transition-all shadow-sm"
+                          >
+                            <img 
+                              src={selectedBooking.chauffeur_trip_logs.expense_toll_image_url} 
+                              alt="Toll Receipt" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                    {!(selectedBooking.chauffeur_trip_logs.meter_reading_start_image_url || 
+                       selectedBooking.chauffeur_trip_logs.meter_reading_end_image_url || 
+                       selectedBooking.chauffeur_trip_logs.expense_parking_image_url || 
+                       selectedBooking.chauffeur_trip_logs.expense_toll_image_url) && (
+                      <div className="text-xs text-muted italic">No images uploaded for this trip yet.</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {(selectedBooking.status === 'PENDING' || selectedBooking.status === 'ASSIGNED' || selectedBooking.status === 'ARRIVED') && (

@@ -19,6 +19,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [showDailyBreakdown, setShowDailyBreakdown] = useState(false);
     const [tollImage, setTollImage] = useState<File | null>(null);
     const [parkingImage, setParkingImage] = useState<File | null>(null);
+    const [startMeterImage, setStartMeterImage] = useState<File | null>(null);
+    const [endMeterImage, setEndMeterImage] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
     const isPartnerVehicle = booking?.vehicles?.ownership === 'PARTNER';
@@ -90,6 +92,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
         setIsUploading(true);
         let tollImageUrl = "";
         let parkingImageUrl = "";
+        let startMeterImageUrl = "";
+        let endMeterImageUrl = "";
 
         try {
             if (tollImage) {
@@ -100,6 +104,14 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                 const path = `receipts/parking/${booking?.id}_${Date.now()}_${parkingImage.name}`;
                 parkingImageUrl = await uploadFile("company-logos", path, parkingImage);
             }
+            if (startMeterImage) {
+                const path = `receipts/meter/${booking?.id}_start_${Date.now()}_${startMeterImage.name}`;
+                startMeterImageUrl = await uploadFile("company-logos", path, startMeterImage);
+            }
+            if (endMeterImage) {
+                const path = `receipts/meter/${booking?.id}_end_${Date.now()}_${endMeterImage.name}`;
+                endMeterImageUrl = await uploadFile("company-logos", path, endMeterImage);
+            }
 
             const data: any = {
                 total_distance_km: parseFloat(distance),
@@ -107,6 +119,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                 expense_parking: parseFloat(parking),
                 expense_toll_image_url: tollImageUrl || undefined,
                 expense_parking_image_url: parkingImageUrl || undefined,
+                meter_reading_start_image_url: startMeterImageUrl || undefined,
+                meter_reading_end_image_url: endMeterImageUrl || undefined,
             };
 
             // Include manual vendor cost if entered (partner shuttle lump-sum)
@@ -234,6 +248,18 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                             <label className="text-xs font-semibold uppercase text-muted">Parking Receipt (Optional)</label>
                             <input type="file" accept="image/*" className="mt-1 w-full text-xs text-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue/10 file:text-blue hover:file:bg-blue/20" onChange={(e) => setParkingImage(e.target.files?.[0] || null)} />
                             {parkingImage && <p className="text-[10px] text-green-600 mt-1">✓ {parkingImage.name}</p>}
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold uppercase text-muted">Start Meter Image (Optional)</label>
+                            <input type="file" accept="image/*" className="mt-1 w-full text-xs text-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue/10 file:text-blue hover:file:bg-blue/20" onChange={(e) => setStartMeterImage(e.target.files?.[0] || null)} />
+                            {startMeterImage && <p className="text-[10px] text-green-600 mt-1">✓ {startMeterImage.name}</p>}
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold uppercase text-muted">End Meter Image (Optional)</label>
+                            <input type="file" accept="image/*" className="mt-1 w-full text-xs text-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue/10 file:text-blue hover:file:bg-blue/20" onChange={(e) => setEndMeterImage(e.target.files?.[0] || null)} />
+                            {endMeterImage && <p className="text-[10px] text-green-600 mt-1">✓ {endMeterImage.name}</p>}
                         </div>
 
                         <div className="border border-border rounded-md p-3">

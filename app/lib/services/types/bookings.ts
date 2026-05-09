@@ -61,6 +61,8 @@ export interface ChauffeurTripLog {
     expense_parking: number | null;
     expense_toll_image_url?: string | null;
     expense_parking_image_url?: string | null;
+    meter_reading_start_image_url?: string | null;
+    meter_reading_end_image_url?: string | null;
     base_package_cost?: number | null;
     outstation_fee?: number | null;
     overtime_hours?: number | null;
