@@ -1,5 +1,5 @@
 import { BreakdownItem, OverdueInvoice, ProblemReport } from "../../../lib/types/admin-dashboard";
-import { ChevronRight, ExternalLink, AlertCircle, Fuel, Wrench, Users, ArrowUpRight, MessageSquare, Briefcase } from "lucide-react";
+import { ChevronRight, ExternalLink, AlertCircle, Fuel, Wrench, Users, ArrowUpRight, MessageSquare, Tag } from "lucide-react";
 
 interface DashboardTablesProps {
     revenueByClient: BreakdownItem[];
@@ -138,6 +138,20 @@ function OverdueInvoicesTable({ invoices }: { invoices: OverdueInvoice[] }) {
     );
 }
 
+function formatProblemIssueType(issueType: ProblemReport['issue_type']): string {
+    if (!issueType) return '-';
+    switch (issueType) {
+        case 'app_issue':
+            return 'App issue';
+        case 'ride_issue':
+            return 'Ride issue';
+        case 'other':
+            return 'Other';
+        default:
+            return '-';
+    }
+}
+
 function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
     return (
         <div className="rounded-2xl border border-amber-100 bg-white overflow-hidden shadow-sm h-full lg:col-span-3">
@@ -161,7 +175,7 @@ function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
                         <tr>
                             <th className="px-6 py-4 font-bold">Timestamp</th>
                             <th className="px-6 py-4 font-bold">Originator</th>
-                            <th className="px-6 py-4 font-bold">Affiliation</th>
+                            <th className="px-6 py-4 font-bold">Issue type</th>
                             <th className="px-6 py-4 font-bold">Status Brief</th>
                         </tr>
                     </thead>
@@ -196,8 +210,10 @@ function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-1.5">
-                                            <Briefcase className="w-3 h-3 text-slate-300" />
-                                            <span className="text-xs font-semibold text-slate-600">{report.company_name || 'Individual'}</span>
+                                            <Tag className="w-3 h-3 text-slate-300 shrink-0" />
+                                            <span className="text-xs font-semibold text-slate-600">
+                                                {formatProblemIssueType(report.issue_type)}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">

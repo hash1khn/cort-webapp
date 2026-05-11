@@ -438,7 +438,14 @@ export default function ShuttleReportsPage() {
                     {selectedReport.route.stops.map((stop, index) => {
                       const log = selectedReport.stop_logs?.find((item) => item.stop_id === stop.id);
                       const isEvening = selectedReport.direction === "EVENING";
-                      const arrivedAt = formatDateTime(log?.arrived_at ?? null);
+                      const isLastStop =
+                        index === (selectedReport.route?.stops?.length ?? 0) - 1;
+                      const isFinalMorningStop = !isEvening && isLastStop;
+                      const arrivedAt = isFinalMorningStop
+                        ? formatDateTime(
+                            selectedReport.completed_at ?? log?.arrived_at ?? null,
+                          )
+                        : formatDateTime(log?.arrived_at ?? null);
                       const boardedAt = formatDateTime(log?.boarded_at ?? null);
                       const isFirstEveningStop = isEvening && index === 0;
                       const dropOffAt = isFirstEveningStop
@@ -458,7 +465,11 @@ export default function ShuttleReportsPage() {
                               {stop.name}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">
-                              {isEvening ? "Dropoff from shuttle boarding logs" : "Arrival from trip stop logs"}
+                              {isEvening
+                                ? "Dropoff from shuttle boarding logs"
+                                : isFinalMorningStop
+                                  ? "Trip completion time"
+                                  : "Arrival from trip stop logs"}
                             </div>
                           </div>
                           <div className="text-right text-sm font-mono text-[var(--text-primary)]">
@@ -468,6 +479,11 @@ export default function ShuttleReportsPage() {
                                   {isFirstEveningStop ? "Trip started at" : "Dropoff time"}
                                 </div>
                                 <div>{dropOffAt}</div>
+                              </div>
+                            ) : isFinalMorningStop ? (
+                              <div>
+                                <div className="text-xs text-[var(--text-muted)]">Arrived at</div>
+                                <div>{arrivedAt}</div>
                               </div>
                             ) : (
                               <div className="space-y-1">

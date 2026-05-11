@@ -1734,6 +1734,7 @@ class ApiClient {
             problemReports: {
                 id: number;
                 message: string;
+                issue_type?: 'app_issue' | 'ride_issue' | 'other' | null;
                 created_at: string;
                 reported_by_user_id: string;
                 company_id: number | null;
@@ -1744,6 +1745,25 @@ class ApiClient {
             }[];
             alerts: any[];
         }>(`/admin/reports/dashboard${query}`);
+    }
+
+    /** Traflinq landing page leads (superadmin UI; requires same auth as dashboard). */
+    async getLandingLeads() {
+        return this.request<{
+            data: {
+                id: number;
+                name: string;
+                role: string;
+                email: string;
+                phone: string;
+                organization: string;
+                country: string;
+                city: string;
+                fleet_size: string;
+                primary_goal: string;
+                created_at: string;
+            }[];
+        }>('/admin/leads');
     }
 
     // ---------------------------------------------------------------------------

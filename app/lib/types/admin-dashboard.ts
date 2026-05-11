@@ -50,6 +50,7 @@ export interface BreakdownItem {
 export interface ProblemReport {
     id: number;
     message: string;
+    issue_type?: 'app_issue' | 'ride_issue' | 'other' | null;
     created_at: string;
     reported_by_user_id: string;
     company_id: number | null;

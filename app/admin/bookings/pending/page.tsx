@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { DriverType, ChauffeurBooking, TripType, apiClient } from "../../../lib/services/api-client";
+import { displayDriverEmail } from "../../../lib/utils/driverEmailDisplay";
 import { type MapMarker } from "../../ui/Map";
 import { Modal } from "../../components/ui/Modal";
 import Pagination from "../../../components/ui/Pagination";
@@ -947,7 +948,7 @@ export default function BookingsPage() {
                         <option value="">Select a driver</option>
                         {availableDrivers.map((driver) => (
                           <option key={driver.id} value={driver.id}>
-                            {driver.full_name} ({driver.email})
+                            {driver.full_name} ({displayDriverEmail(driver.email)})
                           </option>
                         ))}
                       </select>

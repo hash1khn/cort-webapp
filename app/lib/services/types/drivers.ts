@@ -62,6 +62,16 @@ export interface Driver {
         license_number: string | null;
         current_vehicle_id: number | null;
         rejection_reason?: string | null;
+        /** Self-serve chauffeur application uploads */
+        license_front_image_url?: string | null;
+        license_back_image_url?: string | null;
+        cnic_front_image_url?: string | null;
+        cnic_back_image_url?: string | null;
+        vehicle_photo_url?: string | null;
+        vehicle_make?: string | null;
+        vehicle_model?: string | null;
+        vehicle_year?: number | null;
+        vehicle_registration_doc_url?: string | null;
     };
     created_at: string;
     companies?: {
