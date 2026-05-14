@@ -17,6 +17,7 @@ export interface SuperAdminDashboardStats {
     shuttleProfit: MetricComparison;
     avgChauffeurProfit: MetricComparison;
     avgShuttleProfit: MetricComparison;
+    chauffeurRides: MetricComparison;
     costPerRide: number;
     totalReceivables: number;
     totalPayables: number;

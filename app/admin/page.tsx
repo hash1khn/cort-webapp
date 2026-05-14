@@ -223,6 +223,7 @@ function AdminDashboardContent() {
               <MetricCard label="Shuttle Profit" metric={stats.shuttleProfit} type="currency" />
               <MetricCard label="Avg Chauffeur Profit" metric={stats.avgChauffeurProfit} type="currency" />
               <MetricCard label="Avg Shuttle Profit" metric={stats.avgShuttleProfit} type="currency" />
+              <MetricCard label="Chauffeur Rides" metric={stats.chauffeurRides} type="number" />
             </div>
           </section>
 
