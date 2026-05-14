@@ -32,8 +32,13 @@ function AdminDashboardContent() {
   const getDefaultDateRange = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const toISO = (d: Date) => d.toISOString().split('T')[0];
-    return { start: toISO(firstDay), end: toISO(now) };
+    const toLocalDateInputValue = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    return { start: toLocalDateInputValue(firstDay), end: toLocalDateInputValue(now) };
   };
   const defaults = getDefaultDateRange();
   const [startDate, setStartDate] = useState<string>(defaults.start);
