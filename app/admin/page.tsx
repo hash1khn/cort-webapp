@@ -214,11 +214,15 @@ function AdminDashboardContent() {
               <MetricCard label="Total Revenue" metric={stats.totalRevenue} type="currency" />
               <MetricCard label="Chauffeur Revenue" metric={stats.chauffeurRevenue} type="currency" />
               <MetricCard label="Shuttle Revenue" metric={stats.shuttleRevenue} type="currency" />
-              <MetricCard label="COGS" metric={stats.totalCOGS} type="currency" />
+              <MetricCard label="Total COGS" metric={stats.totalCOGS} type="currency" />
+              <MetricCard label="Chauffeur COGS" metric={stats.chauffeurCOGS} type="currency" />
+              <MetricCard label="Shuttle COGS" metric={stats.shuttleCOGS} type="currency" />
               <MetricCard label="Gross Profit" metric={stats.grossProfit} type="currency" />
               <MetricCard label="Net Margin" metric={stats.netMargin} type="percentage" />
-              <MetricCard label="Chauffeur Profit/Ride" metric={{ current: stats.chauffeurProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
-              <MetricCard label="Shuttle Profit/Ride" metric={{ current: stats.shuttleProfitPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+              <MetricCard label="Chauffeur Profit" metric={stats.chauffeurProfit} type="currency" />
+              <MetricCard label="Shuttle Profit" metric={stats.shuttleProfit} type="currency" />
+              <MetricCard label="Avg Chauffeur Profit" metric={stats.avgChauffeurProfit} type="currency" />
+              <MetricCard label="Avg Shuttle Profit" metric={stats.avgShuttleProfit} type="currency" />
             </div>
           </section>
 

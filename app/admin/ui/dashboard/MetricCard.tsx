@@ -46,7 +46,7 @@ export function MetricCard({ label, metric, type = "number", prefix = "", suffix
 
     const getIcon = () => {
         const lowerLabel = label.toLowerCase();
-        if (lowerLabel.includes("revenue") || lowerLabel.includes("price") || lowerLabel.includes("receivable") || lowerLabel.includes("payable")) return <DollarSign className="h-4 w-4 text-navy/70" />;
+        if (lowerLabel.includes("revenue") || lowerLabel.includes("price") || lowerLabel.includes("receivable") || lowerLabel.includes("payable") || lowerLabel.includes("cogs")) return <DollarSign className="h-4 w-4 text-navy/70" />;
         if (lowerLabel.includes("margin") || lowerLabel.includes("percentage")) return <Percent className="h-4 w-4 text-navy/70" />;
         if (lowerLabel.includes("profit")) return <TrendingUp className="h-4 w-4 text-navy/70" />;
         if (lowerLabel.includes("ride") || lowerLabel.includes("cost")) return <Activity className="h-4 w-4 text-navy/70" />;
