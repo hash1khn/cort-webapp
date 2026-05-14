@@ -44,6 +44,12 @@ const _now = new Date();
 const _pad = (n: number) => String(n).padStart(2, '0');
 const DEFAULT_MONTH_START = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-01`;
 const DEFAULT_MONTH_END = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate())}`;
+const toLocalDateInputValue = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 function FuelingPageContent() {
     const dispatch = useAppDispatch();
@@ -74,14 +80,6 @@ function FuelingPageContent() {
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
-
-    // Sync local state with Redux when filters change externally
-    useEffect(() => {
-        setFilterVehicleId(savedFilters.filterVehicleId);
-        setFilterBilled(savedFilters.filterBilled);
-        setStartDate(savedFilters.startDate || DEFAULT_MONTH_START);
-        setEndDate(savedFilters.endDate || DEFAULT_MONTH_END);
-    }, [savedFilters]);
 
     const loadData = useCallback(() => {
         const params: QueryFuelRecordParams = { limit: 100 };
@@ -183,7 +181,7 @@ function FuelingPageContent() {
             // ignore — user can enter rate manually
         }
         setFormData({
-            date: new Date().toISOString().split('T')[0],
+            date: toLocalDateInputValue(new Date()),
             current_fuel_rate: autoRate,
         });
         setModalMode("create");
