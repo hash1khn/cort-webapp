@@ -5,7 +5,9 @@ import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
 import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from "../lib/store/slices/dashboardSlice";
 import { selectCompany } from "../lib/store/slices/companySlice";
 import { useAuth } from "../lib/contexts/auth-context";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { apiClient } from "../lib/services/api-client";
+import { getCalendarMonthRange } from "../lib/date-utils";
 import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
 import EditBudgetForm from "./components/EditBudgetForm";
@@ -25,7 +27,6 @@ import {
 import DashboardSkeleton from "./components/DashboardSkeleton";
 import LiveMobilityCenter from "./components/LiveMobilityCenter";
 import CostLeakageDetector from "./components/CostLeakageDetector";
-import SavingsCard from "./components/SavingsCard";
 
 export default function CompanyDashboardPage() {
   const dispatch = useAppDispatch();
@@ -38,12 +39,30 @@ export default function CompanyDashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const companyId = user?.company_id?.toString();
+  const [benchmarkDelta, setBenchmarkDelta] = useState<number | null>(null);
+
+  const fetchBenchmarkSavings = useCallback(async () => {
+    try {
+      const now = new Date();
+      const { from, to } = getCalendarMonthRange(now.getFullYear(), now.getMonth());
+      const data = await apiClient.request<{ delta_pkr: number; has_benchmarks: boolean }>(
+        `/company/savings-realisation?from=${from}&to=${to}`,
+      );
+      if (data.has_benchmarks) setBenchmarkDelta(data.delta_pkr);
+    } catch {
+      // Silently ignore — card falls back to booking-level savings
+    }
+  }, []);
 
   useEffect(() => {
     if (companyId) {
       dispatch(fetchDashboardStats(companyId));
     }
   }, [dispatch, companyId]);
+
+  useEffect(() => {
+    fetchBenchmarkSavings();
+  }, [fetchBenchmarkSavings]);
 
   // Calculate services breakdown (percentages)
   // Prefer servicesEnabled from dashboard stats (authoritative, always fresh),
@@ -255,18 +274,13 @@ export default function CompanyDashboardPage() {
       {/* Value Delivered - Hero Row */}
       {(hasChauffeur || hasShuttle) && (
         <div className="w-full dashboard-section dashboard-section-delay-3">
-          <ValueDeliveredSection data={data.valueDelivered} />
+          <ValueDeliveredSection data={data.valueDelivered} benchmarkDelta={benchmarkDelta} />
         </div>
       )}
 
       {/* Live Mobility Command Center - NEW */}
       <div className="w-full dashboard-section dashboard-section-delay-3">
         <LiveMobilityCenter data={data.mobility} />
-      </div>
-
-      {/* Savings Realisation Card - shown only when admin has configured pre-CORT benchmarks */}
-      <div className="w-full dashboard-section dashboard-section-delay-3">
-        <SavingsCard />
       </div>
 
       {/* 2. Main Analytics Grid */}

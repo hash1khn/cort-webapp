@@ -178,7 +178,7 @@ export function SavingsRealizationPanel({ companyId }: { companyId: number }) {
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-emerald-500" />
           <h2 className="text-base font-semibold text-gray-900">Savings Realisation</h2>
-          <span className="text-xs text-gray-400 font-normal">vs. pre-CORT benchmarks</span>
+          <span className="text-xs text-gray-400 font-normal">vs. pre-Traflinq benchmarks</span>
         </div>
         <button
           onClick={fetchSavings}
@@ -226,11 +226,11 @@ export function SavingsRealizationPanel({ companyId }: { companyId: number }) {
         <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 px-6 py-8 text-center">
           <Building2 className="h-8 w-8 text-emerald-300 mx-auto mb-3" />
           <p className="text-sm font-semibold text-emerald-800 mb-1">
-            Add your pre-CORT transport benchmarks
+            Add your pre-Traflinq transport benchmarks
           </p>
           <p className="text-xs text-emerald-600 max-w-sm mx-auto mb-4">
-            Enter what this company was paying before CORT — vendor name, cost per month, and number
-            of vehicles. We&apos;ll compute the exact PKR delta against your actual CORT invoices.
+            Enter what this company was paying before Traflinq — vendor name, cost per month, and number
+            of vehicles. We&apos;ll compute the exact PKR delta against your actual Traflinq invoices.
           </p>
           <button
             onClick={() => setShowAddForm(true)}
@@ -273,20 +273,20 @@ export function SavingsRealizationPanel({ companyId }: { companyId: number }) {
                 </p>
                 <p className={`text-sm font-medium ${isSaving ? 'text-emerald-700' : 'text-red-700'}`}>
                   {isSaving
-                    ? `${result.savings_pct?.toFixed(1) ?? '—'}% less than before CORT`
+                    ? `${result.savings_pct?.toFixed(1) ?? '—'}% less than before Traflinq`
                     : `${result.savings_pct !== null ? Math.abs(result.savings_pct).toFixed(1) : '—'}% more than benchmark`}
                 </p>
 
                 {/* Side-by-side numbers */}
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="bg-white/70 rounded-xl px-4 py-3">
-                    <p className="text-xs text-gray-400 mb-0.5">Before CORT (prorated)</p>
+                    <p className="text-xs text-gray-400 mb-0.5">Before Traflinq (prorated)</p>
                     <p className="text-base font-semibold text-gray-700">
                       {pkr(result.benchmark_total_pkr)}
                     </p>
                   </div>
                   <div className="bg-white/70 rounded-xl px-4 py-3">
-                    <p className="text-xs text-gray-400 mb-0.5">Actual CORT invoiced</p>
+                    <p className="text-xs text-gray-400 mb-0.5">Actual Traflinq invoiced</p>
                     <p className="text-base font-semibold text-gray-700">
                       {pkr(result.actual_total_pkr)}
                     </p>

@@ -245,25 +245,36 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     );
 };
 
-export const ValueDeliveredSection = ({ data }: { data: DashboardData['valueDelivered'] }) => {
+export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: DashboardData['valueDelivered']; benchmarkDelta?: number | null }) => {
+    const savingsValue = benchmarkDelta != null ? benchmarkDelta : data.estimatedSavings;
+    const isBenchmarkSavings = benchmarkDelta != null;
+    const isSaving = savingsValue >= 0;
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             {/* Total Savings */}
-            <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
+            <div className={`p-5 rounded-[2rem] border shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
-                    <Zap size={120} className="text-[var(--cort-orange)]" />
+                    <Zap size={120} className={isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--cort-orange)]'} />
+                </div>
+                <div className="relative z-10 flex items-center justify-between">
+                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
+                    {isBenchmarkSavings && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSaving ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            vs vendor
+                        </span>
+                    )}
                 </div>
                 <div className="relative z-10">
-                        <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
-            </div>
-            <div className="relative z-10">
-                <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1">
-                    <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
-                    {formatCurrency(data.estimatedSavings)}
+                    <div className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1 ${isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--text-primary)]'}`}>
+                        <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
+                        {formatCurrency(Math.abs(savingsValue))}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">
+                        {isBenchmarkSavings ? (isSaving ? 'Saved this month vs previous vendor' : 'Over previous vendor this month') : 'Estimated MTD'}
+                    </div>
                 </div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">Estimated MTD</div>
             </div>
-        </div>
 
         {/* Avg Trip Cost */}
         <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">

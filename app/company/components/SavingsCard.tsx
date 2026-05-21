@@ -97,7 +97,7 @@ export default function SavingsCard() {
             )}
           </div>
           <div>
-            <p className="text-sm font-bold text-[#0c225e]">Your Savings with CORT</p>
+            <p className="text-sm font-bold text-[#0c225e]">Your Savings with Traflinq</p>
             <p className="text-xs text-gray-400 mt-0.5">
               {result.period.from} → {result.period.to}
             </p>
@@ -117,7 +117,7 @@ export default function SavingsCard() {
       {/* Numbers */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
-          <p className="text-xs text-gray-400 mb-1">Before CORT</p>
+          <p className="text-xs text-gray-400 mb-1">Before Traflinq</p>
           <p className="text-sm font-bold text-gray-700">{pkr(result.benchmark_total_pkr)}</p>
           <p className="text-xs text-gray-400 mt-0.5">prorated</p>
           {result.monthly_benchmark_total_pkr > 0 && (
@@ -127,7 +127,7 @@ export default function SavingsCard() {
           )}
         </div>
         <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
-          <p className="text-xs text-gray-400 mb-1">With CORT</p>
+          <p className="text-xs text-gray-400 mb-1">With Traflinq</p>
           <p className="text-sm font-bold text-gray-700">{pkr(result.actual_total_pkr)}</p>
           <p className="text-xs text-gray-400 mt-0.5">invoiced</p>
         </div>

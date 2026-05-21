@@ -147,8 +147,8 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-base font-bold text-[#0c225e]">Pre-CORT Benchmarks</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{companyName} — what they paid before CORT</p>
+            <h3 className="text-base font-bold text-[#0c225e]">Pre-Trafliq Benchmarks</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{companyName} — what they paid before Traflinq</p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
             <X className="h-5 w-5" />
@@ -251,7 +251,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
               </div>
               <p className="text-sm font-semibold text-emerald-800 mb-1">No benchmarks yet</p>
               <p className="text-xs text-emerald-600 max-w-sm mx-auto mb-4">
-                Add what this company paid before CORT — vendor name, monthly cost, and vehicle
+                Add what this company paid before Traflinq — vendor name, monthly cost, and vehicle
                 count. The AI will compute exact savings against actual CORT invoices.
               </p>
               <button

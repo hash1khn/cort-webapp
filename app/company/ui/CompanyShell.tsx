@@ -19,6 +19,7 @@ import {
   Menu,
   Car,
   BarChart2,
+  TrendingDown,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { useCompanyTheme } from "../lib/theme-context";
@@ -74,6 +75,12 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
   if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
     groups[1].items.push({ href: "/company/fleet-analytics", label: "Fleet Analytics", icon: BarChart2 });
   }
+
+  // Savings — show just below Fleet Analytics
+  if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
+    groups[1].items.push({ href: "/company/savings", label: "Savings", icon: TrendingDown });
+  }
+
 
   // Invoices — show if either cort-managed service is enabled
   if (hasFeature("chauffeur_cort_managed") || hasFeature("shuttle_cort_managed")) {
