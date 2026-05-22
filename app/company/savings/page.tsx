@@ -27,6 +27,16 @@ interface VehicleBreakdownRow {
   delta_pkr: number;
 }
 
+interface BenchmarkRow {
+  id: number;
+  service_type: string;
+  vehicle_category: string | null;
+  cost_type: 'FIXED' | 'VARIABLE';
+  monthly_cost: number;
+  quantity: number;
+  vendor_name: string | null;
+}
+
 interface SavingsResult {
   period: { from: string; to: string; days: number };
   benchmark_total_pkr: number;
@@ -36,7 +46,8 @@ interface SavingsResult {
   savings_pct: number | null;
   has_benchmarks: boolean;
   narrative: string;
-  vehicle_breakdown: VehicleBreakdownRow[];
+  vehicle_breakdown?: VehicleBreakdownRow[];
+  benchmarks?: BenchmarkRow[];
   breakdown: Array<{
     service_type: string;
     benchmark_pkr: number;
@@ -57,6 +68,49 @@ function formatVehicleLabel(row: VehicleBreakdownRow): string {
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
   return cat;
+}
+
+function monthlyBenchmarkTotal(b: BenchmarkRow): number {
+  return b.cost_type === 'FIXED' ? b.monthly_cost : b.monthly_cost * b.quantity;
+}
+
+/** Use API vehicle_breakdown, or build rows from benchmarks + service breakdown (older API). */
+function resolveVehicleRows(result: SavingsResult): VehicleBreakdownRow[] {
+  if (result.vehicle_breakdown && result.vehicle_breakdown.length > 0) {
+    return result.vehicle_breakdown;
+  }
+
+  const benchmarks = result.benchmarks;
+  if (!benchmarks?.length) return [];
+
+  const monthlyByService = new Map<string, number>();
+  for (const b of benchmarks) {
+    const m = monthlyBenchmarkTotal(b);
+    monthlyByService.set(b.service_type, (monthlyByService.get(b.service_type) ?? 0) + m);
+  }
+
+  const actualByService = new Map(
+    (result.breakdown ?? []).map((x) => [x.service_type, x.actual_pkr]),
+  );
+
+  return benchmarks.map((b) => {
+    const monthlyTotal = monthlyBenchmarkTotal(b);
+    const svcMonthly = monthlyByService.get(b.service_type) ?? 0;
+    const svcActual = actualByService.get(b.service_type) ?? 0;
+    const actualMonth =
+      svcMonthly > 0 ? svcActual * (monthlyTotal / svcMonthly) : 0;
+
+    return {
+      vehicle_category: b.vehicle_category ?? b.service_type,
+      service_type: b.service_type,
+      quantity: b.quantity,
+      vendor_name: b.vendor_name,
+      benchmark_monthly_pkr: Math.round(monthlyTotal),
+      benchmark_period_pkr: Math.round(monthlyTotal),
+      actual_period_pkr: Math.round(actualMonth),
+      delta_pkr: Math.round(monthlyTotal - actualMonth),
+    };
+  });
 }
 
 const MONTH_NAMES = [
@@ -402,13 +456,17 @@ export default function SavingsPage() {
           </div>
 
           {/* Per-vehicle table */}
-          {result.vehicle_breakdown && result.vehicle_breakdown.length > 0 ? (
-            <VehicleTable rows={result.vehicle_breakdown} />
-          ) : (
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[1.5rem] p-6 text-sm text-[var(--text-muted)]">
-              No per-vehicle breakdown available for this month.
-            </div>
-          )}
+          {(() => {
+            const vehicleRows = resolveVehicleRows(result);
+            return vehicleRows.length > 0 ? (
+              <VehicleTable rows={vehicleRows} />
+            ) : (
+              <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[1.5rem] p-6 text-sm text-[var(--text-muted)]">
+                No vehicle benchmarks configured for this month. Ask your account manager to add your
+                previous vendor costs per vehicle type.
+              </div>
+            );
+          })()}
 
           {/* AI Narrative */}
           {result.narrative && (
