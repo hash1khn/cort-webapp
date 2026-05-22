@@ -62,40 +62,66 @@ export default function VendorDetailsPage() {
 
     // Payment Modal State
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<{ id: number; cost: number; paid: number } | null>(null);
+    const [selectedLogForPayment, setSelectedLogForPayment] = useState<{
+        type: 'CHAUFFEUR' | 'SHUTTLE';
+        id: number;
+        cost: number;
+        paid: number;
+    } | null>(null);
+    const [paymentError, setPaymentError] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentNotes, setPaymentNotes] = useState('');
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
-    const openPaymentModal = (bookingId: number, cost: number, paid: number = 0) => {
-        setSelectedBookingForPayment({ id: bookingId, cost, paid });
-        // If cost is 0 the trip is still in progress — leave amount blank for admin to fill in
-        setPaymentAmount(cost > 0 ? (cost - paid).toString() : '');
+    const openPaymentModal = (
+        log: { type?: string; booking_id?: number; invoice_id?: number; cost: number; amount_paid?: number },
+    ) => {
+        const isShuttle = log.type === 'SHUTTLE';
+        const id = isShuttle ? log.invoice_id : log.booking_id;
+        if (!id) return;
+
+        const cost = Number(log.cost);
+        const paid = Number(log.amount_paid || 0);
+        setSelectedLogForPayment({
+            type: isShuttle ? 'SHUTTLE' : 'CHAUFFEUR',
+            id,
+            cost,
+            paid,
+        });
+        setPaymentAmount(cost > 0 ? Math.max(cost - paid, 0).toString() : '');
         setPaymentNotes('');
+        setPaymentError(null);
         setIsPaymentModalOpen(true);
     };
 
     const closePaymentModal = () => {
         setIsPaymentModalOpen(false);
-        setSelectedBookingForPayment(null);
+        setSelectedLogForPayment(null);
         setPaymentAmount('');
         setPaymentNotes('');
+        setPaymentError(null);
     };
 
     const handleSubmitPayment = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedBookingForPayment || !paymentAmount) return;
+        if (!selectedLogForPayment || !paymentAmount) return;
+
+        const amount = parseFloat(paymentAmount);
+        if (isNaN(amount) || amount <= 0) {
+            setPaymentError('Please enter a valid amount greater than zero.');
+            return;
+        }
 
         setIsSubmittingPayment(true);
+        setPaymentError(null);
         try {
-            await dispatch(createVendorPayment({
-                booking_id: selectedBookingForPayment.id,
-                amount: parseFloat(paymentAmount),
-                notes: paymentNotes,
-                payment_method: 'CASH' // Default or add selector
-            })).unwrap();
+            const payload =
+                selectedLogForPayment.type === 'SHUTTLE'
+                    ? { invoice_id: selectedLogForPayment.id, amount, notes: paymentNotes, payment_method: 'CASH' as const }
+                    : { booking_id: selectedLogForPayment.id, amount, notes: paymentNotes, payment_method: 'CASH' as const };
 
-            // Refresh logs and stats
+            await dispatch(createVendorPayment(payload)).unwrap();
+
             dispatch(fetchVendorStats(vendorId));
             dispatch(fetchVendorLogs({
                 vendor_id: vendorId,
@@ -104,9 +130,8 @@ export default function VendorDetailsPage() {
                 ...filters
             }));
             closePaymentModal();
-        } catch (error) {
-            console.error('Failed to create payment:', error);
-            // Show error notification if possible
+        } catch (error: any) {
+            setPaymentError(error?.message || 'Failed to record payment. Please try again.');
         } finally {
             setIsSubmittingPayment(false);
         }
@@ -234,6 +259,7 @@ export default function VendorDetailsPage() {
                                 logs.map((log: any) => {
                                     const statusRaw = log.status || '';
                                     const isPaid = ['FULLY_PAID', 'PAID'].includes(statusRaw.toUpperCase());
+                                    const canSettle = !isPaid && (log.booking_id || log.invoice_id);
 
                                     return (
                                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
@@ -286,21 +312,19 @@ export default function VendorDetailsPage() {
                                             <td className="px-6 py-4 text-center">
                                                 <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase ${isPaid
                                                     ? 'bg-green-100 text-green-700'
-                                                    : 'bg-orange-100 text-orange-700'
+                                                    : statusRaw === 'PARTIALLY_PAID'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-orange-100 text-orange-700'
                                                     }`}>
                                                     {log.status || 'UNPAID'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {!isPaid && (
+                                                {canSettle && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            openPaymentModal(
-                                                                log.booking_id || log.invoice_id,
-                                                                Number(log.cost),
-                                                                Number(log.amount_paid || 0)
-                                                            );
+                                                            openPaymentModal(log);
                                                         }}
                                                         className="text-orange hover:opacity-80 font-bold text-xs inline-flex items-center gap-1 uppercase"
                                                     >
@@ -335,7 +359,7 @@ export default function VendorDetailsPage() {
 
             {/* Payment Modal */}
             {
-                isPaymentModalOpen && selectedBookingForPayment && (
+                isPaymentModalOpen && selectedLogForPayment && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                         <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex items-center justify-between p-4 border-b border-slate-100">
@@ -346,17 +370,26 @@ export default function VendorDetailsPage() {
                             </div>
                             <form onSubmit={handleSubmitPayment} className="p-4 space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Booking ID</label>
-                                    <div className="text-slate-900 font-semibold">#{selectedBookingForPayment.id}</div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        {selectedLogForPayment.type === 'SHUTTLE' ? 'Invoice ID' : 'Booking ID'}
+                                    </label>
+                                    <div className="text-slate-900 font-semibold">#{selectedLogForPayment.id}</div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Total Cost</label>
                                     <div className="text-slate-900">
-                                        {selectedBookingForPayment.cost > 0
-                                            ? `PKR ${selectedBookingForPayment.cost.toLocaleString()}`
+                                        {selectedLogForPayment.cost > 0
+                                            ? `PKR ${selectedLogForPayment.cost.toLocaleString()}`
                                             : <span className="text-orange-600 text-sm font-medium">Trip in progress — cost not yet finalized</span>
                                         }
                                     </div>
+                                    {selectedLogForPayment.paid > 0 && (
+                                        <div className="text-xs text-green-600 mt-1">
+                                            Already paid: PKR {selectedLogForPayment.paid.toLocaleString()}
+                                            {' · '}
+                                            Remaining: PKR {Math.max(selectedLogForPayment.cost - selectedLogForPayment.paid, 0).toLocaleString()}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Payment Amount</label>
@@ -383,6 +416,9 @@ export default function VendorDetailsPage() {
                                         placeholder="Enter payment details..."
                                     />
                                 </div>
+                                {paymentError && (
+                                    <p className="text-sm text-red-600">{paymentError}</p>
+                                )}
                                 <div className="flex justify-end gap-3 pt-2">
                                     <button
                                         type="button"
