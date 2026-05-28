@@ -74,6 +74,9 @@ export interface Driver {
         vehicle_registration_doc_url?: string | null;
     };
     created_at: string;
+    /** Mean star rating from completed chauffeur trip reviews (1–5). */
+    avg_rating?: number | null;
+    review_count?: number;
     companies?: {
         id: number;
         name: string;

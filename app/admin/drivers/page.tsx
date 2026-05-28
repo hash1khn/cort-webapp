@@ -35,6 +35,7 @@ import { Modal } from "../components/ui/Modal";
 import { CredentialsModal } from "../components/ui/CredentialsModal";
 import { DriverForm } from "./components/DriverForm";
 import { ChauffeurApplicationDetail } from "./components/ChauffeurApplicationDetail";
+import { DriverAvgRating } from "./components/DriverAvgRating";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
@@ -335,6 +336,7 @@ function DriversPageContent() {
                                 <th className="px-6 py-4">Driver Name</th>
                                 <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4">Information</th>
+                                <th className="px-6 py-4">Avg. rating</th>
                                 <th className="px-6 py-4">Status</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
@@ -342,15 +344,15 @@ function DriversPageContent() {
                         <tbody className="divide-y divide-slate-100">
                             {isLoading && drivers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">Loading drivers...</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">Loading drivers...</td>
                                 </tr>
                             ) : error ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-red-500">{error}</td>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-red-500">{error}</td>
                                 </tr>
                             ) : drivers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                                         <div className="flex flex-col items-center gap-2">
                                             <span className="font-medium">No drivers found</span>
                                             <button type="button" onClick={handleCreateNew} disabled={!canCreate} className="text-sm text-[#f47f00] hover:underline disabled:opacity-50 disabled:no-underline">
@@ -406,6 +408,12 @@ function DriversPageContent() {
                                             <div>CNIC: {driver.drivers_profile?.cnic_number || "N/A"}</div>
                                             <div>License: {driver.drivers_profile?.license_number || "N/A"}</div>
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <DriverAvgRating
+                                            avgRating={driver.avg_rating}
+                                            reviewCount={driver.review_count}
+                                        />
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={cx(
@@ -651,6 +659,14 @@ function DriversPageContent() {
             onClose={() => setIsReviewModalOpen(false)}
             title={`Reviews for ${selectedDriverForReviews?.full_name}`}
         >
+            {selectedDriverForReviews && (
+                <div className="mb-4 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                    <DriverAvgRating
+                        avgRating={selectedDriverForReviews.avg_rating}
+                        reviewCount={selectedDriverForReviews.review_count}
+                    />
+                </div>
+            )}
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 px-1">
                 {isReviewsLoading ? (
                     <div className="py-12 text-center text-slate-500">Loading reviews...</div>
