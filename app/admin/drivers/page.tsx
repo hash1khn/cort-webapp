@@ -34,50 +34,13 @@ import { Badge } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { CredentialsModal } from "../components/ui/CredentialsModal";
 import { DriverForm } from "./components/DriverForm";
+import { ChauffeurApplicationDetail } from "./components/ChauffeurApplicationDetail";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import { displayDriverEmail } from "../../lib/utils/driverEmailDisplay";
 
-function DetailRow({ label, value }: { label: string; value: string | number | null | undefined }) {
-    const display = value === null || value === undefined || value === "" ? "—" : String(value);
-    return (
-        <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
-            <div className="mt-0.5 text-sm text-[#0c225e]">{display}</div>
-        </div>
-    );
-}
-
-function ApplicationPhotoTile({
-    label,
-    url,
-    onZoom,
-}: {
-    label: string;
-    url?: string | null;
-    onZoom: (url: string, name: string) => void;
-}) {
-    if (!url) {
-        return (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
-                <div className="text-xs font-semibold text-slate-500">{label}</div>
-                <div className="mt-1 text-xs text-slate-400">Not uploaded</div>
-            </div>
-        );
-    }
-    return (
-        <button
-            type="button"
-            onClick={() => onZoom(url, label)}
-            className="group block w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-left transition-colors hover:border-[#f47f00]"
-        >
-            <div className="border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-600">{label}</div>
-            <img src={url} alt={label} className="h-44 w-full cursor-zoom-in bg-slate-50 object-contain" />
-            <div className="px-2 py-1 text-[10px] text-slate-400">Click to enlarge</div>
-        </button>
-    );
-}
+type ApplicationModalMode = "view" | "approve" | "reject";
 
 // -- Main Page Definition --
 
@@ -116,15 +79,14 @@ function DriversPageContent() {
     const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
     const [zoomedImage, setZoomedImage] = useState<{ url: string, name: string } | null>(null);
 
-    // Rejection Modal
-    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-    const [rejectingDriverId, setRejectingDriverId] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState("");
 
     const isPendingChauffeurTab = activeTab === "PENDING_CHAUFFEUR";
 
-    // Pending application detail (photos + fields)
-    const [applicationDetailDriver, setApplicationDetailDriver] = useState<Driver | null>(null);
+    const [applicationModal, setApplicationModal] = useState<{
+        driver: Driver;
+        mode: ApplicationModalMode;
+    } | null>(null);
 
     // Review Modal States
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -151,9 +113,19 @@ function DriversPageContent() {
 
     useEffect(() => {
         if (!isPendingChauffeurTab) {
-            setApplicationDetailDriver(null);
+            setApplicationModal(null);
         }
     }, [isPendingChauffeurTab]);
+
+    const openApplicationModal = (driver: Driver, mode: ApplicationModalMode) => {
+        setRejectionReason("");
+        setApplicationModal({ driver, mode });
+    };
+
+    const closeApplicationModal = () => {
+        setApplicationModal(null);
+        setRejectionReason("");
+    };
 
     const loadDrivers = async (page = 1) => {
         const params: QueryDriverParams & { activeTab?: string } = { limit: 10, page, search: debouncedSearch, activeTab };
@@ -253,21 +225,22 @@ function DriversPageContent() {
         }
     }
 
-    const handleApprove = async (id: string) => {
-        if (window.confirm("Are you sure you want to approve this driver?")) {
-            await dispatch(updateAdminDriverStatus({ id, payload: { action: DriverStatusAction.APPROVE } }));
+    const submitApproval = async () => {
+        if (!applicationModal) return;
+        try {
+            await dispatch(updateAdminDriverStatus({
+                id: applicationModal.driver.id,
+                payload: { action: DriverStatusAction.APPROVE },
+            })).unwrap();
+            closeApplicationModal();
             loadDrivers();
+        } catch (err: any) {
+            alert(err || "Failed to approve driver");
         }
-    }
-
-    const handleRejectClick = (id: string) => {
-        setRejectingDriverId(id);
-        setRejectionReason("");
-        setIsRejectModalOpen(true);
-    }
+    };
 
     const submitRejection = async () => {
-        if (!rejectingDriverId) return;
+        if (!applicationModal) return;
         if (!rejectionReason.trim()) {
             alert("Please provide a reason for rejection.");
             return;
@@ -275,19 +248,18 @@ function DriversPageContent() {
 
         try {
             await dispatch(updateAdminDriverStatus({
-                id: rejectingDriverId,
+                id: applicationModal.driver.id,
                 payload: {
                     action: DriverStatusAction.REJECT,
-                    reason: rejectionReason
-                }
+                    reason: rejectionReason,
+                },
             })).unwrap();
-            setIsRejectModalOpen(false);
-            setRejectingDriverId(null);
+            closeApplicationModal();
             loadDrivers();
         } catch (err: any) {
             alert(err || "Failed to reject driver");
         }
-    }
+    };
 
     const isLoading = status === 'loading';
     const isSaving = actionStatus === 'loading';
@@ -457,7 +429,7 @@ function DriversPageContent() {
                                                 <>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleApprove(driver.id)}
+                                                        onClick={() => openApplicationModal(driver, "approve")}
                                                         disabled={!canUpdate}
                                                         className="rounded-md p-1 text-green-600 hover:bg-green-50 disabled:opacity-40 disabled:pointer-events-none"
                                                         title="Approve"
@@ -466,7 +438,7 @@ function DriversPageContent() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleRejectClick(driver.id)}
+                                                        onClick={() => openApplicationModal(driver, "reject")}
                                                         disabled={!canUpdate}
                                                         className="rounded-md p-1 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:pointer-events-none"
                                                         title="Reject"
@@ -479,7 +451,7 @@ function DriversPageContent() {
                                             {isPendingChauffeurTab ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setApplicationDetailDriver(driver)}
+                                                    onClick={() => openApplicationModal(driver, "view")}
                                                     className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#0c225e]"
                                                     title="View application"
                                                 >
@@ -548,11 +520,13 @@ function DriversPageContent() {
                 />
             </Modal>
 
-            {/* Zoom Image Modal */}
+            {/* Zoom Image Modal — elevated so it stacks above the application modal */}
             <Modal
                 isOpen={isZoomModalOpen}
                 onClose={() => setIsZoomModalOpen(false)}
                 title={zoomedImage?.name || "Profile Picture"}
+                priority="elevated"
+                size="lg"
             >
                 <div className="flex flex-col items-center">
                     {zoomedImage && (
@@ -575,82 +549,86 @@ function DriversPageContent() {
                 </div>
             </Modal>
 
-            {/* Pending chauffeur application (full detail + photos) */}
+            {/* Pending chauffeur application (view / approve / reject) */}
             <Modal
-                isOpen={!!applicationDetailDriver}
-                onClose={() => setApplicationDetailDriver(null)}
-                title={applicationDetailDriver ? `Application — ${applicationDetailDriver.full_name}` : "Application"}
+                isOpen={!!applicationModal}
+                onClose={closeApplicationModal}
+                title={
+                    applicationModal
+                        ? applicationModal.mode === "approve"
+                            ? `Approve application — ${applicationModal.driver.full_name}`
+                            : applicationModal.mode === "reject"
+                              ? `Reject application — ${applicationModal.driver.full_name}`
+                              : `Application — ${applicationModal.driver.full_name}`
+                        : "Application"
+                }
             >
-                {applicationDetailDriver && (
+                {applicationModal && (
                     <>
-                        <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-1">
-                            <section>
-                                <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Applicant</h3>
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <DetailRow label="Full name" value={applicationDetailDriver.full_name} />
-                                    <DetailRow label="Email" value={displayDriverEmail(applicationDetailDriver.email)} />
-                                    <DetailRow label="Phone" value={applicationDetailDriver.phone} />
-                                    <DetailRow label="CNIC" value={applicationDetailDriver.drivers_profile?.cnic_number} />
-                                    <DetailRow label="License number" value={applicationDetailDriver.drivers_profile?.license_number} />
-                                </div>
-                            </section>
-                            <section>
-                                <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Vehicle</h3>
-                                <div className="grid gap-4 sm:grid-cols-3">
-                                    <DetailRow label="Make" value={applicationDetailDriver.drivers_profile?.vehicle_make} />
-                                    <DetailRow label="Model" value={applicationDetailDriver.drivers_profile?.vehicle_model} />
-                                    <DetailRow label="Model year" value={applicationDetailDriver.drivers_profile?.vehicle_year ?? undefined} />
-                                </div>
-                            </section>
-                            <section>
-                                <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Photos</h3>
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <ApplicationPhotoTile
-                                        label="Profile"
-                                        url={applicationDetailDriver.profile_picture_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="Driving license (front)"
-                                        url={applicationDetailDriver.drivers_profile?.license_front_image_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="Driving license (back)"
-                                        url={applicationDetailDriver.drivers_profile?.license_back_image_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="CNIC (front)"
-                                        url={applicationDetailDriver.drivers_profile?.cnic_front_image_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="CNIC (back)"
-                                        url={applicationDetailDriver.drivers_profile?.cnic_back_image_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="Car"
-                                        url={applicationDetailDriver.drivers_profile?.vehicle_photo_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                    <ApplicationPhotoTile
-                                        label="Car registration"
-                                        url={applicationDetailDriver.drivers_profile?.vehicle_registration_doc_url}
-                                        onZoom={handleZoomImage}
-                                    />
-                                </div>
-                            </section>
-                        </div>
-                        <div className="mt-6 flex justify-end">
+                        <ChauffeurApplicationDetail
+                            driver={applicationModal.driver}
+                            onZoomImage={handleZoomImage}
+                        />
+
+                        {applicationModal.mode === "reject" && (
+                            <div className="mt-6 space-y-2 border-t border-slate-100 pt-6">
+                                <label
+                                    htmlFor="rejection-reason"
+                                    className="text-xs font-bold uppercase tracking-wide text-slate-400"
+                                >
+                                    Rejection reason
+                                </label>
+                                <textarea
+                                    id="rejection-reason"
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] min-h-[100px]"
+                                    placeholder="Explain why this application is being rejected..."
+                                />
+                            </div>
+                        )}
+
+                        {applicationModal.mode === "approve" && (
+                            <p className="mt-4 text-sm text-slate-600">
+                                Review all details above before approving. The driver will be able to sign in once approved.
+                            </p>
+                        )}
+
+                        <div className="mt-6 flex justify-end gap-3">
                             <button
                                 type="button"
-                                onClick={() => setApplicationDetailDriver(null)}
+                                onClick={closeApplicationModal}
                                 className="rounded-lg border border-slate-300 px-6 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
                             >
-                                Close
+                                Cancel
                             </button>
+                            {applicationModal.mode === "view" ? (
+                                <button
+                                    type="button"
+                                    onClick={closeApplicationModal}
+                                    className="rounded-lg bg-[#f47f00] px-6 py-2 text-sm font-bold text-white hover:bg-[#d97000]"
+                                >
+                                    Close
+                                </button>
+                            ) : applicationModal.mode === "approve" ? (
+                                <button
+                                    type="button"
+                                    onClick={submitApproval}
+                                    disabled={!canUpdate || isSaving}
+                                    className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {isSaving ? "Approving…" : "Confirm approval"}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={submitRejection}
+                                    disabled={!canUpdate || isSaving}
+                                    className="rounded-lg bg-red-600 px-6 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none"
+                                >
+                                    {isSaving ? "Rejecting…" : "Confirm rejection"}
+                                </button>
+                            )}
                         </div>
                     </>
                 )}
@@ -745,38 +723,6 @@ function DriversPageContent() {
             </div>
         </Modal>
 
-        {/* Reject Reason Modal */}
-        <Modal
-            isOpen={isRejectModalOpen}
-            onClose={() => setIsRejectModalOpen(false)}
-            title="Reject Driver"
-        >
-                <div className="space-y-4">
-                    <p className="text-sm text-slate-600">Please provide a reason for rejecting this driver request.</p>
-                    <textarea
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none min-h-[100px]"
-                        placeholder="Rejection reason..."
-                    />
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button
-                            onClick={() => setIsRejectModalOpen(false)}
-                            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={submitRejection}
-                            disabled={!canUpdate}
-                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            Confirm Rejection
-                        </button>
-                    </div>
-                </div>
-            </Modal>
         </div>
     );
 }
