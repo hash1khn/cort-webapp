@@ -389,11 +389,31 @@ class ApiClient {
         });
     }
 
-    async resetPassword(accessToken: string, newPassword: string): Promise<void> {
+    async resetPassword(token: string, newPassword: string): Promise<void> {
         await this.request<void>('/auth/reset-password', {
             method: 'POST',
-            body: JSON.stringify({ accessToken, newPassword }),
+            body: JSON.stringify({ token, newPassword }),
         });
+    }
+
+    async uploadStorageFile(file: File, path: string): Promise<string> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', path);
+
+        const result = await this.request<{ url?: string; data?: { url?: string } }>(
+            '/storage/upload',
+            {
+                method: 'POST',
+                body: formData,
+            },
+        );
+
+        const url = result.url ?? result.data?.url;
+        if (!url) {
+            throw new Error('Upload failed: no URL returned');
+        }
+        return url;
     }
 
     isAuthenticated(): boolean {

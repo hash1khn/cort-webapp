@@ -80,7 +80,7 @@ export interface AuthUser {
 }
 
 
-// Supabase session interface
+// API session (JWT access + refresh tokens)
 export interface AuthSession {
     access_token: string;
     refresh_token: string;

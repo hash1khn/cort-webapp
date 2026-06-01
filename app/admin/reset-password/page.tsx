@@ -1,33 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "../../lib/services/api-client";
 
 export default function AdminResetPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Supabase puts the recovery access_token in the URL hash.
-  // Listen for the PASSWORD_RECOVERY event and capture the token.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY" && session?.access_token) {
-          setAccessToken(session.access_token);
-        }
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, []);
+    const token = searchParams.get("token");
+    if (token) {
+      setResetToken(token);
+    }
+  }, [searchParams]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +37,7 @@ export default function AdminResetPasswordPage() {
       return;
     }
 
-    if (!accessToken) {
+    if (!resetToken) {
       setError("Invalid or expired reset link. Please request a new one.");
       return;
     }
@@ -51,7 +45,7 @@ export default function AdminResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      await apiClient.resetPassword(accessToken, password);
+      await apiClient.resetPassword(resetToken, password);
       setSuccess(true);
       setTimeout(() => router.push("/admin/login"), 3000);
     } catch (err) {
@@ -124,14 +118,10 @@ export default function AdminResetPasswordPage() {
                   </p>
                 </div>
               </div>
-            ) : !accessToken ? (
+            ) : !resetToken ? (
               <div className="relative flex flex-col items-center gap-4 text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[#f47f00]" />
                 <p className="text-sm text-slate-400">
-                  Validating your reset link…
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  If this takes too long, your link may have expired.{" "}
+                  Invalid or missing reset link.{" "}
                   <a
                     href="/admin/forgot-password"
                     className="text-[#f47f00] hover:underline"
@@ -206,7 +196,6 @@ export default function AdminResetPasswordPage() {
                   </div>
                 </div>
 
-                {/* Password strength hint */}
                 {password && (
                   <PasswordStrengthBar password={password} />
                 )}
@@ -249,7 +238,6 @@ export default function AdminResetPasswordPage() {
             )}
           </div>
 
-          {/* Footer */}
           <div className="text-center">
             <p className="text-xs text-slate-500">
               &copy; {new Date().getFullYear()} Cort Operations. All rights
@@ -262,7 +250,6 @@ export default function AdminResetPasswordPage() {
   );
 }
 
-// ── Password strength bar ──────────────────────────────────────────────────
 function getStrength(pwd: string): { label: string; color: string; width: string } {
   let score = 0;
   if (pwd.length >= 8) score++;
