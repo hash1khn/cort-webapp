@@ -159,7 +159,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Make</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Make</label>
                     <input
                         type="text"
                         value={formData.make}
@@ -170,7 +170,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Model</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Model</label>
                     <input
                         type="text"
                         value={formData.model}
@@ -183,7 +183,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Year</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Year</label>
                     <input
                         type="number"
                         value={formData.year}
@@ -193,7 +193,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Color</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Color</label>
                     <input
                         type="text"
                         value={formData.color || ""}
@@ -206,7 +206,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Plate Number</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Plate Number</label>
                     <input
                         type="text"
                         value={formData.plate_number}
@@ -217,7 +217,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Seat Capacity</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Seat Capacity</label>
                     <input
                         type="number"
                         value={formData.seat_capacity}
@@ -230,7 +230,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Fuel Avg (City)</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Fuel Avg (City)</label>
                     <input
                         type="number"
                         value={formData.fuel_avg_city}
@@ -240,7 +240,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Fuel Avg (Highway)</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Fuel Avg (Highway)</label>
                     <input
                         type="number"
                         value={formData.fuel_avg_highway}
@@ -253,11 +253,11 @@ export const VehicleFormInline = memo(function VehicleFormInline({
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Category</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Category</label>
                     <select
                         value={formData.category}
                         onChange={(e) => handleChange("category", e.target.value as VehicleCategory)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-[var(--bg-card)]"
                         disabled={isSaving}
                     >
                         {Object.values(VehicleCategory).map((cat) => (
@@ -266,11 +266,11 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </select>
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Ownership</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Ownership</label>
                     <select
                         value={formData.ownership}
                         onChange={(e) => handleChange("ownership", e.target.value as OwnershipType)}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-[var(--bg-card)]"
                         disabled={isSaving}
                     >
                         {Object.values(OwnershipType).map((type) => (
@@ -281,13 +281,13 @@ export const VehicleFormInline = memo(function VehicleFormInline({
             </div>
 
             {formData.ownership === OwnershipType.PARTNER && (
-                <div className="space-y-4 border-t border-slate-100 pt-4 mt-4">
+                <div className="space-y-4 border-t border-[var(--border-default)] pt-4 mt-4">
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Vendor</label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Vendor</label>
                         <select
                             value={formData.vendor_id || ""}
                             onChange={(e) => handleChange("vendor_id", parseInt(e.target.value) || undefined)}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-[var(--bg-card)]"
                             disabled={isSaving}
                         >
                             <option value="">Select Vendor</option>
@@ -298,7 +298,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent 24 Hrs (City)</label>
+                            <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Rent 24 Hrs (City)</label>
                             <input
                                 type="number"
                                 value={formData.rent_per_day_city || 0}
@@ -308,7 +308,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Rent 24 Hrs (Outstation)</label>
+                            <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Rent 24 Hrs (Outstation)</label>
                             <input
                                 type="number"
                                 value={formData.rent_per_day_outstation || 0}
@@ -318,32 +318,32 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Vendor Overtime Rate (PKR/hr)</label>
+                            <label className="text-sm font-medium text-[var(--text-secondary)]">Vendor Overtime Rate (PKR/hr)</label>
                             <input
                                 type="number"
                                 min="0"
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                                 value={formData.vendor_overtime_rate}
                                 onChange={(e) => setFormData(prev => ({ ...prev, vendor_overtime_rate: parseFloat(e.target.value) || 0 }))}
                             />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Vendor 5h Rent (Fixed)</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)]">Vendor 5h Rent (Fixed)</label>
                         <input
                             type="number"
                             min="0"
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                             value={formData.vendor_rent_5hr}
                             onChange={(e) => setFormData(prev => ({ ...prev, vendor_rent_5hr: parseFloat(e.target.value) || 0 }))}
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-700">Vendor 10h Rent (Fixed)</label>
+                        <label className="text-sm font-medium text-[var(--text-secondary)]">Vendor 10h Rent (Fixed)</label>
                         <input
                             type="number"
                             min="0"
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                             value={formData.vendor_rent_10hr}
                             onChange={(e) => setFormData(prev => ({ ...prev, vendor_rent_10hr: parseFloat(e.target.value) || 0 }))}
                         />
@@ -353,15 +353,15 @@ export const VehicleFormInline = memo(function VehicleFormInline({
 
             {/* Driver Details Section - Only for PARTNER vehicles */}
             {formData.ownership === OwnershipType.PARTNER && (
-                <div className="space-y-4 border-t border-slate-100 pt-4 mt-4">
-                    <h4 className="text-sm font-bold text-[#0c225e] uppercase tracking-wide">Driver Details</h4>
+                <div className="space-y-4 border-t border-[var(--border-default)] pt-4 mt-4">
+                    <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide">Driver Details</h4>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Type <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Type <span className="text-red-500">*</span></label>
                         <select
                             value={formData.driver_type || ""}
                             onChange={(e) => handleChange("driver_type", e.target.value as any)}
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-white"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none bg-[var(--bg-card)]"
                             disabled={isSaving}
                             required
                         >
@@ -372,7 +372,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Full Name <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Full Name <span className="text-red-500">*</span></label>
                         <input
                             type="text"
                             value={formData.driver_full_name || ""}
@@ -385,7 +385,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Email <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Email <span className="text-red-500">*</span></label>
                         <input
                             type="email"
                             value={formData.driver_email || ""}
@@ -398,7 +398,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Phone</label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Phone</label>
                         <input
                             type="tel"
                             value={formData.driver_phone || ""}
@@ -410,7 +410,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver Password <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Password <span className="text-red-500">*</span></label>
                         <div className="flex gap-2">
                             <div className="flex-1 relative">
                                 <input
@@ -425,7 +425,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                                     disabled={isSaving}
                                 >
                                     {showPassword ? (
@@ -443,18 +443,18 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                             <button
                                 type="button"
                                 onClick={handleGeneratePassword}
-                                className="rounded-lg bg-slate-200 hover:bg-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors"
+                                className="rounded-lg bg-slate-200 hover:bg-slate-300 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-colors"
                                 disabled={isSaving}
                             >
                                 Generate
                             </button>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">Minimum 6 characters</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-1">Minimum 6 characters</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver CNIC</label>
+                            <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver CNIC</label>
                             <input
                                 type="text"
                                 value={formData.driver_cnic_number || ""}
@@ -465,7 +465,7 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Driver License Number</label>
+                            <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver License Number</label>
                             <input
                                 type="text"
                                 value={formData.driver_license_number || ""}
@@ -479,10 +479,10 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                 </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+            <div className="flex justify-end gap-3 pt-4 border-t border-[var(--border-default)] mt-6">
                 <button
                     onClick={onCancel}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                    className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     disabled={isSaving}
                 >
                     Cancel

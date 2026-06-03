@@ -137,7 +137,7 @@ function insightIcon(type: string) {
   if (type === 'CHAUFFEUR_PACKAGE_UNDERUTILIZATION') return <Package className="h-5 w-5 text-teal-500" />;
   if (type === 'CHAUFFEUR_CONCURRENT') return <Users className="h-5 w-5 text-indigo-500" />;
   if (type === 'POOL_UTILIZATION') return <Car className="h-5 w-5 text-violet-500" />;
-  return <AlertTriangle className="h-5 w-5 text-gray-500" />;
+  return <AlertTriangle className="h-5 w-5 text-[var(--text-muted)]" />;
 }
 
 function InsightCard({ insight }: { insight: FleetInsight }) {
@@ -150,7 +150,7 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
             <span className="text-xs font-semibold uppercase tracking-wide">
               {insight.insight_type.replace(/_/g, ' ')}
             </span>
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-white/60">
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-[var(--bg-card)]/60">
               {insight.severity}
             </span>
           </div>
@@ -169,10 +169,10 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
 
 function DisabledSection({ label }: { label: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center">
+    <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-subtle)] px-6 py-8 text-center">
       <Lock className="h-6 w-6 text-gray-300 mx-auto mb-2" />
-      <p className="text-sm font-medium text-gray-400">{label}</p>
-      <p className="text-xs text-gray-400 mt-1">Enable the service and AI Insights for this company to unlock.</p>
+      <p className="text-sm font-medium text-[var(--text-muted)]">{label}</p>
+      <p className="text-xs text-[var(--text-muted)] mt-1">Enable the service and AI Insights for this company to unlock.</p>
     </div>
   );
 }
@@ -305,7 +305,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-gray-400">
+      <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
         <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading fleet metrics…
       </div>
     );
@@ -326,7 +326,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Bus className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Shuttle Analytics</h2>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Shuttle Analytics</h2>
             {shuttleEnabled && aiEnabled && (
               <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
             )}
@@ -374,9 +374,9 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
             {/* AI insights — shuttle types only */}
             <section>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">AI Insights — Shuttle</h3>
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Shuttle</h3>
               {shuttleInsights.length === 0 ? (
-                <p className="text-sm text-gray-400">No active shuttle insights. Click "Run AI Analysis" to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">No active shuttle insights. Click "Run AI Analysis" to generate.</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {shuttleInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -388,17 +388,17 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
             {fuelFlags.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700">Flagged Fuel Variance</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Flagged Fuel Variance</h3>
                   <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                     {fuelFlags.length} flagged
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
+                <p className="text-xs text-[var(--text-muted)] mb-3">
                   Flagged when (actual − expected) / expected &gt; 15% for 3+ consecutive days.
                 </p>
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)]">
                   <table className="min-w-full text-sm divide-y divide-gray-100">
-                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <thead className="bg-[var(--bg-subtle)] text-xs text-[var(--text-muted)] uppercase">
                       <tr>
                         <th className="px-4 py-3 text-left">Vehicle</th>
                         <th className="px-4 py-3 text-left">Date</th>
@@ -410,15 +410,15 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {fuelFlags.slice(0, 8).map(f => (
-                        <tr key={f.id} className="hover:bg-gray-50/50">
+                        <tr key={f.id} className="hover:bg-[var(--bg-subtle)]/50">
                           <td className="px-4 py-2.5 font-medium">{f.vehicles?.plate_number ?? f.vehicle_id}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{new Date(f.flag_date).toLocaleDateString()}</td>
+                          <td className="px-4 py-2.5 text-[var(--text-muted)]">{new Date(f.flag_date).toLocaleDateString()}</td>
                           <td className={`px-4 py-2.5 text-right font-semibold ${parseFloat(f.variance_pct) > 20 ? 'text-red-600' : 'text-orange-600'}`}>
                             {pct(f.variance_pct)}
                           </td>
                           <td className="px-4 py-2.5 text-right">{fmt(f.actual_litres)}</td>
                           <td className="px-4 py-2.5 text-right">{fmt(f.expected_litres)}</td>
-                          <td className="px-4 py-2.5 text-right text-gray-500">{f.consecutive_days}d</td>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{f.consecutive_days}d</td>
                         </tr>
                       ))}
                     </tbody>
@@ -430,10 +430,10 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
             {/* Recent shuttle trips + map */}
             {recentMetrics.length > 0 && (
               <section>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Shuttle Trips</h3>
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Recent Shuttle Trips</h3>
+                <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)]">
                   <table className="min-w-full text-sm divide-y divide-gray-100">
-                    <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                    <thead className="bg-[var(--bg-subtle)] text-xs text-[var(--text-muted)] uppercase">
                       <tr>
                         <th className="px-4 py-3 text-left">Date</th>
                         <th className="px-4 py-3 text-left">Dir</th>
@@ -446,23 +446,23 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {recentMetrics.map(m => (
-                        <tr key={m.id} className={`hover:bg-gray-50/50 ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-50/40' : ''}`}>
+                        <tr key={m.id} className={`hover:bg-[var(--bg-subtle)]/50 ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-50/40' : ''}`}>
                           <td className="px-4 py-2.5">{new Date(m.trip_date).toLocaleDateString()}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{m.direction}</td>
-                          <td className={`px-4 py-2.5 text-right ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-orange-500' : 'text-gray-800'}`}>
+                          <td className="px-4 py-2.5 text-[var(--text-muted)]">{m.direction}</td>
+                          <td className={`px-4 py-2.5 text-right ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-orange-500' : 'text-[var(--text-primary)]'}`}>
                             {pct(m.occupancy_pct)}
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${m.detour_ratio && parseFloat(m.detour_ratio) > 1.2 ? 'text-red-600' : 'text-gray-800'}`}>
+                          <td className={`px-4 py-2.5 text-right ${m.detour_ratio && parseFloat(m.detour_ratio) > 1.2 ? 'text-red-600' : 'text-[var(--text-primary)]'}`}>
                             {m.detour_ratio ? `${fmt(m.detour_ratio, 2)}×` : '—'}
                           </td>
-                          <td className="px-4 py-2.5 text-right text-gray-500">{fmt(m.idle_minutes, 0)}</td>
-                          <td className={`px-4 py-2.5 text-right ${m.fuel_variance_pct && Math.abs(parseFloat(m.fuel_variance_pct)) > 15 ? 'text-red-600' : 'text-gray-800'}`}>
+                          <td className="px-4 py-2.5 text-right text-[var(--text-muted)]">{fmt(m.idle_minutes, 0)}</td>
+                          <td className={`px-4 py-2.5 text-right ${m.fuel_variance_pct && Math.abs(parseFloat(m.fuel_variance_pct)) > 15 ? 'text-red-600' : 'text-[var(--text-primary)]'}`}>
                             {pct(m.fuel_variance_pct)}
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             <button
                               onClick={() => loadRouteComparison(m.shuttle_trip_id, m.route_id)}
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-100 text-blue-700' : 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:bg-gray-200'}`}
                             >
                               <MapIcon className="h-3 w-3" />
                               {selectedTripForMap === m.shuttle_trip_id ? 'Close' : 'View'}
@@ -475,22 +475,22 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                 </div>
 
                 {selectedTripForMap !== null && (
-                  <div className="mt-4 rounded-xl border border-gray-200 bg-white overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <div className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
                       <div className="flex items-center gap-2">
-                        <MapIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-semibold text-gray-900">Route Map Overlay</span>
-                        <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <MapIcon className="h-4 w-4 text-[var(--text-muted)]" />
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">Route Map Overlay</span>
+                        <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-600" /> Planned
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-orange-500 ml-1" /> Actual
                         </span>
                       </div>
-                      <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-gray-400 hover:text-gray-600">
+                      <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                     {mapLoading ? (
-                      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+                      <div className="flex items-center justify-center h-64 text-[var(--text-muted)] text-sm">
                         <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading route data…
                       </div>
                     ) : routeComparison ? (
@@ -499,7 +499,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                         routeInsight={shuttleInsights.find(i => i.insight_type === 'ROUTE_DETOUR' && i.route_id === selectedRouteId) ?? null}
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+                      <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-sm">
                         No route data available for this trip.
                       </div>
                     )}
@@ -512,7 +512,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       </div>
 
       {/* ── Divider ── */}
-      <hr className="border-gray-200" />
+      <hr className="border-[var(--border-default)]" />
 
       {/* ══════════════════════════════════════════════════════════
           CHAUFFEUR SECTION
@@ -520,7 +520,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       <div>
         <div className="flex items-center gap-2 mb-5">
           <CarFront className="h-5 w-5 text-teal-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Chauffeur Analytics</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Chauffeur Analytics</h2>
           {chauffeurEnabled && aiEnabled && (
             <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
           )}
@@ -532,9 +532,9 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
           <div className="space-y-6">
             {/* AI insights — chauffeur types only */}
             <section>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">AI Insights — Chauffeur</h3>
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Chauffeur</h3>
               {chauffeurInsights.length === 0 ? (
-                <p className="text-sm text-gray-400">No active chauffeur insights. Click "Run AI Analysis" to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">No active chauffeur insights. Click "Run AI Analysis" to generate.</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {chauffeurInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -571,14 +571,14 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                 {/* Underutilized bookings table */}
                 {chauffeurUtil.bookings.filter(b => (b.utilization_pct ?? 100) < 70).length > 0 && (
                   <section>
-                    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)]">
+                      <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center gap-2">
                         <Package className="h-4 w-4 text-teal-500" />
-                        <span className="text-sm font-semibold text-gray-900">Underutilised Bookings</span>
-                        <span className="text-xs text-gray-400">(used &lt;70% of package hours — consider a smaller package)</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">Underutilised Bookings</span>
+                        <span className="text-xs text-[var(--text-muted)]">(used &lt;70% of package hours — consider a smaller package)</span>
                       </div>
                       <table className="min-w-full text-sm divide-y divide-gray-100">
-                        <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                        <thead className="bg-[var(--bg-subtle)] text-xs text-[var(--text-muted)] uppercase">
                           <tr>
                             <th className="px-4 py-3 text-left">Booking</th>
                             <th className="px-4 py-3 text-left">Package</th>
@@ -593,17 +593,17 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                             .filter(b => (b.utilization_pct ?? 100) < 70)
                             .slice(0, 10)
                             .map(b => (
-                              <tr key={b.booking_id} className="hover:bg-gray-50/50">
-                                <td className="px-4 py-2.5 font-medium text-gray-700">#{b.booking_id}</td>
+                              <tr key={b.booking_id} className="hover:bg-[var(--bg-subtle)]/50">
+                                <td className="px-4 py-2.5 font-medium text-[var(--text-secondary)]">#{b.booking_id}</td>
                                 <td className="px-4 py-2.5">
                                   <span className="inline-flex items-center rounded-full bg-teal-50 text-teal-700 text-xs font-medium px-2 py-0.5">
                                     {b.package_selected?.replace('HOURS_', '') ?? '—'}h
                                   </span>
                                 </td>
-                                <td className="px-4 py-2.5 text-gray-500 text-xs">
+                                <td className="px-4 py-2.5 text-[var(--text-muted)] text-xs">
                                   {b.scheduled_for ? new Date(b.scheduled_for).toLocaleDateString() : '—'}
                                 </td>
-                                <td className="px-4 py-2.5 text-right text-gray-700">
+                                <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">
                                   {b.used_minutes != null ? `${(b.used_minutes / 60).toFixed(1)}h` : '—'}
                                 </td>
                                 <td className="px-4 py-2.5 min-w-[140px]">
@@ -628,7 +628,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       </div>
 
       {/* ── Divider ── */}
-      <hr className="border-gray-200" />
+      <hr className="border-[var(--border-default)]" />
 
       {/* ══════════════════════════════════════════════════════════
           POOL FLEET SECTION
@@ -636,7 +636,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       <div>
         <div className="flex items-center gap-2 mb-5">
           <Car className="h-5 w-5 text-violet-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Pool Fleet Analytics</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Pool Fleet Analytics</h2>
           {poolEnabled && aiEnabled && (
             <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
           )}
@@ -648,9 +648,9 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
           <div className="space-y-6">
             {/* AI insights — pool types */}
             <section>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">AI Insights — Pool Fleet</h3>
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Pool Fleet</h3>
               {poolInsights.length === 0 ? (
-                <p className="text-sm text-gray-400">No active pool fleet insights. Click &quot;Run AI Analysis&quot; to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">No active pool fleet insights. Click &quot;Run AI Analysis&quot; to generate.</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {poolInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -686,14 +686,14 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                 {/* Per-vehicle utilization table */}
                 {poolUtil.vehicles.length > 0 && (
                   <section>
-                    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)]">
+                      <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center gap-2">
                         <Car className="h-4 w-4 text-violet-500" />
-                        <span className="text-sm font-semibold text-gray-900">Pool Vehicle Utilization</span>
-                        <span className="text-xs text-gray-400">(last 30 days — 300 available hours per vehicle)</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">Pool Vehicle Utilization</span>
+                        <span className="text-xs text-[var(--text-muted)]">(last 30 days — 300 available hours per vehicle)</span>
                       </div>
                       <table className="min-w-full text-sm divide-y divide-gray-100">
-                        <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                        <thead className="bg-[var(--bg-subtle)] text-xs text-[var(--text-muted)] uppercase">
                           <tr>
                             <th className="px-4 py-3 text-left">Vehicle</th>
                             <th className="px-4 py-3 text-left">Category</th>
@@ -704,11 +704,11 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                           {poolUtil.vehicles.map(v => (
-                            <tr key={v.vehicle_id} className="hover:bg-gray-50/50">
+                            <tr key={v.vehicle_id} className="hover:bg-[var(--bg-subtle)]/50">
                               <td className="px-4 py-2.5">
-                                <div className="font-medium text-gray-900">{v.plate_number}</div>
+                                <div className="font-medium text-[var(--text-primary)]">{v.plate_number}</div>
                                 {(v.make || v.model) && (
-                                  <div className="text-xs text-gray-400">{[v.make, v.model].filter(Boolean).join(' ')}</div>
+                                  <div className="text-xs text-[var(--text-muted)]">{[v.make, v.model].filter(Boolean).join(' ')}</div>
                                 )}
                               </td>
                               <td className="px-4 py-2.5">
@@ -718,8 +718,8 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                                   </span>
                                 ) : '—'}
                               </td>
-                              <td className="px-4 py-2.5 text-right text-gray-700">{v.trips_count}</td>
-                              <td className="px-4 py-2.5 text-right text-gray-700">{v.total_hours_booked}h</td>
+                              <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{v.trips_count}</td>
+                              <td className="px-4 py-2.5 text-right text-[var(--text-secondary)]">{v.total_hours_booked}h</td>
                               <td className="px-4 py-2.5 min-w-[140px]">
                                 <UtilizationBar pct={v.utilization_pct} />
                               </td>
@@ -745,10 +745,10 @@ function UtilizationBar({ pct }: { pct: number }) {
   const color = pct >= 80 ? 'bg-green-500' : pct >= 60 ? 'bg-amber-400' : 'bg-red-500';
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+      <div className="flex-1 h-2 rounded-full bg-[var(--bg-subtle)] overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <span className={`text-xs font-semibold w-10 text-right ${pct < 60 ? 'text-red-600' : 'text-gray-700'}`}>{pct}%</span>
+      <span className={`text-xs font-semibold w-10 text-right ${pct < 60 ? 'text-red-600' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
     </div>
   );
 }
@@ -780,44 +780,44 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
         {polylines.length > 0 || markers.length > 0 ? (
           <Map markers={markers} polylines={polylines} height="360px" />
         ) : (
-          <div className="flex items-center justify-center h-full bg-gray-50 text-sm text-gray-400">
+          <div className="flex items-center justify-center h-full bg-[var(--bg-subtle)] text-sm text-[var(--text-muted)]">
             No polyline data recorded for this trip.
           </div>
         )}
       </div>
-      <div className="w-full lg:w-64 p-4 border-t lg:border-t-0 lg:border-l border-gray-100 flex flex-col gap-4">
+      <div className="w-full lg:w-64 p-4 border-t lg:border-t-0 lg:border-l border-[var(--border-default)] flex flex-col gap-4">
         {detour !== null && (
           <div className={`rounded-lg px-3 py-2.5 text-center ${detour > 1.15 ? 'bg-red-50 border border-red-200' : detour > 1.05 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200'}`}>
-            <p className="text-xs text-gray-500 mb-0.5">Detour Ratio</p>
+            <p className="text-xs text-[var(--text-muted)] mb-0.5">Detour Ratio</p>
             <p className={`text-2xl font-bold ${detour > 1.15 ? 'text-red-600' : detour > 1.05 ? 'text-orange-600' : 'text-green-600'}`}>
               {detour.toFixed(2)}×
             </p>
-            {detourPct && <p className="text-xs text-gray-500">+{detourPct}% extra distance</p>}
+            {detourPct && <p className="text-xs text-[var(--text-muted)]">+{detourPct}% extra distance</p>}
           </div>
         )}
         <div className="space-y-2 text-sm">
           {m?.planned_distance_km != null && (
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-gray-500"><span className="inline-block h-2 w-4 rounded-sm bg-blue-600" /> Planned</span>
+              <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-blue-600" /> Planned</span>
               <span className="font-medium">{m.planned_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {m?.actual_distance_km != null && (
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-gray-500"><span className="inline-block h-2 w-4 rounded-sm bg-orange-500" /> Actual</span>
+              <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-orange-500" /> Actual</span>
               <span className="font-medium">{m.actual_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {comparison.idle_minutes != null && (
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">Idle time</span>
+              <span className="text-[var(--text-muted)]">Idle time</span>
               <span className="font-medium">{comparison.idle_minutes.toFixed(0)} min</span>
             </div>
           )}
           {m?.fuel_variance_pct != null && (
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">Fuel variance</span>
-              <span className={`font-medium ${Math.abs(m.fuel_variance_pct) > 15 ? 'text-red-600' : 'text-gray-800'}`}>
+              <span className="text-[var(--text-muted)]">Fuel variance</span>
+              <span className={`font-medium ${Math.abs(m.fuel_variance_pct) > 15 ? 'text-red-600' : 'text-[var(--text-primary)]'}`}>
                 {m.fuel_variance_pct > 0 ? '+' : ''}{m.fuel_variance_pct.toFixed(1)}%
               </span>
             </div>
@@ -839,9 +839,9 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
 
 function KpiCard({ label, value, icon, good }: { label: string; value: string; icon: React.ReactNode; good?: boolean }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-xs text-gray-500">{label}</span></div>
-      <p className={`text-2xl font-bold ${good === false ? 'text-orange-600' : 'text-gray-900'}`}>{value}</p>
+    <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-xs text-[var(--text-muted)]">{label}</span></div>
+      <p className={`text-2xl font-bold ${good === false ? 'text-orange-600' : 'text-[var(--text-primary)]'}`}>{value}</p>
     </div>
   );
 }

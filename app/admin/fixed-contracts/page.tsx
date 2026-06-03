@@ -179,8 +179,8 @@ function FixedTermContractsContent() {
     <div className="flex flex-col gap-8 mx-auto p-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0c225e]">Fixed-Term Monthly Contracts</h1>
-          <p className="mt-2 text-slate-500">Manage monthly vendor-independent car contracts. These amounts are automatically included in monthly payables.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Fixed-Term Monthly Contracts</h1>
+          <p className="mt-2 text-[var(--text-muted)]">Manage monthly vendor-independent car contracts. These amounts are automatically included in monthly payables.</p>
         </div>
         <button
           onClick={() => {
@@ -196,50 +196,50 @@ function FixedTermContractsContent() {
       </div>
 
       {(isAdding || editingId) && (
-        <div className="rounded-2xl border-2 border-[#f47f00]/20 bg-white p-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+        <div className="rounded-2xl border-2 border-[#f47f00]/20 bg-[var(--bg-card)] p-6 shadow-sm animate-in fade-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-[#0c225e]">{editingId ? "Edit Monthly Contract" : "New Monthly Contract"}</h3>
-            <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="text-slate-400 hover:text-slate-600">
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">{editingId ? "Edit Monthly Contract" : "New Monthly Contract"}</h3>
+            <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
               <X size={18} />
             </button>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Car Description</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Car Description</span>
               <div className="relative">
-                <Car className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <Car className="absolute left-3 top-2.5 text-[var(--text-muted)]" size={18} />
                 <input
                   type="text"
                   placeholder="e.g. Toyota Corolla (ABC-123)"
                   value={formData.carDescription}
                   onChange={e => setFormData({ ...formData, carDescription: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  className="h-10 w-full rounded-lg border border-[var(--border-default)] pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Owner Name</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Owner Name</span>
               <div className="relative">
-                <User className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <User className="absolute left-3 top-2.5 text-[var(--text-muted)]" size={18} />
                 <input
                   type="text"
                   placeholder="e.g. John Doe"
                   value={formData.ownerName}
                   onChange={e => setFormData({ ...formData, ownerName: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  className="h-10 w-full rounded-lg border border-[var(--border-default)] pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Monthly Amount (PKR)</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Monthly Amount (PKR)</span>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <DollarSign className="absolute left-3 top-2.5 text-[var(--text-muted)]" size={18} />
                 <input
                   type="number"
                   placeholder="0"
                   value={formData.monthlyAmount}
                   onChange={e => setFormData({ ...formData, monthlyAmount: e.target.value })}
-                  className="h-10 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  className="h-10 w-full rounded-lg border border-[var(--border-default)] pl-10 pr-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                 />
               </div>
             </div>
@@ -247,7 +247,7 @@ function FixedTermContractsContent() {
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={() => { setIsAdding(false); setEditingId(null); }}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+              className="px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               Cancel
             </button>
@@ -263,10 +263,10 @@ function FixedTermContractsContent() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+            <thead className="bg-[var(--bg-subtle)] text-xs uppercase font-semibold text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Car Description</th>
@@ -281,7 +281,7 @@ function FixedTermContractsContent() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0c225e] border-t-transparent" />
                       <span>Loading contracts...</span>
@@ -290,30 +290,30 @@ function FixedTermContractsContent() {
                 </tr>
               ) : fixedTermContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     No fixed-term contracts found.
                   </td>
                 </tr>
               ) : (
                 fixedTermContracts.map((contract) => (
-                  <tr key={contract.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={contract.id} className="hover:bg-[var(--bg-subtle)]/50 transition-colors">
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                        contract.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+                        contract.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-[var(--text-muted)]"
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${contract.is_active ? "bg-green-600" : "bg-slate-400"}`} />
                         {contract.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-medium text-[#0c225e]">{contract.car_description}</td>
-                    <td className="px-6 py-4 text-slate-600">{contract.owner_name}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-900">
+                    <td className="px-6 py-4 font-medium text-[var(--text-primary)]">{contract.car_description}</td>
+                    <td className="px-6 py-4 text-[var(--text-secondary)]">{contract.owner_name}</td>
+                    <td className="px-6 py-4 text-right font-bold text-[var(--text-primary)]">
                       PKR {Number(contract.monthly_amount).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-700">
+                    <td className="px-6 py-4 text-right text-[var(--text-secondary)]">
                       PKR {Number(contract.current_month_due?.amount_paid ?? 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-right font-semibold text-[#0c225e]">
+                    <td className="px-6 py-4 text-right font-semibold text-[var(--text-primary)]">
                       <div>PKR {Number(contract.current_month_due?.amount_remaining ?? contract.monthly_amount).toLocaleString()}</div>
                       <div className="text-xs font-normal text-amber-700">
                         Overdue: PKR {Number(contract.overdue_amount ?? 0).toLocaleString()}
@@ -385,10 +385,10 @@ function FixedTermContractsContent() {
               )}
             </tbody>
             {!isLoading && fixedTermContracts.length > 0 && (
-              <tfoot className="bg-slate-50/50 font-bold">
+              <tfoot className="bg-[var(--bg-subtle)]/50 font-bold">
                 <tr>
-                  <td colSpan={3} className="px-6 py-4 text-right text-slate-500">Total Monthly Payable (Active):</td>
-                  <td className="px-6 py-4 text-right text-[#0c225e]">
+                  <td colSpan={3} className="px-6 py-4 text-right text-[var(--text-muted)]">Total Monthly Payable (Active):</td>
+                  <td className="px-6 py-4 text-right text-[var(--text-primary)]">
                     PKR {fixedTermContracts
                       .filter(c => c.is_active)
                       .reduce((sum, c) => sum + Number(c.monthly_amount), 0)
@@ -417,12 +417,12 @@ function FixedTermContractsContent() {
 
       {settlingContractId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-2xl bg-[var(--bg-card)] p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#0c225e]">Record Fixed-Contract Payment</h3>
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Record Fixed-Contract Payment</h3>
               <button
                 onClick={() => setSettlingContractId(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
               >
                 <X size={18} />
               </button>
@@ -433,12 +433,12 @@ function FixedTermContractsContent() {
                 placeholder="Amount"
                 value={settlementData.amount}
                 onChange={(e) => setSettlementData((prev) => ({ ...prev, amount: e.target.value }))}
-                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+                className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00]"
               />
               <select
                 value={settlementData.billingMonth}
                 onChange={(e) => setSettlementData((prev) => ({ ...prev, billingMonth: e.target.value }))}
-                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+                className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00]"
               >
                 <option value="">Oldest unpaid month</option>
                 {(fixedTermContracts.find((c) => c.id === settlingContractId)?.monthly_dues ?? [])
@@ -461,20 +461,20 @@ function FixedTermContractsContent() {
                 placeholder="Payment Method (optional)"
                 value={settlementData.paymentMethod}
                 onChange={(e) => setSettlementData((prev) => ({ ...prev, paymentMethod: e.target.value }))}
-                className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00]"
+                className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00]"
               />
               <textarea
                 placeholder="Notes (optional)"
                 value={settlementData.notes}
                 onChange={(e) => setSettlementData((prev) => ({ ...prev, notes: e.target.value }))}
                 rows={3}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[#f47f00]"
+                className="w-full rounded-lg border border-[var(--border-default)] px-3 py-2 text-sm outline-none focus:border-[#f47f00]"
               />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => setSettlingContractId(null)}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+                className="px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 Cancel
               </button>

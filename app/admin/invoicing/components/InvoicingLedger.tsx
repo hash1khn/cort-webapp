@@ -15,7 +15,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-sm font-medium text-muted">Financial Engine</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
             General Ledger
           </h1>
         </div>
@@ -31,7 +31,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
 
       <InvoiceStatsCards stats={ledger.stats} />
 
-      <div className="rounded-xl border border-border bg-white overflow-hidden shadow-sm flex flex-col">
+      <div className="rounded-xl border border-border bg-[var(--bg-card)] overflow-hidden shadow-sm flex flex-col">
         {/* Filter Bar */}
         <div className="px-4 py-3 border-b border-border flex flex-wrap items-center gap-3">
           <label className="text-xs font-semibold text-muted uppercase tracking-wide whitespace-nowrap">
@@ -44,7 +44,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
               ledger.setFilterCompanyId(val ? Number(val) : undefined);
               ledger.setCurrentPage(1);
             }}
-            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-navy shadow-sm focus:outline-none focus:ring-2 focus:ring-[#f47f00]/40 min-w-[180px]"
+            className="rounded-lg border border-border bg-[var(--bg-card)] px-3 py-1.5 text-sm text-[var(--text-primary)] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#f47f00]/40 min-w-[180px]"
           >
             <option value="">All Companies</option>
             {ledger.companies.map((c) => (
@@ -92,24 +92,24 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 ledger.invoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-zinc-50/50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-navy">{invoice.invoice_number}</div>
-                      <div className="text-xs text-slate-400">ID #{invoice.id}</div>
+                      <div className="font-medium text-[var(--text-primary)]">{invoice.invoice_number}</div>
+                      <div className="text-xs text-[var(--text-muted)]">ID #{invoice.id}</div>
                     </td>
-                    <td className="px-4 py-3 text-navy">{invoice.companies?.name || "Unknown"}</td>
-                    <td className="px-4 py-3 text-navy">
+                    <td className="px-4 py-3 text-[var(--text-primary)]">{invoice.companies?.name || "Unknown"}</td>
+                    <td className="px-4 py-3 text-[var(--text-primary)]">
                       <div>{ledger.formatInvoicePeriod(invoice)}</div>
-                      <div className="text-xs text-slate-500">({ledger.getInvoicePeriodType(invoice).toLowerCase()})</div>
+                      <div className="text-xs text-[var(--text-muted)]">({ledger.getInvoicePeriodType(invoice).toLowerCase()})</div>
                     </td>
-                    <td className="px-4 py-3 text-navy">
+                    <td className="px-4 py-3 text-[var(--text-primary)]">
                       {new Date(invoice.generated_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-navy">
+                    <td className="px-4 py-3 text-right font-medium text-[var(--text-primary)]">
                       PKR {Number(invoice.total_amount).toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-green-700">
                       {invoice.amount_paid != null && Number(invoice.amount_paid) > 0
                         ? `PKR ${Number(invoice.amount_paid).toLocaleString()}`
-                        : <span className="text-slate-400">—</span>}
+                        : <span className="text-[var(--text-muted)]">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-red-600">
                       {invoice.status === 'PAID'
@@ -180,7 +180,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                           type="button"
                           onClick={() => ledger.handleSendEmail(invoice.id, invoice.invoice_number)}
                           disabled={ledger.sendingEmailId === invoice.id || !ledger.canUpdate}
-                          className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
+                          className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium disabled:opacity-50 disabled:cursor-wait inline-flex items-center gap-1.5"
                           title="Send Email to Company"
                         >
                           {ledger.sendingEmailId === invoice.id ? (
@@ -256,13 +256,13 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
       >
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Company
             </label>
             <select
               value={ledger.selectedCompanyId}
               onChange={(e) => ledger.setSelectedCompanyId(e.target.value)}
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
             >
               {ledger.companies.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -277,23 +277,23 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
           {/* Route-level invoice overrides (quantity for both billing types) */}
           {ledger.shuttleRoutes.length > 0 && (
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block">
                 Route Inputs For This Invoice
               </label>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--text-muted)]">
                 Set quantity for each route (monthly and per-trip). For per-trip routes, also set trips. Any route with Quantity = 0 is excluded.
               </p>
-              <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+              <div className="rounded-lg border border-[var(--border-default)] divide-y divide-slate-100 overflow-hidden">
                 {ledger.shuttleRoutes.map((route) => (
                   <div key={route.id} className="flex items-center justify-between gap-3 px-3 py-2">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-800 truncate">{route.particulars}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className="text-sm font-medium text-[var(--text-primary)] truncate">{route.particulars}</div>
+                      <div className="text-xs text-[var(--text-muted)]">
                         {route.vehicle_type} | Contract Qty: {route.quantity} | {route.billing_type === "PER_TRIP" ? "Per Trip" : "Monthly"}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-slate-500">Qty:</span>
+                      <span className="text-xs text-[var(--text-muted)]">Qty:</span>
                       <input
                         type="number"
                         min={0}
@@ -301,11 +301,11 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                         onChange={(e) =>
                           ledger.setRouteQuantities((prev) => ({ ...prev, [route.id]: e.target.value }))
                         }
-                        className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                        className="w-16 h-8 rounded border border-[var(--border-default)] px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                       />
                       {route.billing_type === "PER_TRIP" && (
                         <>
-                          <span className="text-xs text-slate-500">Trips:</span>
+                          <span className="text-xs text-[var(--text-muted)]">Trips:</span>
                           <input
                             type="number"
                             min={0}
@@ -313,16 +313,16 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                             onChange={(e) =>
                               ledger.setRouteTrips((prev) => ({ ...prev, [route.id]: e.target.value }))
                             }
-                            className="w-16 h-8 rounded border border-slate-200 px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                            className="w-16 h-8 rounded border border-[var(--border-default)] px-2 text-sm text-center outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                           />
-                          <span className="text-xs text-slate-500">Date:</span>
+                          <span className="text-xs text-[var(--text-muted)]">Date:</span>
                           <input
                             type="date"
                             value={ledger.routeTripDates[route.id] ?? ""}
                             onChange={(e) =>
                               ledger.setRouteTripDates((prev) => ({ ...prev, [route.id]: e.target.value }))
                             }
-                            className="h-8 rounded border border-slate-200 px-2 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                            className="h-8 rounded border border-[var(--border-default)] px-2 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                           />
                         </>
                       )}
@@ -334,13 +334,13 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Billing Period
             </label>
             <select
               value={ledger.billingPeriod}
               onChange={(e) => ledger.setBillingPeriod(e.target.value as "MONTHLY" | "WEEKLY")}
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
             >
               <option value="MONTHLY">Monthly</option>
               <option value="WEEKLY">Weekly</option>
@@ -349,45 +349,45 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
 
           {ledger.billingPeriod === "MONTHLY" ? (
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Billing Month
               </label>
               <input
                 type="month"
                 value={ledger.billingMonthRaw}
                 onChange={(e) => ledger.setBillingMonthRaw(e.target.value)}
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   Week Start Date
                 </label>
                 <input
                   type="date"
                   value={ledger.weeklyStartDate}
                   onChange={(e) => ledger.setWeeklyStartDate(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                   Week End Date
                 </label>
                 <input
                   type="date"
                   value={ledger.weeklyEndDate}
                   onChange={(e) => ledger.setWeeklyEndDate(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                 />
               </div>
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Continued Vehicles (Optional)
             </label>
             <input
@@ -396,18 +396,18 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
               value={ledger.continuedVehicles}
               onChange={(e) => ledger.setContinuedVehicles(e.target.value)}
               placeholder="e.g. 8"
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Amount Vs Contract
             </label>
             <select
               value={ledger.amountMode}
               onChange={(e) => ledger.setAmountMode(e.target.value as "EXACT" | "LESS" | "MORE")}
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
             >
               <option value="EXACT">Exact as contract</option>
               <option value="LESS">Less than contract</option>
@@ -417,7 +417,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
 
           {ledger.amountMode !== "EXACT" && (
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Amount Difference (PKR)
               </label>
               <input
@@ -426,19 +426,19 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 value={ledger.amountDelta}
                 onChange={(e) => ledger.setAmountDelta(e.target.value)}
                 placeholder="e.g. 25000"
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Invoice Discount (Optional)
             </label>
             <select
               value={ledger.shuttleDiscountType}
               onChange={(e) => { ledger.setShuttleDiscountType(e.target.value as any); ledger.setShuttleDiscountValue(""); }}
-              className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
             >
               <option value="NONE">No Discount</option>
               <option value="PERCENTAGE">Percentage (%)</option>
@@ -448,7 +448,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
 
           {ledger.shuttleDiscountType !== "NONE" && (
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 {ledger.shuttleDiscountType === "PERCENTAGE" ? "Discount %" : "Discount Amount (PKR)"}
               </label>
               <input
@@ -457,12 +457,12 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 value={ledger.shuttleDiscountValue}
                 onChange={(e) => ledger.setShuttleDiscountValue(e.target.value)}
                 placeholder={ledger.shuttleDiscountType === "PERCENTAGE" ? "e.g. 10" : "e.g. 5000"}
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
           )}
 
-          <div className="pt-2 border-t border-slate-100">
+          <div className="pt-2 border-t border-[var(--border-default)]">
             <div className="flex items-center gap-2 mb-3">
               <input
                 type="checkbox"
@@ -471,7 +471,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 onChange={(e) => ledger.setIsVendorCar(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-[#f47f00] focus:ring-[#f47f00]"
               />
-              <label htmlFor="isVendorCar" className="text-sm font-semibold text-slate-700 cursor-pointer">
+              <label htmlFor="isVendorCar" className="text-sm font-semibold text-[var(--text-secondary)] cursor-pointer">
                 Vehicle is from a Vendor (External)
               </label>
             </div>
@@ -479,13 +479,13 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
             {ledger.isVendorCar && (
               <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-1">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                     Vendor
                   </label>
                   <select
                     value={ledger.selectedVendorId}
                     onChange={(e) => ledger.setSelectedVendorId(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+                    className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
                   >
                     {ledger.allVendors.map((v) => (
                       <option key={v.id} value={v.id}>
@@ -495,7 +495,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                     Vendor Cost (Internal)
                   </label>
                   <input
@@ -504,7 +504,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                     value={ledger.vendorCost}
                     onChange={(e) => ledger.setVendorCost(e.target.value)}
                     placeholder="e.g. 150000"
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                    className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
                   />
                 </div>
               </div>
@@ -514,7 +514,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={() => !ledger.isGeneratingShuttle && ledger.setShowShuttleModal(false)}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+              className="px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               disabled={ledger.isGeneratingShuttle}
             >
               Cancel
@@ -549,27 +549,27 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
             {(({ total, paid, remaining }: { total: number; paid: number; remaining: number }) => (
               <>
             {/* Summary */}
-            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm space-y-1">
+            <div className="rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-default)] p-3 text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-slate-500">Invoice</span>
-                <span className="font-semibold text-navy">{ledger.settlingInvoice.invoice_number}</span>
+                <span className="text-[var(--text-muted)]">Invoice</span>
+                <span className="font-semibold text-[var(--text-primary)]">{ledger.settlingInvoice.invoice_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Total Amount</span>
+                <span className="text-[var(--text-muted)]">Total Amount</span>
                 <span className="font-semibold">PKR {total.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Already Paid</span>
+                <span className="text-[var(--text-muted)]">Already Paid</span>
                 <span className="font-semibold text-green-700">PKR {paid.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Remaining</span>
+                <span className="text-[var(--text-muted)]">Remaining</span>
                 <span className="font-semibold text-red-600">PKR {remaining.toLocaleString()}</span>
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Amount Received (PKR)
               </label>
               <input
@@ -578,12 +578,12 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 value={ledger.settleAmount}
                 onChange={(e) => ledger.setSettleAmount(e.target.value)}
                 placeholder={`Max: PKR ${remaining.toLocaleString()}`}
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Payment Type
               </label>
               <div className="flex gap-2">
@@ -598,7 +598,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                     className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                       ledger.settlePaymentType === type
                         ? "bg-[#0c225e] text-white border-[#0c225e]"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-[#0c225e]"
+                        : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[#0c225e]"
                     }`}
                   >
                     {type === "PARTIAL" ? "Partial" : "Full / Final"}
@@ -614,25 +614,25 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
             })}
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Payment Date
               </label>
               <input
                 type="date"
                 value={ledger.settlePaymentDate}
                 onChange={(e) => ledger.setSettlePaymentDate(e.target.value)}
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Payment Method (Optional)
               </label>
               <select
                 value={ledger.settlePaymentMethod}
                 onChange={(e) => ledger.setSettlePaymentMethod(e.target.value)}
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-white"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
               >
                 <option value="">Select method...</option>
                 <option value="Bank Transfer">Bank Transfer</option>
@@ -643,7 +643,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 Notes (Optional)
               </label>
               <input
@@ -651,14 +651,14 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                 value={ledger.settleNotes}
                 onChange={(e) => ledger.setSettleNotes(e.target.value)}
                 placeholder="e.g. Cheque #12345"
-                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
               />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => !ledger.isSettling && ledger.setShowSettleModal(false)}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800"
+                className="px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 disabled={ledger.isSettling}
               >
                 Cancel
@@ -688,11 +688,11 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
       >
         <div className="space-y-4">
           {ledger.isLoadingLogs ? (
-            <div className="py-10 text-center text-slate-500">Loading history...</div>
+            <div className="py-10 text-center text-[var(--text-muted)]">Loading history...</div>
           ) : ledger.activeInvoiceLogs?.shuttle_invoice_payments?.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-slate-200">
+            <div className="overflow-hidden rounded-lg border border-[var(--border-default)]">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                <thead className="bg-[var(--bg-subtle)] text-xs font-semibold uppercase text-[var(--text-muted)]">
                   <tr>
                     <th className="px-4 py-2">Date</th>
                     <th className="px-4 py-2">Amount</th>
@@ -711,12 +711,12 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
                           year: "numeric",
                         })}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-navy">
+                      <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">
                         PKR {Number(p.amount).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{p.payment_method || "—"}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{p.notes || "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">{p.payment_method || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.notes || "—"}</td>
+                      <td className="px-4 py-3 text-[var(--text-secondary)]">
                         {p.users?.full_name || "System"}
                       </td>
                     </tr>
@@ -725,7 +725,7 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
               </table>
             </div>
           ) : (
-            <div className="py-10 text-center text-slate-500">No payment records found.</div>
+            <div className="py-10 text-center text-[var(--text-muted)]">No payment records found.</div>
           )}
 
           <div className="flex justify-end pt-2">

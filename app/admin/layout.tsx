@@ -9,6 +9,8 @@ import { ProtectedRoute } from "../lib/components/protected-route";
 import { UserRole } from "../lib/types/auth-types";
 import { Provider } from "react-redux";
 import { adminStore } from "../lib/store/admin-store";
+import { AdminThemeProvider } from "./lib/theme-context";
+import "./admin-theme.css";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -26,13 +28,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN, UserRole.INTERNAL_STAFF]} redirectTo="/admin/login">
       <Provider store={adminStore}>
-        <AdminAbilityProvider>
-          <ConfirmProvider>
-            <div data-theme="light">
-              <AdminShell>{children}</AdminShell>
-            </div>
-          </ConfirmProvider>
-        </AdminAbilityProvider>
+        <AdminThemeProvider>
+          <AdminAbilityProvider>
+            <ConfirmProvider>
+              <div className="admin-portal">
+                <AdminShell>{children}</AdminShell>
+              </div>
+            </ConfirmProvider>
+          </AdminAbilityProvider>
+        </AdminThemeProvider>
       </Provider>
     </ProtectedRoute>
   );

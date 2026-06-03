@@ -105,7 +105,7 @@ export const CompanyForm = memo(function CompanyForm({
             <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="col-span-1">
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Name</label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Company Name</label>
                         <input
                             type="text"
                             value={formData.name}
@@ -116,8 +116,8 @@ export const CompanyForm = memo(function CompanyForm({
                         />
                     </div>
                     <div className="col-span-1">
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                            Prefix <span className="text-slate-400 font-normal">(Short Name)</span>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">
+                            Prefix <span className="text-[var(--text-muted)] font-normal">(Short Name)</span>
                         </label>
                         <input
                             type="text"
@@ -131,8 +131,8 @@ export const CompanyForm = memo(function CompanyForm({
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                            Company Email <span className="text-slate-400 font-normal"></span>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">
+                            Company Email <span className="text-[var(--text-muted)] font-normal"></span>
                         </label>
                         <input
                             type="email"
@@ -144,8 +144,8 @@ export const CompanyForm = memo(function CompanyForm({
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                            Auth Email <span className="text-slate-400 font-normal"></span>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">
+                            Auth Email <span className="text-[var(--text-muted)] font-normal"></span>
                         </label>
                         <div className="flex">
                             <input
@@ -159,11 +159,11 @@ export const CompanyForm = memo(function CompanyForm({
                                 placeholder="e.g. admin-name"
                                 disabled={isSaving || !!company}
                             />
-                            <span className="flex-shrink-0 inline-flex items-center px-3 rounded-r-lg border border-l-0 border-slate-300 bg-slate-50 text-slate-500 text-sm font-medium whitespace-nowrap">
+                            <span className="flex-shrink-0 inline-flex items-center px-3 rounded-r-lg border border-l-0 border-slate-300 bg-[var(--bg-subtle)] text-[var(--text-muted)] text-sm font-medium whitespace-nowrap">
                                 @cort.com.pk
                             </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-[10px] text-[var(--text-muted)] mt-1">
                             Final Login ID: {formData.auth_email || "(Defaults to Notification Email if empty)"}
                         </p>
                     </div>
@@ -171,8 +171,8 @@ export const CompanyForm = memo(function CompanyForm({
 
                 {!company && (
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                            Password <span className="text-slate-400 font-normal">(Optional, auto-generated if empty)</span>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">
+                            Password <span className="text-[var(--text-muted)] font-normal">(Optional, auto-generated if empty)</span>
                         </label>
                         <div className="flex gap-2">
                             <input
@@ -197,7 +197,7 @@ export const CompanyForm = memo(function CompanyForm({
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Contact Person</label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Contact Person</label>
                         <input
                             type="text"
                             value={formData.contact_person}
@@ -208,7 +208,7 @@ export const CompanyForm = memo(function CompanyForm({
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">NTN</label>
+                        <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">NTN</label>
                         <input
                             type="text"
                             value={formData.ntn_number}
@@ -220,7 +220,7 @@ export const CompanyForm = memo(function CompanyForm({
                     </div>
                 </div>
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Address</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Address</label>
                     <input
                         type="text"
                         value={formData.address}
@@ -233,14 +233,14 @@ export const CompanyForm = memo(function CompanyForm({
 
                 {/* Logo Upload */}
                 <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Company Logo</label>
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Company Logo</label>
                     <div className="space-y-3">
                         {logoPreview ? (
                             <div className="relative inline-block">
                                 <img
                                     src={logoPreview}
                                     alt="Company logo preview"
-                                    className="h-24 w-24 object-cover rounded-lg border-2 border-slate-200"
+                                    className="h-24 w-24 object-cover rounded-lg border-2 border-[var(--border-default)]"
                                 />
                                 <button
                                     type="button"
@@ -273,16 +273,16 @@ export const CompanyForm = memo(function CompanyForm({
                                         Upload Logo
                                     </div>
                                 </label>
-                                <span className="text-xs text-slate-500">Max 2MB, PNG/JPG</span>
+                                <span className="text-xs text-[var(--text-muted)]">Max 2MB, PNG/JPG</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="pt-2 border-t border-gray-100">
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-2">Services</label>
+                <div className="pt-2 border-t border-[var(--border-default)]">
+                    <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-2">Services</label>
                     <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
+                        <label className="flex items-center gap-2 cursor-pointer bg-[var(--bg-subtle)] px-3 py-2 rounded-lg border border-[var(--border-default)] hover:bg-slate-100">
                             <input
                                 type="checkbox"
                                 checked={formData.is_shuttle_enabled}
@@ -290,9 +290,9 @@ export const CompanyForm = memo(function CompanyForm({
                                 className="accent-[#f47f00] w-4 h-4"
                                 disabled={isSaving}
                             />
-                            <span className="text-sm font-medium text-slate-700">Shuttle</span>
+                            <span className="text-sm font-medium text-[var(--text-secondary)]">Shuttle</span>
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-100">
+                        <label className="flex items-center gap-2 cursor-pointer bg-[var(--bg-subtle)] px-3 py-2 rounded-lg border border-[var(--border-default)] hover:bg-slate-100">
                             <input
                                 type="checkbox"
                                 checked={formData.is_chauffeur_enabled}
@@ -300,16 +300,16 @@ export const CompanyForm = memo(function CompanyForm({
                                 className="accent-[#f47f00] w-4 h-4"
                                 disabled={isSaving}
                             />
-                            <span className="text-sm font-medium text-slate-700">Chauffeur</span>
+                            <span className="text-sm font-medium text-[var(--text-secondary)]">Chauffeur</span>
                         </label>
                     </div>
                 </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <div className="mt-6 flex justify-end gap-3 border-t border-[var(--border-default)] pt-4">
                 <button
                     onClick={onCancel}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                    className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     disabled={isSaving || isUploadingLogo}
                 >
                     Cancel

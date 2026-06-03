@@ -16,7 +16,7 @@ export default function AdminDashboardPage() {
   return (
     <PermissionGate permission="dashboard">
       <AdminCan I="read" a="Dashboard">
-        <div className="min-h-screen bg-[#F8FAFC]">
+        <div className="min-h-screen bg-[var(--bg-page)]">
           <AdminDashboardContent />
         </div>
       </AdminCan>
@@ -89,8 +89,8 @@ function AdminDashboardContent() {
           <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6 text-rose-600">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-navy mb-2">Something went wrong</h2>
-          <p className="text-slate-500 mb-8 text-sm leading-relaxed">{error}</p>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Something went wrong</h2>
+          <p className="text-[var(--text-muted)] mb-8 text-sm leading-relaxed">{error}</p>
           <button 
             onClick={() => handleRefreshData('refresh')} 
             className="w-full py-3 bg-navy text-white rounded-xl font-semibold shadow-lg shadow-navy/20 hover:shadow-navy/30 transition-all hover:-translate-y-0.5"
@@ -106,12 +106,12 @@ function AdminDashboardContent() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-slate-100 border-t-navy rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-[var(--border-default)] border-t-navy rounded-full animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <LayoutDashboard className="w-6 h-6 text-navy/20" />
+            <LayoutDashboard className="w-6 h-6 text-[var(--text-primary)]/20" />
           </div>
         </div>
-        <div className="text-sm font-medium text-slate-400 animate-pulse">Initializing dashboard...</div>
+        <div className="text-sm font-medium text-[var(--text-muted)] animate-pulse">Initializing dashboard...</div>
       </div>
     );
   }
@@ -126,23 +126,23 @@ function AdminDashboardContent() {
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-navy/5 border border-navy/10">
             <span className="w-1.5 h-1.5 rounded-full bg-navy animate-pulse" />
-            <span className="text-[11px] font-bold text-navy uppercase tracking-wider">System Overview</span>
+            <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider">System Overview</span>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-navy lg:text-4xl">
-            Super Admin <span className="text-slate-400 font-light">Dashboard</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] lg:text-4xl">
+            Super Admin <span className="text-[var(--text-muted)] font-light">Dashboard</span>
           </h1>
-          <p className="text-slate-500 text-sm font-medium">Real-time financial performance and fleet metrics.</p>
+          <p className="text-[var(--text-muted)] text-sm font-medium">Real-time financial performance and fleet metrics.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm w-full sm:w-auto">
-            <div className="flex items-center gap-2 px-3 border-r border-slate-100">
-              <Calendar className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-2 bg-[var(--bg-card)] p-1.5 rounded-2xl border border-[var(--border-default)] shadow-sm w-full sm:w-auto">
+            <div className="flex items-center gap-2 px-3 border-r border-[var(--border-default)]">
+              <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => handleDateChange('start', e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold text-navy focus:ring-0 w-28"
+                className="bg-transparent border-none text-xs font-semibold text-[var(--text-primary)] focus:ring-0 w-28"
               />
             </div>
             <div className="flex items-center gap-2 px-3">
@@ -150,7 +150,7 @@ function AdminDashboardContent() {
                 type="date"
                 value={endDate}
                 onChange={(e) => handleDateChange('end', e.target.value)}
-                className="bg-transparent border-none text-xs font-semibold text-navy focus:ring-0 w-28"
+                className="bg-transparent border-none text-xs font-semibold text-[var(--text-primary)] focus:ring-0 w-28"
               />
             </div>
           </div>
@@ -171,7 +171,7 @@ function AdminDashboardContent() {
             <button
               onClick={() => handleRefreshData('refresh')}
               disabled={loading}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-navy shadow-sm hover:bg-slate-50 hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm hover:bg-[var(--bg-subtle)] hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
               title="Refresh Data"
             >
               <RefreshCcw className={`h-4 w-4 ${loading && loadingAction === 'refresh' ? 'animate-spin' : ''}`} />
@@ -182,7 +182,7 @@ function AdminDashboardContent() {
 
       {/* Critical Status Banner */}
       {stats && stats.totalUnassignedBookings > 0 && (
-        <div className="relative overflow-hidden bg-white border border-rose-100 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(225,29,72,0.1)] flex flex-col md:flex-row items-center justify-between gap-4 group">
+        <div className="relative overflow-hidden bg-[var(--bg-card)] border border-rose-100 p-6 rounded-3xl shadow-[0_10px_40px_-15px_rgba(225,29,72,0.1)] flex flex-col md:flex-row items-center justify-between gap-4 group">
           <div className="absolute top-0 right-0 p-4 -mr-6 -mt-6 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
             <AlertCircle size={140} />
           </div>
@@ -191,8 +191,8 @@ function AdminDashboardContent() {
               <AlertCircle className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-navy">Unassigned Bookings Detected</h2>
-              <p className="text-slate-500 text-sm font-medium">There are {stats.totalUnassignedBookings} bookings that require immediate driver allocation.</p>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Unassigned Bookings Detected</h2>
+              <p className="text-[var(--text-muted)] text-sm font-medium">There are {stats.totalUnassignedBookings} bookings that require immediate driver allocation.</p>
             </div>
           </div>
           <button className="px-6 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:shadow-rose-300 transition-all hover:scale-[1.02]">
@@ -240,7 +240,7 @@ function AdminDashboardContent() {
                 metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
                 type="currency"
                 overlayContent={
-                  <div className="flex flex-col bg-white w-full h-full max-h-72 rounded-2xl overflow-hidden border border-slate-100 shadow-2xl">
+                  <div className="flex flex-col bg-[var(--bg-card)] w-full h-full max-h-72 rounded-2xl overflow-hidden border border-[var(--border-default)] shadow-2xl">
                     <div className="bg-orange-50/80 backdrop-blur-sm px-5 py-4 border-b border-orange-100 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
@@ -254,15 +254,15 @@ function AdminDashboardContent() {
                             const max = Math.max(...stats.receivablesByClient.map(c => c.value));
                             const percent = (client.value / max) * 100;
                             return (
-                              <div key={i} className="px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors relative group/row">
+                              <div key={i} className="px-3 py-2.5 rounded-xl hover:bg-[var(--bg-subtle)] transition-colors relative group/row">
                                 <div className="flex justify-between items-center relative z-10 w-full gap-4">
                                   <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold text-navy truncate">{client.name}</span>
+                                    <span className="text-xs font-bold text-[var(--text-primary)] truncate">{client.name}</span>
                                     <div className="w-full mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
                                       <div className="h-full bg-orange-400 rounded-full" style={{ width: `${percent}%` }} />
                                     </div>
                                   </div>
-                                  <span className="text-xs font-extrabold text-navy/80 shrink-0">
+                                  <span className="text-xs font-extrabold text-[var(--text-primary)]/80 shrink-0">
                                     {new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(client.value)}
                                   </span>
                                 </div>
@@ -272,7 +272,7 @@ function AdminDashboardContent() {
                         </div>
                       ) : (
                         <div className="p-8 text-center">
-                          <p className="text-xs font-medium text-slate-400">No pending receivables</p>
+                          <p className="text-xs font-medium text-[var(--text-muted)]">No pending receivables</p>
                         </div>
                       )}
                     </div>
@@ -285,14 +285,14 @@ function AdminDashboardContent() {
 
           {hasDateFilter && (
             <div className="grid gap-6 sm:grid-cols-2">
-              <div className="bg-white/50 backdrop-blur-xl p-0.5 rounded-2xl border border-blue-100 shadow-xl shadow-blue-500/5 overflow-hidden">
+              <div className="bg-[var(--bg-card)]/50 backdrop-blur-xl p-0.5 rounded-2xl border border-blue-100 shadow-xl shadow-blue-500/5 overflow-hidden">
                 <MetricCard
                   label="Current Filter Total Receivable"
                   metric={{ current: stats.currentPeriodReceivables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
                   type="currency"
                 />
               </div>
-              <div className="bg-white/50 backdrop-blur-xl p-0.5 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/5 overflow-hidden">
+              <div className="bg-[var(--bg-card)]/50 backdrop-blur-xl p-0.5 rounded-2xl border border-indigo-100 shadow-xl shadow-indigo-500/5 overflow-hidden">
                 <MetricCard
                   label="Current Filter Total Payable"
                   metric={{ current: stats.currentPeriodPayables ?? 0, previous: 0, percentageChange: 0, trend: 'neutral' }}
@@ -306,7 +306,7 @@ function AdminDashboardContent() {
           <section className="space-y-6">
             <div className="flex items-center gap-3">
               <div className="h-6 w-1 bg-navy rounded-full" />
-              <h2 className="text-xl font-bold text-navy">Performance Analytics</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Performance Analytics</h2>
             </div>
             <DashboardCharts
               ridesBreakdown={stats.ridesBreakdown}
@@ -319,7 +319,7 @@ function AdminDashboardContent() {
           <section className="space-y-6">
              <div className="flex items-center gap-3">
               <div className="h-6 w-1 bg-navy rounded-full" />
-              <h2 className="text-xl font-bold text-navy">Operational Details</h2>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Operational Details</h2>
             </div>
             <DashboardTables
               revenueByClient={stats.revenueByClient}

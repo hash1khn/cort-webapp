@@ -40,16 +40,16 @@ import { ChauffeurContractRate } from "../../lib/services/api-client";
 
 const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText, disabled }: any) => (
   <label className="flex flex-col gap-1.5">
-    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
     <input
       type={type}
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+      className="h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
     />
-    {helperText && <span className="text-xs text-slate-500">{helperText}</span>}
+    {helperText && <span className="text-xs text-[var(--text-muted)]">{helperText}</span>}
   </label>
 );
 
@@ -191,15 +191,15 @@ function PricingPageContent() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0c225e]">Contracts & Pricing</h1>
-          <p className="mt-2 text-slate-500">Manage client-specific rates and contract terms with dynamic fuel price adjustments.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Contracts & Pricing</h1>
+          <p className="mt-2 text-[var(--text-muted)]">Manage client-specific rates and contract terms with dynamic fuel price adjustments.</p>
         </div>
         <label className="flex flex-col gap-1.5 min-w-[300px]">
-          <span className="text-sm font-medium text-slate-700">Select Company</span>
+          <span className="text-sm font-medium text-[var(--text-secondary)]">Select Company</span>
           <select
             value={selectedCompanyId}
             onChange={(e) => dispatch(setSelectedCompanyId(e.target.value))}
-            className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
+            className="h-11 rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] px-4 text-sm font-medium outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all"
           >
             {companies.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -211,18 +211,18 @@ function PricingPageContent() {
       {/* Global Fuel System Setting */}
       <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 flex flex-col gap-4">
         <div>
-          <h3 className="text-base font-bold text-[#0c225e]">Global Fuel Configuration</h3>
-          <p className="text-sm text-slate-600 mt-1">Set the current fuel price. Rates are calculated dynamically during invoice generation.</p>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">Global Fuel Configuration</h3>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Set the current fuel price. Rates are calculated dynamically during invoice generation.</p>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
           <label className="flex-1 min-w-[200px]">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Current Fuel Price (PKR)</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Current Fuel Price (PKR)</span>
             <input
               type="number"
               value={systemFuelPrice}
               onChange={(e) => dispatch(setSystemFuelPriceLocal(e.target.value))}
               disabled={!canUpdate}
-              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+              className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
             />
           </label>
           <button
@@ -245,18 +245,18 @@ function PricingPageContent() {
       {/* Global Diesel Rate (Shuttle Only) */}
       <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-6 flex flex-col gap-4">
         <div>
-          <h3 className="text-base font-bold text-[#0c225e]">Global Diesel Rate <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Shuttle Only</span></h3>
-          <p className="text-sm text-slate-600 mt-1">Set the current diesel price used for shuttle route rows marked as Diesel. Adjusted dynamically at invoice generation.</p>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">Global Diesel Rate <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Shuttle Only</span></h3>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Set the current diesel price used for shuttle route rows marked as Diesel. Adjusted dynamically at invoice generation.</p>
         </div>
         <div className="flex items-end gap-3 flex-wrap">
           <label className="flex-1 min-w-[200px]">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Current Diesel Price (PKR)</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Current Diesel Price (PKR)</span>
             <input
               type="number"
               value={systemDieselPrice}
               onChange={(e) => dispatch(setSystemDieselPriceLocal(e.target.value))}
               disabled={!canUpdate}
-              className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+              className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
             />
           </label>
           <button
@@ -274,19 +274,19 @@ function PricingPageContent() {
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-6">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h3 className="text-lg font-bold text-[#0c225e]">Rate Adjustment Preview</h3>
-              <p className="text-sm text-slate-600 mt-1">How rates will be adjusted at fuel price: PKR {systemFuelPrice}</p>
+              <h3 className="text-lg font-bold text-[var(--text-primary)]">Rate Adjustment Preview</h3>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">How rates will be adjusted at fuel price: PKR {systemFuelPrice}</p>
             </div>
-            <button onClick={() => dispatch(setShowPreview(false))} className="text-slate-400 hover:text-slate-600">✕</button>
+            <button onClick={() => dispatch(setShowPreview(false))} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">✕</button>
           </div>
           {previewData && previewData.length > 0 && (
             <div className="space-y-4">
               {previewData.map((item: any, idx: number) => (
-                <div key={idx} className="bg-white rounded-lg p-4 border border-slate-200">
+                <div key={idx} className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-default)]">
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-[#0c225e]">{item.company?.name || 'Company'}</h4>
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
+                      <h4 className="font-bold text-[var(--text-primary)]">{item.company?.name || 'Company'}</h4>
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-[var(--text-secondary)]">
                         {item.type === 'shuttle' ? 'Shuttle' : 'Chauffeur'}
                       </span>
                     </div>
@@ -305,26 +305,26 @@ function PricingPageContent() {
                   {/* Petrol row */}
                   <div className="grid grid-cols-2 gap-2 text-sm mb-2 bg-blue-50/50 rounded p-2">
                     <div className="col-span-2 text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">Petrol</div>
-                    <div><span className="text-slate-500">Base Fuel Price:</span> <span className="font-semibold">PKR {Number(item.contract.fuel_base_price).toFixed(0)}</span></div>
-                    <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
-                    <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-orange-600">{(Number(item.calculation.percent_change) * 100).toFixed(2)}%</span></div>
-                    <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.calculation.multiplier).toFixed(4)}x</span></div>
+                    <div><span className="text-[var(--text-muted)]">Base Fuel Price:</span> <span className="font-semibold">PKR {Number(item.contract.fuel_base_price).toFixed(0)}</span></div>
+                    <div><span className="text-[var(--text-muted)]">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
+                    <div><span className="text-[var(--text-muted)]">Price Change:</span> <span className="font-semibold text-orange-600">{(Number(item.calculation.percent_change) * 100).toFixed(2)}%</span></div>
+                    <div><span className="text-[var(--text-muted)]">Multiplier:</span> <span className="font-semibold">{Number(item.calculation.multiplier).toFixed(4)}x</span></div>
                   </div>
 
                   {/* Diesel row (shuttle only, when diesel_base_price is set) */}
                   {item.type === 'shuttle' && item.diesel_calculation && (
                     <div className="grid grid-cols-2 gap-2 text-sm mb-3 bg-amber-50/50 rounded p-2">
                       <div className="col-span-2 text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Diesel</div>
-                      <div><span className="text-slate-500">Base Diesel Price:</span> <span className="font-semibold">PKR {Number(item.diesel_calculation.diesel_base_price).toFixed(0)}</span></div>
-                      <div><span className="text-slate-500">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
-                      <div><span className="text-slate-500">Price Change:</span> <span className="font-semibold text-amber-600">{(Number(item.diesel_calculation.percent_change) * 100).toFixed(2)}%</span></div>
-                      <div><span className="text-slate-500">Multiplier:</span> <span className="font-semibold">{Number(item.diesel_calculation.multiplier).toFixed(4)}x</span></div>
+                      <div><span className="text-[var(--text-muted)]">Base Diesel Price:</span> <span className="font-semibold">PKR {Number(item.diesel_calculation.diesel_base_price).toFixed(0)}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Threshold:</span> <span className="font-semibold">{item.contract.revision_percentage != null ? `${(Number(item.contract.revision_percentage) * 100).toFixed(1)}%` : 'No Limit'}</span></div>
+                      <div><span className="text-[var(--text-muted)]">Price Change:</span> <span className="font-semibold text-amber-600">{(Number(item.diesel_calculation.percent_change) * 100).toFixed(2)}%</span></div>
+                      <div><span className="text-[var(--text-muted)]">Multiplier:</span> <span className="font-semibold">{Number(item.diesel_calculation.multiplier).toFixed(4)}x</span></div>
                     </div>
                   )}
                   {(item.type !== 'shuttle') && item.rates?.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-[var(--bg-subtle)]">
                           <tr>
                             <th className="px-2 py-2 text-left">Vehicle</th>
                             <th className="px-2 py-2 text-right">Base Cost/KM</th>
@@ -348,7 +348,7 @@ function PricingPageContent() {
                   {item.type === 'shuttle' && item.routes?.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-[var(--bg-subtle)]">
                           <tr>
                             <th className="px-2 py-2 text-left">Particulars</th>
                             <th className="px-2 py-2 text-left">Vehicle Type</th>
@@ -378,7 +378,7 @@ function PricingPageContent() {
         </div>
       )}
 
-      {isLoading && <div className="p-12 text-center text-slate-500">Loading...</div>}
+      {isLoading && <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>}
 
       {!isLoading && currentCompany && (
         <>
@@ -386,10 +386,10 @@ function PricingPageContent() {
           {currentCompany.is_chauffeur_enabled ? (
             <div className="flex flex-col gap-6">
               {/* Contract Settings */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-6 border-b border-slate-100 pb-4">
-                  <h2 className="text-lg font-bold text-[#0c225e]">Chauffeur Contract Terms</h2>
-                  <p className="text-sm text-slate-500">Global settings for this company.</p>
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-6 shadow-sm">
+                <div className="mb-6 border-b border-[var(--border-default)] pb-4">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)]">Chauffeur Contract Terms</h2>
+                  <p className="text-sm text-[var(--text-muted)]">Global settings for this company.</p>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <Input
@@ -418,12 +418,12 @@ function PricingPageContent() {
                     disabled={!canUpdate}
                   />
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Contract Duration</span>
                     <select
                       value={globalSettings.contractDuration}
                       onChange={(e) => dispatch(setGlobalSettings({ contractDuration: e.target.value }))}
                       disabled={!canUpdate}
-                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+                      className="h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-[var(--bg-card)] disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
                     >
                       <option value="">Select Duration</option>
                       <option value="6 Months">6 Months</option>
@@ -444,14 +444,14 @@ function PricingPageContent() {
               </div>
 
               {/* Rates Table */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
+                <div className="border-b border-[var(--border-default)] bg-[var(--bg-subtle)]/50 px-6 py-4 flex justify-between items-center">
                   <div>
-                    <h2 className="text-base font-bold text-[#0c225e]">Vehicle Rates</h2>
-                    <p className="text-xs text-slate-500 mt-1">Base rates - actual billing rates calculated dynamically.</p>
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Vehicle Rates</h2>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Base rates - actual billing rates calculated dynamically.</p>
                   </div>
                   <div className="flex gap-3">
-                    <label className="flex items-center gap-2 text-sm text-slate-600 mr-2 cursor-pointer select-none">
+                    <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] mr-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={showMarketRates}
@@ -464,7 +464,7 @@ function PricingPageContent() {
                     <button
                       onClick={() => dispatch(addRateRow())}
                       disabled={!canAddRows}
-                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 px-3 disabled:opacity-50 disabled:pointer-events-none"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-[var(--bg-card)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] px-3 disabled:opacity-50 disabled:pointer-events-none"
                     >
                       + Add Vehicle
                     </button>
@@ -480,7 +480,7 @@ function PricingPageContent() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                    <thead className="bg-[var(--bg-subtle)] text-xs uppercase font-semibold text-[var(--text-muted)]">
                       <tr>
                         <th className="px-6 py-4 min-w-[200px]">Vehicle Model</th>
                         <th className="px-4 py-4 min-w-[120px]">Cost/KM (PKR)</th>
@@ -496,16 +496,16 @@ function PricingPageContent() {
                     <tbody className="divide-y divide-slate-100">
                       {rateRows.length === 0 ? (
                         <tr>
-                          <td colSpan={11} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={11} className="px-6 py-12 text-center text-[var(--text-muted)]">
                             No rates configured. Click "Add Vehicle" to start.
                           </td>
                         </tr>
                       ) : rateRows.map((row, idx) => (
-                        <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
+                        <tr key={row.id || row.tempId} className="hover:bg-[var(--bg-subtle)]/50">
                           <td className="px-6 py-3">
                             <input
                               disabled={!canUpdate}
-                              className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
+                              className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
                               value={row.vehicle_model}
                               onChange={e => dispatch(updateRateRow({ index: idx, field: 'vehicle_model', value: e.target.value }))}
                               placeholder="e.g. Honda City"
@@ -513,7 +513,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'cost_per_km', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'cost_per_km', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_cost_per_km} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_cost_per_km', value: e.target.value }))} placeholder="Market" />
@@ -524,7 +524,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_5hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_5hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_5hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_5hr', value: e.target.value }))} placeholder="Market" />
@@ -535,7 +535,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_10hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_10hr', value: e.target.value }))} placeholder="Market" />
@@ -546,7 +546,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_24hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_spot_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_spot_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_spot_24hr', value: e.target.value }))} placeholder="Market" />
@@ -557,7 +557,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_10hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_10hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_10hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_10hr', value: e.target.value }))} placeholder="Market" />
@@ -568,7 +568,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_24hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_monthly_24hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_monthly_24hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_monthly_24hr', value: e.target.value }))} placeholder="Market" />
@@ -579,7 +579,7 @@ function PricingPageContent() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1">
-                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-slate-200 px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_overtime_per_hr', value: e.target.value }))} placeholder="Contract" />
+                              <input disabled={!canUpdate} className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm" value={row.rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'rate_overtime_per_hr', value: e.target.value }))} placeholder="Contract" />
                               {showMarketRates && (
                                 <>
                                   <input disabled={!canUpdate} className="w-full h-9 rounded border border-orange-200 bg-orange-50 px-2 text-sm" value={row.market_rate_overtime_per_hr} onChange={e => dispatch(updateRateRow({ index: idx, field: 'market_rate_overtime_per_hr', value: e.target.value }))} placeholder="Market" />
@@ -610,10 +610,10 @@ function PricingPageContent() {
           {currentCompany.is_shuttle_enabled && (
             <div className="flex flex-col gap-6 mt-6">
               {/* Shuttle Contract Settings */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-6 border-b border-slate-100 pb-4">
-                  <h2 className="text-lg font-bold text-[#0c225e]">Shuttle Contract Terms</h2>
-                  <p className="text-sm text-slate-500">
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-6 shadow-sm">
+                <div className="mb-6 border-b border-[var(--border-default)] pb-4">
+                  <h2 className="text-lg font-bold text-[var(--text-primary)]">Shuttle Contract Terms</h2>
+                  <p className="text-sm text-[var(--text-muted)]">
                     Monthly shuttle contract settings for this company. Fuel cost per vehicle is adjusted using the same
                     fuel revision logic as chauffeur contracts.
                   </p>
@@ -648,12 +648,12 @@ function PricingPageContent() {
                     disabled={!canUpdate}
                   />
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Contract Duration</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Contract Duration</span>
                     <select
                       value={shuttleSettings.contractDuration}
                       onChange={(e) => dispatch(setShuttleSettings({ contractDuration: e.target.value }))}
                       disabled={!canUpdate}
-                      className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-white disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-70"
+                      className="h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all bg-[var(--bg-card)] disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
                     >
                       <option value="">Select Duration</option>
                       <option value="6 Months">6 Months</option>
@@ -674,11 +674,11 @@ function PricingPageContent() {
               </div>
 
               {/* Shuttle Route Rates */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-between items-center">
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] shadow-sm overflow-hidden">
+                <div className="border-b border-[var(--border-default)] bg-[var(--bg-subtle)]/50 px-6 py-4 flex justify-between items-center">
                   <div>
-                    <h2 className="text-base font-bold text-[#0c225e]">Shuttle Route Rates</h2>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <h2 className="text-base font-bold text-[var(--text-primary)]">Shuttle Route Rates</h2>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
                       Fixed monthly service & fuel cost per vehicle for each shuttle leg.
                     </p>
                   </div>
@@ -686,7 +686,7 @@ function PricingPageContent() {
                     <button
                       onClick={() => dispatch(addShuttleRouteRow())}
                       disabled={!canAddRows}
-                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-[var(--bg-card)] px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] disabled:opacity-50 disabled:pointer-events-none"
                     >
                       + Add Shuttle Route
                     </button>
@@ -702,7 +702,7 @@ function PricingPageContent() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                    <thead className="bg-[var(--bg-subtle)] text-xs uppercase font-semibold text-[var(--text-muted)]">
                       <tr>
                         <th className="px-6 py-4 min-w-[220px]">Particulars</th>
                         <th className="px-4 py-4 min-w-[120px]">Vehicle Type</th>
@@ -718,17 +718,17 @@ function PricingPageContent() {
                     <tbody className="divide-y divide-slate-100">
                       {shuttleRouteRows.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                          <td colSpan={9} className="px-6 py-12 text-center text-[var(--text-muted)]">
                             No shuttle routes configured. Click &quot;Add Shuttle Route&quot; to start.
                           </td>
                         </tr>
                       ) : (
                         shuttleRouteRows.map((row, idx) => (
-                          <tr key={row.id || row.tempId} className="hover:bg-slate-50/50">
+                          <tr key={row.id || row.tempId} className="hover:bg-[var(--bg-subtle)]/50">
                             <td className="px-6 py-3">
                               <input
                                 disabled={!canUpdate}
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm focus:border-blue-500 focus:outline-none placeholder:text-slate-300"
                                 value={row.particulars || ""}
                                 onChange={(e) =>
                                   dispatch(
@@ -744,7 +744,7 @@ function PricingPageContent() {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm"
                                 value={row.vehicle_type || ""}
                                 onChange={(e) =>
                                   dispatch(
@@ -761,7 +761,7 @@ function PricingPageContent() {
                             <td className="px-4 py-3">
                               <select
                                 disabled={!canUpdate}
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm bg-white focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm bg-[var(--bg-card)] focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                                 value={row.fuel_type || "PETROL"}
                                 onChange={(e) =>
                                   dispatch(
@@ -782,7 +782,7 @@ function PricingPageContent() {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm"
                                 value={row.fixed_cost_per_vehicle || ""}
                                 onChange={(e) =>
                                   dispatch(
@@ -798,7 +798,7 @@ function PricingPageContent() {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm"
                                 value={row.fuel_cost_per_vehicle || ""}
                                 onChange={(e) =>
                                   dispatch(
@@ -815,7 +815,7 @@ function PricingPageContent() {
                             <td className="px-4 py-3">
                               <select
                                 disabled={!canUpdate}
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm bg-white focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm bg-[var(--bg-card)] focus:border-[#f47f00] focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                                 value={row.billing_type || "MONTHLY"}
                                 onChange={(e) =>
                                   dispatch(
@@ -837,7 +837,7 @@ function PricingPageContent() {
                             <td className="px-4 py-3">
                               <input
                                 disabled={!canUpdate}
-                                className="w-full h-9 rounded border border-slate-200 px-2 text-sm placeholder:text-slate-300 disabled:opacity-70"
+                                className="w-full h-9 rounded border border-[var(--border-default)] px-2 text-sm placeholder:text-slate-300 disabled:opacity-70"
                                 value={row.scheduled_days || ""}
                                 onChange={(e) =>
                                   dispatch(
@@ -855,7 +855,7 @@ function PricingPageContent() {
                               <input
                                 type="number"
                                 disabled={!canUpdate}
-                                className="w-20 h-9 rounded border border-slate-200 px-2 text-sm text-center"
+                                className="w-20 h-9 rounded border border-[var(--border-default)] px-2 text-sm text-center"
                                 value={row.quantity ?? 0}
                                 onChange={(e) =>
                                   dispatch(

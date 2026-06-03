@@ -1,48 +1,71 @@
 import React, { memo } from "react";
+import {
+  adminModalBody,
+  adminModalHeader,
+  adminModalShell,
+  adminModalTitle,
+} from "./admin-styles";
+import { cx } from "./cx";
 
 export const Modal = memo(function Modal({
-    isOpen,
-    onClose,
-    title,
-    children,
-    size = "md",
-    priority = "default",
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = "md",
+  priority = "default",
 }: {
-    isOpen: boolean;
-    onClose: () => void;
-    title: string;
-    children: React.ReactNode;
-    size?: "sm" | "md" | "lg" | "xl";
-    /** Use elevated when stacking above another open modal (e.g. image zoom). */
-    priority?: "default" | "elevated" | "high";
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: "sm" | "md" | "lg" | "xl";
+  /** Use elevated when stacking above another open modal (e.g. image zoom). */
+  priority?: "default" | "elevated" | "high";
 }) {
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const sizeClass =
-        size === "sm"
-            ? "max-w-md"
-            : size === "lg"
-              ? "max-w-2xl"
-              : size === "xl"
-                ? "max-w-4xl"
-                : "max-w-lg";
+  const sizeClass =
+    size === "sm"
+      ? "max-w-md"
+      : size === "lg"
+        ? "max-w-2xl"
+        : size === "xl"
+          ? "max-w-4xl"
+          : "max-w-lg";
 
-    const zClass =
-        priority === "high" ? "z-[70]" : priority === "elevated" ? "z-[60]" : "z-50";
+  const zClass =
+    priority === "high" ? "z-[70]" : priority === "elevated" ? "z-[60]" : "z-50";
 
-    return (
-        <div className={`fixed inset-0 ${zClass} flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto`}>
-            <div className={`relative w-full ${sizeClass} rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in duration-200 my-auto`}>
-                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 sticky top-0 bg-white rounded-t-xl z-10">
-                    <h3 className="text-lg font-bold text-[#0c225e]">{title}</h3>
-                    <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 text-gray-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                </div>
-                <div className="p-6 max-h-[80vh] overflow-y-auto">
-                    {children}
-                </div>
-            </div>
+  return (
+    <div
+      className={`fixed inset-0 ${zClass} flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto`}
+    >
+      <div className={cx(adminModalShell, sizeClass)}>
+        <div className={adminModalHeader}>
+          <h3 className={adminModalTitle}>{title}</h3>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--row-hover)] hover:text-[var(--text-primary)]"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-    );
+        <div className={adminModalBody}>{children}</div>
+      </div>
+    </div>
+  );
 });

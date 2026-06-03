@@ -37,6 +37,13 @@ Super-admin-only routes use `SuperAdminPage` (e.g. Staff & Permissions).
 
 - CRUD modals: `admin/components/ui/Modal.tsx`
 - Routes / maps: `admin/ui/` (Button, Card, Map, etc.)
+- Theme-aware class helpers: `admin/components/ui/admin-styles.ts` — prefer these over `bg-white` / `text-gray-*`
+
+## Theme & layout
+
+- Dark/light toggle: sidebar footer (Sun/Moon icon). Preference stored in `localStorage` key `cort-admin-theme` (default: light).
+- Desktop sidebar collapse: chevron on sidebar edge; state stored in `cort-admin-sidebar-collapsed`.
+- Use CSS variables (`var(--bg-card)`, `var(--text-primary)`, etc.) or `admin-styles.ts` helpers for new UI. Legacy pages are bridged via `admin-theme.css` in dark mode.
 
 ## Leads
 
