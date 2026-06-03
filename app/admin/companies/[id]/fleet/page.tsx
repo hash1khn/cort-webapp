@@ -4,6 +4,8 @@ import { use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { FleetEfficiencyPanel } from '@/app/admin/components/FleetEfficiencyPanel';
+import { AdminProtectedPage } from '@/app/admin/components/AdminProtectedPage';
+import { ADMIN_SUBJECTS } from '@/app/lib/abilities/admin-subjects';
 
 export default function CompanyFleetPage({
   params,
@@ -14,6 +16,7 @@ export default function CompanyFleetPage({
   const companyId = parseInt(id, 10);
 
   return (
+    <AdminProtectedPage permission="company_features" subject={ADMIN_SUBJECTS.company_features}>
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 flex items-center gap-3">
@@ -31,5 +34,6 @@ export default function CompanyFleetPage({
         <FleetEfficiencyPanel companyId={companyId} />
       </div>
     </div>
+    </AdminProtectedPage>
   );
 }

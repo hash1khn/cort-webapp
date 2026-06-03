@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/contexts/auth-context";
 import { apiClient } from "../../lib/services/api-client";
 import { Users } from "lucide-react";
+import { AdminProtectedPage } from "../components/AdminProtectedPage";
+import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 
 type LandingLead = {
   id: number;
@@ -21,17 +21,17 @@ type LandingLead = {
 };
 
 export default function AdminLeadsPage() {
-  const { isSuperAdmin, loading: authLoading } = useAuth();
-  const router = useRouter();
+  return (
+    <AdminProtectedPage permission="dashboard" subject={ADMIN_SUBJECTS.dashboard}>
+      <LeadsContent />
+    </AdminProtectedPage>
+  );
+}
+
+function LeadsContent() {
   const [leads, setLeads] = useState<LandingLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!authLoading && !isSuperAdmin) {
-      router.replace("/admin");
-    }
-  }, [authLoading, isSuperAdmin, router]);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -48,18 +48,8 @@ export default function AdminLeadsPage() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && isSuperAdmin) {
-      void fetchLeads();
-    }
-  }, [authLoading, isSuperAdmin, fetchLeads]);
-
-  if (authLoading || (!authLoading && !isSuperAdmin)) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-navy border-t-transparent" />
-      </div>
-    );
-  }
+    void fetchLeads();
+  }, [fetchLeads]);
 
   return (
     <div className="flex flex-col gap-6 p-6">

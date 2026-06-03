@@ -23,6 +23,7 @@ import { VehicleFormInline, type VehicleFormData } from "./components/VehicleFor
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 export default function VehiclesPage() {
     return (
@@ -48,7 +49,7 @@ function VehiclesPageContent() {
     const pagination = useAppSelector(selectAdminVehiclesPagination);
 
     const [search, setSearch] = useState(savedFilters.search);
-    const [debouncedSearch, setDebouncedSearch] = useState(savedFilters.search);
+    const debouncedSearch = useDebounce(search, 500);
 
     // Filters - Initialize from Redux
     const [category, setCategory] = useState<string>(savedFilters.category);
@@ -56,14 +57,6 @@ function VehiclesPageContent() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-
-    // Debounce search
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 500);
-        return () => clearTimeout(handler);
-    }, [search]);
 
     // Primary Data Fetching Effect
     useEffect(() => {

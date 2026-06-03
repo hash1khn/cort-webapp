@@ -1,0 +1,443 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
+import { apiClient, Company, Employee } from "../../../../lib/services/api-client";
+import { CompanyFeature, CompanyVendorLink, ExternalVendor } from "../../../../lib/services/types/multi-mode";
+import { useAdminAbility } from "../../../../lib/abilities/AdminAbilityProvider";
+import { ADMIN_SUBJECTS } from "../../../../lib/abilities/admin-subjects";
+import { useAuth } from "../../../../lib/contexts/auth-context";
+import { useConfirm } from "../../../../lib/hooks/useConfirm";
+
+export function useCompanyDetail(id: string) {
+  const confirm = useConfirm();
+  const ability = useAdminAbility();
+  const { hasCrud } = useAuth();
+    const canCreate = ability.can("create", ADMIN_SUBJECTS.companies);
+    const canUpdate = ability.can("update", ADMIN_SUBJECTS.companies);
+    const canViewPricing = hasCrud("pricing", "read");
+
+    const [company, setCompany] = useState<Company | null>(null);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const [activeTab, setActiveTab] = useState<"employees" | "services" | "whitelisting">("employees");
+    const [linkContext, setLinkContext] = useState<'chauffeur' | 'shuttle' | 'general'>('general');
+
+    // Feature flags state
+    const [features, setFeatures] = useState<CompanyFeature[]>([]);
+    const [featuresLoading, setFeaturesLoading] = useState(false);
+    const [trackerForm, setTrackerForm] = useState({ api_endpoint: "", api_key: "" });
+    const [trackerSaving, setTrackerSaving] = useState(false);
+    const [pendingToggleKeys, setPendingToggleKeys] = useState<string[]>([]);
+
+    // External vendors tab state
+    const [companyVendorLinks, setCompanyVendorLinks] = useState<CompanyVendorLink[]>([]);
+    const [vendorsLoading, setVendorsLoading] = useState(false);
+    const [allVendors, setAllVendors] = useState<ExternalVendor[]>([]);
+    const [showLinkModal, setShowLinkModal] = useState(false);
+    const [linkSaving, setLinkSaving] = useState(false);
+    const [linkForm, setLinkForm] = useState({ vendor_id: 0, serves_chauffeur: false, serves_shuttle: false });
+
+    // Employee Modal
+    const [isEmpModalOpen, setIsEmpModalOpen] = useState(false);
+    const [newEmpName, setNewEmpName] = useState("");
+    const [newEmpEmail, setNewEmpEmail] = useState("");
+    const [newEmpPhone, setNewEmpPhone] = useState("");
+    const [newEmpPassword, setNewEmpPassword] = useState("");
+
+    // Benchmarks Modal
+    const [isBenchmarksModalOpen, setIsBenchmarksModalOpen] = useState(false);
+    const [newEmpId, setNewEmpId] = useState("");
+    const [newEmpDepartment, setNewEmpDepartment] = useState("");
+    const [isCreatingEmp, setIsCreatingEmp] = useState(false);
+    const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+
+    // Hardcoded for now - list of all possible vehicle models
+    const availableVehicleModels = [
+        "Toyota Corolla", "Honda Civic", "Suzuki Alto", "Suzuki Cultus", "Kia Sportage", "Hyundai Tucson"
+    ];
+
+    const fetchCompanyData = async () => {
+        try {
+            setIsLoading(true);
+            const companyRes = await apiClient.getCompany(id);
+            setCompany(companyRes.data);
+
+            const employeesRes = await apiClient.getEmployees({ company_id: Number(id), limit: 100 });
+            setEmployees(employeesRes.data.data);
+            setError(null);
+        } catch (err: any) {
+            console.error("Failed to load company data:", err);
+            setError("Failed to load company details. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCompanyData();
+    }, [id]);
+
+    const fetchFeatures = useCallback(async () => {
+        setFeaturesLoading(true);
+        try {
+            const res = await apiClient.getCompanyFeatures(Number(id));
+            setFeatures(res.data);
+            const tracker = res.data.find((f) => f.feature_key === "tracker_api_integration");
+            if (tracker?.config) {
+                setTrackerForm({
+                    api_endpoint: (tracker.config.api_endpoint as string) ?? "",
+                    api_key: (tracker.config.api_key as string) ?? "",
+                });
+            }
+        } catch {
+            // silently ignore
+        } finally {
+            setFeaturesLoading(false);
+        }
+    }, [id]);
+
+    const fetchCompanyVendors = useCallback(async () => {
+        setVendorsLoading(true);
+        try {
+            const res = await apiClient.getCompanyExternalVendors(Number(id));
+            setCompanyVendorLinks(res.data);
+        } catch {
+            // silently ignore
+        } finally {
+            setVendorsLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        if (activeTab === "services") {
+            fetchFeatures();
+            fetchCompanyVendors();
+        }
+    }, [activeTab, fetchFeatures, fetchCompanyVendors]);
+
+    const isTogglePending = (key: string) => pendingToggleKeys.includes(key);
+
+    const runWithTogglePending = async (key: string, action: () => Promise<void>) => {
+        setPendingToggleKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+        try {
+            await action();
+        } finally {
+            setPendingToggleKeys((prev) => prev.filter((item) => item !== key));
+        }
+    };
+
+    const toggleFeature = async (feature_key: string, is_enabled: boolean) => {
+        await runWithTogglePending(`feature:${feature_key}`, async () => {
+            try {
+                await apiClient.upsertCompanyFeature(Number(id), { feature_key, is_enabled });
+                setFeatures((prev) => prev.map((f) => f.feature_key === feature_key ? { ...f, is_enabled } : f));
+                toast.success(`${feature_key.replace(/_/g, " ")} ${is_enabled ? "enabled" : "disabled"}`);
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed to update feature");
+            }
+        });
+    };
+
+    const saveTrackerConfig = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setTrackerSaving(true);
+        try {
+            await apiClient.upsertTrackerConfig(Number(id), { api_endpoint: trackerForm.api_endpoint, api_key: trackerForm.api_key });
+            toast.success("Tracker config saved");
+        } catch {
+            toast.error("Failed to save tracker config");
+        } finally {
+            setTrackerSaving(false);
+        }
+    };
+
+    const handleLinkVendor = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!linkForm.vendor_id) return;
+        try {
+            setLinkSaving(true);
+            await apiClient.createVendorLink(linkForm.vendor_id, {
+                company_id: Number(id),
+                serves_chauffeur: linkForm.serves_chauffeur,
+                serves_shuttle: linkForm.serves_shuttle,
+            });
+            toast.success("Vendor link saved");
+            setShowLinkModal(false);
+            fetchCompanyVendors();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to link vendor");
+        } finally {
+            setLinkSaving(false);
+        }
+    };
+
+    const updateLink = async (linkId: number, dto: { serves_chauffeur?: boolean; serves_shuttle?: boolean; is_active?: boolean }) => {
+        try {
+            await apiClient.updateVendorLink(linkId, dto);
+            fetchCompanyVendors();
+            toast.success("Link updated");
+        } catch {
+            toast.error("Failed to update link");
+        }
+    };
+
+    const removeLink = async (linkId: number) => {
+        const ok = await confirm({ message: "Remove this vendor link?", destructive: true, confirmLabel: "Remove" });
+        if (!ok) return;
+        try {
+            await apiClient.removeVendorLink(linkId);
+            fetchCompanyVendors();
+            toast.success("Link removed");
+        } catch {
+            toast.error("Failed to remove link");
+        }
+    };
+
+    const openLinkModal = (context: 'chauffeur' | 'shuttle' | 'general' = 'general') => {
+        setLinkContext(context);
+        setLinkForm({
+            vendor_id: 0,
+            serves_chauffeur: context === 'chauffeur',
+            serves_shuttle: context === 'shuttle',
+        });
+        setShowLinkModal(true);
+        // Load vendor list in background — modal is already visible
+        apiClient.getExternalVendors({ limit: 100 })
+            .then(res => setAllVendors(res.data.data))
+            .catch(() => toast.error("Failed to load vendors"));
+    };
+
+    // -- Handlers --
+
+    const handleCreateEmployee = async () => {
+        if (!newEmpName.trim() || !company) return;
+        try {
+            setIsCreatingEmp(true);
+            await apiClient.createEmployee({
+                company_id: company.id,
+                full_name: newEmpName,
+                email: newEmpEmail,
+                phone: newEmpPhone,
+                password: newEmpPassword || undefined,
+                employee_id: newEmpId || undefined,
+                department: newEmpDepartment || undefined,
+            });
+            await fetchCompanyData(); // Refresh list
+            setNewEmpName("");
+            setNewEmpEmail("");
+            setNewEmpPhone("");
+            setNewEmpPassword("");
+            setNewEmpPassword("");
+            setNewEmpId("");
+            setNewEmpDepartment("");
+            setIsEmpModalOpen(false);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to create employee");
+        } finally {
+            setIsCreatingEmp(false);
+        }
+    };
+
+    const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0 || !company) return;
+
+        const file = e.target.files[0];
+        setIsUploadingCsv(true);
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+
+            // Simple CSV Parser
+            // Expected headers: full_name, email, phone, employee_id, department
+            const lines = text.split(/\r?\n/);
+            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+            const employeesToCreate: any[] = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const values = line.split(',');
+                // Basic mapping
+                const emp: any = { company_id: company.id };
+                headers.forEach((h, index) => {
+                    const val = values[index]?.trim();
+                    if (val) emp[h] = val;
+                });
+
+                if (emp.email && emp.full_name) {
+                    employeesToCreate.push(emp);
+                }
+            }
+
+            if (employeesToCreate.length === 0) {
+                toast.error("No valid rows found in CSV. Headers should include: full_name, email, phone, employee_id, department");
+                setIsUploadingCsv(false);
+                return;
+            }
+
+            try {
+                const result = await apiClient.bulkCreateEmployees(employeesToCreate);
+                const { successful, failed } = result.data;
+
+                let message = `Processed ${employeesToCreate.length} rows.\n\nSuccessful: ${successful.length}`;
+                if (failed.length > 0) {
+                    message += `\nFailed: ${failed.length}\n\nFailures:\n` + failed.map(f => `${f.email}: ${f.reason}`).join('\n');
+                }
+
+                toast.error(message);
+                await fetchCompanyData();
+            } catch (err: any) {
+                console.error(err);
+                toast.error("Failed to upload CSV: " + err.message);
+            } finally {
+                setIsUploadingCsv(false);
+                e.target.value = ""; // Reset input
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleToggleStatus = async (emp: Employee) => {
+        try {
+            const nextStatus = emp.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+            // Optimistic update
+            setEmployees(employees.map(e => e.id === emp.id ? { ...e, status: nextStatus } : e));
+            await apiClient.updateEmployee(emp.id, { status: nextStatus });
+        } catch (err: any) {
+            console.error("Failed to update status:", err);
+            // Revert on error
+            setEmployees(employees.map(e => e.id === emp.id ? { ...e, status: emp.status } : e));
+            toast.error("Failed to update status");
+        }
+    };
+
+    const handleExportCredentials = () => {
+        if (!company) return;
+        // This only exports currently loaded employees, basic info.
+        // Backend generated passwords are NOT stored in plain text, so we can't export them unless we captured them at creation.
+        // Credentials export usually implies recent batch creation. For now, we export what we have.
+        const lines = [
+            `Company: ${company.name}`,
+            `Generated: ${new Date().toLocaleString()}`,
+            "",
+            "employee_id,full_name,email,phone,department,status",
+            ...employees.map(e =>
+                [e.employee_id, e.full_name, e.email, e.phone, e.department || "", e.status].join(",")
+            )
+        ];
+
+        const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `cort-${company.name}-employees.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const toggleService = async (service: 'shuttle' | 'chauffeur') => {
+        if (!company) return;
+        const key = service === 'shuttle' ? 'is_shuttle_enabled' : 'is_chauffeur_enabled';
+        const newVal = !company[key];
+
+        // Optimistic
+        setCompany({ ...company, [key]: newVal });
+
+        await runWithTogglePending(`service:${key}`, async () => {
+            try {
+                await apiClient.updateCompany(company.id, { [key]: newVal });
+            } catch (err) {
+                setCompany({ ...company, [key]: !newVal }); // Revert
+                toast.error("Failed to update settings");
+            }
+        });
+    };
+
+    const updateCompanyField = async (field: 'is_cort_managed' | 'is_external_vendor_managed' | 'is_own_pooled_cars_managed', newVal: boolean) => {
+        if (!company) return;
+        const prev = company[field];
+        setCompany({ ...company, [field]: newVal });
+
+        await runWithTogglePending(`company:${field}`, async () => {
+            try {
+                await apiClient.updateCompany(company.id, { [field]: newVal });
+            } catch {
+                setCompany({ ...company, [field]: prev }); // Revert
+                toast.error("Failed to update settings");
+            }
+        });
+    };
+
+    const toggleVehicleModel = async (model: string) => {
+        if (!company) return;
+        const currentWhitelists = company.vehicle_whitelists || [];
+        const currentModels = currentWhitelists.map(w => w.allowed_vehicle_model);
+        const exists = currentModels.includes(model);
+
+        const nextModels = exists
+            ? currentModels.filter(m => m !== model)
+            : [...currentModels, model];
+
+        // Optimistic update locally requires faking the whitelist structure
+        // But since API expects models array, we perform API call then refresh or just standard optimistic UI
+        // Let's do API call then refresh for safety on complex relations
+
+        try {
+            await apiClient.updateCompany(company.id, { allowed_vehicle_models: nextModels });
+            // Manually update local state to reflect change without full fetch if possible, or just fetch
+            // Construct fake whitelist objects for local state
+            const newWhitelists = nextModels.map(m => ({ id: 0, company_id: company.id, allowed_vehicle_model: m }));
+            setCompany({ ...company, vehicle_whitelists: newWhitelists });
+        } catch (err: any) {
+            console.error(err);
+            toast.error("Failed to update vehicle whitelist");
+        }
+    };
+
+    const handleChauffeurCortManagedToggle = async (newVal: boolean) => {
+        if (!canUpdate) return;
+        await toggleFeature('chauffeur_cort_managed', newVal);
+        if (newVal) {
+            const appTrackingFeat = features.find(f => f.feature_key === 'tracking_via_app');
+            if (!appTrackingFeat?.is_enabled) {
+                await toggleFeature('tracking_via_app', true);
+                toast.success("App Tracking was auto-enabled for CORT Managed Chauffeur.");
+            }
+        }
+    };
+
+    const handleShuttleCortManagedToggle = async (newVal: boolean) => {
+        if (!canUpdate) return;
+        await toggleFeature('shuttle_cort_managed', newVal);
+        if (newVal) {
+            const appTrackingFeat = features.find(f => f.feature_key === 'tracking_via_app');
+            if (!appTrackingFeat?.is_enabled) {
+                await toggleFeature('tracking_via_app', true);
+                toast.success("App Tracking was auto-enabled for CORT Managed Shuttle.");
+            }
+        }
+    };
+
+  const currentModels = (company?.vehicle_whitelists || []).map((w) => w.allowed_vehicle_model);
+
+  return {
+    company, employees, isLoading, error, canCreate, canUpdate, canViewPricing,
+    activeTab, setActiveTab, linkContext, setLinkContext,
+    features, featuresLoading, trackerForm, setTrackerForm, trackerSaving, pendingToggleKeys,
+    companyVendorLinks, vendorsLoading, allVendors, showLinkModal, setShowLinkModal, linkSaving, linkForm, setLinkForm,
+    isEmpModalOpen, setIsEmpModalOpen, newEmpName, setNewEmpName, newEmpEmail, setNewEmpEmail, newEmpPhone, setNewEmpPhone,
+    newEmpPassword, setNewEmpPassword, isBenchmarksModalOpen, setIsBenchmarksModalOpen, newEmpId, setNewEmpId,
+    newEmpDepartment, setNewEmpDepartment, isCreatingEmp, isUploadingCsv, availableVehicleModels,
+    toggleFeature, saveTrackerConfig, updateLink,
+    handleCreateEmployee, handleCsvUpload, handleExportCredentials,
+    toggleVehicleModel, handleChauffeurCortManagedToggle, handleShuttleCortManagedToggle, currentModels,
+    toggleService, openLinkModal, handleLinkVendor, removeLink, handleToggleStatus, isTogglePending,
+  };
+}

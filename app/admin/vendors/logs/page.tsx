@@ -19,8 +19,18 @@ import Pagination from "../../../components/ui/Pagination";
 import { Modal } from "../../components/ui/Modal";
 import { VendorLog } from "../../../lib/services/types/vendors";
 import { apiClient } from "../../../lib/services/api-client";
+import { AdminProtectedPage } from "../../components/AdminProtectedPage";
+import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 
 export default function VendorLogsPage() {
+    return (
+        <AdminProtectedPage permission="vendor_logs" subject={ADMIN_SUBJECTS.vendor_logs}>
+            <VendorLogsContent />
+        </AdminProtectedPage>
+    );
+}
+
+function VendorLogsContent() {
     const dispatch = useDispatch<AppDispatch>();
 
     // Selectors

@@ -8,15 +8,7 @@ import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import Pagination from "../../components/ui/Pagination";
-
-function useDebounce<T>(value: T, delay: number): T {
-    const [dv, setDv] = useState<T>(value);
-    useEffect(() => {
-        const h = setTimeout(() => setDv(value), delay);
-        return () => clearTimeout(h);
-    }, [value, delay]);
-    return dv;
-}
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 export default function ExternalVendorsPage() {
     return (

@@ -7,6 +7,7 @@ import { Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { PermissionKey } from "../../lib/types/auth-types";
 import { BookingNotificationProvider } from "../components/BookingNotificationProvider";
+import { cx } from "../components/ui/cx";
 
 type NavItem = {
   href: string;
@@ -36,14 +37,8 @@ const nav: NavItem[] = [
   { href: "/admin/invoicing", label: "Invoicing", permission: "invoicing" },
   // Permissions management — only visible to SUPER_ADMIN (no permission key needed)
   { href: "/admin/permissions", label: "Staff & Permissions" },
-  { href: "/admin/leads", label: "Leads" },
-  { href: "/admin/tracker-test", label: "🛰 Tracker Test" },
+  { href: "/admin/leads", label: "Leads", permission: "dashboard" },
 ];
-
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/contexts/auth-context";
+import { SuperAdminPage } from "../components/SuperAdminPage";
 import { PermissionsApi, InternalStaffMember, CreateInternalStaffRequest } from "../../lib/services/api-client";
 import {
   PERMISSION_KEYS,
@@ -92,9 +91,14 @@ function SectionRow({
 }
 
 export default function PermissionsPage() {
-  const { isSuperAdmin, loading: authLoading } = useAuth();
-  const router = useRouter();
+  return (
+    <SuperAdminPage>
+      <PermissionsPageContent />
+    </SuperAdminPage>
+  );
+}
 
+function PermissionsPageContent() {
   const [staff, setStaff] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,12 +120,6 @@ export default function PermissionsPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && !isSuperAdmin) {
-      router.replace("/admin");
-    }
-  }, [authLoading, isSuperAdmin, router]);
-
   const fetchStaff = useCallback(async () => {
     try {
       setLoading(true);
@@ -136,8 +134,8 @@ export default function PermissionsPage() {
   }, []);
 
   useEffect(() => {
-    if (isSuperAdmin) fetchStaff();
-  }, [isSuperAdmin, fetchStaff]);
+    void fetchStaff();
+  }, [fetchStaff]);
 
   const handleCreate = async () => {
     if (createForm.password !== createForm.confirmPassword) {
@@ -205,15 +203,13 @@ export default function PermissionsPage() {
     }
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-navy border-t-transparent" />
       </div>
     );
   }
-
-  if (!isSuperAdmin) return null;
 
   return (
     <div className="space-y-6">

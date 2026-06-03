@@ -28,16 +28,7 @@ import {
     QueryMaintenanceRecordParams,
     OwnershipType,
 } from "../../../lib/services/api-client";
-
-// Debounce helper
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-}
+import { useDebounce } from "../../../lib/hooks/useDebounce";
 
 export default function MaintenancePage() {
     return (

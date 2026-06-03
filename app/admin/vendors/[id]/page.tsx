@@ -18,8 +18,18 @@ import {
 } from '../../../lib/store/slices/vendorLogsSlice';
 import { ArrowLeft, Calendar, Filter, DollarSign, X } from 'lucide-react';
 import Pagination from '../../../components/ui/Pagination';
+import { AdminProtectedPage } from '../../components/AdminProtectedPage';
+import { ADMIN_SUBJECTS } from '../../../lib/abilities/admin-subjects';
 
 export default function VendorDetailsPage() {
+    return (
+        <AdminProtectedPage permission="vendor_logs" subject={ADMIN_SUBJECTS.vendor_logs}>
+            <VendorDetailsContent />
+        </AdminProtectedPage>
+    );
+}
+
+function VendorDetailsContent() {
     const params = useParams();
     const router = useRouter();
     const dispatch = useAppDispatch();

@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Company } from "../../lib/services/api-client";
-import { PermissionGate } from "../components/PermissionGate";
-import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { AdminProtectedPage } from "../components/AdminProtectedPage";
+import { AdminPageHeader } from "../components/AdminPageHeader";
+import { useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
+import { useConfirm } from "../../lib/hooks/useConfirm";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import {
   fetchAdminCompanies,
@@ -30,16 +33,15 @@ import { PasswordResetModal } from "./components/PasswordResetModal";
 
 export default function CompaniesPage() {
   return (
-    <PermissionGate permission="companies">
-      <AdminCan I="read" a="Companies">
-        <CompaniesPageContent />
-      </AdminCan>
-    </PermissionGate>
+    <AdminProtectedPage permission="companies" subject={ADMIN_SUBJECTS.companies}>
+      <CompaniesPageContent />
+    </AdminProtectedPage>
   );
 }
 
 function CompaniesPageContent() {
   const dispatch = useAppDispatch();
+  const confirm = useConfirm();
   const ability = useAdminAbility();
   const canCreate = ability.can("create", ADMIN_SUBJECTS.companies);
   const canUpdate = ability.can("update", ADMIN_SUBJECTS.companies);
@@ -78,9 +80,13 @@ function CompaniesPageContent() {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this company? This action cannot be undone.")) {
-      dispatch(deleteAdminCompany(id));
-    }
+    const ok = await confirm({
+      message: "Are you sure you want to delete this company? This action cannot be undone.",
+      destructive: true,
+      confirmLabel: "Delete",
+    });
+    if (!ok) return;
+    dispatch(deleteAdminCompany(id));
   };
 
   const handleSave = async (data: CompanyFormData) => {
@@ -102,7 +108,7 @@ function CompaniesPageContent() {
       dispatch(fetchAdminCompanies({ limit: 10, page: pagination.page }));
     } catch (err: any) {
       console.error("Failed to save company:", err);
-      alert(err.message || "Failed to save company");
+      toast.error(err.message || "Failed to save company");
     }
   };
 
@@ -114,10 +120,10 @@ function CompaniesPageContent() {
   const handleResetPassword = async (companyId: number, password: string) => {
     try {
       await dispatch(resetCompanyPassword({ id: companyId, password })).unwrap();
-      alert("Password reset successfully!");
+      toast.success("Password reset successfully!");
     } catch (err: any) {
       console.error("Failed to reset password:", err);
-      alert(err.message || "Failed to reset password");
+      toast.error(err.message || "Failed to reset password");
       throw err;
     }
   };

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
+import { useDebounce } from "../../lib/hooks/useDebounce";
+import { useConfirm } from "../../lib/hooks/useConfirm";
 import {
     fetchAdminVendors,
     createAdminVendor,
@@ -18,32 +21,23 @@ import {
 } from "../../lib/store/slices/adminVendorsSlice";
 import Pagination from "../../components/ui/Pagination";
 import { Vendor, CreateVendorRequest } from "../../lib/services/api-client";
-import { PermissionGate } from "../components/PermissionGate";
-import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { AdminProtectedPage } from "../components/AdminProtectedPage";
+import { AdminPageHeader } from "../components/AdminPageHeader";
+import { useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
-
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-}
 
 export default function VendorsPage() {
     return (
-        <PermissionGate permission="vendors">
-            <AdminCan I="read" a="Vendors">
-                <VendorsPageContent />
-            </AdminCan>
-        </PermissionGate>
+        <AdminProtectedPage permission="vendors" subject={ADMIN_SUBJECTS.vendors}>
+            <VendorsPageContent />
+        </AdminProtectedPage>
     );
 }
 
 function VendorsPageContent() {
     const router = useRouter();
     const dispatch = useAppDispatch();
+    const confirm = useConfirm();
     const ability = useAdminAbility();
     const canCreate = ability.can("create", ADMIN_SUBJECTS.vendors);
     const canUpdate = ability.can("update", ADMIN_SUBJECTS.vendors);
@@ -59,14 +53,11 @@ function VendorsPageContent() {
     const [modalMode, setModalMode] = useState<"create" | "edit">("create");
     const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
-    // Filters - Initialize from Redux
     const [search, setSearch] = useState(savedFilters.search);
     const debouncedSearch = useDebounce(search, 500);
 
-    // Form Data
     const [formData, setFormData] = useState<Partial<CreateVendorRequest>>({});
 
-    // Sync with Redux
     useEffect(() => {
         setSearch(savedFilters.search);
     }, [savedFilters]);
@@ -83,20 +74,19 @@ function VendorsPageContent() {
         dispatch(fetchAdminVendors({ limit: 10, page, search: debouncedSearch }));
     };
 
-    // Handle action updates
     useEffect(() => {
         if (actionStatus === 'succeeded') {
             closeModal();
             dispatch(resetActionStatus());
         } else if (actionStatus === 'failed' && error) {
-            alert(error);
+            toast.error(error);
             dispatch(resetActionStatus());
         }
     }, [actionStatus, error, dispatch]);
 
     const handleCreate = () => {
         if (!formData.name) {
-            alert("Vendor name is required");
+            toast.error("Vendor name is required");
             return;
         }
         dispatch(createAdminVendor(formData as CreateVendorRequest));
@@ -107,8 +97,13 @@ function VendorsPageContent() {
         dispatch(updateAdminVendor({ id: selectedVendor.id, data: formData }));
     };
 
-    const handleDelete = (vendor: Vendor) => {
-        if (!confirm(`Are you sure you want to delete ${vendor.name}?`)) return;
+    const handleDelete = async (vendor: Vendor) => {
+        const ok = await confirm({
+            message: `Are you sure you want to delete ${vendor.name}?`,
+            destructive: true,
+            confirmLabel: "Delete",
+        });
+        if (!ok) return;
         dispatch(deleteAdminVendor(vendor.id));
     };
 
@@ -196,10 +191,7 @@ function VendorsPageContent() {
 
     return (
         <div className="flex flex-col gap-6">
-            <div>
-                <div className="text-sm font-medium text-muted">Admin</div>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-navy">Vendor Management</h1>
-            </div>
+            <AdminPageHeader eyebrow="Admin" title="Vendor Management" />
 
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4">
                 <div className="flex-1 min-w-[200px]">
@@ -271,7 +263,7 @@ function VendorsPageContent() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleDelete(v)}
+                                                        onClick={() => void handleDelete(v)}
                                                         disabled={!canDelete}
                                                         className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-danger hover:bg-danger/5 disabled:opacity-50 disabled:pointer-events-none"
                                                     >
@@ -292,7 +284,6 @@ function VendorsPageContent() {
                             </table>
                         </div>
 
-                        {/* Pagination */}
                         <div className="border-t border-border">
                             <Pagination
                                 currentPage={pagination.page}
@@ -304,55 +295,52 @@ function VendorsPageContent() {
                 )}
             </div>
 
-            {/* Modal */}
-            {
-                isModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                        <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                            <div className="mb-6 flex items-center justify-between">
-                                <div>
-                                    <div className="text-xs font-semibold tracking-wider text-muted">
-                                        {modalMode === "create" ? "NEW VENDOR" : "EDIT VENDOR"}
-                                    </div>
-                                    <h2 className="mt-1 text-2xl font-semibold text-navy">
-                                        {modalMode === "create" ? "Add New Vendor" : "Edit Vendor"}
-                                    </h2>
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="mb-6 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-semibold tracking-wider text-muted">
+                                    {modalMode === "create" ? "NEW VENDOR" : "EDIT VENDOR"}
                                 </div>
-                                <button
-                                    onClick={closeModal}
-                                    className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
-                                >
-                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                                <h2 className="mt-1 text-2xl font-semibold text-navy">
+                                    {modalMode === "create" ? "Add New Vendor" : "Edit Vendor"}
+                                </h2>
                             </div>
+                            <button
+                                onClick={closeModal}
+                                className="rounded-full p-2 text-muted hover:bg-surface hover:text-ink"
+                            >
+                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
 
-                            <div className="max-h-[70vh] overflow-y-auto pr-2">
-                                {renderForm()}
-                            </div>
+                        <div className="max-h-[70vh] overflow-y-auto pr-2">
+                            {renderForm()}
+                        </div>
 
-                            <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
-                                <button
-                                    onClick={closeModal}
-                                    disabled={isSubmitting}
-                                    className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={modalMode === "create" ? handleCreate : handleUpdate}
-                                    disabled={isSubmitting || (modalMode === "create" ? !canCreate : !canUpdate)}
-                                    className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
-                                >
-                                    {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vendor" : "Save Changes")}
-                                </button>
-                            </div>
+                        <div className="mt-6 flex justify-end gap-3 border-t border-border pt-6">
+                            <button
+                                onClick={closeModal}
+                                disabled={isSubmitting}
+                                className="inline-flex h-10 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-ink hover:bg-surface disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={modalMode === "create" ? handleCreate : handleUpdate}
+                                disabled={isSubmitting || (modalMode === "create" ? !canCreate : !canUpdate)}
+                                className="inline-flex h-10 items-center justify-center rounded-md bg-blue px-6 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
+                            >
+                                {isSubmitting ? "Saving..." : (modalMode === "create" ? "Create Vendor" : "Save Changes")}
+                            </button>
                         </div>
                     </div>
-                )
-            }
-        </div >
+                </div>
+            )}
+        </div>
     );
 }

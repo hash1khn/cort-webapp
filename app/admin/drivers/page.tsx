@@ -36,10 +36,13 @@ import { CredentialsModal } from "../components/ui/CredentialsModal";
 import { DriverForm } from "./components/DriverForm";
 import { ChauffeurApplicationDetail } from "./components/ChauffeurApplicationDetail";
 import { DriverAvgRating } from "./components/DriverAvgRating";
-import { PermissionGate } from "../components/PermissionGate";
-import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
+import { AdminProtectedPage } from "../components/AdminProtectedPage";
+import { useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import { displayDriverEmail } from "../../lib/utils/driverEmailDisplay";
+import { useDebounce } from "../../lib/hooks/useDebounce";
+import { useConfirm } from "../../lib/hooks/useConfirm";
+import { toast } from "sonner";
 
 type ApplicationModalMode = "view" | "approve" | "reject";
 
@@ -47,16 +50,15 @@ type ApplicationModalMode = "view" | "approve" | "reject";
 
 export default function DriversPage() {
     return (
-        <PermissionGate permission="drivers">
-            <AdminCan I="read" a="Drivers">
-                <DriversPageContent />
-            </AdminCan>
-        </PermissionGate>
+        <AdminProtectedPage permission="drivers" subject={ADMIN_SUBJECTS.drivers}>
+            <DriversPageContent />
+        </AdminProtectedPage>
     );
 }
 
 function DriversPageContent() {
     const dispatch = useAppDispatch();
+    const confirm = useConfirm();
     const ability = useAdminAbility();
     const canCreate = ability.can("create", ADMIN_SUBJECTS.drivers);
     const canUpdate = ability.can("update", ADMIN_SUBJECTS.drivers);
@@ -97,15 +99,7 @@ function DriversPageContent() {
     const [reviewsPagination, setReviewsPagination] = useState({ page: 1, pages: 1 });
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
-
-    // Debounce search query
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [searchQuery]);
+    const debouncedSearch = useDebounce(searchQuery, 500);
 
     // Load drivers when filters change
     useEffect(() => {
@@ -180,7 +174,7 @@ function DriversPageContent() {
     const handleSave = async (data: CreateDriverRequest) => {
         try {
             if (!data.full_name || !data.email) {
-                alert("Please fill in all required fields (Name, Email)");
+                toast.error("Please fill in all required fields (Name, Email)");
                 return;
             }
 
@@ -195,7 +189,7 @@ function DriversPageContent() {
             }
 
             if (!editingDriver && finalData.password && finalData.password.length < 6) {
-                alert("Password must be at least 6 characters long");
+                toast.error("Password must be at least 6 characters long");
                 return;
             }
 
@@ -216,14 +210,18 @@ function DriversPageContent() {
             setEditingDriver(null);
         } catch (err: any) {
             console.error("Failed to save driver:", err);
-            alert(err || "Failed to save driver");
+            toast.error(typeof err === "string" ? err : err?.message || "Failed to save driver");
         }
     }
 
     const handleDelete = async (id: string) => {
-        if (window.confirm("Are you sure you want to delete this driver?")) {
-            await dispatch(deleteAdminDriver(id));
-        }
+        const ok = await confirm({
+            message: "Are you sure you want to delete this driver?",
+            destructive: true,
+            confirmLabel: "Delete",
+        });
+        if (!ok) return;
+        await dispatch(deleteAdminDriver(id));
     }
 
     const submitApproval = async () => {
