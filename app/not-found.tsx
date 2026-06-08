@@ -15,9 +15,9 @@ export default function NotFound() {
             <div className="text-center max-w-md mx-auto relative z-10">
                 <div className="mb-12 flex justify-center">
                     <img
-                        src="/traflinq_light_no_tagline-Photoroom.png"
+                        src="/traflinq_dark_no_tagline-Photoroom.png"
                         alt="TrafLinq Logo"
-                        className="h-12 w-auto brightness-0 invert"
+                        className="h-28 w-auto"
                     />
                 </div>
 
