@@ -21,8 +21,8 @@ export default function VendorRoutesPage() {
         try {
             const res = await apiClient.getVendorRoutes(selectedLink.id);
             setRoutes(res.data);
-        } catch {
-            toast.error("Failed to load routes");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to load routes");
         } finally {
             setLoading(false);
         }

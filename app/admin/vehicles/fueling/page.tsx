@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
@@ -15,6 +16,7 @@ import {
     selectFuelRecords,
     selectFuelStatus,
     selectFuelActionStatus,
+    selectFuelActionError,
     selectAdminVehicles,
     selectFuelFilters,
     resetFuelActionStatus
@@ -62,6 +64,7 @@ function FuelingPageContent() {
     const vehicles = useAppSelector(selectAdminVehicles);
     const status = useAppSelector(selectFuelStatus);
     const actionStatus = useAppSelector(selectFuelActionStatus);
+    const actionError = useAppSelector(selectFuelActionError);
     const savedFilters = useAppSelector(selectFuelFilters);
 
     // Modal State
@@ -121,7 +124,7 @@ function FuelingPageContent() {
             dispatch(resetFuelActionStatus());
             loadData(); // Re-fetch to update list and stats
         } else if (actionStatus === 'failed') {
-            alert("Action failed"); // Could be improved with specific error message from state
+            toast.error(actionError || "Action failed");
             dispatch(resetFuelActionStatus());
         }
     }, [actionStatus, dispatch, loadData]);

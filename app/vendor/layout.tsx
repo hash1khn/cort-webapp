@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, createContext, useContext, useCallback } from "react";
+import { Toaster } from "sonner";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../lib/contexts/auth-context";
@@ -243,6 +244,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
                     </main>
                 </div>
             </div>
+            <Toaster position="top-right" richColors />
         </VendorContext.Provider>
     );
 }

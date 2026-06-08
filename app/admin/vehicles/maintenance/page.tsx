@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
@@ -16,6 +17,7 @@ import {
     selectUpcomingMaintenance,
     selectMaintenanceStatus,
     selectMaintenanceActionStatus,
+    selectMaintenanceActionError,
     selectAdminVehicles,
     selectMaintenanceFilters,
     resetMaintenanceActionStatus
@@ -52,6 +54,7 @@ function MaintenancePageContent() {
     const upcomingMaintenance = useAppSelector(selectUpcomingMaintenance);
     const status = useAppSelector(selectMaintenanceStatus);
     const actionStatus = useAppSelector(selectMaintenanceActionStatus);
+    const actionError = useAppSelector(selectMaintenanceActionError);
     const savedFilters = useAppSelector(selectMaintenanceFilters);
 
     // Modal State
@@ -114,7 +117,7 @@ function MaintenancePageContent() {
             dispatch(resetMaintenanceActionStatus());
             loadData();
         } else if (actionStatus === 'failed') {
-            alert("Action failed");
+            toast.error(actionError || "Action failed");
             dispatch(resetMaintenanceActionStatus());
         }
     }, [actionStatus, dispatch, loadData]);

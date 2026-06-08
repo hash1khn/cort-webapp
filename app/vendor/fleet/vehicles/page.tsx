@@ -42,7 +42,7 @@ export default function VendorVehiclesPage() {
         try {
             const res = await apiClient.getVendorVehicles(selectedLink.id) as any;
             setVehicles(res?.data?.data ?? res?.data ?? []);
-        } catch { toast.error("Failed to load vehicles"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load vehicles"); }
         finally { setLoading(false); }
     }, [selectedLink]);
 
@@ -100,7 +100,7 @@ export default function VendorVehiclesPage() {
             await apiClient.removeVendorVehicle(id);
             toast.success("Vehicle removed");
             load();
-        } catch { toast.error("Failed to remove vehicle"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to remove vehicle"); }
     };
 
     const openEdit = (v: VendorVehicle) => {

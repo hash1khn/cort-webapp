@@ -78,8 +78,8 @@ export default function VendorRouteDetailPage({
         try {
             const res = await apiClient.getVendorRoute(parseInt(id));
             setRoute(res.data);
-        } catch {
-            toast.error("Failed to load route");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to load route");
         } finally {
             setLoading(false);
         }
@@ -138,8 +138,8 @@ export default function VendorRouteDetailPage({
             toast.success("Route updated");
             setIsEditing(false);
             loadRoute();
-        } catch {
-            toast.error("Failed to update route");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to update route");
         }
     };
 
@@ -209,8 +209,8 @@ export default function VendorRouteDetailPage({
             resetStopForm();
             loadRoute();
             schedulePolylineRefresh();
-        } catch {
-            toast.error("Failed to save stop");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save stop");
         }
     };
 
@@ -222,8 +222,8 @@ export default function VendorRouteDetailPage({
             if (editingStopId === stopId) resetStopForm();
             loadRoute();
             schedulePolylineRefresh();
-        } catch {
-            toast.error("Failed to delete stop");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to delete stop");
         }
     };
 

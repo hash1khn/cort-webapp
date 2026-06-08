@@ -104,7 +104,7 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolVehicles(companyId);
             setVehicles(res.data);
-        } catch { toast.error("Failed to load pool vehicles"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load pool vehicles"); }
         finally { setVehiclesLoading(false); }
     }, [companyId]);
 
@@ -114,7 +114,7 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolDrivers(companyId);
             setDrivers(res.data);
-        } catch { toast.error("Failed to load pool drivers"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load pool drivers"); }
         finally { setDriversLoading(false); }
     }, [companyId]);
 
@@ -182,7 +182,7 @@ export default function CompanyFleetPage() {
             await apiClient.deactivatePoolVehicle(companyId, vehicleId);
             toast.success("Vehicle deactivated");
             fetchVehicles();
-        } catch { toast.error("Failed to deactivate vehicle"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate vehicle"); }
     };
 
     const handleInviteDriver = async (e: React.FormEvent) => {
@@ -215,7 +215,7 @@ export default function CompanyFleetPage() {
             await apiClient.deactivatePoolDriver(companyId, userId);
             toast.success("Driver deactivated");
             fetchDrivers();
-        } catch { toast.error("Failed to deactivate driver"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate driver"); }
     };
 
     if (!featureLoaded) {

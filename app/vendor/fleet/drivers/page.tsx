@@ -42,7 +42,7 @@ export default function VendorDriversPage() {
         try {
             const res = await apiClient.getVendorDrivers(selectedLink.id) as any;
             setDrivers(res?.data?.data ?? res?.data ?? []);
-        } catch { toast.error("Failed to load drivers"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load drivers"); }
         finally { setLoading(false); }
     }, [selectedLink]);
 
@@ -80,7 +80,7 @@ export default function VendorDriversPage() {
             await apiClient.removeVendorDriver(userId);
             toast.success("Driver removed");
             load();
-        } catch { toast.error("Failed to remove driver"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to remove driver"); }
     };
 
     return (

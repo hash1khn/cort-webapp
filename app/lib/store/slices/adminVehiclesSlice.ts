@@ -44,6 +44,7 @@ interface AdminVehiclesState {
     fuelStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     fuelError: string | null;
     fuelActionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    fuelActionError: string | null;
     fuelFilters: {
         filterVehicleId: number | "ALL";
         filterBilled: boolean | "ALL";
@@ -57,6 +58,7 @@ interface AdminVehiclesState {
     maintenanceStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
     maintenanceError: string | null;
     maintenanceActionStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+    maintenanceActionError: string | null;
     maintenanceFilters: {
         filterVehicleId: number | "ALL";
         filterType: MaintenanceType | "ALL";
@@ -91,6 +93,7 @@ const initialState: AdminVehiclesState = {
     fuelStatus: 'idle',
     fuelError: null,
     fuelActionStatus: 'idle',
+    fuelActionError: null,
     fuelFilters: {
         filterVehicleId: "ALL",
         filterBilled: "ALL",
@@ -104,6 +107,7 @@ const initialState: AdminVehiclesState = {
     maintenanceStatus: 'idle',
     maintenanceError: null,
     maintenanceActionStatus: 'idle',
+    maintenanceActionError: null,
     maintenanceFilters: {
         filterVehicleId: "ALL",
         filterType: "ALL",
@@ -373,9 +377,11 @@ export const adminVehiclesSlice = createSlice({
         },
         resetFuelActionStatus: (state) => {
             state.fuelActionStatus = 'idle';
+            state.fuelActionError = null;
         },
         resetMaintenanceActionStatus: (state) => {
             state.maintenanceActionStatus = 'idle';
+            state.maintenanceActionError = null;
         },
         clearAdminVehicles: (state) => {
             return initialState;
@@ -465,7 +471,7 @@ export const adminVehiclesSlice = createSlice({
 
             .addCase(createFuelRecord.pending, (state) => { state.fuelActionStatus = 'loading'; })
             .addCase(createFuelRecord.fulfilled, (state) => { state.fuelActionStatus = 'succeeded'; })
-            .addCase(createFuelRecord.rejected, (state) => { state.fuelActionStatus = 'failed'; })
+            .addCase(createFuelRecord.rejected, (state, action) => { state.fuelActionStatus = 'failed'; state.fuelActionError = action.payload as string; })
 
             .addCase(updateFuelRecord.pending, (state) => { state.fuelActionStatus = 'loading'; })
             .addCase(updateFuelRecord.fulfilled, (state, action) => {
@@ -476,7 +482,7 @@ export const adminVehiclesSlice = createSlice({
                     state.fuelRecords[index] = { ...state.fuelRecords[index], ...action.payload.changes as any };
                 }
             })
-            .addCase(updateFuelRecord.rejected, (state) => { state.fuelActionStatus = 'failed'; })
+            .addCase(updateFuelRecord.rejected, (state, action) => { state.fuelActionStatus = 'failed'; state.fuelActionError = action.payload as string; })
 
             .addCase(deleteFuelRecord.fulfilled, (state, action) => {
                 state.fuelRecords = state.fuelRecords.filter(r => r.id !== action.payload);
@@ -490,7 +496,7 @@ export const adminVehiclesSlice = createSlice({
                     action.payload.ids.includes(record.id) ? { ...record, billed: true } : record
                 );
             })
-            .addCase(markFuelRecordsAsPaid.rejected, (state, action) => { state.fuelActionStatus = 'failed'; })
+            .addCase(markFuelRecordsAsPaid.rejected, (state, action) => { state.fuelActionStatus = 'failed'; state.fuelActionError = action.payload as string; })
 
             // --- Maintenance ---
             .addCase(fetchMaintenanceRecords.pending, (state) => { state.maintenanceStatus = 'loading'; })
@@ -507,7 +513,7 @@ export const adminVehiclesSlice = createSlice({
 
             .addCase(createMaintenanceRecord.pending, (state) => { state.maintenanceActionStatus = 'loading'; })
             .addCase(createMaintenanceRecord.fulfilled, (state) => { state.maintenanceActionStatus = 'succeeded'; })
-            .addCase(createMaintenanceRecord.rejected, (state) => { state.maintenanceActionStatus = 'failed'; })
+            .addCase(createMaintenanceRecord.rejected, (state, action) => { state.maintenanceActionStatus = 'failed'; state.maintenanceActionError = action.payload as string; })
 
             .addCase(updateMaintenanceRecord.pending, (state) => { state.maintenanceActionStatus = 'loading'; })
             .addCase(updateMaintenanceRecord.fulfilled, (state, action) => {
@@ -517,7 +523,7 @@ export const adminVehiclesSlice = createSlice({
                     state.maintenanceRecords[index] = { ...state.maintenanceRecords[index], ...action.payload.changes as any };
                 }
             })
-            .addCase(updateMaintenanceRecord.rejected, (state) => { state.maintenanceActionStatus = 'failed'; })
+            .addCase(updateMaintenanceRecord.rejected, (state, action) => { state.maintenanceActionStatus = 'failed'; state.maintenanceActionError = action.payload as string; })
 
             .addCase(deleteMaintenanceRecord.fulfilled, (state, action) => {
                 state.maintenanceRecords = state.maintenanceRecords.filter(r => r.id !== action.payload);
@@ -537,12 +543,14 @@ export const selectFuelRecords = (state: RootState) => state.adminVehicles.fuelR
 export const selectFuelStats = (state: RootState) => state.adminVehicles.fuelStats;
 export const selectFuelStatus = (state: RootState) => state.adminVehicles.fuelStatus;
 export const selectFuelActionStatus = (state: RootState) => state.adminVehicles.fuelActionStatus;
+export const selectFuelActionError = (state: RootState) => state.adminVehicles.fuelActionError;
 export const selectFuelFilters = (state: RootState) => state.adminVehicles.fuelFilters;
 
 export const selectMaintenanceRecords = (state: RootState) => state.adminVehicles.maintenanceRecords;
 export const selectUpcomingMaintenance = (state: RootState) => state.adminVehicles.upcomingMaintenance;
 export const selectMaintenanceStatus = (state: RootState) => state.adminVehicles.maintenanceStatus;
 export const selectMaintenanceActionStatus = (state: RootState) => state.adminVehicles.maintenanceActionStatus;
+export const selectMaintenanceActionError = (state: RootState) => state.adminVehicles.maintenanceActionError;
 export const selectMaintenanceFilters = (state: RootState) => state.adminVehicles.maintenanceFilters;
 export const selectAdminVehiclesPagination = (state: RootState) => state.adminVehicles.pagination;
 

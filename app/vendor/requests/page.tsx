@@ -36,8 +36,8 @@ export default function VendorRequestsPage() {
         try {
             const res = await apiClient.getVendorRequests({ link_id: selectedLink.id, status: statusFilter || undefined });
             setRequests(res.data.data ?? []);
-        } catch {
-            toast.error("Failed to load requests");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to load requests");
         } finally {
             setLoading(false);
         }
@@ -63,7 +63,7 @@ export default function VendorRequestsPage() {
                 ]);
                 setVehicles(vRes?.data ?? []);
                 setDrivers(dRes?.data ?? []);
-            } catch { toast.error("Failed to load fleet"); }
+            } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load fleet"); }
         }
     };
 
@@ -95,8 +95,8 @@ export default function VendorRequestsPage() {
             await apiClient.rejectVendorRequest(req.id);
             toast.success("Request rejected");
             load();
-        } catch {
-            toast.error("Failed to reject request");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to reject request");
         }
     };
 

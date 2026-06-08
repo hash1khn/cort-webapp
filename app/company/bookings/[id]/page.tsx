@@ -38,8 +38,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             ]);
             setBooking(bookingRes.data as unknown as ChauffeurBooking);
             setVendorRequests((reqRes as { data: BookingVendorRequest[] }).data ?? []);
-        } catch {
-            toast.error("Failed to load booking");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to load booking");
         } finally {
             setLoading(false);
         }

@@ -69,8 +69,8 @@ export default function VendorBookingsPage() {
             const raw = res?.data ?? res;
             setBookings(raw?.data ?? []);
             setPagination(raw?.pagination ?? { page: 1, total: 0, total_pages: 1 });
-        } catch {
-            toast.error("Failed to load bookings");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to load bookings");
         } finally {
             setLoading(false);
         }

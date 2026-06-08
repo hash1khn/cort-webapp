@@ -136,7 +136,7 @@ function VehiclesPageContent() {
             handlePageChange(pagination.page);
         } catch (err: any) {
             console.error("Failed to save vehicle:", err);
-            alert(err.message || "Failed to save vehicle");
+            alert(typeof err === 'string' ? err : (err?.message || "Failed to save vehicle"));
         }
     };
 

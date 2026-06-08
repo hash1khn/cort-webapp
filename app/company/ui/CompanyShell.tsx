@@ -24,6 +24,7 @@ import {
 import { useAuth } from "../../lib/contexts/auth-context";
 import { useCompanyTheme } from "../lib/theme-context";
 import { Sun, Moon } from "lucide-react";
+import { Toaster } from "sonner";
 
 type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
 type FeatureLike = { feature_key: string; is_enabled: boolean };
@@ -323,6 +324,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

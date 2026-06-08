@@ -147,8 +147,8 @@ export function useCompanyDetail(id: string) {
         try {
             await apiClient.upsertTrackerConfig(Number(id), { api_endpoint: trackerForm.api_endpoint, api_key: trackerForm.api_key });
             toast.success("Tracker config saved");
-        } catch {
-            toast.error("Failed to save tracker config");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save tracker config");
         } finally {
             setTrackerSaving(false);
         }
@@ -179,8 +179,8 @@ export function useCompanyDetail(id: string) {
             await apiClient.updateVendorLink(linkId, dto);
             fetchCompanyVendors();
             toast.success("Link updated");
-        } catch {
-            toast.error("Failed to update link");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to update link");
         }
     };
 
@@ -191,8 +191,8 @@ export function useCompanyDetail(id: string) {
             await apiClient.removeVendorLink(linkId);
             fetchCompanyVendors();
             toast.success("Link removed");
-        } catch {
-            toast.error("Failed to remove link");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to remove link");
         }
     };
 
@@ -207,7 +207,7 @@ export function useCompanyDetail(id: string) {
         // Load vendor list in background — modal is already visible
         apiClient.getExternalVendors({ limit: 100 })
             .then(res => setAllVendors(res.data.data))
-            .catch(() => toast.error("Failed to load vendors"));
+            .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load vendors"));
     };
 
     // -- Handlers --
@@ -314,7 +314,7 @@ export function useCompanyDetail(id: string) {
             console.error("Failed to update status:", err);
             // Revert on error
             setEmployees(employees.map(e => e.id === emp.id ? { ...e, status: emp.status } : e));
-            toast.error("Failed to update status");
+            toast.error(err instanceof Error ? err.message : "Failed to update status");
         }
     };
 
@@ -355,7 +355,7 @@ export function useCompanyDetail(id: string) {
                 await apiClient.updateCompany(company.id, { [key]: newVal });
             } catch (err) {
                 setCompany({ ...company, [key]: !newVal }); // Revert
-                toast.error("Failed to update settings");
+                toast.error(err instanceof Error ? err.message : "Failed to update settings");
             }
         });
     };
@@ -368,9 +368,9 @@ export function useCompanyDetail(id: string) {
         await runWithTogglePending(`company:${field}`, async () => {
             try {
                 await apiClient.updateCompany(company.id, { [field]: newVal });
-            } catch {
+            } catch (err) {
                 setCompany({ ...company, [field]: prev }); // Revert
-                toast.error("Failed to update settings");
+                toast.error(err instanceof Error ? err.message : "Failed to update settings");
             }
         });
     };
