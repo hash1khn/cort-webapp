@@ -74,7 +74,7 @@ function defaultPeriod(): { from: string; to: string } {
   };
 }
 
-const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'HIACE', 'VAN', 'COASTER', 'BUS'];
+const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'DOUBLE_CABIN', 'HIACE', 'VAN', 'COASTER', 'BUS'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

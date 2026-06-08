@@ -33,7 +33,7 @@ type NewBenchmarkForm = {
   notes: string;
 };
 
-const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'HIACE', 'VAN', 'COASTER', 'BUS'];
+const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'DOUBLE_CABIN', 'HIACE', 'VAN', 'COASTER', 'BUS'];
 
 const COASTER_SEATER_OPTIONS = ['7 Seater', '14 Seater', '24 Seater', '32 Seater', '48 Seater', '62 Seater'];
 

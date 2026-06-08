@@ -54,7 +54,7 @@ const VEHICLE_CATEGORIES = Object.values(VehicleCategory);
 const DRIVER_TYPES = ["PERMANENT", "PART_TIME", "CONTRACT"];
 
 const formatVehicleCategory = (category: string) =>
-    category.charAt(0) + category.slice(1).toLowerCase();
+    category.split('_').map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
 
 const getDefaultVehicleForm = () => ({
     plate_number: "",
