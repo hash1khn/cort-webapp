@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChauffeurBooking } from "../../../../lib/services/api-client";
 import { displayDriverEmail } from "../../../../lib/utils/driverEmailDisplay";
+import { SearchableSelect } from "../../../../components/SearchableSelect";
 import { Modal } from "../../../components/ui/Modal";
 import { cx } from "../../../components/ui/cx";
 import { formatDateTime } from "../utils/formatDateTime";
@@ -56,6 +58,16 @@ export function BookingDetailModal({
   onDailyLogsOpen,
   onRecalculateOpen,
 }: BookingDetailModalProps) {
+  const vehicleOptions = useMemo(
+    () =>
+      availableCars.map((car) => ({
+        value: String(car.id),
+        label: `${car.make} ${car.model} (${car.plate_number})`,
+        searchText: `${car.make} ${car.model} ${car.plate_number}`,
+      })),
+    [availableCars]
+  );
+
   return (
 
           <Modal
@@ -298,18 +310,14 @@ export function BookingDetailModal({
                   <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     <label className="flex flex-col gap-1">
                       <span className="text-sm font-medium text-ink">Select Vehicle</span>
-                      <select
+                      <SearchableSelect
                         value={selectedCarId}
-                        onChange={(e) => setSelectedCarId(e.target.value)}
-                        className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                      >
-                        <option value="">Select a vehicle</option>
-                        {availableCars.map((car) => (
-                          <option key={car.id} value={car.id}>
-                            {car.make} {car.model} ({car.plate_number})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={setSelectedCarId}
+                        options={vehicleOptions}
+                        placeholder="Search by plate, make, or model..."
+                        emptyMessage="No vehicles match your search."
+                        disabled={availableCars.length === 0}
+                      />
                       {availableCars.length === 0 && (
                         <div className="mt-1 text-xs text-muted">No available vehicles found.</div>
                       )}
