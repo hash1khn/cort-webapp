@@ -10,6 +10,12 @@ import { toast } from "sonner";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../lib/utils/phone";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -187,6 +193,11 @@ export default function CompanyFleetPage() {
 
     const handleInviteDriver = async (e: React.FormEvent) => {
         e.preventDefault();
+        const phoneError = getPhoneValidationError(driverForm.phone);
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         setDriverSaving(true);
         try {
             await apiClient.invitePoolDriver(companyId, {
@@ -542,7 +553,7 @@ export default function CompanyFleetPage() {
                     <form onSubmit={handleInviteDriver} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Phone"><input value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} /></Field>
+                            <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
                             <Field label="Email *"><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
                             <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>

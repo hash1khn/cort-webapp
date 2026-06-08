@@ -10,6 +10,12 @@ import {
 } from "../../../lib/services/api-client";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { fetchAdminVendors, selectAdminVendors } from "../../../lib/store/slices/adminVendorsSlice";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../../lib/utils/phone";
 
 export type VehicleFormData = CreateVehicleRequest;
 
@@ -149,6 +155,12 @@ export const VehicleFormInline = memo(function VehicleFormInline({
 
             if (formData.driver_password && formData.driver_password.length < 6) {
                 alert("Driver password must be at least 6 characters long.");
+                return;
+            }
+
+            const phoneError = getPhoneValidationError(formData.driver_phone || "");
+            if (phoneError) {
+                alert(phoneError);
                 return;
             }
         }
@@ -401,10 +413,12 @@ export const VehicleFormInline = memo(function VehicleFormInline({
                         <label className="block text-xs font-semibold uppercase text-[var(--text-muted)] mb-1">Driver Phone</label>
                         <input
                             type="tel"
+                            inputMode="numeric"
+                            maxLength={PHONE_MAX_LENGTH}
                             value={formData.driver_phone || ""}
-                            onChange={(e) => handleChange("driver_phone", e.target.value)}
+                            onChange={(e) => handleChange("driver_phone", sanitizePhoneInput(e.target.value))}
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] outline-none"
-                            placeholder="+923001234567"
+                            placeholder={PHONE_PLACEHOLDER}
                             disabled={isSaving}
                         />
                     </div>

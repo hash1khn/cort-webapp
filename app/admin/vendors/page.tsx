@@ -25,6 +25,12 @@ import { AdminProtectedPage } from "../components/AdminProtectedPage";
 import { AdminPageHeader } from "../components/AdminPageHeader";
 import { useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../lib/utils/phone";
 
 export default function VendorsPage() {
     return (
@@ -89,11 +95,21 @@ function VendorsPageContent() {
             toast.error("Vendor name is required");
             return;
         }
+        const phoneError = getPhoneValidationError(formData.phone || "");
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         dispatch(createAdminVendor(formData as CreateVendorRequest));
     };
 
     const handleUpdate = () => {
         if (!selectedVendor) return;
+        const phoneError = getPhoneValidationError(formData.phone || "");
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         dispatch(updateAdminVendor({ id: selectedVendor.id, data: formData }));
     };
 
@@ -156,10 +172,13 @@ function VendorsPageContent() {
             <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold tracking-wider text-muted">Phone</span>
                 <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={PHONE_MAX_LENGTH}
                     value={formData.phone || ""}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, phone: sanitizePhoneInput(e.target.value) })}
                     className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
-                    placeholder="+1234567890"
+                    placeholder={PHONE_PLACEHOLDER}
                 />
             </label>
             <label className="flex flex-col gap-1">

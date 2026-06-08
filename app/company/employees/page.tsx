@@ -8,6 +8,12 @@ import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import TablePageSkeleton from "../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
+import {
+  getPhoneValidationError,
+  PHONE_MAX_LENGTH,
+  sanitizePhoneInput,
+} from "../../lib/utils/phone";
+import { toast } from "sonner";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -69,6 +75,11 @@ export default function EmployeesPage() {
 
   async function saveEdit(employee: typeof employees[0]) {
     if (!editingId) return;
+    const phoneError = getPhoneValidationError(editPhone);
+    if (phoneError) {
+      toast.error(phoneError);
+      return;
+    }
     await dispatch(updateEmployee({
       employeeId: employee.id,
       data: { phone: editPhone, email: editEmail }
@@ -139,9 +150,12 @@ export default function EmployeesPage() {
                       <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={PHONE_MAX_LENGTH}
                             value={editPhone}
-                            onChange={(ev) => setEditPhone(ev.target.value)}
-                            placeholder="Phone"
+                            onChange={(ev) => setEditPhone(sanitizePhoneInput(ev.target.value))}
+                            placeholder="03001234567"
                           />
                         ) : (
                           <span className="text-[var(--text-secondary)] font-medium">{e.phone || "—"}</span>

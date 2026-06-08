@@ -9,6 +9,12 @@ import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvi
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import Pagination from "../../components/ui/Pagination";
 import { useDebounce } from "../../lib/hooks/useDebounce";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../lib/utils/phone";
 
 export default function ExternalVendorsPage() {
     return (
@@ -64,6 +70,11 @@ function ExternalVendorsContent() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        const phoneError = getPhoneValidationError(createForm.contact_phone);
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         setCreateLoading(true);
         try {
             await apiClient.createExternalVendor({
@@ -86,6 +97,11 @@ function ExternalVendorsContent() {
     const handleEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedVendor) return;
+        const phoneError = getPhoneValidationError(editForm.contact_phone);
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         try {
             await apiClient.updateExternalVendor(selectedVendor.id, {
                 name: editForm.name,
@@ -221,7 +237,7 @@ function ExternalVendorsContent() {
                             <input required type="password" minLength={8} value={createForm.password} onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} />
                         </Field>
                         <Field label="Phone">
-                            <input value={createForm.contact_phone} onChange={(e) => setCreateForm((f) => ({ ...f, contact_phone: e.target.value }))} className={inputCls} />
+                            <input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={createForm.contact_phone} onChange={(e) => setCreateForm((f) => ({ ...f, contact_phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} />
                         </Field>
                         <div className="flex justify-end gap-3 pt-2">
                             <button type="button" onClick={() => setShowCreate(false)} className={cancelBtnCls}>Cancel</button>
@@ -239,7 +255,7 @@ function ExternalVendorsContent() {
                             <input required value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} />
                         </Field>
                         <Field label="Phone">
-                            <input value={editForm.contact_phone} onChange={(e) => setEditForm((f) => ({ ...f, contact_phone: e.target.value }))} className={inputCls} />
+                            <input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={editForm.contact_phone} onChange={(e) => setEditForm((f) => ({ ...f, contact_phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} />
                         </Field>
                         <Field label="Status">
                             <select value={editForm.is_active ? "1" : "0"} onChange={(e) => setEditForm((f) => ({ ...f, is_active: e.target.value === "1" }))} className={inputCls}>

@@ -2,6 +2,12 @@
 
 import React, { useState, memo } from "react";
 import { CreateDriverRequest, DriverType, DriverStatus } from "../../../lib/services/api-client";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../../lib/utils/phone";
 
 const initialFormData: CreateDriverRequest = {
     full_name: "",
@@ -26,6 +32,8 @@ export const DriverForm = memo(function DriverForm({
     onZoomImage?: (url: string, name: string) => void;
     isSaving: boolean;
 }) {
+    const [phoneError, setPhoneError] = useState<string | null>(null);
+
     const [formData, setFormData] = useState<CreateDriverRequest>(
         driver
             ? {
@@ -140,13 +148,19 @@ export const DriverForm = memo(function DriverForm({
                     <div>
                         <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Phone</label>
                         <input
-                            type="text"
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={PHONE_MAX_LENGTH}
                             value={formData.phone}
-                            onChange={(e) => handleChange("phone", e.target.value)}
+                            onChange={(e) => {
+                                handleChange("phone", sanitizePhoneInput(e.target.value));
+                                setPhoneError(null);
+                            }}
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] outline-none"
-                            placeholder="+1234567890"
+                            placeholder={PHONE_PLACEHOLDER}
                             disabled={isSaving}
                         />
+                        {phoneError && <p className="mt-1 text-xs text-red-600">{phoneError}</p>}
                     </div>
                     <div>
                         <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">CNIC (Optional)</label>
@@ -223,7 +237,14 @@ export const DriverForm = memo(function DriverForm({
                     Cancel
                 </button>
                 <button
-                    onClick={() => onSave(formData)}
+                    onClick={() => {
+                        const error = getPhoneValidationError(formData.phone || "");
+                        if (error) {
+                            setPhoneError(error);
+                            return;
+                        }
+                        onSave(formData);
+                    }}
                     className="rounded-lg bg-[#f47f00] px-4 py-2 text-sm font-bold text-white hover:bg-[#d97000] shadow-md shadow-orange-500/10 disabled:opacity-50"
                     disabled={isSaving}
                 >

@@ -5,6 +5,12 @@ import { apiClient } from "../../../lib/services/api-client";
 import { VendorDriver } from "../../../lib/services/types/multi-mode";
 import { useVendorContext } from "../../layout";
 import { toast } from "sonner";
+import {
+    getPhoneValidationError,
+    PHONE_MAX_LENGTH,
+    PHONE_PLACEHOLDER,
+    sanitizePhoneInput,
+} from "../../../lib/utils/phone";
 
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -51,6 +57,11 @@ export default function VendorDriversPage() {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedLink) return;
+        const phoneError = getPhoneValidationError(form.phone);
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         setSaving(true);
         try {
             await apiClient.createVendorDriver({
@@ -138,7 +149,7 @@ export default function VendorDriversPage() {
                         <form onSubmit={handleAdd} className="space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Full Name *"><input required value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
-                                <Field label="Phone"><input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputCls} /></Field>
+                                <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
                                 <Field label="Email *"><input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
                                 <Field label="Password *"><input required type="password" minLength={8} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
                                 <Field label="Driver Type *">

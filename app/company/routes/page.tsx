@@ -32,6 +32,12 @@ import {
   Home,
   CheckCheck,
 } from "lucide-react";
+import {
+  getPhoneValidationError,
+  PHONE_MAX_LENGTH,
+  PHONE_PLACEHOLDER,
+  sanitizePhoneInput,
+} from "../../lib/utils/phone";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -296,6 +302,11 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.full_name.trim() || !form.email.trim()) return;
+    const phoneError = getPhoneValidationError(form.phone);
+    if (phoneError) {
+      setSubmitError(phoneError);
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -441,9 +452,11 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                     <input
                       type="tel"
+                      inputMode="numeric"
+                      maxLength={PHONE_MAX_LENGTH}
                       value={form.phone}
-                      onChange={(e) => updateField("phone", e.target.value)}
-                      placeholder="+92 300 1234567"
+                      onChange={(e) => updateField("phone", sanitizePhoneInput(e.target.value))}
+                      placeholder={PHONE_PLACEHOLDER}
                       className={cx(inputCls, "pl-9")}
                     />
                   </div>

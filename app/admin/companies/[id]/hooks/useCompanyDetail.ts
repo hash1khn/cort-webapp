@@ -8,6 +8,7 @@ import { useAdminAbility } from "../../../../lib/abilities/AdminAbilityProvider"
 import { ADMIN_SUBJECTS } from "../../../../lib/abilities/admin-subjects";
 import { useAuth } from "../../../../lib/contexts/auth-context";
 import { useConfirm } from "../../../../lib/hooks/useConfirm";
+import { getPhoneValidationError } from "../../../../lib/utils/phone";
 
 export function useCompanyDetail(id: string) {
   const confirm = useConfirm();
@@ -214,6 +215,11 @@ export function useCompanyDetail(id: string) {
 
     const handleCreateEmployee = async () => {
         if (!newEmpName.trim() || !company) return;
+        const phoneError = getPhoneValidationError(newEmpPhone);
+        if (phoneError) {
+            toast.error(phoneError);
+            return;
+        }
         try {
             setIsCreatingEmp(true);
             await apiClient.createEmployee({

@@ -12,6 +12,7 @@ import { useCompanyDetail } from "./hooks/useCompanyDetail";
 import { CompanyEmployeesTab } from "./components/CompanyEmployeesTab";
 import { CompanyServicesTab } from "./components/CompanyServicesTab";
 import { CompanyWhitelistingTab } from "./components/CompanyWhitelistingTab";
+import { PHONE_MAX_LENGTH, PHONE_PLACEHOLDER, sanitizePhoneInput } from "../../../lib/utils/phone";
 
 export default function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -163,8 +164,11 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Phone</label>
             <input
               type="tel"
+              inputMode="numeric"
+              maxLength={PHONE_MAX_LENGTH}
               value={d.newEmpPhone}
-              onChange={(e) => d.setNewEmpPhone(e.target.value)}
+              onChange={(e) => d.setNewEmpPhone(sanitizePhoneInput(e.target.value))}
+              placeholder={PHONE_PLACEHOLDER}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>

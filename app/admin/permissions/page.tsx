@@ -16,6 +16,12 @@ import {
   normalizeStaffPermissions,
   sectionHasAnyCrud,
 } from "../../lib/utils/staff-permissions";
+import {
+  getPhoneValidationError,
+  PHONE_MAX_LENGTH,
+  PHONE_PLACEHOLDER,
+  sanitizePhoneInput,
+} from "../../lib/utils/phone";
 
 const PERMISSION_LABELS: Record<PermissionKey, string> = {
   dashboard: "Dashboard",
@@ -140,6 +146,11 @@ function PermissionsPageContent() {
   const handleCreate = async () => {
     if (createForm.password !== createForm.confirmPassword) {
       setCreateError("Passwords do not match");
+      return;
+    }
+    const phoneError = getPhoneValidationError(createForm.phone);
+    if (phoneError) {
+      setCreateError(phoneError);
       return;
     }
     try {
@@ -328,11 +339,18 @@ function PermissionsPageContent() {
                       {field.replace("_", " ")}
                     </label>
                     <input
-                      type={field === "email" ? "email" : "text"}
+                      type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
+                      inputMode={field === "phone" ? "numeric" : undefined}
+                      maxLength={field === "phone" ? PHONE_MAX_LENGTH : undefined}
                       value={createForm[field]}
-                      onChange={(e) => setCreateForm((f) => ({ ...f, [field]: e.target.value }))}
+                      onChange={(e) =>
+                        setCreateForm((f) => ({
+                          ...f,
+                          [field]: field === "phone" ? sanitizePhoneInput(e.target.value) : e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm transition-all focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
-                      placeholder={`Enter ${field.replace("_", " ")}`}
+                      placeholder={field === "phone" ? PHONE_PLACEHOLDER : `Enter ${field.replace("_", " ")}`}
                     />
                   </div>
                 ))}
