@@ -49,13 +49,17 @@ export type DashboardStats = {
         shuttle_enabled: boolean;
     };
     costLeakage?: {
+        aiInsightsEnabled: boolean;
+        totalPotentialSavingPkr: number;
         insights: {
             id: number;
             insight_type: string;
             severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
             estimated_saving_pkr: number;
+            label: string;
+            is_preview: boolean;
             data: { summary: string; recommendation: string; metric_value?: number };
-            generated_at: string;
+            generated_at: string | null;
         }[];
     };
     monthlyBudget?: number;

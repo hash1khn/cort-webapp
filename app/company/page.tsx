@@ -175,7 +175,7 @@ export default function CompanyDashboardPage() {
       chauffeurRides: 0,
       upcomingBookings: 0
     },
-    costLeakage: dashboardStats.costLeakage ?? { insights: [] }
+    costLeakage: dashboardStats.costLeakage ?? { aiInsightsEnabled: false, totalPotentialSavingPkr: 0, insights: [] }
   } : null;
 
   // Real data overrides where possible (example)
@@ -327,7 +327,7 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* Power Insights (Optimization) - Enhanced with Cost Leakage Detector */}
-      {hasChauffeur && (
+      {(hasChauffeur || hasShuttle) && (
         <div className="dashboard-section dashboard-section-delay-5">
           <CostLeakageDetector data={data.costLeakage} />
         </div>
