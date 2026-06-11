@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import {
     ExpensesApi,
     Expense,
@@ -11,6 +11,36 @@ import {
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
+import { adminStatCard } from "../components/ui/admin-styles";
+
+function getCurrentMonthValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthDateRange(month: string) {
+    const [year, monthNum] = month.split("-").map(Number);
+    const startDate = `${year}-${String(monthNum).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const endDate = `${year}-${String(monthNum).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return { startDate, endDate };
+}
+
+function getFilterPeriodLabel(month: string, startDate: string, endDate: string) {
+    if (month) {
+        return format(parse(month, "yyyy-MM", new Date()), "MMMM yyyy");
+    }
+    if (startDate && endDate) {
+        return `${format(new Date(startDate), "MMM d, yyyy")} – ${format(new Date(endDate), "MMM d, yyyy")}`;
+    }
+    if (startDate) {
+        return `From ${format(new Date(startDate), "MMM d, yyyy")}`;
+    }
+    if (endDate) {
+        return `Until ${format(new Date(endDate), "MMM d, yyyy")}`;
+    }
+    return "All time";
+}
 
 interface PaginationMeta {
     page: number;
@@ -36,14 +66,19 @@ function ExpensesPageContent() {
     const canUpdate = ability.can("update", ADMIN_SUBJECTS.expenses);
     const canDelete = ability.can("delete", ADMIN_SUBJECTS.expenses);
 
+    const initialMonth = getCurrentMonthValue();
+    const initialRange = getMonthDateRange(initialMonth);
+
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0, hasNext: false, hasPrev: false });
+    const [totalAmount, setTotalAmount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [filterStartDate, setFilterStartDate] = useState("");
-    const [filterEndDate, setFilterEndDate] = useState("");
+    const [filterMonth, setFilterMonth] = useState(initialMonth);
+    const [filterStartDate, setFilterStartDate] = useState(initialRange.startDate);
+    const [filterEndDate, setFilterEndDate] = useState(initialRange.endDate);
     const [filterCategory, setFilterCategory] = useState<ExpenseCategory | "">("");
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -66,6 +101,7 @@ function ExpensesPageContent() {
                 hasNext: meta.hasNext ?? false,
                 hasPrev: meta.hasPrev ?? false,
             });
+            setTotalAmount(Number(raw?.data?.totalAmount ?? 0));
         } catch (e: any) {
             setError(e.message || "Failed to load expenses");
         } finally {
@@ -103,6 +139,18 @@ function ExpensesPageContent() {
         fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
+    const handleMonthChange = (month: string) => {
+        setFilterMonth(month);
+        if (month) {
+            const { startDate, endDate } = getMonthDateRange(month);
+            setFilterStartDate(startDate);
+            setFilterEndDate(endDate);
+        } else {
+            setFilterStartDate("");
+            setFilterEndDate("");
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -117,14 +165,39 @@ function ExpensesPageContent() {
                 </button>
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className={adminStatCard}>
+                    <div className="text-xs font-semibold text-[var(--text-muted)] uppercase">Total Expenses</div>
+                    <div className="mt-2 text-2xl font-bold text-navy">
+                        PKR {totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">
+                        {getFilterPeriodLabel(filterMonth, filterStartDate, filterEndDate)}
+                        {pagination.total > 0 && ` · ${pagination.total} expense${pagination.total === 1 ? "" : "s"}`}
+                    </div>
+                </div>
+            </div>
+
             {/* Filters */}
             <div className="flex flex-wrap items-end gap-4 rounded-lg bg-white p-4 shadow-sm">
+                <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium text-gray-700">Month</span>
+                    <input
+                        type="month"
+                        value={filterMonth}
+                        onChange={(e) => handleMonthChange(e.target.value)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none"
+                    />
+                </label>
                 <label className="flex flex-col gap-1 text-sm">
                     <span className="font-medium text-gray-700">Start Date</span>
                     <input
                         type="date"
                         value={filterStartDate}
-                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        onChange={(e) => {
+                            setFilterMonth("");
+                            setFilterStartDate(e.target.value);
+                        }}
                         className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none"
                     />
                 </label>
@@ -133,7 +206,10 @@ function ExpensesPageContent() {
                     <input
                         type="date"
                         value={filterEndDate}
-                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        onChange={(e) => {
+                            setFilterMonth("");
+                            setFilterEndDate(e.target.value);
+                        }}
                         className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-navy focus:outline-none"
                     />
                 </label>
@@ -154,6 +230,7 @@ function ExpensesPageContent() {
                 </label>
                 <button
                     onClick={() => {
+                        setFilterMonth("");
                         setFilterStartDate("");
                         setFilterEndDate("");
                         setFilterCategory("");

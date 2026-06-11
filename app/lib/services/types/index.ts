@@ -162,6 +162,7 @@ export type {
     Expense,
     CreateExpenseRequest,
     ExpenseFilterParams,
+    ExpensesListResult,
 } from './expenses';
 
 // Multi-mode fleet platform

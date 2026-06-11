@@ -37,3 +37,15 @@ export interface ExpenseFilterParams {
     page?: number;
     limit?: number;
 }
+
+export interface ExpensesListResult {
+    data: Expense[];
+    pagination: {
+        page: number;
+        pages: number;
+        total: number;
+        hasNext: boolean;
+        hasPrev: boolean;
+    };
+    totalAmount: number;
+}

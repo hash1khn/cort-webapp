@@ -50,7 +50,7 @@ import {
     // Invoices
     QueryInvoiceParams, Invoice,
     // Expenses
-    Expense, CreateExpenseRequest, ExpenseFilterParams,
+    Expense, CreateExpenseRequest, ExpenseFilterParams, ExpensesListResult,
 } from './types';
 
 // Re-export all types for backward compatibility
@@ -1821,7 +1821,7 @@ export const ExpensesApi = {
         if (params?.page) query.append('page', String(params.page));
         if (params?.limit) query.append('limit', String(params.limit));
 
-        return apiClient.request<PaginatedResponse<Expense>>(`/expenses?${query.toString()}`);
+        return apiClient.request<ExpensesListResult>(`/expenses?${query.toString()}`);
     },
 
     create: async (data: CreateExpenseRequest) => {
