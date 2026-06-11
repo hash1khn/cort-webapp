@@ -171,7 +171,7 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     const hasOutstanding = outstandingAmount > 0;
 
     return (
-        <Card className={`group relative bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] h-full transition-all duration-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 hover:z-[100] flex flex-col justify-between`}>
+        <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] h-full transition-all duration-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 flex flex-col justify-between`}>
             {/* Background Icon matching Savings card */}
             <div className="pointer-events-none absolute inset-y-0 right-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 {hasOutstanding ? (
@@ -198,13 +198,13 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
             <div className="relative z-10">
                 {hasOutstanding ? (
                     <div className="flex flex-col">
-                        <div className="group/info text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative">
+                        <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative z-20">
                             <span className="font-bold">Total unpaid & overdue</span>
                             <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
                             
                             {/* Invoices Tooltip */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
+                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
                                     <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
                                         Recent Outstanding Invoices
                                     </div>
@@ -332,7 +332,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
 
 export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
     return (
-        <Card className="group relative overflow-visible z-20 p-5">
+        <Card className="group relative overflow-visible z-20 hover:z-[200] p-5">
             <div className="pointer-events-none hidden sm:block absolute inset-0 overflow-hidden rounded-[2rem]">
                 <div className="absolute inset-y-4 right-0 w-40 flex items-center justify-center opacity-10 transform rotate-12">
                     <Wallet size={120} className="text-[var(--text-muted)]" />
@@ -351,13 +351,13 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
                     </div>
 
                     <div className="mt-4 lg:mt-6">
-                        <div className="group/info text-xs text-[var(--text-secondary)] flex items-center gap-2 relative cursor-default font-medium">
+                        <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-secondary)] flex items-center gap-2 relative z-20 cursor-default font-medium">
                             <span className="opacity-80">Total unpaid & overdue invoices</span>
                             <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
 
                             {/* Hover Tooltip/List */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-xl z-50 overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
+                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
                                     <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
                                         Recent Outstanding Invoices
                                     </div>
