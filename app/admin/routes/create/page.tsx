@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/ad
 import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { apiClient } from '@/app/lib/services/api-client';
 import { DriverType } from '@/app/lib/services/types/drivers';
+import type { PoolVehicle } from '@/app/lib/services/types/multi-mode';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
@@ -59,7 +60,63 @@ function CreateRoutePageContent() {
     const [assignedDriverId, setAssignedDriverId] = useState('');
     const [stops, setStops] = useState<Stop[]>([]);
     const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
+    const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
+    const [poolVehiclesLoading, setPoolVehiclesLoading] = useState(false);
+    const [shuttleSelfManaged, setShuttleSelfManaged] = useState(false);
     const polylineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const selectedCompany = useMemo(
+        () => companies.find((c) => String(c.id) === companyId),
+        [companies, companyId],
+    );
+
+    useEffect(() => {
+        if (!companyId) {
+            setShuttleSelfManaged(false);
+            setPoolVehicles([]);
+            return;
+        }
+
+        const companyNumericId = Number(companyId);
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const featuresRes = await apiClient.getCompanyFeatures(companyNumericId);
+                const features = featuresRes.data ?? [];
+                const selfManaged =
+                    Boolean(selectedCompany?.is_shuttle_enabled) &&
+                    Boolean(features.find((f) => f.feature_key === 'shuttle_self_managed')?.is_enabled);
+
+                if (cancelled) return;
+                setShuttleSelfManaged(selfManaged);
+
+                if (!selfManaged) {
+                    setPoolVehicles([]);
+                    return;
+                }
+
+                setPoolVehiclesLoading(true);
+                try {
+                    const poolRes = await apiClient.getPoolVehicles(companyNumericId);
+                    if (!cancelled) setPoolVehicles(poolRes.data ?? []);
+                } catch {
+                    if (!cancelled) setPoolVehicles([]);
+                } finally {
+                    if (!cancelled) setPoolVehiclesLoading(false);
+                }
+            } catch {
+                if (!cancelled) {
+                    setShuttleSelfManaged(false);
+                    setPoolVehicles([]);
+                }
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, selectedCompany?.is_shuttle_enabled]);
 
     useEffect(() => {
         if (companiesStatus === 'idle') dispatch(fetchAdminCompanies({ limit: 100 }));
@@ -214,7 +271,10 @@ function CreateRoutePageContent() {
                                 id="company"
                                 className="w-full border rounded-lg p-2 text-sm"
                                 value={companyId}
-                                onChange={(e) => setCompanyId(e.target.value)}
+                                onChange={(e) => {
+                                    setCompanyId(e.target.value);
+                                    setAssignedVehicleId('');
+                                }}
                                 disabled={companiesStatus === 'loading'}
                             >
                                 <option value="">Select Company</option>
@@ -231,14 +291,35 @@ function CreateRoutePageContent() {
                                     className="w-full border rounded-lg p-2 text-sm"
                                     value={assignedVehicleId}
                                     onChange={(e) => setAssignedVehicleId(e.target.value)}
+                                    disabled={poolVehiclesLoading}
                                 >
-                                    <option value="">None</option>
-                                    {vehicles.map((v) => (
-                                        <option key={v.id} value={v.id}>
-                                            {v.plate_number}{v.model ? ` · ${v.model}` : ''}
-                                        </option>
-                                    ))}
+                                    <option value="">
+                                        {poolVehiclesLoading ? 'Loading vehicles…' : 'None'}
+                                    </option>
+                                    {shuttleSelfManaged && poolVehicles.length > 0 && (
+                                        <optgroup label="Company pool">
+                                            {poolVehicles.map((v) => (
+                                                <option key={`pool-${v.id}`} value={v.id}>
+                                                    {v.plate_number}{v.model ? ` · ${v.model}` : ''}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    <optgroup label={shuttleSelfManaged ? 'Cort fleet' : 'Fleet'}>
+                                        {vehicles
+                                            .filter((v) => !poolVehicles.some((p) => p.id === v.id))
+                                            .map((v) => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.plate_number}{v.model ? ` · ${v.model}` : ''}
+                                                </option>
+                                            ))}
+                                    </optgroup>
                                 </select>
+                                {shuttleSelfManaged && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Self-managed shuttle: company pool vehicles are listed first.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <Label htmlFor="driver">Driver</Label>

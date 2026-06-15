@@ -501,6 +501,12 @@ class ApiClient {
         });
     }
 
+    async deleteEmployee(id: string): Promise<void> {
+        await this.request<void>(`/employees/${id}`, {
+            method: 'DELETE',
+        });
+    }
+
     async bulkCreateEmployees(employees: CreateEmployeeRequest[]): Promise<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }> {
         return this.request<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }>('/employees/bulk-create', {
             method: 'POST',
@@ -1077,8 +1083,19 @@ class ApiClient {
         );
     }
 
-    async getEmployeesByCompany(companyId: string | number): Promise<any> {
-        return this.request<any>(`/employees/company/${companyId}`);
+    async getEmployeesByCompany(
+        companyId: string | number,
+        params: QueryEmployeeParams = {},
+    ): Promise<PaginatedResponse<Employee>> {
+        const query = new URLSearchParams();
+        if (params.page) query.append('page', params.page.toString());
+        if (params.limit) query.append('limit', params.limit.toString());
+        if (params.search) query.append('search', params.search);
+
+        const queryString = query.toString();
+        const endpoint = `/employees/company/${companyId}${queryString ? `?${queryString}` : ''}`;
+
+        return this.request<PaginatedResponse<Employee>>(endpoint);
     }
 
     async toggleEmployeeStatus(id: string, activate: boolean): Promise<any> {
@@ -1925,6 +1942,29 @@ class ApiClient {
 
     async deactivateShuttleRequester(companyId: number, requesterId: string) {
         return this.request(`/companies/${companyId}/shuttle-requesters/${requesterId}`, { method: 'DELETE' });
+    }
+
+    async activateShuttleRequester(companyId: number, requesterId: string) {
+        return this.request(`/companies/${companyId}/shuttle-requesters/${requesterId}/activate`, {
+            method: 'POST',
+        });
+    }
+
+    async updateShuttleRequester(
+        companyId: number,
+        requesterId: string,
+        body: {
+            full_name?: string;
+            email?: string;
+            phone?: string;
+            department_id?: number;
+            password?: string;
+        },
+    ) {
+        return this.request(`/companies/${companyId}/shuttle-requesters/${requesterId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+        });
     }
 
     // ===== COMPANY ROUTES (shuttle self-managed) =====

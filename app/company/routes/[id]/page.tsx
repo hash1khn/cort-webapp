@@ -8,7 +8,8 @@ import { selectCompany, selectCompanyFeatures } from "../../../lib/store/slices/
 import { apiClient } from "../../../lib/services/api-client";
 import { useAuth } from "../../../lib/contexts/auth-context";
 import { Card } from "../../components/DashboardComponents";
-import { PageHeader } from "../../components/PageLayout";
+import { PageHeader, CompanyPageLoader, CompanyLoadingButton } from "../../components/PageLayout";
+import { RouteStopsMap } from "../../components/RouteStopsMap";
 import { Button } from "@/app/admin/ui/Button";
 import {
   Activity,
@@ -173,6 +174,7 @@ export default function RouteDetailPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedStopId, setSelectedStopId] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -194,7 +196,7 @@ export default function RouteDetailPage() {
 
   useEffect(() => {
     if (!canManageRoster || !company?.id) return;
-    apiClient.getEmployeesByCompany(company.id)
+    apiClient.getEmployeesByCompany(company.id, { limit: 200 })
       .then((res) => {
         const raw = res?.data ?? res;
         const list = Array.isArray(raw) ? raw : raw?.data ?? [];
@@ -234,12 +236,15 @@ export default function RouteDetailPage() {
 
   const handleRemove = async (userId: string) => {
     if (!confirm("Remove this employee from the route?")) return;
+    setRemovingId(userId);
     try {
       await apiClient.removeEmployeeFromRoute(userId);
       toast.success("Employee removed from route");
       load();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to remove employee");
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -270,10 +275,7 @@ export default function RouteDetailPage() {
       </div>
 
       {loading ? (
-        <Card className="py-16 text-center">
-          <RefreshCw className="w-5 h-5 mx-auto mb-3 animate-spin text-[var(--text-muted)]" />
-          <div className="text-sm text-[var(--text-muted)]">Loading route…</div>
-        </Card>
+        <CompanyPageLoader label="Loading route…" minHeight="min-h-[40vh]" />
       ) : error ? (
         <Card className="py-12 text-center">
           <div className="text-sm text-red-500">{error}</div>
@@ -353,6 +355,20 @@ export default function RouteDetailPage() {
             ))}
           </div>
 
+          {/* Route map */}
+          <Card className="!p-0 overflow-hidden min-h-[360px]">
+            <div className="px-6 py-4 border-b border-[var(--border-light)]">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[var(--cort-orange)]" />
+                <span className="font-semibold text-[var(--text-primary)]">Route Map</span>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Morning stop sequence with road polyline
+              </p>
+            </div>
+            <RouteStopsMap stops={stops} height="360px" direction="MORNING" />
+          </Card>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Employees */}
             <div className="lg:col-span-2">
@@ -430,13 +446,14 @@ export default function RouteDetailPage() {
                           ))}
                         </select>
                       </div>
-                      <Button
+                      <CompanyLoadingButton
                         onClick={handleAssign}
-                        disabled={assigning}
-                        className="bg-[var(--cort-orange)] text-white border-0"
+                        disabled={!selectedEmployeeId || !selectedStopId}
+                        loading={assigning}
+                        loadingText="Assigning…"
                       >
-                        {assigning ? "Assigning…" : "Assign"}
-                      </Button>
+                        Assign
+                      </CompanyLoadingButton>
                     </div>
                     <p className="mt-2 text-xs text-[var(--text-muted)]">
                       Assign employees who were created before this route existed. Re-assigning moves them from another route.
@@ -520,10 +537,15 @@ export default function RouteDetailPage() {
                             <button
                               type="button"
                               onClick={() => handleRemove(emp?.id ?? assignment.user_id)}
-                              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              disabled={removingId === (emp?.id ?? assignment.user_id)}
+                              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                               title="Remove from route"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {removingId === (emp?.id ?? assignment.user_id) ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                         </div>

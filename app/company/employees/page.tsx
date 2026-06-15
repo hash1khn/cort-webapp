@@ -4,22 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import {
-  fetchEmployees,
-  selectEmployees,
-  selectEmployeesStatus,
   updateEmployee,
   deactivateEmployee,
   createEmployee,
   invalidateEmployeesCache,
 } from "../../lib/store/slices/employeeSlice";
+import type { Employee } from "../../lib/services/types/employees";
 import { apiClient } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { UserRole } from "../../lib/types/auth-types";
 import { Card } from "../components/DashboardComponents";
-import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
+import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS, TABLE_PAGINATION_WRAPPER_CLASS, COMPANY_PAGE_CLASS, CompanyModal, CompanyLoadingButton, CompanyPageLoader } from "../components/PageLayout";
+import { Loader2 } from "lucide-react";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
+import Pagination from "@/app/components/ui/Pagination";
 import { Button } from "@/app/admin/ui/Button";
-import { Plus, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   getPhoneValidationError,
   PHONE_MAX_LENGTH,
@@ -45,6 +45,8 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+const PAGE_SIZE = 10;
+
 const emptyCreateForm = () => ({
   full_name: "",
   email: "",
@@ -58,10 +60,14 @@ export default function EmployeesPage() {
   const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
   const features = useAppSelector(selectCompanyFeatures);
-  const employees = useAppSelector(selectEmployees);
-  const status = useAppSelector(selectEmployeesStatus);
   const { user, isCompanyAdmin } = useAuth();
-  const loading = status === "loading";
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const shuttleSelfManaged = features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
   const isRequester = user?.role === UserRole.SHUTTLE_REQUESTER;
@@ -71,6 +77,8 @@ export default function EmployeesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
   const [creating, setCreating] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -84,15 +92,44 @@ export default function EmployeesPage() {
 
   const companyId = company?.id?.toString();
 
-  const loadEmployees = useCallback(() => {
+  const loadEmployees = useCallback(async (targetPage = page) => {
     if (!companyId) return;
-    dispatch(invalidateEmployeesCache());
-    dispatch(fetchEmployees(companyId));
-  }, [companyId, dispatch]);
+    setLoading(true);
+    try {
+      const response = await apiClient.getEmployeesByCompany(companyId, {
+        page: targetPage,
+        limit: PAGE_SIZE,
+        search: search.trim() || undefined,
+      });
+      const payload = response.data;
+      setEmployees(payload?.data ?? []);
+      const meta = payload?.pagination;
+      setTotal(meta?.total ?? 0);
+      setTotalPages(meta?.pages ?? 1);
+      setPage(meta?.page ?? targetPage);
+    } catch {
+      toast.error("Failed to load employees");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, page, search]);
 
   useEffect(() => {
-    loadEmployees();
-  }, [loadEmployees]);
+    loadEmployees(page);
+  }, [companyId, page, search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const refreshEmployees = useCallback(() => {
+    dispatch(invalidateEmployeesCache());
+    loadEmployees(page);
+  }, [dispatch, loadEmployees, page]);
 
   useEffect(() => {
     if (!selfManagedMode || !company?.id) return;
@@ -132,7 +169,7 @@ export default function EmployeesPage() {
   }
 
   async function saveEdit(employee: typeof employees[0]) {
-    if (!editingId) return;
+    if (!editingId || savingId) return;
     const phoneError = getPhoneValidationError(editForm.phone);
     if (phoneError) {
       toast.error(phoneError);
@@ -146,37 +183,78 @@ export default function EmployeesPage() {
           phone: editForm.phone.trim() || undefined,
           employee_id: editForm.employee_id.trim() || undefined,
           home_address: editForm.home_address.trim() || undefined,
-          ...(editForm.department_id ? { department_id: Number(editForm.department_id) } : {}),
+          ...(isCompanyAdmin && editForm.department_id
+            ? { department_id: Number(editForm.department_id) }
+            : {}),
         }
       : { phone: editForm.phone, email: editForm.email };
 
+    setSavingId(employee.id);
     try {
       await dispatch(updateEmployee({ employeeId: employee.id, data: data as any })).unwrap();
       toast.success("Employee updated");
-      loadEmployees();
+      refreshEmployees();
       cancelEdit();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to update employee");
+    } finally {
+      setSavingId(null);
     }
   }
 
   async function handleDeactivate(employee: typeof employees[0]) {
+    if (actionId) return;
     const isActive = employee.status.toLowerCase() === "active";
     if (!confirm(`Are you sure you want to ${isActive ? "deactivate" : "activate"} ${employee.full_name}?`)) return;
+    setActionId(employee.id);
     try {
       await dispatch(deactivateEmployee({ employeeId: employee.id, isActive: !isActive })).unwrap();
       toast.success(isActive ? "Employee deactivated" : "Employee activated");
     } catch {
       toast.error("Failed to update status");
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function handleDelete(employee: Employee) {
+    if (actionId) return;
+    if (
+      !confirm(
+        `Remove ${employee.full_name} permanently?\n\nThis deletes their account and cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setActionId(employee.id);
+    try {
+      await apiClient.deleteEmployee(employee.id);
+      dispatch(invalidateEmployeesCache());
+      toast.success("Employee removed");
+      if (employees.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        refreshEmployees();
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to remove employee");
+    } finally {
+      setActionId(null);
     }
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!company?.id) return;
+    if (!company?.id || creating) return;
 
     if (selfManagedMode && isCompanyAdmin && !createForm.department_id) {
       toast.error("Department is required");
+      return;
+    }
+
+    if (isRequester && !user?.department_id) {
+      toast.error("Your account is not linked to a department");
       return;
     }
 
@@ -195,7 +273,11 @@ export default function EmployeesPage() {
         company_id: Number(company!.id),
         employee_id: createForm.employee_id.trim() || undefined,
         home_address: createForm.home_address.trim() || undefined,
-        department_id: createForm.department_id ? Number(createForm.department_id) : undefined,
+        department_id: isRequester
+          ? user!.department_id!
+          : createForm.department_id
+            ? Number(createForm.department_id)
+            : undefined,
       })).unwrap();
       toast.success("Employee created");
       setShowCreate(false);
@@ -203,7 +285,7 @@ export default function EmployeesPage() {
       if (isRequester && user?.department_id) {
         setCreateForm((f) => ({ ...f, department_id: String(user.department_id) }));
       }
-      loadEmployees();
+      refreshEmployees();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to create employee");
     } finally {
@@ -215,7 +297,7 @@ export default function EmployeesPage() {
   const deptLabel = (e: typeof employees[0]) => e.departments?.name ?? e.department ?? "—";
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+    <div className={COMPANY_PAGE_CLASS}>
       <PageHeader
         label="Roster Management"
         title={isRequester && selfManagedMode ? "My Department" : "Employees"}
@@ -240,6 +322,24 @@ export default function EmployeesPage() {
       />
 
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
+        <div className={TABLE_TOP_BAR_CLASS}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+            <div className="text-sm text-[var(--text-muted)]">
+              {total > 0 ? (
+                <>Showing {employees.length} of {total.toLocaleString()} employees</>
+              ) : (
+                <>No employees to display</>
+              )}
+            </div>
+            <TextInput
+              value={searchInput}
+              onChange={(ev) => setSearchInput(ev.target.value)}
+              placeholder="Search by name, email, or employee ID…"
+              className="w-full sm:w-72"
+            />
+          </div>
+        </div>
+
         {!selfManagedMode && (
           <div className={TABLE_TOP_BAR_CLASS}>
             <div className="flex items-start gap-3">
@@ -256,7 +356,12 @@ export default function EmployeesPage() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
+          {loading && employees.length > 0 && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--bg-card)]/70 backdrop-blur-[1px]">
+              <CompanyPageLoader label="Loading employees…" minHeight="min-h-0" />
+            </div>
+          )}
           <table className="min-w-full text-sm text-left">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
@@ -291,7 +396,7 @@ export default function EmployeesPage() {
                           e.employee_id || "—"
                         )}
                       </td>
-                      <td className={`${TABLE_CELL_CLASS} font-bold text-white`}>
+                      <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>
                         {isEditing && selfManagedMode ? (
                           <TextInput value={editForm.full_name} onChange={(ev) => setEditForm({ ...editForm, full_name: ev.target.value })} />
                         ) : (
@@ -359,17 +464,38 @@ export default function EmployeesPage() {
                         <div className="flex items-center justify-end gap-2">
                           {isEditing ? (
                             <>
-                              <button type="button" onClick={() => saveEdit(e)} className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--cort-orange)] px-3 text-xs font-bold text-white">Save</button>
-                              <button type="button" onClick={cancelEdit} className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-input)] px-3 text-xs font-bold text-[var(--text-secondary)]">Cancel</button>
+                              <CompanyLoadingButton
+                                type="button"
+                                onClick={() => saveEdit(e)}
+                                loading={savingId === e.id}
+                                loadingText="Saving…"
+                                className="h-8 px-3 text-xs"
+                              >
+                                Save
+                              </CompanyLoadingButton>
+                              <button type="button" onClick={cancelEdit} disabled={savingId === e.id} className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-input)] px-3 text-xs font-bold text-[var(--text-secondary)] disabled:opacity-50">Cancel</button>
                             </>
                           ) : (
                             <>
-                              <button type="button" onClick={() => startEdit(e)} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/10 rounded-lg" title="Edit">
+                              <button type="button" onClick={() => startEdit(e)} disabled={actionId === e.id} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/10 rounded-lg disabled:opacity-50" title="Edit">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
-                              <button type="button" onClick={() => handleDeactivate(e)} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10" title="Toggle status">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              <button type="button" onClick={() => handleDeactivate(e)} disabled={actionId === e.id} className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50" title="Toggle status">
+                                {actionId === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                )}
                               </button>
+                              {selfManagedMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(e)}
+                                  disabled={actionId === e.id}
+                                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 disabled:opacity-50"
+                                  title="Remove employee"
+                                >
+                                  {actionId === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
@@ -381,69 +507,74 @@ export default function EmployeesPage() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className={TABLE_PAGINATION_WRAPPER_CLASS}>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
       </Card>
 
-      {showCreate && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-light)]">
-              <h2 className="font-bold text-[var(--text-primary)]">Add Employee</h2>
-              <button onClick={() => setShowCreate(false)} className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)]"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleCreate} className="flex flex-col flex-1 p-6 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Full Name *</label>
-                <TextInput required value={createForm.full_name} onChange={(ev) => setCreateForm({ ...createForm, full_name: ev.target.value })} className="mt-1 w-full" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Email *</label>
-                <TextInput required type="email" value={createForm.email} onChange={(ev) => setCreateForm({ ...createForm, email: ev.target.value })} className="mt-1 w-full" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Phone</label>
-                <TextInput type="tel" value={createForm.phone} onChange={(ev) => setCreateForm({ ...createForm, phone: sanitizePhoneInput(ev.target.value) })} className="mt-1 w-full" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Employee ID</label>
-                <TextInput value={createForm.employee_id} onChange={(ev) => setCreateForm({ ...createForm, employee_id: ev.target.value })} className="mt-1 w-full" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Department *</label>
-                {isRequester ? (
-                  <TextInput
-                    readOnly
-                    value={activeDepartments.find((d) => d.id === user?.department_id)?.name ?? "Your department"}
-                    className="mt-1 w-full opacity-70"
-                  />
-                ) : (
-                  <select
-                    required
-                    value={createForm.department_id}
-                    onChange={(ev) => setCreateForm({ ...createForm, department_id: ev.target.value })}
-                    className="mt-1 w-full h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm"
-                  >
-                    <option value="">Select department</option>
-                    {activeDepartments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Home Address</label>
-                <TextInput value={createForm.home_address} onChange={(ev) => setCreateForm({ ...createForm, home_address: ev.target.value })} className="mt-1 w-full" />
-              </div>
-              <div className="mt-auto pt-4 flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)} className="flex-1">Cancel</Button>
-                <Button type="submit" disabled={creating} className="flex-1 bg-[var(--cort-orange)] text-white border-0">
-                  {creating ? "Creating…" : "Create Employee"}
-                </Button>
-              </div>
-            </form>
+      <CompanyModal
+        isOpen={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Add Employee"
+        loading={creating}
+        closeOnBackdrop={!creating}
+        size="lg"
+      >
+        <form onSubmit={handleCreate} className="flex flex-col gap-4">
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Full Name *</label>
+            <TextInput required value={createForm.full_name} onChange={(ev) => setCreateForm({ ...createForm, full_name: ev.target.value })} className="mt-1 w-full" />
           </div>
-        </>
-      )}
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Email *</label>
+            <TextInput required type="email" value={createForm.email} onChange={(ev) => setCreateForm({ ...createForm, email: ev.target.value })} className="mt-1 w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Phone</label>
+            <TextInput type="tel" value={createForm.phone} onChange={(ev) => setCreateForm({ ...createForm, phone: sanitizePhoneInput(ev.target.value) })} className="mt-1 w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Employee ID</label>
+            <TextInput value={createForm.employee_id} onChange={(ev) => setCreateForm({ ...createForm, employee_id: ev.target.value })} className="mt-1 w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Department *</label>
+            {isRequester ? (
+              <TextInput
+                readOnly
+                value={activeDepartments.find((d) => d.id === user?.department_id)?.name ?? "Your department"}
+                className="mt-1 w-full opacity-70"
+              />
+            ) : (
+              <select
+                required
+                value={createForm.department_id}
+                onChange={(ev) => setCreateForm({ ...createForm, department_id: ev.target.value })}
+                className="mt-1 w-full h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm"
+              >
+                <option value="">Select department</option>
+                {activeDepartments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Home Address</label>
+            <TextInput value={createForm.home_address} onChange={(ev) => setCreateForm({ ...createForm, home_address: ev.target.value })} className="mt-1 w-full" />
+          </div>
+          <div className="pt-4 flex gap-2">
+            <CompanyLoadingButton type="button" variant="outline" onClick={() => setShowCreate(false)} disabled={creating} className="flex-1">Cancel</CompanyLoadingButton>
+            <CompanyLoadingButton type="submit" loading={creating} loadingText="Creating…" className="flex-1">Create Employee</CompanyLoadingButton>
+          </div>
+        </form>
+      </CompanyModal>
     </div>
   );
 }

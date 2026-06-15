@@ -9,7 +9,12 @@ import { useAppSelector } from "../../../../lib/store/hooks";
 import { selectCompany, selectCompanyFeatures } from "../../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../../lib/services/api-client";
 import { useAuth } from "../../../../lib/contexts/auth-context";
-import { PageHeader } from "../../../components/PageLayout";
+import {
+  PageHeader,
+  CompanyPageLoader,
+  CompanyLoadingButton,
+} from "../../../components/PageLayout";
+import { RouteStopsMap } from "../../../components/RouteStopsMap";
 import { Card } from "../../../components/DashboardComponents";
 import { Button } from "@/app/admin/ui/Button";
 import StopAddressSearch from "@/app/admin/ui/StopAddressSearch";
@@ -17,10 +22,13 @@ import StopAddressSearch from "@/app/admin/ui/StopAddressSearch";
 type RouteStop = {
   id: number;
   name: string;
+  lat?: number | null;
+  lng?: number | null;
   morning_sequence?: number | null;
   evening_sequence?: number | null;
   morning_eta?: string | null;
   evening_eta?: string | null;
+  sequence_order?: number;
 };
 
 type RouteDetail = {
@@ -50,6 +58,8 @@ export default function EditCompanyRoutePage() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addingStop, setAddingStop] = useState(false);
+  const [deletingStopId, setDeletingStopId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!routeId || !companyId) return;
@@ -76,7 +86,7 @@ export default function EditCompanyRoutePage() {
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async () => {
-    if (!routeId) return;
+    if (!routeId || saving) return;
     setSaving(true);
     try {
       await apiClient.updateRoute(routeId, {
@@ -94,7 +104,8 @@ export default function EditCompanyRoutePage() {
   };
 
   const handleAddStop = async ({ name: stopName, lat, lng }: { name: string; lat: number; lng: number }) => {
-    if (!routeId) return;
+    if (!routeId || addingStop) return;
+    setAddingStop(true);
     try {
       await apiClient.addRouteStop(routeId, {
         name: stopName,
@@ -109,17 +120,22 @@ export default function EditCompanyRoutePage() {
       load();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to add stop");
+    } finally {
+      setAddingStop(false);
     }
   };
 
   const handleDeleteStop = async (stopId: number) => {
-    if (!confirm("Remove this stop?")) return;
+    if (!confirm("Remove this stop?") || deletingStopId != null) return;
+    setDeletingStopId(stopId);
     try {
       await apiClient.deleteRouteStop(stopId);
       toast.success("Stop removed");
       load();
     } catch {
       toast.error("Failed to remove stop");
+    } finally {
+      setDeletingStopId(null);
     }
   };
 
@@ -132,17 +148,13 @@ export default function EditCompanyRoutePage() {
   }
 
   if (loading) {
-    return (
-      <Card className="py-16 text-center">
-        <Loader2 className="w-5 h-5 mx-auto animate-spin text-[var(--text-muted)]" />
-      </Card>
-    );
+    return <CompanyPageLoader label="Loading route…" minHeight="min-h-[50vh]" />;
   }
 
   const stops = route?.route_stops ?? [];
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-12">
+    <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader
         label="Shuttle Operations"
         title="Edit Route"
@@ -152,54 +164,88 @@ export default function EditCompanyRoutePage() {
             <Link href={`/company/routes/${routeId}`}>
               <Button type="button" variant="outline">Cancel</Button>
             </Link>
-            <Button onClick={handleSave} disabled={saving} className="bg-[var(--cort-orange)] text-white border-0">
-              {saving ? "Saving…" : "Save Changes"}
-            </Button>
+            <CompanyLoadingButton onClick={handleSave} loading={saving} loadingText="Saving…">
+              Save Changes
+            </CompanyLoadingButton>
           </div>
         }
       />
 
-      <Card className="p-6 space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Route name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Pool vehicle</label>
-            <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm">
-              <option value="">None</option>
-              {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Shuttle driver</label>
-            <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm">
-              <option value="">None</option>
-              {drivers.map((d) => <option key={d.user_id} value={d.user_id}>{d.users?.full_name}</option>)}
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6 space-y-4">
-        <h3 className="font-semibold text-[var(--text-primary)]">Stops ({stops.length})</h3>
-        <StopAddressSearch onSelect={handleAddStop} placeholder="Add stop by address…" clearOnSelect />
-        <div className="divide-y divide-[var(--border-light)]">
-          {stops.map((stop, idx) => (
-            <div key={stop.id} className="flex items-center justify-between py-3">
-              <div>
-                <span className="text-xs font-bold text-[var(--cort-orange)] mr-2">{idx + 1}</span>
-                <span className="text-sm font-medium">{stop.name}</span>
-              </div>
-              <button type="button" onClick={() => handleDeleteStop(stop.id)} className="text-red-400 hover:text-red-600 p-1">
-                <Trash2 className="w-4 h-4" />
-              </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-6">
+          <Card className="p-6 space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Route name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm" />
             </div>
-          ))}
-          {stops.length === 0 && <p className="text-sm text-[var(--text-muted)] py-4">No stops yet.</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Pool vehicle</label>
+                <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm">
+                  <option value="">None</option>
+                  {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Shuttle driver</label>
+                <select value={driverId} onChange={(e) => setDriverId(e.target.value)} className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm">
+                  <option value="">None</option>
+                  {drivers.map((d) => <option key={d.user_id} value={d.user_id}>{d.users?.full_name}</option>)}
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 space-y-4">
+            <h3 className="font-semibold text-[var(--text-primary)]">Stops ({stops.length})</h3>
+            <StopAddressSearch
+              onSelect={handleAddStop}
+              placeholder="Add stop by address…"
+              clearOnSelect
+            />
+            {addingStop && (
+              <p className="text-xs text-[var(--text-muted)] flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--cort-orange)]" />
+                Adding stop…
+              </p>
+            )}
+            <div className="divide-y divide-[var(--border-light)]">
+              {stops.map((stop, idx) => (
+                <div key={stop.id} className="flex items-center justify-between py-3 gap-3">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-[var(--cort-orange)] mr-2">{idx + 1}</span>
+                    <span className="text-sm font-medium">{stop.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteStop(stop.id)}
+                    disabled={deletingStopId === stop.id}
+                    className="text-red-400 hover:text-red-600 p-1 disabled:opacity-50"
+                    title="Remove stop"
+                  >
+                    {deletingStopId === stop.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              ))}
+              {stops.length === 0 && <p className="text-sm text-[var(--text-muted)] py-4">No stops yet.</p>}
+            </div>
+          </Card>
         </div>
-      </Card>
+
+        <Card className="lg:col-span-2 p-0 overflow-hidden min-h-[480px]">
+          <div className="px-6 py-4 border-b border-[var(--border-light)]">
+            <h3 className="font-semibold text-[var(--text-primary)]">Route Map</h3>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Stops and road polyline update as you add or remove stops
+            </p>
+          </div>
+          <RouteStopsMap stops={stops} height="480px" />
+        </Card>
+      </div>
     </div>
   );
 }

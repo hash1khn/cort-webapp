@@ -9,7 +9,7 @@ import { apiClient } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { UserRole } from "../../lib/types/auth-types";
 import { Card } from "../components/DashboardComponents";
-import { PageHeader } from "../components/PageLayout";
+import { PageHeader, CompanyPageLoader, CompanyLoadingButton, CompanyModal } from "../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
 import {
   Activity,
@@ -27,7 +27,6 @@ import {
   Sunrise,
   User,
   UserPlus,
-  X,
   Phone,
   Mail,
   Building2,
@@ -180,14 +179,16 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
             className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] pl-9 pr-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all"
           />
         </div>
-        <Button
+        <CompanyLoadingButton
           onClick={handleAnalyze}
-          disabled={loading || !address.trim()}
-          className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl px-5 disabled:opacity-50 flex-shrink-0"
+          disabled={!address.trim()}
+          loading={loading}
+          loadingText="Analyzing…"
+          className="gap-2 rounded-xl px-5 flex-shrink-0"
         >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {loading ? "Analyzing…" : "Analyze"}
-        </Button>
+          <Sparkles className="w-4 h-4" />
+          Analyze
+        </CompanyLoadingButton>
       </div>
 
       {error && (
@@ -247,6 +248,7 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
 // ─── Add Employee Panel ───────────────────────────────────────────────────────
 
 type AddEmployeePanelProps = {
+  isOpen: boolean;
   companyId: number;
   routes: CompanyRoute[];
   shuttleSelfManaged: boolean;
@@ -254,7 +256,7 @@ type AddEmployeePanelProps = {
   onSuccess: () => void;
 };
 
-function AddEmployeePanel({ companyId, routes, shuttleSelfManaged, onClose, onSuccess }: AddEmployeePanelProps) {
+function AddEmployeePanel({ isOpen, companyId, routes, shuttleSelfManaged, onClose, onSuccess }: AddEmployeePanelProps) {
   const { user, isCompanyAdmin } = useAuth();
   const isRequester = user?.role === UserRole.SHUTTLE_REQUESTER;
   const [departments, setDepartments] = useState<{ id: number; name: string; is_active: boolean }[]>([]);
@@ -410,49 +412,30 @@ function AddEmployeePanel({ companyId, routes, shuttleSelfManaged, onClose, onSu
   const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5";
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-light)] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[var(--cort-orange)]/10">
-              <UserPlus className="w-5 h-5 text-[var(--cort-orange)]" />
-            </div>
-            <div>
-              <h2 className="font-bold text-[var(--text-primary)]">Add Employee</h2>
-              <p className="text-xs text-[var(--text-muted)]">AI will recommend the best route based on their address</p>
+    <CompanyModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Employee"
+      description="AI will recommend the best route based on their address"
+      size="lg"
+      loading={submitting}
+      closeOnBackdrop={!submitting}
+    >
+      {done ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <CheckCheck className="w-8 h-8 text-emerald-400" />
+          </div>
+          <div className="text-center">
+            <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
+            <div className="text-sm text-[var(--text-muted)] mt-1">
+              {form.full_name} has been added and{selectedRouteId ? " assigned to the recommended route" : " created"}.
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
-
-        {done ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 py-12">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <CheckCheck className="w-8 h-8 text-emerald-400" />
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
-              <div className="text-sm text-[var(--text-muted)] mt-1">
-                {form.full_name} has been added and{selectedRouteId ? " assigned to the recommended route" : " created"}.
-              </div>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1">
-            <div className="flex-1 px-6 py-6 space-y-5 overflow-y-auto">
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="space-y-5">
 
               {/* Name + Employee ID */}
               <div className="grid grid-cols-2 gap-4">
@@ -689,31 +672,24 @@ function AddEmployeePanel({ companyId, routes, shuttleSelfManaged, onClose, onSu
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[var(--border-light)] flex-shrink-0">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Cancel
-              </button>
-              <Button
-                type="submit"
-                disabled={submitting || !form.full_name.trim() || !form.email.trim()}
-                className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 px-6 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
-                ) : (
-                  <><UserPlus className="w-4 h-4" /> Add Employee{selectedRouteId ? " & Assign Route" : ""}</>
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
-    </>
+          <div className="flex items-center justify-between gap-3 pt-5 mt-5 border-t border-[var(--border-light)]">
+            <CompanyLoadingButton type="button" variant="ghost" onClick={onClose} disabled={submitting}>
+              Cancel
+            </CompanyLoadingButton>
+            <CompanyLoadingButton
+              type="submit"
+              loading={submitting}
+              loadingText="Adding…"
+              disabled={!form.full_name.trim() || !form.email.trim()}
+              className="px-6"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Employee{selectedRouteId ? " & Assign Route" : ""}
+            </CompanyLoadingButton>
+          </div>
+        </form>
+      )}
+    </CompanyModal>
   );
 }
 
@@ -897,10 +873,7 @@ export default function RoutesPage() {
       <AiRouteOptimizer companyId={company.id} />
 
       {loading ? (
-        <Card className="py-16 text-center">
-          <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin text-[var(--text-muted)]" />
-          <div className="text-sm text-[var(--text-muted)]">Loading routes…</div>
-        </Card>
+        <CompanyPageLoader label="Loading routes…" minHeight="min-h-[40vh]" />
       ) : error ? (
         <Card className="py-12 text-center">
           <div className="text-sm text-red-500">{error}</div>
@@ -931,15 +904,14 @@ export default function RoutesPage() {
         </div>
       )}
 
-      {showAddEmployee && (
-        <AddEmployeePanel
-          companyId={company.id}
-          routes={routes}
-          shuttleSelfManaged={shuttleSelfManaged}
-          onClose={() => setShowAddEmployee(false)}
-          onSuccess={() => loadRoutes()}
-        />
-      )}
+      <AddEmployeePanel
+        isOpen={showAddEmployee}
+        companyId={company.id}
+        routes={routes}
+        shuttleSelfManaged={shuttleSelfManaged}
+        onClose={() => setShowAddEmployee(false)}
+        onSuccess={() => loadRoutes()}
+      />
     </div>
   );
 }

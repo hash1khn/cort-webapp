@@ -65,3 +65,14 @@ export const TABLE_TOP_BAR_CLASS = "border-b border-[var(--border-light)] bg-[va
 export const TABLE_HEADER_CELL_CLASS = "px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider";
 export const TABLE_CELL_CLASS = "px-6 py-4";
 export const TABLE_PAGINATION_WRAPPER_CLASS = "p-6 border-t border-[var(--border-light)] flex justify-center";
+
+/** Standard page wrapper for self-managed company portal pages */
+export const COMPANY_PAGE_CLASS = "space-y-6 max-w-[1200px] mx-auto pb-12";
+
+/** Shared form input styling */
+export const COMPANY_INPUT_CLASS =
+  "w-full h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--text-primary)] shadow-sm";
+
+export { CompanyPageLoader } from "./CompanyPageLoader";
+export { CompanyLoadingButton } from "./CompanyLoadingButton";
+export { CompanyModal } from "./CompanyModal";

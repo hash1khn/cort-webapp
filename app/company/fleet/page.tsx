@@ -8,7 +8,17 @@ import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/type
 import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
 import { Card } from "../components/DashboardComponents";
-import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
+import {
+  PageHeader,
+  TABLE_CARD_CLASS,
+  TABLE_TOP_BAR_CLASS,
+  TABLE_HEADER_CELL_CLASS,
+  TABLE_CELL_CLASS,
+  COMPANY_PAGE_CLASS,
+  CompanyPageLoader,
+  CompanyLoadingButton,
+  CompanyModal,
+} from "../components/PageLayout";
 import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
 import {
     getPhoneValidationError,
@@ -111,6 +121,7 @@ export default function CompanyFleetPage() {
     const [poolInsights, setPoolInsights] = useState<PoolInsight[]>([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [actionId, setActionId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!companyId) return;
@@ -206,12 +217,14 @@ export default function CompanyFleetPage() {
     };
 
     const handleDeactivateVehicle = async (vehicleId: number) => {
-        if (!confirm("Deactivate this pool vehicle?")) return;
+        if (!confirm("Deactivate this pool vehicle?") || actionId) return;
+        setActionId(`vehicle-${vehicleId}`);
         try {
             await apiClient.deactivatePoolVehicle(companyId, vehicleId);
             toast.success("Vehicle deactivated");
             fetchVehicles();
         } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate vehicle"); }
+        finally { setActionId(null); }
     };
 
     const handleInviteDriver = async (e: React.FormEvent) => {
@@ -244,27 +257,27 @@ export default function CompanyFleetPage() {
     };
 
     const handleDeactivateDriver = async (userId: string) => {
-        if (!confirm("Deactivate this pool driver?")) return;
+        if (!confirm("Deactivate this pool driver?") || actionId) return;
+        setActionId(`driver-${userId}`);
         try {
             await apiClient.deactivatePoolDriver(companyId, userId);
             toast.success("Driver deactivated");
             fetchDrivers();
         } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate driver"); }
+        finally { setActionId(null); }
     };
 
     if (!featureLoaded) {
         return (
-            <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-                <div className="flex items-center justify-center py-24">
-                    <div className="text-sm text-[var(--text-muted)]">Loading fleet data…</div>
-                </div>
+            <div className={COMPANY_PAGE_CLASS}>
+                <CompanyPageLoader label="Loading fleet data…" />
             </div>
         );
     }
 
     if (!isEnabled) {
         return (
-            <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+            <div className={COMPANY_PAGE_CLASS}>
                 <PageHeader label="Self-Managed Fleet" title="Pool Fleet" description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings" />
                 <Card className="flex items-center justify-center min-h-[400px]">
                     <div className="text-center max-w-sm">
@@ -280,7 +293,7 @@ export default function CompanyFleetPage() {
     }
 
     return (
-        <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
+        <div className={COMPANY_PAGE_CLASS}>
             <PageHeader
                 label="Self-Managed Fleet"
                 title="Pool Fleet"
@@ -344,7 +357,7 @@ export default function CompanyFleetPage() {
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {vehiclesLoading ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
+                                    <tr><td colSpan={6} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading vehicles…" minHeight="min-h-[280px]" /></td></tr>
                                 ) : vehicles.length === 0 ? (
                                     <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
                                 ) : vehicles.map((v) => (
@@ -366,7 +379,13 @@ export default function CompanyFleetPage() {
                                         </td>
                                         <td className={TABLE_CELL_CLASS}>
                                             {v.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateVehicle(v.id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
+                                                <button
+                                                    onClick={() => handleDeactivateVehicle(v.id)}
+                                                    disabled={!!actionId}
+                                                    className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
+                                                >
+                                                    {actionId === `vehicle-${v.id}` ? "Deactivating…" : "Deactivate"}
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
@@ -394,7 +413,7 @@ export default function CompanyFleetPage() {
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {driversLoading ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
+                                    <tr><td colSpan={6} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading drivers…" minHeight="min-h-[280px]" /></td></tr>
                                 ) : drivers.length === 0 ? (
                                     <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool drivers yet</td></tr>
                                 ) : drivers.map((d) => (
@@ -416,7 +435,13 @@ export default function CompanyFleetPage() {
                                         </td>
                                         <td className={TABLE_CELL_CLASS}>
                                             {d.users.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
+                                                <button
+                                                    onClick={() => handleDeactivateDriver(d.user_id)}
+                                                    disabled={!!actionId}
+                                                    className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
+                                                >
+                                                    {actionId === `driver-${d.user_id}` ? "Deactivating…" : "Deactivate"}
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
@@ -436,20 +461,19 @@ export default function CompanyFleetPage() {
                             <h2 className="text-base font-bold text-[var(--text-primary)]">Pool Fleet Analytics</h2>
                             <p className="text-xs text-[var(--text-muted)] mt-0.5">Last 30 days · 300 available hours per vehicle</p>
                         </div>
-                        <button
+                        <CompanyLoadingButton
                             onClick={triggerGenerate}
-                            disabled={generating}
-                            className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+                            loading={generating}
+                            loadingText="Generating…"
+                            className="rounded-xl shadow-[0_4px_12px_rgba(244,127,0,0.25)]"
                         >
-                            <RefreshCw className={cx("h-4 w-4", generating && "animate-spin")} />
-                            {generating ? "Generating…" : "Run AI Analysis"}
-                        </button>
+                            <RefreshCw className="h-4 w-4" />
+                            Run AI Analysis
+                        </CompanyLoadingButton>
                     </div>
 
                     {analyticsLoading ? (
-                        <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
-                            <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading analytics…
-                        </div>
+                        <CompanyPageLoader label="Loading analytics…" minHeight="min-h-[320px]" />
                     ) : (
                         <>
                             {/* AI Insights */}
@@ -547,7 +571,13 @@ export default function CompanyFleetPage() {
 
             {/* Add Vehicle Modal */}
             {showAddVehicle && (
-                <Modal title="Add Pool Vehicle" onClose={() => setShowAddVehicle(false)}>
+                <CompanyModal
+                    isOpen={showAddVehicle}
+                    onClose={() => setShowAddVehicle(false)}
+                    title="Add Pool Vehicle"
+                    loading={vehicleSaving}
+                    closeOnBackdrop={!vehicleSaving}
+                >
                     <form onSubmit={handleAddVehicle} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Plate Number *"><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
@@ -566,16 +596,21 @@ export default function CompanyFleetPage() {
                             <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddVehicle(false)} className={cancelBtnCls}>Cancel</button>
-                            <button type="submit" disabled={vehicleSaving} className={saveBtnCls}>{vehicleSaving ? "Adding…" : "Add Vehicle"}</button>
+                            <CompanyLoadingButton type="button" variant="outline" onClick={() => setShowAddVehicle(false)} disabled={vehicleSaving}>Cancel</CompanyLoadingButton>
+                            <CompanyLoadingButton type="submit" loading={vehicleSaving} loadingText="Adding…">Add Vehicle</CompanyLoadingButton>
                         </div>
                     </form>
-                </Modal>
+                </CompanyModal>
             )}
 
-            {/* Invite Driver Modal */}
             {showAddDriver && (
-                <Modal title="Invite Pool Driver" onClose={() => setShowAddDriver(false)}>
+                <CompanyModal
+                    isOpen={showAddDriver}
+                    onClose={() => setShowAddDriver(false)}
+                    title="Invite Pool Driver"
+                    loading={driverSaving}
+                    closeOnBackdrop={!driverSaving}
+                >
                     <form onSubmit={handleInviteDriver} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
@@ -604,11 +639,11 @@ export default function CompanyFleetPage() {
                             )}
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>Cancel</button>
-                            <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? "Inviting…" : "Invite Driver"}</button>
+                            <CompanyLoadingButton type="button" variant="outline" onClick={() => setShowAddDriver(false)} disabled={driverSaving}>Cancel</CompanyLoadingButton>
+                            <CompanyLoadingButton type="submit" loading={driverSaving} loadingText="Inviting…">Invite Driver</CompanyLoadingButton>
                         </div>
                     </form>
-                </Modal>
+                </CompanyModal>
             )}
         </div>
     );
@@ -672,20 +707,6 @@ function UtilBar({ pct }: { pct: number }) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg font-bold text-[var(--text-primary)]">{title}</h2>
-                    <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-2xl leading-none transition-colors">×</button>
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
@@ -696,5 +717,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputCls = "w-full h-9 rounded-lg border border-[var(--border-light)] bg-[var(--bg-card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/20 focus:border-[var(--cort-orange)] transition-all text-[var(--text-primary)] shadow-sm";
-const saveBtnCls = "bg-[var(--cort-orange)] text-[var(--text-primary)] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 transition-colors";
-const cancelBtnCls = "border border-[var(--border-light)] text-[var(--text-secondary)] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--surface-subtle)] transition-colors";
