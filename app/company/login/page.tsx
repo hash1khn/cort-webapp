@@ -16,8 +16,8 @@ export default function CompanyLoginPage() {
   useEffect(() => {
     // If already logged in, redirect based on role
     if (!loading && isAuthenticated && user) {
-      if (user.role === UserRole.COMPANY_ADMIN || user.role === UserRole.EMPLOYEE) {
-        router.replace("/company");
+      if (user.role === UserRole.COMPANY_ADMIN || user.role === UserRole.EMPLOYEE || user.role === UserRole.SHUTTLE_REQUESTER) {
+        router.replace(user.role === UserRole.SHUTTLE_REQUESTER ? "/company/overtime-requests" : "/company");
       } else {
         // Non-company users shouldn't access this
         router.replace("/");

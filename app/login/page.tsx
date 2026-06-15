@@ -20,6 +20,8 @@ export default function LoginPage() {
                 router.replace("/admin");
             } else if (user.role === UserRole.COMPANY_ADMIN || user.role === UserRole.EMPLOYEE) {
                 router.replace("/company");
+            } else if (user.role === UserRole.SHUTTLE_REQUESTER) {
+                router.replace("/company/overtime-requests");
             } else if (user.role === UserRole.COMPANY_VENDOR) {
                 router.replace("/vendor");
             } else {

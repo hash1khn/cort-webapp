@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppSelector } from "../../../lib/store/hooks";
-import { selectCompany } from "../../../lib/store/slices/companySlice";
+import { selectCompany, selectCompanyFeatures } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
+import { useAuth } from "../../../lib/contexts/auth-context";
 import { Card } from "../../components/DashboardComponents";
 import { PageHeader } from "../../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
@@ -17,13 +18,16 @@ import {
   MapPin,
   Sunrise,
   Sunset,
-  ChevronRight,
   Users,
   Phone,
   Mail,
   Car,
   RefreshCw,
+  Pencil,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,7 +45,7 @@ type RouteStop = {
 };
 
 type EmployeeAssignment = {
-  id: number;
+  user_id: string;
   users?: {
     id: string;
     full_name: string;
@@ -54,6 +58,13 @@ type EmployeeAssignment = {
     name: string;
     sequence_order: number;
   } | null;
+};
+
+type CompanyEmployee = {
+  id: string;
+  full_name: string;
+  email: string;
+  department?: string | null;
 };
 
 type RouteDetail = {
@@ -146,11 +157,22 @@ export default function RouteDetailPage() {
   const params = useParams();
   const router = useRouter();
   const company = useAppSelector(selectCompany);
+  const features = useAppSelector(selectCompanyFeatures);
+  const { isCompanyAdmin } = useAuth();
   const routeId = params.id ? +params.id : null;
+
+  const shuttleSelfManaged = features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
+  const canManageRoutes = isCompanyAdmin && shuttleSelfManaged;
+  const canManageRoster = isCompanyAdmin;
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAssign, setShowAssign] = useState(false);
+  const [companyEmployees, setCompanyEmployees] = useState<CompanyEmployee[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [selectedStopId, setSelectedStopId] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -170,8 +192,57 @@ export default function RouteDetailPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!canManageRoster || !company?.id) return;
+    apiClient.getEmployeesByCompany(company.id)
+      .then((res) => {
+        const raw = res?.data ?? res;
+        const list = Array.isArray(raw) ? raw : raw?.data ?? [];
+        setCompanyEmployees(list);
+      })
+      .catch(() => {});
+  }, [canManageRoster, company?.id]);
+
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
+  const pickupStops = stops.filter((s) => s.morning_sequence != null);
+  const assignedUserIds = new Set(employees.map((a) => a.user_id ?? a.users?.id).filter(Boolean));
+
+  const handleAssign = async () => {
+    if (!routeId || !selectedEmployeeId || !selectedStopId) {
+      toast.error("Select an employee and pickup stop");
+      return;
+    }
+    setAssigning(true);
+    try {
+      await apiClient.assignEmployeeToRoute({
+        user_id: selectedEmployeeId,
+        route_id: routeId,
+        pickup_stop_id: Number(selectedStopId),
+      });
+      toast.success("Employee assigned to route");
+      setSelectedEmployeeId("");
+      setSelectedStopId("");
+      setShowAssign(false);
+      load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to assign employee");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemove = async (userId: string) => {
+    if (!confirm("Remove this employee from the route?")) return;
+    try {
+      await apiClient.removeEmployeeFromRoute(userId);
+      toast.success("Employee removed from route");
+      load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to remove employee");
+    }
+  };
+
   const vehicle = route?.vehicles ?? null;
   const driver = route?.users ?? null;
 
@@ -224,12 +295,22 @@ export default function RouteDetailPage() {
                 {route.name}
               </h1>
             </div>
-            <Link href={`/company/routes/${routeId}/track`}>
-              <Button variant="outline" className="gap-2">
-                <Activity className="w-4 h-4" />
-                Track Live
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {canManageRoutes && (
+                <Link href={`/company/routes/${routeId}/edit`}>
+                  <Button variant="outline" className="gap-2">
+                    <Pencil className="w-4 h-4" />
+                    Edit Route
+                  </Button>
+                </Link>
+              )}
+              <Link href={`/company/routes/${routeId}/track`}>
+                <Button variant="outline" className="gap-2">
+                  <Activity className="w-4 h-4" />
+                  Track Live
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Stats bar */}
@@ -286,38 +367,116 @@ export default function RouteDetailPage() {
                       {employees.length}
                     </span>
                   </div>
-                  {capacity && (
-                    <div className="text-xs text-[var(--text-muted)]">
-                      {employees.length}/{capacity} capacity
-                      <div className="mt-1 h-1.5 w-20 rounded-full bg-[var(--bg-subtle)] overflow-hidden">
-                        <div
-                          className={cx(
-                            "h-full rounded-full transition-all",
-                            utilizationPct! > 85 ? "bg-red-500" : utilizationPct! > 60 ? "bg-amber-500" : "bg-emerald-500"
-                          )}
-                          style={{ width: `${utilizationPct}%` }}
-                        />
+                  <div className="flex items-center gap-3">
+                    {capacity && (
+                      <div className="text-xs text-[var(--text-muted)]">
+                        {employees.length}/{capacity} capacity
+                        <div className="mt-1 h-1.5 w-20 rounded-full bg-[var(--bg-subtle)] overflow-hidden">
+                          <div
+                            className={cx(
+                              "h-full rounded-full transition-all",
+                              utilizationPct! > 85 ? "bg-red-500" : utilizationPct! > 60 ? "bg-amber-500" : "bg-emerald-500"
+                            )}
+                            style={{ width: `${utilizationPct}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {canManageRoster && pickupStops.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => setShowAssign((v) => !v)}
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        {showAssign ? "Cancel" : "Assign Employee"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {showAssign && canManageRoster && (
+                  <div className="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/40">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Employee</label>
+                        <select
+                          value={selectedEmployeeId}
+                          onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                          className="mt-1 w-full h-9 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm"
+                        >
+                          <option value="">Select employee</option>
+                          {companyEmployees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.full_name}
+                              {assignedUserIds.has(emp.id) ? " (on this route)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Pickup Stop</label>
+                        <select
+                          value={selectedStopId}
+                          onChange={(e) => setSelectedStopId(e.target.value)}
+                          className="mt-1 w-full h-9 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm"
+                        >
+                          <option value="">Select stop</option>
+                          {pickupStops.map((stop) => (
+                            <option key={stop.id} value={stop.id}>
+                              {stop.name}{stop.morning_eta ? ` · ${formatTime(stop.morning_eta)}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <Button
+                        onClick={handleAssign}
+                        disabled={assigning}
+                        className="bg-[var(--cort-orange)] text-white border-0"
+                      >
+                        {assigning ? "Assigning…" : "Assign"}
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">
+                      Assign employees who were created before this route existed. Re-assigning moves them from another route.
+                    </p>
+                  </div>
+                )}
+
+                {pickupStops.length === 0 && canManageRoster && (
+                  <div className="px-6 py-3 text-xs text-amber-600 border-b border-[var(--border-light)] bg-amber-500/5">
+                    Add morning stops to this route before assigning employees.
+                  </div>
+                )}
 
                 {employees.length === 0 ? (
                   <div className="py-16 text-center">
                     <Users className="w-8 h-8 mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
                     <div className="text-sm text-[var(--text-muted)]">No employees assigned to this route yet.</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
-                      Contact Cort Operations to assign employees.
-                    </div>
+                    {canManageRoster && pickupStops.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAssign(true)}
+                        className="mt-3 text-sm font-semibold text-[var(--cort-orange)] hover:underline"
+                      >
+                        Assign an employee
+                      </button>
+                    ) : (
+                      <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
+                        {canManageRoster ? "Add stops via Edit Route first." : "Contact Cort Operations to assign employees."}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-light)]">
                     {employees.map((assignment) => {
                       const emp = assignment.users;
                       const pickupStop = assignment.route_stops;
+                      const rowKey = assignment.user_id ?? emp?.id ?? "";
                       return (
                         <div
-                          key={assignment.id}
+                          key={rowKey}
                           className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors"
                         >
                           {/* Avatar */}
@@ -355,6 +514,17 @@ export default function RouteDetailPage() {
                               <MapPin className="w-3 h-3 text-[var(--cort-orange)]" />
                               <span className="font-medium">{pickupStop.name}</span>
                             </div>
+                          )}
+
+                          {canManageRoster && (emp?.id ?? assignment.user_id) && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemove(emp?.id ?? assignment.user_id)}
+                              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              title="Remove from route"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       );

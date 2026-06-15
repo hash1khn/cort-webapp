@@ -6,6 +6,7 @@ export enum UserRole {
     EMPLOYEE = 'EMPLOYEE',
     DRIVER = 'DRIVER',
     COMPANY_VENDOR = 'COMPANY_VENDOR',
+    SHUTTLE_REQUESTER = 'SHUTTLE_REQUESTER',
 }
 
 // All granular permission keys — mirrors backend PERMISSION_KEYS constant
@@ -69,6 +70,7 @@ export interface AuthUser {
     full_name: string;
     role: UserRole;
     company_id: number | null;
+    department_id?: number | null;
     account_status: UserStatus | null;
     enabled_services: {
         shuttle: boolean;
@@ -143,6 +145,7 @@ export interface AuthContextType extends AuthState {
     isSuperAdmin: boolean;
     isInternalStaff: boolean;
     isCompanyAdmin: boolean;
+    isShuttleRequester: boolean;
     isEmployee: boolean;
     isDriver: boolean;
     hasRole: (roles: UserRole[]) => boolean;

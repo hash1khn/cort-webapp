@@ -4,8 +4,10 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "../../lib/store/hooks";
-import { selectCompany } from "../../lib/store/slices/companySlice";
+import { selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
+import { useAuth } from "../../lib/contexts/auth-context";
+import { UserRole } from "../../lib/types/auth-types";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader } from "../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
@@ -31,6 +33,7 @@ import {
   Building2,
   Home,
   CheckCheck,
+  Plus,
 } from "lucide-react";
 import {
   getPhoneValidationError,
@@ -246,20 +249,27 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
 type AddEmployeePanelProps = {
   companyId: number;
   routes: CompanyRoute[];
+  shuttleSelfManaged: boolean;
   onClose: () => void;
   onSuccess: () => void;
 };
 
-function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployeePanelProps) {
+function AddEmployeePanel({ companyId, routes, shuttleSelfManaged, onClose, onSuccess }: AddEmployeePanelProps) {
+  const { user, isCompanyAdmin } = useAuth();
+  const isRequester = user?.role === UserRole.SHUTTLE_REQUESTER;
+  const [departments, setDepartments] = useState<{ id: number; name: string; is_active: boolean }[]>([]);
+
   const [form, setForm] = useState({
     full_name: "",
     email: "",
     phone: "",
-    department: "",
+    department_id: "",
     home_address: "",
     employee_id: "",
   });
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [selectedStopId, setSelectedStopId] = useState<number | null>(null);
+  const [routeStopsForSelected, setRouteStopsForSelected] = useState<RouteStop[]>([]);
   const [aiRec, setAiRec] = useState<AiRecommendation | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -268,6 +278,35 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
   const [done, setDone] = useState(false);
 
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!shuttleSelfManaged) return;
+    apiClient.getDepartments(companyId)
+      .then((res) => setDepartments(res.data ?? []))
+      .catch(() => {});
+    if (isRequester && user?.department_id) {
+      setForm((prev) => ({ ...prev, department_id: String(user.department_id) }));
+    }
+  }, [shuttleSelfManaged, companyId, isRequester, user?.department_id]);
+
+  useEffect(() => {
+    if (!selectedRouteId) {
+      setRouteStopsForSelected([]);
+      setSelectedStopId(null);
+      return;
+    }
+    const fromList = routes.find((r) => r.id === selectedRouteId)?.route_stops;
+    if (fromList?.length) {
+      setRouteStopsForSelected(fromList.filter((s) => s.morning_sequence != null));
+      return;
+    }
+    apiClient.getRoute(selectedRouteId)
+      .then((data: any) => {
+        const stops = (data?.route_stops ?? data?.data?.route_stops ?? []) as RouteStop[];
+        setRouteStopsForSelected(stops.filter((s) => s.morning_sequence != null));
+      })
+      .catch(() => setRouteStopsForSelected([]));
+  }, [selectedRouteId, routes]);
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -302,6 +341,14 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.full_name.trim() || !form.email.trim()) return;
+    if (shuttleSelfManaged && isCompanyAdmin && !form.department_id) {
+      setSubmitError("Department is required");
+      return;
+    }
+    if (selectedRouteId && !selectedStopId) {
+      setSubmitError("Pickup stop is required when assigning to a route");
+      return;
+    }
     const phoneError = getPhoneValidationError(form.phone);
     if (phoneError) {
       setSubmitError(phoneError);
@@ -311,26 +358,33 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
     setSubmitError(null);
     try {
       // 1. Create the employee
+      const body: Record<string, unknown> = {
+        full_name: form.full_name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
+        home_address: form.home_address.trim() || undefined,
+        employee_id: form.employee_id.trim() || undefined,
+        company_id: companyId,
+      };
+      if (shuttleSelfManaged && form.department_id) {
+        body.department_id = Number(form.department_id);
+      } else if (!shuttleSelfManaged && form.department_id) {
+        body.department = form.department_id;
+      }
+
       const created = await apiClient.request<{ data: { id: string } }>("/employees/create", {
         method: "POST",
-        body: JSON.stringify({
-          full_name: form.full_name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim() || undefined,
-          department: form.department.trim() || undefined,
-          home_address: form.home_address.trim() || undefined,
-          employee_id: form.employee_id.trim() || undefined,
-          company_id: companyId,
-        }),
+        body: JSON.stringify(body),
       });
 
       const userId = (created as any)?.data?.id ?? (created as any)?.id;
 
       // 2. Assign to route if selected
       if (selectedRouteId && userId) {
-        await apiClient.request("/employee-route-assignments/assign", {
-          method: "POST",
-          body: JSON.stringify({ user_id: userId, route_id: selectedRouteId }),
+        await apiClient.assignEmployeeToRoute({
+          user_id: userId,
+          route_id: selectedRouteId,
+          pickup_stop_id: selectedStopId ?? undefined,
         });
       }
 
@@ -462,16 +516,39 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Department</label>
+                  <label className={labelCls}>Department{shuttleSelfManaged ? " *" : ""}</label>
                   <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                    <input
-                      type="text"
-                      value={form.department}
-                      onChange={(e) => updateField("department", e.target.value)}
-                      placeholder="Engineering"
-                      className={cx(inputCls, "pl-9")}
-                    />
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] z-10" />
+                    {shuttleSelfManaged ? (
+                      isRequester ? (
+                        <input
+                          readOnly
+                          type="text"
+                          value={departments.find((d) => d.id === user?.department_id)?.name ?? "Your department"}
+                          className={cx(inputCls, "pl-9 opacity-70")}
+                        />
+                      ) : (
+                        <select
+                          required
+                          value={form.department_id}
+                          onChange={(e) => updateField("department_id", e.target.value)}
+                          className={cx(inputCls, "pl-9")}
+                        >
+                          <option value="">Select department</option>
+                          {departments.filter((d) => d.is_active).map((d) => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
+                      )
+                    ) : (
+                      <input
+                        type="text"
+                        value={form.department_id}
+                        onChange={(e) => updateField("department_id", e.target.value)}
+                        placeholder="Engineering"
+                        className={cx(inputCls, "pl-9")}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -525,7 +602,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                 </label>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   <div
-                    onClick={() => setSelectedRouteId(null)}
+                    onClick={() => { setSelectedRouteId(null); setSelectedStopId(null); }}
                     className={cx(
                       "flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all",
                       selectedRouteId === null
@@ -542,7 +619,10 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                     return (
                       <div
                         key={route.id}
-                        onClick={() => setSelectedRouteId(route.id)}
+                        onClick={() => {
+                          setSelectedRouteId(route.id);
+                          setSelectedStopId(null);
+                        }}
                         className={cx(
                           "flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all",
                           isSelected
@@ -575,6 +655,31 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                   })}
                 </div>
               </div>
+
+              {selectedRouteId && routeStopsForSelected.length > 0 && (
+                <div>
+                  <label className={labelCls}>Pickup Stop *</label>
+                  <select
+                    required
+                    value={selectedStopId ?? ""}
+                    onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : null)}
+                    className={inputCls}
+                  >
+                    <option value="">Select pickup stop</option>
+                    {routeStopsForSelected.map((stop) => (
+                      <option key={stop.id} value={stop.id}>
+                        {stop.name}{stop.morning_eta ? ` · ${formatTime(stop.morning_eta)}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedRouteId && routeStopsForSelected.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  This route has no morning stops yet. Add stops in Edit Route or assign the employee from the route detail page later.
+                </p>
+              )}
 
               {submitError && (
                 <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
@@ -714,10 +819,15 @@ function RouteCard({ route }: { route: CompanyRoute }) {
 
 export default function RoutesPage() {
   const company = useAppSelector(selectCompany);
+  const features = useAppSelector(selectCompanyFeatures);
+  const { isCompanyAdmin } = useAuth();
   const [routes, setRoutes] = useState<CompanyRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
+
+  const shuttleSelfManaged = features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
+  const canManageRoutes = isCompanyAdmin && shuttleSelfManaged;
 
   function loadRoutes() {
     if (!company?.id) { setLoading(false); return; }
@@ -763,13 +873,24 @@ export default function RoutesPage() {
         title="Route Roster"
         description="All shuttle routes and vehicles assigned to your company. Click any route to see passengers."
         action={
-          <Button
-            onClick={() => setShowAddEmployee(true)}
-            className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Employee
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {canManageRoutes && (
+              <Link href="/company/routes/create">
+                <Button className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl">
+                  <Plus className="w-4 h-4" />
+                  Create Route
+                </Button>
+              </Link>
+            )}
+            <Button
+              onClick={() => setShowAddEmployee(true)}
+              variant="outline"
+              className="gap-2 rounded-xl"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Employee
+            </Button>
+          </div>
         }
       />
 
@@ -787,13 +908,20 @@ export default function RoutesPage() {
       ) : routes.length === 0 ? (
         <Card className="py-16 text-center">
           <Bus className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
-          <div className="text-sm text-[var(--text-muted)]">No routes assigned yet.</div>
-          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">Contact Cort Super Admin to assign routes.</div>
+          <div className="text-sm text-[var(--text-muted)]">No routes yet.</div>
+          {canManageRoutes ? (
+            <Link href="/company/routes/create" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cort-orange)] hover:underline">
+              <Plus className="w-4 h-4" /> Create your first route
+            </Link>
+          ) : (
+            <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">Contact Cort Super Admin to assign routes.</div>
+          )}
         </Card>
       ) : (
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-4">
-            {routes.length} route{routes.length !== 1 ? "s" : ""} · Read-only view managed by Cort Operations
+            {routes.length} route{routes.length !== 1 ? "s" : ""}
+            {canManageRoutes ? " · You can create and edit routes" : " · Read-only view managed by Cort Operations"}
           </div>
           <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
             {routes.map((route) => (
@@ -807,6 +935,7 @@ export default function RoutesPage() {
         <AddEmployeePanel
           companyId={company.id}
           routes={routes}
+          shuttleSelfManaged={shuttleSelfManaged}
           onClose={() => setShowAddEmployee(false)}
           onSuccess={() => loadRoutes()}
         />

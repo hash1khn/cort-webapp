@@ -20,8 +20,13 @@ import {
   Car,
   BarChart2,
   TrendingDown,
+  Building2,
+  UserCog,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
+import { UserRole } from "../../lib/types/auth-types";
 import { useCompanyTheme } from "../lib/theme-context";
 import { Sun, Moon } from "lucide-react";
 import { Toaster } from "sonner";
@@ -29,8 +34,27 @@ import { Toaster } from "sonner";
 type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
 type FeatureLike = { feature_key: string; is_enabled: boolean };
 
-const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[]) => {
+const getNavGroups = (
+  servicesEnabled: ServicesEnabled,
+  features: FeatureLike[],
+  role?: UserRole,
+) => {
   const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
+  const isRequester = role === UserRole.SHUTTLE_REQUESTER;
+  const isAdmin = role === UserRole.COMPANY_ADMIN || role === UserRole.SUPER_ADMIN;
+  const shuttleSelfManaged = hasFeature("shuttle_self_managed");
+
+  if (isRequester) {
+    return [
+      {
+        title: "",
+        items: [
+          { href: "/company/overtime-requests", label: "Overtime Requests", icon: Clock },
+          { href: "/company/employees", label: "My Department", icon: Users },
+        ],
+      },
+    ];
+  }
 
   const groups = [
     {
@@ -55,6 +79,18 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
     groups[1].items.push({ href: "/company/routes", label: "Route Roster", icon: Map });
   }
 
+  if (shuttleSelfManaged && isAdmin) {
+    groups[2].items.push(
+      { href: "/company/departments", label: "Departments", icon: Building2 },
+      { href: "/company/requesters", label: "Requesters", icon: UserCog },
+      { href: "/company/overtime-requests", label: "Overtime Requests", icon: Clock },
+      { href: "/company/overtime-approvals", label: "Approvals", icon: CheckCircle2 },
+      { href: "/company/overtime-analytics", label: "Overtime Analytics", icon: BarChart2 },
+    );
+  } else if (shuttleSelfManaged) {
+    groups[1].items.push({ href: "/company/overtime-requests", label: "Overtime Requests", icon: Clock });
+  }
+
   if (servicesEnabled.chauffeur_enabled) {
     groups[1].items.push({ href: "/company/bookings", label: "Bookings", icon: Calendar });
   }
@@ -67,8 +103,11 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
     groups[1].items.push({ href: "/company/reports/chauffeur", label: "Chauffeur Reports", icon: FileSpreadsheet });
   }
 
-  // Pool Fleet — only show if chauffeur_self_managed feature is enabled
-  if (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) {
+  // Pool Fleet — chauffeur_self_managed or shuttle_self_managed
+  if (
+    (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) ||
+    (servicesEnabled.shuttle_enabled && hasFeature("shuttle_self_managed") && isAdmin)
+  ) {
     groups[1].items.push({ href: "/company/fleet", label: "Pool Fleet", icon: Car });
   }
 
@@ -133,7 +172,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled, features);
+    const navGroups = getNavGroups(servicesEnabled, features, user?.role);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -142,7 +181,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, servicesEnabled, features]);
+  }, [pathname, servicesEnabled, features, user?.role]);
 
   if (isLogin) return <>{children}</>;
 
@@ -161,7 +200,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled, features).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features, user?.role).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(

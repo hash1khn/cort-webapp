@@ -130,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      */
     const isCompanyAdmin = user?.role === UserRole.COMPANY_ADMIN;
 
+    const isShuttleRequester = user?.role === UserRole.SHUTTLE_REQUESTER;
+
     /**
      * Check if user is employee
      */
@@ -201,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSuperAdmin,
         isInternalStaff,
         isCompanyAdmin,
+        isShuttleRequester,
         isEmployee,
         isDriver,
         isCompanyVendor,

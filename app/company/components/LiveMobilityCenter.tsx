@@ -23,6 +23,12 @@ import { selectDashboardStats } from '../../lib/store/slices/dashboardSlice';
 import { selectCompany } from '../../lib/store/slices/companySlice';
 import { useLiveMobilityTracking } from '../../lib/hooks/useLiveMobilityTracking';
 import type { MapMarker } from '../../admin/ui/Map';
+import {
+    DEMO_MOBILITY_STATS,
+    getDemoEmployeesForTrip,
+    getDemoMobilityTrips,
+    isDemoTripId,
+} from '../data/mobilityDemoData';
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('../../admin/ui/Map'), {
@@ -54,6 +60,8 @@ interface TripEntry {
     restLng: number | null;
     /** Full raw trip object — shuttles only, used for the click detail panel */
     rawTrip?: any;
+    /** Demo-only onboard employees */
+    mockEmployees?: any[];
 }
 
 const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
@@ -69,6 +77,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const [selectedShuttleTrip, setSelectedShuttleTrip] = useState<any | null>(null);
     const [tripEmployees, setTripEmployees] = useState<any[]>([]);
     const [tripEmployeesLoading, setTripEmployeesLoading] = useState(false);
+    const [isDemoMode, setIsDemoMode] = useState(false);
 
     // Clock tick
     useEffect(() => {
@@ -79,14 +88,18 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     // ── Service gates ──────────────────────────────────────────────────────────
     const hasShuttle = company?.services_enabled?.shuttle_enabled ?? false;
     const hasChauffeur = company?.services_enabled?.chauffeur_enabled ?? false;
+    const showShuttle = hasShuttle || isDemoMode;
+    const showChauffeur = hasChauffeur || isDemoMode;
 
-    // ── Real counters from mobility block ─────────────────────────────────────
-    const mobility = dashboardStats?.mobility ?? data;
+    // ── Real counters from mobility block (demo overrides when no live trips) ─
+    const mobility = isDemoMode
+        ? DEMO_MOBILITY_STATS
+        : (dashboardStats?.mobility ?? data);
     const stats = [
         { label: 'Active rides',         value: mobility.activeRides,        icon: <Navigation size={20} />, show: true },
         { label: 'Employees travelling', value: mobility.employeesTraveling,  icon: <Users size={20} />,     show: true },
-        { label: 'Shuttles running',     value: mobility.shuttlesRunning,     icon: <Bus size={20} />,       show: hasShuttle },
-        { label: 'Chauffeur rides',      value: mobility.chauffeurRides,      icon: <Car size={20} />,       show: hasChauffeur },
+        { label: 'Shuttles running',     value: mobility.shuttlesRunning,     icon: <Bus size={20} />,       show: showShuttle },
+        { label: 'Chauffeur rides',      value: mobility.chauffeurRides,      icon: <Car size={20} />,       show: showChauffeur },
         { label: 'Upcoming rides',       value: mobility.upcomingBookings,    icon: <Calendar size={20} />,  show: true },
     ].filter(s => s.show);
 
@@ -214,10 +227,24 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 }
             }
 
-            setTrips(collected);
+            if (collected.length === 0) {
+                const demoTrips = getDemoMobilityTrips({ hasShuttle, hasChauffeur });
+                setTrips(demoTrips);
+                setIsDemoMode(true);
+                const firstWithCoords = demoTrips.find((t) => t.restLat && t.restLng);
+                if (firstWithCoords) {
+                    setDefaultCenter([firstWithCoords.restLat, firstWithCoords.restLng]);
+                }
+            } else {
+                setTrips(collected);
+                setIsDemoMode(false);
+            }
             setLastRefreshed(new Date());
         } catch (err) {
             console.error('[LiveMobilityCenter] fetchActiveTrips error', err);
+            const demoTrips = getDemoMobilityTrips({ hasShuttle, hasChauffeur });
+            setTrips(demoTrips);
+            setIsDemoMode(true);
         } finally {
             setTripsLoading(false);
         }
@@ -284,6 +311,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
         const entry = trips.find(t => t.type === 'shuttle' && t.id === tripId);
         if (!entry) return;
         setSelectedShuttleTrip(entry.rawTrip ?? { id: tripId, label: entry.label });
+
+        if (isDemoTripId(tripId)) {
+            setTripEmployees(entry.mockEmployees ?? getDemoEmployeesForTrip(tripId));
+            setTripEmployeesLoading(false);
+            return;
+        }
+
         setTripEmployees([]);
         setTripEmployeesLoading(true);
         try {
@@ -329,14 +363,21 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Socket live indicator */}
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors
-                        ${isConnected
-                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                            : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
-                        <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
-                        {isConnected ? 'Live' : 'Connecting…'}
-                    </div>
+                    {/* Socket live / demo indicator */}
+                    {isDemoMode ? (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border-amber-500/30 text-amber-400">
+                            <Radio size={11} className="text-amber-400" />
+                            Demo Data
+                        </div>
+                    ) : (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors
+                            ${isConnected
+                                ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                                : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
+                            <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
+                            {isConnected ? 'Live' : 'Connecting…'}
+                        </div>
+                    )}
 
                     <div className="flex flex-col items-end">
                         <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Ops Time</span>
@@ -399,11 +440,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
                                     {tripsLoading
                                         ? 'Syncing…'
-                                        : liveCount > 0
-                                            ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
-                                            : trips.length > 0
-                                                ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
-                                                : 'No active trips'}
+                                        : isDemoMode
+                                            ? `${trips.length} demo vehicle${trips.length !== 1 ? 's' : ''} on map`
+                                            : liveCount > 0
+                                                ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
+                                                : trips.length > 0
+                                                    ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
+                                                    : 'No active trips'}
                                 </span>
                             </div>
                             {lastRefreshed && (
@@ -485,7 +528,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 {/* Employee list */}
                                 <div className="flex-1 overflow-y-auto">
                                     <div className="px-4 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Assigned Employees</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+                                            {isDemoMode ? 'Onboard Passengers' : 'Assigned Employees'}
+                                        </span>
                                     </div>
                                     <div className="p-3 space-y-2">
                                         {tripEmployeesLoading ? (
@@ -538,7 +583,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         {/* Legend — outside overflow-hidden so it isn't clipped */}
                         <div className="absolute bottom-8 right-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
                             <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 font-mono">Live Legend</span>
-                            {hasShuttle && (
+                            {showShuttle && (
                                 <div className="flex items-center gap-3">
                                     <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
                                     <span className="text-xs text-white font-black tracking-tight">
@@ -546,7 +591,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                     </span>
                                 </div>
                             )}
-                            {hasChauffeur && (
+                            {showChauffeur && (
                                 <div className="flex items-center gap-3">
                                     <img src="/car_birdeye.png" alt="chauffeur" className="w-5 h-5 object-contain" />
                                     <span className="text-xs text-white font-black tracking-tight">
@@ -560,8 +605,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                     <span className="text-[9px] text-green-400 font-black uppercase tracking-wider">Socket Live</span>
                                 </div>
                             )}
-                            {trips.length === 0 && !tripsLoading && (
+                            {trips.length === 0 && !tripsLoading && !isDemoMode && (
                                 <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">No trips today</p>
+                            )}
+                            {isDemoMode && (
+                                <p className="text-[9px] text-amber-400/80 font-bold mt-1">Sample fleet data</p>
                             )}
                         </div>
                     </div>
@@ -631,10 +679,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                     <div>
                                         <div className="text-[11px] font-black text-[var(--text-primary)]">On the Map</div>
                                         <div className="text-[10px] text-[var(--text-secondary)] font-bold leading-tight mt-1">
-                                            {hasShuttle && shuttleCount > 0 && `${shuttleCount} shuttle${shuttleCount !== 1 ? 's' : ''}`}
-                                            {hasShuttle && shuttleCount > 0 && hasChauffeur && chauffeurCount > 0 && ' · '}
-                                            {hasChauffeur && chauffeurCount > 0 && `${chauffeurCount} chauffeur ride${chauffeurCount !== 1 ? 's' : ''}`}
+                                            {showShuttle && shuttleCount > 0 && `${shuttleCount} shuttle${shuttleCount !== 1 ? 's' : ''}`}
+                                            {showShuttle && shuttleCount > 0 && showChauffeur && chauffeurCount > 0 && ' · '}
+                                            {showChauffeur && chauffeurCount > 0 && `${chauffeurCount} chauffeur ride${chauffeurCount !== 1 ? 's' : ''}`}
                                             {liveCount > 0 && ` · ${liveCount} live 🔴`}
+                                            {isDemoMode && ' · sample data'}
                                         </div>
                                     </div>
                                 </div>

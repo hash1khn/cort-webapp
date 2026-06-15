@@ -67,6 +67,23 @@ const getDefaultVehicleForm = () => ({
     fuel_avg_highway: 13,
 });
 
+const buildDefaultDriverForm = (features: CompanyFeature[]) => {
+    const chauffeurSelfManaged =
+        features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const shuttleSelfManaged =
+        features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
+    const driverType = shuttleSelfManaged && !chauffeurSelfManaged ? "SHUTTLE" : "CHAUFFEUR";
+    return {
+        email: "",
+        password: "",
+        full_name: "",
+        phone: "",
+        cnic_number: "",
+        license_number: "",
+        driver_type: driverType as "SHUTTLE" | "CHAUFFEUR",
+    };
+};
+
 export default function CompanyFleetPage() {
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
@@ -86,7 +103,7 @@ export default function CompanyFleetPage() {
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
     const [showAddDriver, setShowAddDriver] = useState(false);
-    const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+    const [driverForm, setDriverForm] = useState(() => buildDefaultDriverForm([]));
     const [driverSaving, setDriverSaving] = useState(false);
 
     // Analytics state
@@ -102,7 +119,13 @@ export default function CompanyFleetPage() {
             .catch(() => setFeatureLoaded(true));
     }, [companyId]);
 
-    const isEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const chauffeurSelfManaged =
+        features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const shuttleSelfManaged =
+        features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
+    const isEnabled = chauffeurSelfManaged || shuttleSelfManaged;
+    const showDriverTypeSelector = chauffeurSelfManaged && shuttleSelfManaged;
+    const getDefaultDriverForm = () => buildDefaultDriverForm(features);
 
     const fetchVehicles = useCallback(async () => {
         if (!companyId) return;
@@ -205,13 +228,13 @@ export default function CompanyFleetPage() {
                 password: driverForm.password,
                 full_name: driverForm.full_name,
                 phone: driverForm.phone || undefined,
-                driver_type: "CHAUFFEUR",
+                driver_type: driverForm.driver_type,
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
             toast.success("Driver invited to pool");
             setShowAddDriver(false);
-            setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+            setDriverForm(getDefaultDriverForm());
             fetchDrivers();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to invite driver");
@@ -272,7 +295,10 @@ export default function CompanyFleetPage() {
                         </button>
                     ) : (
                         <button
-                            onClick={() => setShowAddDriver(true)}
+                            onClick={() => {
+                                setDriverForm(getDefaultDriverForm());
+                                setShowAddDriver(true);
+                            }}
                             className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
                         >
                             + Invite Driver
@@ -558,6 +584,24 @@ export default function CompanyFleetPage() {
                             <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
                             <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
                             <Field label="License No."><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                            {showDriverTypeSelector && (
+                                <Field label="Driver Type *">
+                                    <select
+                                        required
+                                        value={driverForm.driver_type}
+                                        onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "SHUTTLE" | "CHAUFFEUR" }))}
+                                        className={inputCls}
+                                    >
+                                        <option value="SHUTTLE">Shuttle</option>
+                                        <option value="CHAUFFEUR">Chauffeur</option>
+                                    </select>
+                                </Field>
+                            )}
+                            {!showDriverTypeSelector && shuttleSelfManaged && (
+                                <Field label="Driver Type">
+                                    <input readOnly value="Shuttle" className={cx(inputCls, "opacity-70")} />
+                                </Field>
+                            )}
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>Cancel</button>

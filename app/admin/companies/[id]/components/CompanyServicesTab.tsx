@@ -240,6 +240,23 @@ export function CompanyServicesTab({ detail: d }: Props) {
                                         </div>
                                     );
                                 })()}
+                                {(() => {
+                                    const smShuttle = d.features.find(f => f.feature_key === 'shuttle_self_managed')?.is_enabled ?? false;
+                                    return (
+                                        <div className="flex items-center justify-between px-5 py-4">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-700">Self-Managed Shuttle Portal</div>
+                                                <div className="text-xs text-slate-500">Departments, requesters, overtime workflow, pool fleet, and route management</div>
+                                            </div>
+                                            <ToggleSwitch
+                                                checked={smShuttle}
+                                                onChange={() => d.toggleFeature('shuttle_self_managed', !smShuttle)}
+                                                disabled={!d.canUpdate}
+                                                loading={d.isTogglePending('feature:shuttle_self_managed')}
+                                            />
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         ) : (
                             <div className="px-5 py-4 text-sm text-slate-400 bg-slate-50/50">Enable Shuttle Service to configure fulfilment modes.</div>

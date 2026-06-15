@@ -18,7 +18,8 @@ export type CompanyFeatureKey =
     | 'shuttle_cort_managed'
     | 'tracker_api_integration'
     | 'tracking_via_app'
-    | 'ai_insights';
+    | 'ai_insights'
+    | 'shuttle_self_managed';
 
 export interface CompanyFeature {
     id: number;

@@ -1808,6 +1808,187 @@ class ApiClient {
     async deleteWebPushSubscription(): Promise<void> {
         await this.request<void>('/notifications/web-push/subscription', { method: 'DELETE' });
     }
+
+    // ===== SHUTTLE SELF-MANAGED =====
+
+    async getDepartments(companyId: number) {
+        return this.request<{ success: boolean; data: Array<{ id: number; name: string; is_active: boolean }> }>(
+            `/companies/${companyId}/departments`,
+        );
+    }
+
+    async createDepartment(companyId: number, name: string) {
+        return this.request(`/companies/${companyId}/departments`, {
+            method: 'POST',
+            body: JSON.stringify({ name }),
+        });
+    }
+
+    async updateDepartment(companyId: number, departmentId: number, data: { name?: string; is_active?: boolean }) {
+        return this.request(`/companies/${companyId}/departments/${departmentId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteDepartment(companyId: number, departmentId: number) {
+        return this.request(`/companies/${companyId}/departments/${departmentId}`, { method: 'DELETE' });
+    }
+
+    async getOvertimeRequests(companyId: number, params?: { status?: string; from?: string; to?: string }) {
+        const query = new URLSearchParams();
+        if (params?.status) query.append('status', params.status);
+        if (params?.from) query.append('from', params.from);
+        if (params?.to) query.append('to', params.to);
+        const qs = query.toString();
+        return this.request<{ success: boolean; data: any[] }>(
+            `/companies/${companyId}/shuttle-overtime-requests${qs ? `?${qs}` : ''}`,
+        );
+    }
+
+    async upsertOvertimeRequest(companyId: number, body: {
+        request_date: string;
+        employee_user_ids: string[];
+        department_id?: number;
+        notes?: string;
+    }) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    async approveOvertimeRequest(companyId: number, requestId: number) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/approve`, {
+            method: 'PATCH',
+        });
+    }
+
+    async getOvertimeApprovalPreview(companyId: number, requestId: number) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/preview`);
+    }
+
+    async rejectOvertimeRequest(companyId: number, requestId: number, rejection_reason?: string) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/reject`, {
+            method: 'PATCH',
+            body: JSON.stringify({ rejection_reason }),
+        });
+    }
+
+    async cancelOvertimeRequest(companyId: number, requestId: number) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/cancel`, {
+            method: 'PATCH',
+        });
+    }
+
+    async getOvertimeAnalytics(companyId: number, from?: string, to?: string) {
+        const query = new URLSearchParams();
+        if (from) query.append('from', from);
+        if (to) query.append('to', to);
+        const qs = query.toString();
+        return this.request<{ success: boolean; data: any }>(
+            `/companies/${companyId}/shuttle-overtime-requests/analytics${qs ? `?${qs}` : ''}`,
+        );
+    }
+
+    async exportOvertimeCsv(companyId: number, from?: string, to?: string): Promise<string> {
+        const query = new URLSearchParams();
+        if (from) query.append('from', from);
+        if (to) query.append('to', to);
+        const qs = query.toString();
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        const base = process.env.NEXT_PUBLIC_API_URL || '';
+        const res = await fetch(
+            `${base}/companies/${companyId}/shuttle-overtime-requests/export${qs ? `?${qs}` : ''}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        if (!res.ok) throw new Error('Export failed');
+        return res.text();
+    }
+
+    async getShuttleRequesters(companyId: number) {
+        return this.request<{ success: boolean; data: any[] }>(`/companies/${companyId}/shuttle-requesters`);
+    }
+
+    async createShuttleRequester(companyId: number, body: {
+        email: string;
+        password: string;
+        full_name: string;
+        phone?: string;
+        department_id: number;
+    }) {
+        return this.request(`/companies/${companyId}/shuttle-requesters`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    async deactivateShuttleRequester(companyId: number, requesterId: string) {
+        return this.request(`/companies/${companyId}/shuttle-requesters/${requesterId}`, { method: 'DELETE' });
+    }
+
+    // ===== COMPANY ROUTES (shuttle self-managed) =====
+
+    async createRoute(data: {
+        name: string;
+        company_id: number;
+        assigned_vehicle_id?: number;
+        assigned_driver_id?: string;
+        stops: Array<{
+            name: string;
+            lat: number;
+            lng: number;
+            morning_eta?: string;
+            evening_eta?: string;
+            sequence_order: number;
+            direction?: 'MORNING' | 'EVENING' | 'BOTH';
+        }>;
+    }) {
+        return this.request(`/routes`, { method: 'POST', body: JSON.stringify(data) });
+    }
+
+    async updateRoute(routeId: number, data: {
+        name?: string;
+        assigned_vehicle_id?: number | null;
+        assigned_driver_id?: string | null;
+    }) {
+        return this.request(`/routes/${routeId}`, { method: 'PATCH', body: JSON.stringify(data) });
+    }
+
+    async addRouteStop(routeId: number, data: Record<string, unknown>) {
+        return this.request(`/routes/${routeId}/stops`, { method: 'POST', body: JSON.stringify(data) });
+    }
+
+    async updateRouteStop(stopId: number, data: Record<string, unknown>) {
+        return this.request(`/routes/stops/${stopId}`, { method: 'PATCH', body: JSON.stringify(data) });
+    }
+
+    async deleteRouteStop(stopId: number) {
+        return this.request(`/routes/stops/${stopId}`, { method: 'DELETE' });
+    }
+
+    async getRoute(routeId: number) {
+        return this.request(`/routes/${routeId}`);
+    }
+
+    // ===== EMPLOYEE ROUTE ASSIGNMENTS =====
+
+    async assignEmployeeToRoute(data: {
+        user_id: string;
+        route_id: number;
+        pickup_stop_id?: number;
+    }) {
+        return this.request('/employee-route-assignments/assign', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async removeEmployeeFromRoute(userId: string) {
+        return this.request(`/employee-route-assignments/remove/${userId}`, {
+            method: 'DELETE',
+        });
+    }
 }
 
 export const apiClient = new ApiClient();

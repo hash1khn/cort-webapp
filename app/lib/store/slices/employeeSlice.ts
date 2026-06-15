@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { apiClient } from '../../services/api-client';
+import type { CreateEmployeeRequest } from '../../services/types/employees';
 
 const STALE_TIME_MS = 60_000; // 60 seconds
 
@@ -13,6 +14,9 @@ export type Employee = {
     company_id: number;
     employee_id?: string;
     department?: string | null;
+    department_id?: number | null;
+    departments?: { id: number; name: string } | null;
+    home_address?: string | null;
 };
 
 interface EmployeeState {
@@ -46,6 +50,18 @@ export const fetchEmployees = createAsyncThunk(
             if (status === 'loading') return false;
             if (lastFetched && Date.now() - lastFetched < STALE_TIME_MS) return false;
             return true;
+        }
+    }
+);
+
+export const createEmployee = createAsyncThunk(
+    'employee/createEmployee',
+    async (data: CreateEmployeeRequest, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.createEmployee(data);
+            return response.data || response;
+        } catch (err) {
+            return rejectWithValue(err instanceof Error ? err.message : 'Failed to create employee');
         }
     }
 );
@@ -95,6 +111,9 @@ export const employeeSlice = createSlice({
             .addCase(fetchEmployees.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload as string;
+            })
+            .addCase(createEmployee.fulfilled, (state) => {
+                state.lastFetched = null;
             })
             // Update
             .addCase(updateEmployee.fulfilled, (state, action) => {
