@@ -1914,11 +1914,11 @@ class ApiClient {
         if (from) query.append('from', from);
         if (to) query.append('to', to);
         const qs = query.toString();
-        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-        const base = process.env.NEXT_PUBLIC_API_URL || '';
+        const token = this.getToken();
+        const base = this.baseUrl;
         const res = await fetch(
             `${base}/companies/${companyId}/shuttle-overtime-requests/export${qs ? `?${qs}` : ''}`,
-            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+            { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
         );
         if (!res.ok) throw new Error('Export failed');
         return res.text();
