@@ -85,6 +85,7 @@ const getNavGroups = (
       { href: "/company/requesters", label: "Requesters", icon: UserCog },
       { href: "/company/overtime-requests", label: "Overtime Requests", icon: Clock },
       { href: "/company/overtime-approvals", label: "Approvals", icon: CheckCircle2 },
+      { href: "/company/overtime-roster", label: "Daily Roster", icon: Users },
       { href: "/company/overtime-analytics", label: "Overtime Analytics", icon: BarChart2 },
     );
   } else if (shuttleSelfManaged) {

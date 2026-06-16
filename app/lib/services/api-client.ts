@@ -1874,7 +1874,6 @@ class ApiClient {
         request_date: string;
         shift_time: string;
         employee_user_ids: string[];
-        shift_time?: string;
         department_id?: number;
         notes?: string;
     }) {
@@ -1933,6 +1932,21 @@ class ApiClient {
         const qs = query.toString();
         return this.request<{ success: boolean; data: any }>(
             `/companies/${companyId}/shuttle-overtime-requests/analytics${qs ? `?${qs}` : ''}`,
+        );
+    }
+
+    async getOvertimeDailyRoster(
+        companyId: number,
+        params: { date: string; tab: 'on_time' | 'overtime'; page: number; limit: number; search?: string },
+    ) {
+        const query = new URLSearchParams();
+        query.append('date', params.date);
+        query.append('tab', params.tab);
+        query.append('page', String(params.page));
+        query.append('limit', String(params.limit));
+        if (params.search) query.append('search', params.search);
+        return this.request<{ success: boolean; data: any }>(
+            `/companies/${companyId}/shuttle-overtime-requests/daily-roster?${query.toString()}`,
         );
     }
 
