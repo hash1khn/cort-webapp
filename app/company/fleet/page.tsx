@@ -74,7 +74,6 @@ const getDefaultVehicleForm = () => ({
     color: "",
     category: VehicleCategory.SEDAN,
     seat_capacity: 14,
-    is_overtime_dedicated: false,
     fuel_avg_city: 10,
     fuel_avg_highway: 13,
 });
@@ -90,7 +89,6 @@ function poolVehicleToForm(v: PoolVehicle): VehicleFormState {
         color: v.color ?? "",
         category: (v.category as VehicleCategory) || VehicleCategory.SEDAN,
         seat_capacity: v.seat_capacity > 0 ? v.seat_capacity : 14,
-        is_overtime_dedicated: v.is_overtime_dedicated === true,
         fuel_avg_city: Number(v.fuel_avg_city ?? 10),
         fuel_avg_highway: Number(v.fuel_avg_highway ?? 13),
     };
@@ -229,7 +227,6 @@ export default function CompanyFleetPage() {
                 color: vehicleForm.color || undefined,
                 category: vehicleForm.category,
                 seat_capacity: vehicleForm.seat_capacity,
-                is_overtime_dedicated: vehicleForm.is_overtime_dedicated,
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
             });
@@ -270,7 +267,6 @@ export default function CompanyFleetPage() {
                 color: editVehicleForm.color || undefined,
                 category: editVehicleForm.category,
                 seat_capacity: editVehicleForm.seat_capacity,
-                is_overtime_dedicated: editVehicleForm.is_overtime_dedicated === true,
                 fuel_avg_city: editVehicleForm.fuel_avg_city,
                 fuel_avg_highway: editVehicleForm.fuel_avg_highway,
             });
@@ -429,31 +425,22 @@ export default function CompanyFleetPage() {
                         <table className="min-w-full text-sm text-left">
                             <thead>
                                 <tr className="border-b border-[var(--border-light)]">
-                                    {["Plate", "Make / Model", "Year", "Capacity", "Overtime", "Category", "Status", "Actions"].map((h) => (
+                                    {["Plate", "Make / Model", "Year", "Capacity", "Category", "Status", "Actions"].map((h) => (
                                         <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {vehiclesLoading ? (
-                                    <tr><td colSpan={8} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading vehicles…" minHeight="min-h-[280px]" /></td></tr>
+                                    <tr><td colSpan={7} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading vehicles…" minHeight="min-h-[280px]" /></td></tr>
                                 ) : vehicles.length === 0 ? (
-                                    <tr><td colSpan={8} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
+                                    <tr><td colSpan={7} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
                                 ) : vehicles.map((v) => (
                                     <tr key={v.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                                         <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{v.plate_number}</td>
                                         <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{v.make} {v.model}</td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.year}</td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.seat_capacity > 0 ? v.seat_capacity : "—"}</td>
-                                        <td className={TABLE_CELL_CLASS}>
-                                            {v.is_overtime_dedicated === true ? (
-                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]">
-                                                    Dedicated
-                                                </span>
-                                            ) : (
-                                                <span className="text-xs text-[var(--text-muted)]">Regular</span>
-                                            )}
-                                        </td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{formatVehicleCategory(v.category)}</td>
                                         <td className={TABLE_CELL_CLASS}>
                                             <span className={cx(
@@ -715,22 +702,6 @@ export default function CompanyFleetPage() {
                             <Field label="Color"><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
-                            <Field label="Dedicated overtime vehicle *">
-                                <select
-                                    required
-                                    value={vehicleForm.is_overtime_dedicated ? "yes" : "no"}
-                                    onChange={(e) =>
-                                        setVehicleForm((f) => ({
-                                            ...f,
-                                            is_overtime_dedicated: e.target.value === "yes",
-                                        }))
-                                    }
-                                    className={inputCls}
-                                >
-                                    <option value="no">No — regular pool vehicle</option>
-                                    <option value="yes">Yes — for overtimes employees</option>
-                                </select>
-                            </Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <CompanyLoadingButton type="button" variant="outline" onClick={() => setShowAddVehicle(false)} disabled={vehicleSaving}>Cancel</CompanyLoadingButton>
@@ -782,22 +753,6 @@ export default function CompanyFleetPage() {
                             <Field label="Color"><input value={editVehicleForm.color} onChange={(e) => setEditVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={editVehicleForm.fuel_avg_city} onChange={(e) => setEditVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={editVehicleForm.fuel_avg_highway} onChange={(e) => setEditVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
-                            <Field label="Dedicated overtime vehicle *">
-                                <select
-                                    required
-                                    value={editVehicleForm.is_overtime_dedicated ? "yes" : "no"}
-                                    onChange={(e) =>
-                                        setEditVehicleForm((f) => ({
-                                            ...f,
-                                            is_overtime_dedicated: e.target.value === "yes",
-                                        }))
-                                    }
-                                    className={inputCls}
-                                >
-                                    <option value="no">No — regular pool vehicle</option>
-                                    <option value="yes">Yes — for overtime employees</option>
-                                </select>
-                            </Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <CompanyLoadingButton type="button" variant="outline" onClick={closeEditVehicle} disabled={vehicleUpdating}>Cancel</CompanyLoadingButton>

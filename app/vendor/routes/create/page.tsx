@@ -369,7 +369,7 @@ export default function VendorCreateRoutePage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-gray-500 mb-0.5">PM dropoff</label>
+                                            <label className="block text-gray-500 mb-0.5">PM pickup</label>
                                             <input
                                                 type="time"
                                                 value={stop.eveningEta}

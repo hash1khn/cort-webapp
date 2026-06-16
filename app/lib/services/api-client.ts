@@ -1666,7 +1666,6 @@ class ApiClient {
         fuel_avg_city: number;
         fuel_avg_highway: number;
         seat_capacity: number;
-        is_overtime_dedicated: boolean;
     }) {
         return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles`, {
             method: 'POST',

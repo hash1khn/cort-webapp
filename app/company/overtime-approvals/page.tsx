@@ -32,7 +32,11 @@ type OvertimeGroup = {
   pct: number;
 };
 
-type Suggestion = { groups: OvertimeGroup[]; unassigned: OvertimeEmployee[] };
+type SuggestionResponse = {
+  employee_count: number;
+  suggested_vehicles: OvertimeGroup["vehicle"][];
+  available_vehicles: OvertimeGroup["vehicle"][];
+};
 
 type SavedAssignment = {
   id: number;
@@ -63,7 +67,7 @@ function formatShiftTime(raw: string | null | undefined): string {
 
 // ─── OvertimeVehicleOptimizer ─────────────────────────────────────────────────
 
-function OvertimeVehicleOptimizer({ requestId, companyId }: { requestId: number; companyId: number }) {
+function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: { requestId: number; companyId: number; overtimeEmployees: OvertimeEmployee[] }) {
   const [groups, setGroups] = useState<OvertimeGroup[]>([]);
   const [unassigned, setUnassigned] = useState<OvertimeEmployee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,16 +108,17 @@ function OvertimeVehicleOptimizer({ requestId, companyId }: { requestId: number;
     setLoading(true);
     try {
       const res: any = await apiClient.getOvertimeVehicleSuggestions(companyId, requestId);
-      const data: Suggestion = res?.data ?? res;
-      setGroups(data.groups ?? []);
-      setUnassigned(data.unassigned ?? []);
+      const data: SuggestionResponse = res?.data ?? res;
+      const suggested = data.suggested_vehicles ?? [];
+      setGroups(suggested.map((v) => ({ vehicle: v, employees: [], occupancy: 0, pct: 0 })));
+      setUnassigned(overtimeEmployees);
       hasSuggestion.current = true;
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to generate suggestions");
     } finally {
       setLoading(false);
     }
-  }, [companyId, requestId]);
+  }, [companyId, requestId, overtimeEmployees]);
 
   useEffect(() => {
     (async () => {
@@ -192,7 +197,7 @@ function OvertimeVehicleOptimizer({ requestId, companyId }: { requestId: number;
     );
   }
 
-  if (groups.length === 0 && unassigned.length === 0) {
+  if (groups.length === 0 && unassigned.length === 0 && overtimeEmployees.length > 0) {
     return (
       <div className="text-sm text-amber-600 bg-amber-500/10 rounded-lg px-4 py-3 mt-3">
         No free vehicles available on this date. All company vehicles are already assigned to routes running on this day.
@@ -531,7 +536,7 @@ export default function OvertimeApprovalsPage() {
                       {r.departments?.name} · {String(r.request_date).slice(0, 10)}
                       {r.shift_time && (
                         <span className="ml-2 text-sm font-normal text-[var(--cort-orange)]">
-                          Wave {formatShiftTime(r.shift_time)}
+                          Shift {formatShiftTime(r.shift_time)}
                         </span>
                       )}
                     </p>
@@ -573,7 +578,16 @@ export default function OvertimeApprovalsPage() {
                       </div>
                     )}
 
-                    <OvertimeVehicleOptimizer requestId={r.id} companyId={companyId} />
+                    <OvertimeVehicleOptimizer
+                      requestId={r.id}
+                      companyId={companyId}
+                      overtimeEmployees={(r.shuttle_overtime_request_employees ?? []).map((e: any) => ({
+                        user_id: e.users?.id ?? e.employee_user_id,
+                        full_name: e.users?.full_name ?? "",
+                        department: e.users?.department ?? null,
+                        home_address: e.users?.home_address ?? null,
+                      }))}
+                    />
                   </div>
 
                   <div className="flex gap-2">
@@ -614,7 +628,7 @@ export default function OvertimeApprovalsPage() {
                   {r.departments?.name} · {String(r.request_date).slice(0, 10)}
                   {r.shift_time && (
                     <span className="ml-2 text-sm font-normal text-[var(--cort-orange)]">
-                      Wave {formatShiftTime(r.shift_time)}
+                      Shift {formatShiftTime(r.shift_time)}
                     </span>
                   )}
                 </p>

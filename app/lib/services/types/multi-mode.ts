@@ -170,7 +170,6 @@ export interface PoolVehicle {
     category: string;
     status: string | null;
     seat_capacity: number;
-    is_overtime_dedicated: boolean;
     fuel_avg_city?: number | string;
     fuel_avg_highway?: number | string;
     is_company_pool: boolean;
