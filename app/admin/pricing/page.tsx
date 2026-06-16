@@ -38,7 +38,16 @@ import {
 } from "../../lib/store/slices/adminPricingSlice";
 import { ChauffeurContractRate } from "../../lib/services/api-client";
 
-const Input = ({ label, value, onChange, placeholder = "0", type = "number", helperText, disabled }: any) => (
+const Input = ({
+  label,
+  value,
+  onChange,
+  placeholder = "0",
+  type = "number",
+  helperText,
+  disabled,
+  ...rest
+}: any) => (
   <label className="flex flex-col gap-1.5">
     <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
     <input
@@ -47,6 +56,7 @@ const Input = ({ label, value, onChange, placeholder = "0", type = "number", hel
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
+      {...rest}
       className="h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] transition-all disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:opacity-70"
     />
     {helperText && <span className="text-xs text-[var(--text-muted)]">{helperText}</span>}
@@ -402,8 +412,10 @@ function PricingPageContent() {
                     label="Revision Threshold (%)"
                     value={globalSettings.revisionPercentage}
                     onChange={(v: string) => dispatch(setGlobalSettings({ revisionPercentage: v }))}
-                    helperText="Leave empty to always adjust rates with fuel price changes"
+                    helperText="Recommended: 10–20. Leave empty to always adjust rates with fuel price changes."
                     disabled={!canUpdate}
+                    min={0}
+                    max={100}
                   />
                   <Input
                     label="Outstation Allowance"
@@ -637,8 +649,10 @@ function PricingPageContent() {
                     label="Revision Threshold (%)"
                     value={shuttleSettings.revisionPercentage}
                     onChange={(v: string) => dispatch(setShuttleSettings({ revisionPercentage: v }))}
-                    helperText="Leave empty to always adjust fuel cost with fuel price changes"
+                    helperText="Recommended: 10–20. Leave empty to always adjust fuel cost with fuel price changes."
                     disabled={!canUpdate}
+                    min={0}
+                    max={100}
                   />
                   <Input
                     label="S.S.T (%)"

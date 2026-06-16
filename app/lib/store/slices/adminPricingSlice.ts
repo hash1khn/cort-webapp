@@ -210,7 +210,11 @@ export const savePricingChanges = createAsyncThunk(
 
         try {
             let currentContractId = contract?.id;
-            const revisionPct = globalSettings.revisionPercentage === "" ? null : Number(globalSettings.revisionPercentage);
+            // UI stores revision threshold as a percent (e.g. "10" for 10%); backend expects decimal fraction (0.10)
+            const revisionPct =
+                globalSettings.revisionPercentage === ""
+                    ? null
+                    : Number(globalSettings.revisionPercentage) / 100;
 
             // 1. Update or Create Contract
             if (currentContractId) {
@@ -359,7 +363,7 @@ export const saveShuttleChanges = createAsyncThunk(
             const revisionPct =
                 shuttleSettings.revisionPercentage === ''
                     ? null
-                    : Number(shuttleSettings.revisionPercentage);
+                    : Number(shuttleSettings.revisionPercentage) / 100;
 
             const sstPct =
                 shuttleSettings.sstPercentage === ''
@@ -555,7 +559,10 @@ const adminPricingSlice = createSlice({
                     state.contract = mainContract;
                     state.globalSettings = {
                         fuelBasePrice: mainContract.fuel_base_price,
-                        revisionPercentage: mainContract.revision_percentage || "",
+                        revisionPercentage:
+                            mainContract.revision_percentage != null && mainContract.revision_percentage !== ""
+                                ? String(Number(mainContract.revision_percentage) * 100)
+                                : "",
                         contractDuration: mainContract.contract_duration || "",
                         contractDate: mainContract.created_at ? new Date(mainContract.created_at).toISOString().split('T')[0] : "",
                         allowanceOutstation: mainContract.allowance_outstation || "",
@@ -606,7 +613,10 @@ const adminPricingSlice = createSlice({
                     state.shuttleSettings = {
                         fuelBasePrice: contract.fuel_base_price,
                         dieselBasePrice: contract.diesel_base_price || '',
-                        revisionPercentage: contract.revision_percentage || '',
+                        revisionPercentage:
+                            contract.revision_percentage != null && contract.revision_percentage !== ""
+                                ? String(Number(contract.revision_percentage) * 100)
+                                : '',
                         sstPercentage: contract.sst_percentage || '10',
                         contractDuration: contract.contract_duration || '',
                         contractDate: contract.created_at
