@@ -32,6 +32,9 @@ export default function OvertimeRequestsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [tab, setTab] = useState<"create" | "history">("create");
 
   const PAGE_SIZE = 30;
 
@@ -69,6 +72,21 @@ export default function OvertimeRequestsPage() {
     setHasMore(true);
   }, [search]);
 
+  const loadHistory = useCallback(async () => {
+    if (!companyId) return;
+    setHistoryLoading(true);
+    try {
+      const res = await apiClient.getOvertimeRequests(companyId, { from: requestDate, to: requestDate });
+      setHistory((res as any)?.data ?? []);
+    } catch {
+      // keep silent-ish; page is still usable
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [companyId, requestDate]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
   const filteredEmployees = useMemo(() => {
     const deptFilter = departmentId ? Number(departmentId) : null;
     return employees.filter((e) => {
@@ -102,6 +120,7 @@ export default function OvertimeRequestsPage() {
       });
       toast.success("Overtime request submitted for approval");
       setSelected(new Set());
+      loadHistory();
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to submit request");
     } finally {
@@ -129,6 +148,83 @@ export default function OvertimeRequestsPage() {
         description="Mark employees who will work overtime and skip the evening shuttle"
       />
       <Card className="p-6 space-y-4">
+        <div className="flex items-center gap-2 border-b border-[var(--border-default)] pb-3">
+          <button
+            type="button"
+            onClick={() => setTab("create")}
+            className={cx(
+              "rounded-lg px-3 py-2 text-sm font-semibold border",
+              tab === "create"
+                ? "bg-[var(--bg-subtle)] border-[var(--border-default)]"
+                : "border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-subtle)]",
+            )}
+          >
+            New Request
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("history")}
+            className={cx(
+              "rounded-lg px-3 py-2 text-sm font-semibold border",
+              tab === "history"
+                ? "bg-[var(--bg-subtle)] border-[var(--border-default)]"
+                : "border-transparent text-[var(--text-muted)] hover:bg-[var(--bg-subtle)]",
+            )}
+          >
+            My Requests
+          </button>
+        </div>
+
+        {tab === "history" ? (
+          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-subtle)] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Today’s requests</p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Pending / approved / rejected for the selected date (your department).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadHistory}
+                disabled={historyLoading || submitting}
+                className="rounded-lg border border-[var(--border-input)] px-3 py-2 text-xs disabled:opacity-60"
+              >
+                {historyLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              {historyLoading ? (
+                <p className="text-xs text-[var(--text-muted)]">Loading…</p>
+              ) : history.length === 0 ? (
+                <p className="text-xs text-[var(--text-muted)]">No requests yet for this date.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="text-xs text-[var(--text-muted)]">
+                    <tr className="border-b border-[var(--border-default)]">
+                      <th className="py-2 text-left font-semibold">Status</th>
+                      <th className="py-2 text-left font-semibold">Employees</th>
+                      <th className="py-2 text-left font-semibold">Notes</th>
+                      <th className="py-2 text-left font-semibold">Rejection reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((r) => (
+                      <tr key={r.id} className="border-b border-[var(--border-default)]">
+                        <td className="py-2 font-medium">{r.status}</td>
+                        <td className="py-2 text-[var(--text-muted)]">{r.shuttle_overtime_request_employees?.length ?? 0}</td>
+                        <td className="py-2 text-[var(--text-muted)]">{r.notes ?? "—"}</td>
+                        <td className="py-2 text-[var(--text-muted)]">{r.rejection_reason ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
             <span className="text-[var(--text-muted)]">Date</span>
@@ -252,6 +348,8 @@ export default function OvertimeRequestsPage() {
         >
           {submitLabel}
         </CompanyLoadingButton>
+          </>
+        )}
       </Card>
     </div>
   );

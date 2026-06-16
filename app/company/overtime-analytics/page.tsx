@@ -35,11 +35,13 @@ export default function OvertimeAnalyticsPage() {
     if (!companyId) return;
     try {
       const csv = await apiClient.exportOvertimeCsv(companyId, from || undefined, to || undefined);
-      const blob = new Blob([csv], { type: "text/csv" });
+      // Add UTF-8 BOM so Excel opens it cleanly.
+      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "overtime-requests.csv";
+      const suffix = `${from || "all"}_to_${to || "all"}`.replaceAll("/", "-");
+      a.download = `overtime-requests_${suffix}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
