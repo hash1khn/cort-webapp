@@ -1866,6 +1866,7 @@ class ApiClient {
     async upsertOvertimeRequest(companyId: number, body: {
         request_date: string;
         employee_user_ids: string[];
+        shift_time?: string;
         department_id?: number;
         notes?: string;
     }) {

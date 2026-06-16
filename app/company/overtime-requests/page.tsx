@@ -24,6 +24,8 @@ export default function OvertimeRequestsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [requestDate, setRequestDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [departmentId, setDepartmentId] = useState<string>("");
+  const [shiftPreset, setShiftPreset] = useState<"07:30" | "09:30" | "CUSTOM">("07:30");
+  const [customShiftTime, setCustomShiftTime] = useState("07:30");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -76,9 +78,11 @@ export default function OvertimeRequestsPage() {
     if (!companyId || submitting) return;
     setSubmitting(true);
     try {
+      const shift_time = shiftPreset === "CUSTOM" ? customShiftTime : shiftPreset;
       await apiClient.upsertOvertimeRequest(companyId, {
         request_date: requestDate,
         employee_user_ids: [...selected],
+        shift_time,
         department_id: departmentId ? Number(departmentId) : undefined,
         notes: notes || undefined,
       });
@@ -122,6 +126,28 @@ export default function OvertimeRequestsPage() {
               className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
             />
           </label>
+          <label className="text-sm">
+            <span className="text-[var(--text-muted)]">Shift time</span>
+            <select
+              value={shiftPreset}
+              onChange={(e) => setShiftPreset(e.target.value as any)}
+              disabled={submitting}
+              className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+            >
+              <option value="07:30">07:30</option>
+              <option value="09:30">09:30</option>
+              <option value="CUSTOM">Custom…</option>
+            </select>
+            {shiftPreset === "CUSTOM" && (
+              <input
+                type="time"
+                value={customShiftTime}
+                onChange={(e) => setCustomShiftTime(e.target.value)}
+                disabled={submitting}
+                className="mt-2 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+              />
+            )}
+          </label>
           {isCompanyAdmin && (
             <label className="text-sm">
               <span className="text-[var(--text-muted)]">Department</span>
@@ -136,7 +162,7 @@ export default function OvertimeRequestsPage() {
               </select>
             </label>
           )}
-          <label className="text-sm md:col-span-1">
+          <label className="text-sm md:col-span-3">
             <span className="text-[var(--text-muted)]">Search</span>
             <input
               value={search}
