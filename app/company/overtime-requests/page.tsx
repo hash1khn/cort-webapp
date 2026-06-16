@@ -30,17 +30,27 @@ export default function OvertimeRequestsPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
+  const PAGE_SIZE = 30;
 
   const load = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     try {
       const [empRes, deptRes] = await Promise.all([
-        apiClient.getEmployeesByCompany(companyId, { limit: 200 }),
+        apiClient.getEmployeesByCompany(companyId, { page, limit: PAGE_SIZE, search: search.trim() || undefined }),
         isCompanyAdmin ? apiClient.getDepartments(companyId) : Promise.resolve({ data: [] }),
       ]);
-      const raw = empRes?.data ?? empRes;
-      setEmployees(Array.isArray(raw) ? raw : raw?.data ?? []);
+      const list = (empRes as any)?.data?.data ?? [];
+      const pagination = (empRes as any)?.data?.pagination ?? null;
+      setEmployees((prev) => (page === 1 ? list : [...prev, ...list]));
+      if (pagination) {
+        setHasMore(Boolean(pagination?.hasNextPage));
+      } else {
+        setHasMore(list.length === PAGE_SIZE);
+      }
       setDepartments(deptRes.data ?? []);
       if (user?.role === UserRole.SHUTTLE_REQUESTER && user.department_id) {
         setDepartmentId(String(user.department_id));
@@ -50,19 +60,23 @@ export default function OvertimeRequestsPage() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, isCompanyAdmin, user]);
+  }, [companyId, isCompanyAdmin, user, page, search]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // When search changes, restart pagination
+    setPage(1);
+    setHasMore(true);
+  }, [search]);
 
   const filteredEmployees = useMemo(() => {
     const deptFilter = departmentId ? Number(departmentId) : null;
     return employees.filter((e) => {
       if (deptFilter && e.department_id !== deptFilter) return false;
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return e.full_name?.toLowerCase().includes(q) || e.employee_id?.toLowerCase().includes(q);
+      // Search is handled by backend; keep client filter minimal.
+      return true;
     });
-  }, [employees, departmentId, search]);
+  }, [employees, departmentId]);
 
   const toggle = (id: string) => {
     if (submitting) return;
@@ -167,7 +181,7 @@ export default function OvertimeRequestsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Name or ID"
+              placeholder="Search by employee name or employee ID"
               disabled={submitting}
               className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
             />
@@ -205,8 +219,29 @@ export default function OvertimeRequestsPage() {
                 </div>
               </label>
             ))}
+            {filteredEmployees.length === 0 && (
+              <div className="px-4 py-6 text-sm text-[var(--text-muted)]">No employees found.</div>
+            )}
           </div>
         )}
+
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-[var(--text-muted)]">
+            Showing {filteredEmployees.length} employee{filteredEmployees.length === 1 ? "" : "s"}
+            {search.trim() ? " (filtered by search)" : ""}
+          </p>
+          <CompanyLoadingButton
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!hasMore || loading || submitting}
+            loading={loading && page > 1}
+            loadingText="Loading…"
+            className="px-3 py-2 text-xs"
+          >
+            Load more
+          </CompanyLoadingButton>
+        </div>
+
         <CompanyLoadingButton
           type="button"
           onClick={handleSubmit}
