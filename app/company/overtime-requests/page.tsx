@@ -24,7 +24,6 @@ export default function OvertimeRequestsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [requestDate, setRequestDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [departmentId, setDepartmentId] = useState<string>("");
-  // Shift timings are evening presets for Changaan flow.
   const [shiftPreset, setShiftPreset] = useState<"19:30" | "21:30" | "CUSTOM">("19:30");
   const [customShiftTime, setCustomShiftTime] = useState("19:30");
   const [notes, setNotes] = useState("");
@@ -68,7 +67,6 @@ export default function OvertimeRequestsPage() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    // When search changes, restart pagination
     setPage(1);
     setHasMore(true);
   }, [search]);
@@ -80,7 +78,7 @@ export default function OvertimeRequestsPage() {
       const res = await apiClient.getOvertimeRequests(companyId, { from: requestDate, to: requestDate });
       setHistory((res as any)?.data ?? []);
     } catch {
-      // keep silent-ish; page is still usable
+      // silent
     } finally {
       setHistoryLoading(false);
     }
@@ -92,10 +90,36 @@ export default function OvertimeRequestsPage() {
     const deptFilter = departmentId ? Number(departmentId) : null;
     return employees.filter((e) => {
       if (deptFilter && e.department_id !== deptFilter) return false;
-      // Search is handled by backend; keep client filter minimal.
       return true;
     });
   }, [employees, departmentId]);
+
+  const selectedEmployees = useMemo(
+    () => employees.filter((e) => selected.has(e.id)),
+    [employees, selected],
+  );
+
+  const resolveSubmitDepartmentId = useCallback((): number | null => {
+    if (!isCompanyAdmin) {
+      return user?.department_id ? Number(user.department_id) : null;
+    }
+    if (departmentId) return Number(departmentId);
+    const deptIds = new Set(
+      selectedEmployees.map((e) => e.department_id).filter((id): id is number => id != null),
+    );
+    if (deptIds.size === 1) return [...deptIds][0];
+    return null;
+  }, [isCompanyAdmin, user?.department_id, departmentId, selectedEmployees]);
+
+  useEffect(() => {
+    if (!isCompanyAdmin || departmentId || selected.size === 0) return;
+    const deptIds = new Set(
+      selectedEmployees.map((e) => e.department_id).filter((id): id is number => id != null),
+    );
+    if (deptIds.size === 1) {
+      setDepartmentId(String([...deptIds][0]));
+    }
+  }, [isCompanyAdmin, departmentId, selected, selectedEmployees]);
 
   const toggle = (id: string) => {
     if (submitting) return;
@@ -109,14 +133,28 @@ export default function OvertimeRequestsPage() {
 
   const handleSubmit = async () => {
     if (!companyId || submitting) return;
+
+    const submitDepartmentId = resolveSubmitDepartmentId();
+    if (isCompanyAdmin && !submitDepartmentId) {
+      const deptIds = new Set(
+        selectedEmployees.map((e) => e.department_id).filter((id): id is number => id != null),
+      );
+      if (deptIds.size > 1) {
+        toast.error("Selected employees are from different departments. Submit one department at a time.");
+      } else {
+        toast.error("Select a department before submitting");
+      }
+      return;
+    }
+
     setSubmitting(true);
     try {
       const shift_time = shiftPreset === "CUSTOM" ? customShiftTime : shiftPreset;
       await apiClient.upsertOvertimeRequest(companyId, {
         request_date: requestDate,
-        employee_user_ids: [...selected],
         shift_time,
-        department_id: departmentId ? Number(departmentId) : undefined,
+        employee_user_ids: [...selected],
+        department_id: submitDepartmentId ?? undefined,
         notes: notes || undefined,
       });
       toast.success("Overtime request submitted for approval");
@@ -129,7 +167,10 @@ export default function OvertimeRequestsPage() {
     }
   };
 
-  const submitDisabled = selected.size === 0 || (isCompanyAdmin && !departmentId);
+  const submitDepartmentId = resolveSubmitDepartmentId();
+  const submitDisabled = selected.size === 0 || (isCompanyAdmin && !submitDepartmentId);
+  const needsDepartmentHint =
+    isCompanyAdmin && selected.size > 0 && !submitDepartmentId;
 
   const submitLabel =
     selected.size > 0
@@ -180,7 +221,7 @@ export default function OvertimeRequestsPage() {
           <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-subtle)] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Today’s requests</p>
+                <p className="text-sm font-semibold">Today's requests</p>
                 <p className="text-xs text-[var(--text-muted)]">
                   Pending / approved / rejected for the selected date (your department).
                 </p>
@@ -203,6 +244,7 @@ export default function OvertimeRequestsPage() {
                 <table className="w-full text-sm">
                   <thead className="text-xs text-[var(--text-muted)]">
                     <tr className="border-b border-[var(--border-default)]">
+                      <th className="py-2 text-left font-semibold">Shift time</th>
                       <th className="py-2 text-left font-semibold">Status</th>
                       <th className="py-2 text-left font-semibold">Employees</th>
                       <th className="py-2 text-left font-semibold">Notes</th>
@@ -212,6 +254,9 @@ export default function OvertimeRequestsPage() {
                   <tbody>
                     {history.map((r) => (
                       <tr key={r.id} className="border-b border-[var(--border-default)]">
+                        <td className="py-2 font-medium text-[var(--cort-orange)]">
+                          {formatShiftTime(r.shift_time) || "—"}
+                        </td>
                         <td className="py-2 font-medium">{r.status}</td>
                         <td className="py-2 text-[var(--text-muted)]">{r.shuttle_overtime_request_employees?.length ?? 0}</td>
                         <td className="py-2 text-[var(--text-muted)]">{r.notes ?? "—"}</td>
@@ -225,135 +270,145 @@ export default function OvertimeRequestsPage() {
           </div>
         ) : (
           <>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm">
-            <span className="text-[var(--text-muted)]">Date</span>
-            <input
-              type="date"
-              value={requestDate}
-              onChange={(e) => setRequestDate(e.target.value)}
-              disabled={submitting}
-              className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="text-[var(--text-muted)]">Shift time</span>
-            <select
-              value={shiftPreset}
-              onChange={(e) => setShiftPreset(e.target.value as any)}
-              disabled={submitting}
-              className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-            >
-              <option value="19:30">07:30 PM</option>
-              <option value="21:30">09:30 PM</option>
-              <option value="CUSTOM">Custom…</option>
-            </select>
-            {shiftPreset === "CUSTOM" && (
-              <input
-                type="time"
-                value={customShiftTime}
-                onChange={(e) => setCustomShiftTime(e.target.value)}
-                disabled={submitting}
-                className="mt-2 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-              />
-            )}
-          </label>
-          {isCompanyAdmin && (
-            <label className="text-sm">
-              <span className="text-[var(--text-muted)]">Department</span>
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                disabled={submitting}
-                className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-              >
-                <option value="">All (select when submitting)</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="text-sm md:col-span-3">
-            <span className="text-[var(--text-muted)]">Search</span>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by employee name or employee ID"
-              disabled={submitting}
-              className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-            />
-          </label>
-        </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes (optional)"
-          disabled={submitting}
-          className="w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
-          rows={2}
-        />
-        {loading ? (
-          <CompanyPageLoader label="Loading employees…" minHeight="min-h-[240px]" />
-        ) : (
-          <div className="max-h-96 overflow-y-auto divide-y divide-[var(--border-default)] border border-[var(--border-default)] rounded-lg">
-            {filteredEmployees.map((e) => (
-              <label
-                key={e.id}
-                className={cx(
-                  "flex items-center gap-3 px-4 py-3",
-                  submitting ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-[var(--bg-subtle)]",
-                )}
-              >
+            <div className="grid gap-3 md:grid-cols-3">
+              <label className="text-sm">
+                <span className="text-[var(--text-muted)]">Date</span>
                 <input
-                  type="checkbox"
-                  checked={selected.has(e.id)}
-                  onChange={() => toggle(e.id)}
+                  type="date"
+                  value={requestDate}
+                  onChange={(e) => setRequestDate(e.target.value)}
                   disabled={submitting}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
                 />
-                <div>
-                  <p className="text-sm font-medium">{e.full_name}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{e.departments?.name ?? e.department ?? "—"} · {e.employee_id ?? e.id.slice(0, 8)}</p>
-                </div>
               </label>
-            ))}
-            {filteredEmployees.length === 0 && (
-              <div className="px-4 py-6 text-sm text-[var(--text-muted)]">No employees found.</div>
+              <div className="text-sm">
+                <span className="text-[var(--text-muted)]">Shift time</span>
+                <select
+                  value={shiftPreset}
+                  onChange={(e) => setShiftPreset(e.target.value as any)}
+                  disabled={submitting}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+                >
+                  <option value="19:30">07:30 PM</option>
+                  <option value="21:30">09:30 PM</option>
+                  <option value="CUSTOM">Custom…</option>
+                </select>
+                {shiftPreset === "CUSTOM" && (
+                  <input
+                    type="time"
+                    value={customShiftTime}
+                    onChange={(e) => setCustomShiftTime(e.target.value)}
+                    disabled={submitting}
+                    className="mt-2 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+                  />
+                )}
+              </div>
+              {isCompanyAdmin && (
+                <label className="text-sm">
+                  <span className="text-[var(--text-muted)]">Department</span>
+                  <select
+                    value={departmentId}
+                    onChange={(e) => setDepartmentId(e.target.value)}
+                    disabled={submitting}
+                    className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+                  >
+                    <option value="">All departments (browse)</option>
+                    {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="text-sm md:col-span-3">
+                <span className="text-[var(--text-muted)]">Search</span>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by employee name or employee ID"
+                  disabled={submitting}
+                  className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+                />
+              </label>
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              disabled={submitting}
+              className="w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
+              rows={2}
+            />
+            {loading ? (
+              <CompanyPageLoader label="Loading employees…" minHeight="min-h-[240px]" />
+            ) : (
+              <div className="max-h-96 overflow-y-auto divide-y divide-[var(--border-default)] border border-[var(--border-default)] rounded-lg">
+                {filteredEmployees.map((e) => (
+                  <label
+                    key={e.id}
+                    className={cx(
+                      "flex items-center gap-3 px-4 py-3",
+                      submitting ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-[var(--bg-subtle)]",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(e.id)}
+                      onChange={() => toggle(e.id)}
+                      disabled={submitting}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{e.full_name}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{e.departments?.name ?? e.department ?? "—"} · {e.employee_id ?? e.id.slice(0, 8)}</p>
+                    </div>
+                  </label>
+                ))}
+                {filteredEmployees.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-[var(--text-muted)]">No employees found.</div>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-[var(--text-muted)]">
-            Showing {filteredEmployees.length} employee{filteredEmployees.length === 1 ? "" : "s"}
-            {search.trim() ? " (filtered by search)" : ""}
-          </p>
-          <CompanyLoadingButton
-            type="button"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={!hasMore || loading || submitting}
-            loading={loading && page > 1}
-            loadingText="Loading…"
-            className="px-3 py-2 text-xs"
-          >
-            Load more
-          </CompanyLoadingButton>
-        </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-[var(--text-muted)]">
+                Showing {filteredEmployees.length} employee{filteredEmployees.length === 1 ? "" : "s"}
+                {search.trim() ? " (filtered by search)" : ""}
+              </p>
+              <CompanyLoadingButton
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={!hasMore || loading || submitting}
+                loading={loading && page > 1}
+                loadingText="Loading…"
+                className="px-3 py-2 text-xs"
+              >
+                Load more
+              </CompanyLoadingButton>
+            </div>
 
-        <CompanyLoadingButton
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitDisabled}
-          loading={submitting}
-          loadingText={submitLoadingText}
-          className="w-full sm:w-auto"
-        >
-          {submitLabel}
-        </CompanyLoadingButton>
+            <CompanyLoadingButton
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitDisabled}
+              loading={submitting}
+              loadingText={submitLoadingText}
+              className="w-full sm:w-auto"
+            >
+              {submitLabel}
+            </CompanyLoadingButton>
+            {needsDepartmentHint && (
+              <p className="text-xs text-amber-600">
+                Pick a department above, or select employees from one department only — the department will be set automatically.
+              </p>
+            )}
           </>
         )}
       </Card>
     </div>
   );
+}
+
+function formatShiftTime(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const match = String(raw).match(/(\d{2}:\d{2})/);
+  return match ? match[1] : "";
 }
 
 function cx(...classes: Array<string | false | null | undefined>) {

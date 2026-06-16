@@ -19,7 +19,7 @@ import {
   CompanyLoadingButton,
   CompanyModal,
 } from "../components/PageLayout";
-import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
+import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2, Pencil } from "lucide-react";
 import {
     getPhoneValidationError,
     PHONE_MAX_LENGTH,
@@ -73,9 +73,28 @@ const getDefaultVehicleForm = () => ({
     year: new Date().getFullYear(),
     color: "",
     category: VehicleCategory.SEDAN,
+    seat_capacity: 14,
+    is_overtime_dedicated: false,
     fuel_avg_city: 10,
     fuel_avg_highway: 13,
 });
+
+type VehicleFormState = ReturnType<typeof getDefaultVehicleForm>;
+
+function poolVehicleToForm(v: PoolVehicle): VehicleFormState {
+    return {
+        plate_number: v.plate_number,
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        color: v.color ?? "",
+        category: (v.category as VehicleCategory) || VehicleCategory.SEDAN,
+        seat_capacity: v.seat_capacity > 0 ? v.seat_capacity : 14,
+        is_overtime_dedicated: v.is_overtime_dedicated === true,
+        fuel_avg_city: Number(v.fuel_avg_city ?? 10),
+        fuel_avg_highway: Number(v.fuel_avg_highway ?? 13),
+    };
+}
 
 const buildDefaultDriverForm = (features: CompanyFeature[]) => {
     const chauffeurSelfManaged =
@@ -108,6 +127,9 @@ export default function CompanyFleetPage() {
     const [showAddVehicle, setShowAddVehicle] = useState(false);
     const [vehicleForm, setVehicleForm] = useState(getDefaultVehicleForm);
     const [vehicleSaving, setVehicleSaving] = useState(false);
+    const [editingVehicle, setEditingVehicle] = useState<PoolVehicle | null>(null);
+    const [editVehicleForm, setEditVehicleForm] = useState(getDefaultVehicleForm);
+    const [vehicleUpdating, setVehicleUpdating] = useState(false);
 
     // Drivers state
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
@@ -193,6 +215,10 @@ export default function CompanyFleetPage() {
 
     const handleAddVehicle = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!vehicleForm.seat_capacity || vehicleForm.seat_capacity < 1) {
+            toast.error("Passenger capacity must be at least 1");
+            return;
+        }
         setVehicleSaving(true);
         try {
             await apiClient.createPoolVehicle(companyId, {
@@ -202,6 +228,8 @@ export default function CompanyFleetPage() {
                 year: vehicleForm.year,
                 color: vehicleForm.color || undefined,
                 category: vehicleForm.category,
+                seat_capacity: vehicleForm.seat_capacity,
+                is_overtime_dedicated: vehicleForm.is_overtime_dedicated,
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
             });
@@ -216,6 +244,46 @@ export default function CompanyFleetPage() {
         }
     };
 
+    const openEditVehicle = (vehicle: PoolVehicle) => {
+        setEditingVehicle(vehicle);
+        setEditVehicleForm(poolVehicleToForm(vehicle));
+    };
+
+    const closeEditVehicle = () => {
+        setEditingVehicle(null);
+        setEditVehicleForm(getDefaultVehicleForm());
+    };
+
+    const handleUpdateVehicle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingVehicle) return;
+        if (!editVehicleForm.seat_capacity || editVehicleForm.seat_capacity < 1) {
+            toast.error("Passenger capacity must be at least 1");
+            return;
+        }
+        setVehicleUpdating(true);
+        try {
+            await apiClient.updatePoolVehicle(companyId, editingVehicle.id, {
+                make: editVehicleForm.make,
+                model: editVehicleForm.model,
+                year: editVehicleForm.year,
+                color: editVehicleForm.color || undefined,
+                category: editVehicleForm.category,
+                seat_capacity: editVehicleForm.seat_capacity,
+                is_overtime_dedicated: editVehicleForm.is_overtime_dedicated === true,
+                fuel_avg_city: editVehicleForm.fuel_avg_city,
+                fuel_avg_highway: editVehicleForm.fuel_avg_highway,
+            });
+            toast.success("Vehicle updated");
+            closeEditVehicle();
+            fetchVehicles();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to update vehicle");
+        } finally {
+            setVehicleUpdating(false);
+        }
+    };
+
     const handleDeactivateVehicle = async (vehicleId: number) => {
         if (!confirm("Deactivate this pool vehicle?") || actionId) return;
         setActionId(`vehicle-${vehicleId}`);
@@ -224,6 +292,17 @@ export default function CompanyFleetPage() {
             toast.success("Vehicle deactivated");
             fetchVehicles();
         } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate vehicle"); }
+        finally { setActionId(null); }
+    };
+
+    const handleActivateVehicle = async (vehicleId: number) => {
+        if (!confirm("Reactivate this pool vehicle?") || actionId) return;
+        setActionId(`vehicle-activate-${vehicleId}`);
+        try {
+            await apiClient.activatePoolVehicle(companyId, vehicleId);
+            toast.success("Vehicle activated");
+            fetchVehicles();
+        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to activate vehicle"); }
         finally { setActionId(null); }
     };
 
@@ -350,21 +429,31 @@ export default function CompanyFleetPage() {
                         <table className="min-w-full text-sm text-left">
                             <thead>
                                 <tr className="border-b border-[var(--border-light)]">
-                                    {["Plate", "Make / Model", "Year", "Category", "Status", "Actions"].map((h) => (
+                                    {["Plate", "Make / Model", "Year", "Capacity", "Overtime", "Category", "Status", "Actions"].map((h) => (
                                         <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {vehiclesLoading ? (
-                                    <tr><td colSpan={6} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading vehicles…" minHeight="min-h-[280px]" /></td></tr>
+                                    <tr><td colSpan={8} className={TABLE_CELL_CLASS}><CompanyPageLoader label="Loading vehicles…" minHeight="min-h-[280px]" /></td></tr>
                                 ) : vehicles.length === 0 ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
+                                    <tr><td colSpan={8} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
                                 ) : vehicles.map((v) => (
                                     <tr key={v.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                                         <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{v.plate_number}</td>
                                         <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{v.make} {v.model}</td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.year}</td>
+                                        <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{v.seat_capacity > 0 ? v.seat_capacity : "—"}</td>
+                                        <td className={TABLE_CELL_CLASS}>
+                                            {v.is_overtime_dedicated === true ? (
+                                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]">
+                                                    Dedicated
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-[var(--text-muted)]">Regular</span>
+                                            )}
+                                        </td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)]`}>{formatVehicleCategory(v.category)}</td>
                                         <td className={TABLE_CELL_CLASS}>
                                             <span className={cx(
@@ -378,15 +467,36 @@ export default function CompanyFleetPage() {
                                             </span>
                                         </td>
                                         <td className={TABLE_CELL_CLASS}>
-                                            {v.status === "ACTIVE" && (
+                                            <div className="flex items-center gap-2">
                                                 <button
-                                                    onClick={() => handleDeactivateVehicle(v.id)}
+                                                    type="button"
+                                                    onClick={() => openEditVehicle(v)}
                                                     disabled={!!actionId}
-                                                    className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
+                                                    className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/10 disabled:opacity-50"
+                                                    title="Edit vehicle"
                                                 >
-                                                    {actionId === `vehicle-${v.id}` ? "Deactivating…" : "Deactivate"}
+                                                    <Pencil className="w-4 h-4" />
                                                 </button>
-                                            )}
+                                                {v.status === "ACTIVE" ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeactivateVehicle(v.id)}
+                                                        disabled={!!actionId}
+                                                        className="text-xs text-rose-400 hover:text-rose-300 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {actionId === `vehicle-${v.id}` ? "Deactivating…" : "Deactivate"}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleActivateVehicle(v.id)}
+                                                        disabled={!!actionId}
+                                                        className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {actionId === `vehicle-activate-${v.id}` ? "Activating…" : "Activate"}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -591,13 +701,107 @@ export default function CompanyFleetPage() {
                             <Field label="Make *"><input required value={vehicleForm.make} onChange={(e) => setVehicleForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Model *"><input required value={vehicleForm.model} onChange={(e) => setVehicleForm((f) => ({ ...f, model: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Year *"><input required type="number" value={vehicleForm.year} onChange={(e) => setVehicleForm((f) => ({ ...f, year: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label="Passenger capacity *">
+                                <input
+                                    required
+                                    type="number"
+                                    min={1}
+                                    value={vehicleForm.seat_capacity}
+                                    onChange={(e) => setVehicleForm((f) => ({ ...f, seat_capacity: Number(e.target.value) }))}
+                                    className={inputCls}
+                                    placeholder="e.g. 14"
+                                />
+                            </Field>
                             <Field label="Color"><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label="Dedicated overtime vehicle *">
+                                <select
+                                    required
+                                    value={vehicleForm.is_overtime_dedicated ? "yes" : "no"}
+                                    onChange={(e) =>
+                                        setVehicleForm((f) => ({
+                                            ...f,
+                                            is_overtime_dedicated: e.target.value === "yes",
+                                        }))
+                                    }
+                                    className={inputCls}
+                                >
+                                    <option value="no">No — regular pool vehicle</option>
+                                    <option value="yes">Yes — for overtimes employees</option>
+                                </select>
+                            </Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <CompanyLoadingButton type="button" variant="outline" onClick={() => setShowAddVehicle(false)} disabled={vehicleSaving}>Cancel</CompanyLoadingButton>
                             <CompanyLoadingButton type="submit" loading={vehicleSaving} loadingText="Adding…">Add Vehicle</CompanyLoadingButton>
+                        </div>
+                    </form>
+                </CompanyModal>
+            )}
+
+            {/* Edit Vehicle Modal */}
+            {editingVehicle && (
+                <CompanyModal
+                    isOpen={!!editingVehicle}
+                    onClose={closeEditVehicle}
+                    title={`Edit Vehicle — ${editingVehicle.plate_number}`}
+                    loading={vehicleUpdating}
+                    closeOnBackdrop={!vehicleUpdating}
+                >
+                    <form onSubmit={handleUpdateVehicle} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Plate Number">
+                                <input
+                                    readOnly
+                                    value={editVehicleForm.plate_number}
+                                    className={`${inputCls} opacity-60 cursor-not-allowed`}
+                                />
+                            </Field>
+                            <Field label="Category">
+                                <select value={editVehicleForm.category} onChange={(e) => setEditVehicleForm((f) => ({ ...f, category: e.target.value as VehicleCategory }))} className={inputCls}>
+                                    {VEHICLE_CATEGORIES.map((c) => (
+                                        <option key={c} value={c}>{formatVehicleCategory(c)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <Field label="Make *"><input required value={editVehicleForm.make} onChange={(e) => setEditVehicleForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>
+                            <Field label="Model *"><input required value={editVehicleForm.model} onChange={(e) => setEditVehicleForm((f) => ({ ...f, model: e.target.value }))} className={inputCls} /></Field>
+                            <Field label="Year *"><input required type="number" value={editVehicleForm.year} onChange={(e) => setEditVehicleForm((f) => ({ ...f, year: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label="Passenger capacity *">
+                                <input
+                                    required
+                                    type="number"
+                                    min={1}
+                                    value={editVehicleForm.seat_capacity}
+                                    onChange={(e) => setEditVehicleForm((f) => ({ ...f, seat_capacity: Number(e.target.value) }))}
+                                    className={inputCls}
+                                    placeholder="e.g. 14"
+                                />
+                            </Field>
+                            <Field label="Color"><input value={editVehicleForm.color} onChange={(e) => setEditVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
+                            <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={editVehicleForm.fuel_avg_city} onChange={(e) => setEditVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={editVehicleForm.fuel_avg_highway} onChange={(e) => setEditVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label="Dedicated overtime vehicle *">
+                                <select
+                                    required
+                                    value={editVehicleForm.is_overtime_dedicated ? "yes" : "no"}
+                                    onChange={(e) =>
+                                        setEditVehicleForm((f) => ({
+                                            ...f,
+                                            is_overtime_dedicated: e.target.value === "yes",
+                                        }))
+                                    }
+                                    className={inputCls}
+                                >
+                                    <option value="no">No — regular pool vehicle</option>
+                                    <option value="yes">Yes — for overtime employees</option>
+                                </select>
+                            </Field>
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                            <CompanyLoadingButton type="button" variant="outline" onClick={closeEditVehicle} disabled={vehicleUpdating}>Cancel</CompanyLoadingButton>
+                            <CompanyLoadingButton type="submit" loading={vehicleUpdating} loadingText="Saving…">Save Changes</CompanyLoadingButton>
                         </div>
                     </form>
                 </CompanyModal>

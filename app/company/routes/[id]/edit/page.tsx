@@ -60,6 +60,7 @@ export default function EditCompanyRoutePage() {
   const [saving, setSaving] = useState(false);
   const [addingStop, setAddingStop] = useState(false);
   const [deletingStopId, setDeletingStopId] = useState<number | null>(null);
+  const [stopEdits, setStopEdits] = useState<Record<number, { morning_eta: string; evening_eta: string; direction: string }>>({});
 
   const load = useCallback(async () => {
     if (!routeId || !companyId) return;
@@ -76,6 +77,17 @@ export default function EditCompanyRoutePage() {
       setDriverId(routeData.assigned_driver_id ?? "");
       setVehicles(vRes.data ?? []);
       setDrivers((dRes.data ?? []).filter((d: any) => d.driver_type === "SHUTTLE"));
+      const edits: Record<number, { morning_eta: string; evening_eta: string; direction: string }> = {};
+      (routeData.route_stops ?? []).forEach((s: RouteStop) => {
+        const hasMorning = s.morning_sequence != null || s.morning_eta != null;
+        const hasEvening = s.evening_sequence != null || s.evening_eta != null;
+        edits[s.id] = {
+          morning_eta: s.morning_eta ?? "08:00",
+          evening_eta: s.evening_eta ?? "18:00",
+          direction: hasMorning && hasEvening ? "BOTH" : hasEvening ? "EVENING" : "MORNING",
+        };
+      });
+      setStopEdits(edits);
     } catch {
       toast.error("Failed to load route");
     } finally {
@@ -89,11 +101,21 @@ export default function EditCompanyRoutePage() {
     if (!routeId || saving) return;
     setSaving(true);
     try {
-      await apiClient.updateRoute(routeId, {
-        name: name.trim(),
-        assigned_vehicle_id: vehicleId ? Number(vehicleId) : null,
-        assigned_driver_id: driverId || null,
-      });
+      const stopUpdates = Object.entries(stopEdits).map(([id, edit]) =>
+        apiClient.updateRouteStop(Number(id), {
+          morning_eta: edit.direction !== "EVENING" ? edit.morning_eta : null,
+          evening_eta: edit.direction !== "MORNING" ? edit.evening_eta : null,
+          direction: edit.direction,
+        })
+      );
+      await Promise.all([
+        apiClient.updateRoute(routeId, {
+          name: name.trim(),
+          assigned_vehicle_id: vehicleId ? Number(vehicleId) : null,
+          assigned_driver_id: driverId || null,
+        }),
+        ...stopUpdates,
+      ]);
       toast.success("Route updated");
       router.push(`/company/routes/${routeId}`);
     } catch (err: any) {
@@ -210,27 +232,70 @@ export default function EditCompanyRoutePage() {
               </p>
             )}
             <div className="divide-y divide-[var(--border-light)]">
-              {stops.map((stop, idx) => (
-                <div key={stop.id} className="flex items-center justify-between py-3 gap-3">
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-[var(--cort-orange)] mr-2">{idx + 1}</span>
-                    <span className="text-sm font-medium">{stop.name}</span>
+              {stops.map((stop, idx) => {
+                const edit = stopEdits[stop.id] ?? { morning_eta: "08:00", evening_eta: "18:00", direction: "BOTH" };
+                const setEdit = (patch: Partial<typeof edit>) =>
+                  setStopEdits((prev) => ({ ...prev, [stop.id]: { ...edit, ...patch } }));
+                return (
+                  <div key={stop.id} className="py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[var(--cort-orange)] mr-2">{idx + 1}</span>
+                        <span className="text-sm font-medium">{stop.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStop(stop.id)}
+                        disabled={deletingStopId === stop.id}
+                        className="text-red-400 hover:text-red-600 p-1 disabled:opacity-50"
+                        title="Remove stop"
+                      >
+                        {deletingStopId === stop.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs pl-4">
+                      <div>
+                        <label className="block text-[var(--text-muted)] mb-0.5">Direction</label>
+                        <select
+                          value={edit.direction}
+                          onChange={(e) => setEdit({ direction: e.target.value })}
+                          className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full"
+                        >
+                          <option value="BOTH">Both</option>
+                          <option value="MORNING">AM only</option>
+                          <option value="EVENING">PM only</option>
+                        </select>
+                      </div>
+                      {edit.direction !== "EVENING" && (
+                        <div>
+                          <label className="block text-[var(--text-muted)] mb-0.5">AM pickup</label>
+                          <input
+                            type="time"
+                            value={edit.morning_eta}
+                            onChange={(e) => setEdit({ morning_eta: e.target.value })}
+                            className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full"
+                          />
+                        </div>
+                      )}
+                      {edit.direction !== "MORNING" && (
+                        <div>
+                          <label className="block text-[var(--text-muted)] mb-0.5">PM pickup</label>
+                          <input
+                            type="time"
+                            value={edit.evening_eta}
+                            onChange={(e) => setEdit({ evening_eta: e.target.value })}
+                            className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteStop(stop.id)}
-                    disabled={deletingStopId === stop.id}
-                    className="text-red-400 hover:text-red-600 p-1 disabled:opacity-50"
-                    title="Remove stop"
-                  >
-                    {deletingStopId === stop.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {stops.length === 0 && <p className="text-sm text-[var(--text-muted)] py-4">No stops yet.</p>}
             </div>
           </Card>

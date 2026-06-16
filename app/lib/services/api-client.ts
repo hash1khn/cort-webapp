@@ -1665,6 +1665,8 @@ class ApiClient {
         category: string;
         fuel_avg_city: number;
         fuel_avg_highway: number;
+        seat_capacity: number;
+        is_overtime_dedicated: boolean;
     }) {
         return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles`, {
             method: 'POST',
@@ -1682,6 +1684,12 @@ class ApiClient {
     async deactivatePoolVehicle(companyId: number, vehicleId: number) {
         return this.request<{ success: boolean }>(`/companies/${companyId}/pool/vehicles/${vehicleId}`, {
             method: 'DELETE',
+        });
+    }
+
+    async activatePoolVehicle(companyId: number, vehicleId: number) {
+        return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles/${vehicleId}/activate`, {
+            method: 'PATCH',
         });
     }
 
@@ -1865,6 +1873,7 @@ class ApiClient {
 
     async upsertOvertimeRequest(companyId: number, body: {
         request_date: string;
+        shift_time: string;
         employee_user_ids: string[];
         shift_time?: string;
         department_id?: number;
@@ -1897,6 +1906,25 @@ class ApiClient {
         return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/cancel`, {
             method: 'PATCH',
         });
+    }
+
+    async getOvertimeVehicleSuggestions(companyId: number, requestId: number) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/suggest-vehicles`);
+    }
+
+    async saveOvertimeVehicleAssignments(
+        companyId: number,
+        requestId: number,
+        body: { assignments: Array<{ vehicle_id: number; employee_user_ids: string[]; notes?: string }> },
+    ) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/vehicle-assignments`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+    }
+
+    async getOvertimeVehicleAssignments(companyId: number, requestId: number) {
+        return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/vehicle-assignments`);
     }
 
     async getOvertimeAnalytics(companyId: number, from?: string, to?: string) {

@@ -252,20 +252,29 @@ export default function CreateCompanyRoutePage() {
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-xs pl-6">
-                  <select
-                    value={stop.direction}
-                    onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, direction: e.target.value as StopDirection } : s))}
-                    className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)]"
-                  >
-                    <option value="BOTH">Both</option>
-                    <option value="MORNING">AM only</option>
-                    <option value="EVENING">PM only</option>
-                  </select>
+                  <div>
+                    <label className="block text-[var(--text-muted)] mb-0.5">Direction</label>
+                    <select
+                      value={stop.direction}
+                      onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, direction: e.target.value as StopDirection } : s))}
+                      className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full"
+                    >
+                      <option value="BOTH">Both</option>
+                      <option value="MORNING">AM only</option>
+                      <option value="EVENING">PM only</option>
+                    </select>
+                  </div>
                   {stop.direction !== "EVENING" && (
-                    <input type="time" value={stop.morningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, morningEta: e.target.value } : s))} className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)]" />
+                    <div>
+                      <label className="block text-[var(--text-muted)] mb-0.5">AM pickup</label>
+                      <input type="time" value={stop.morningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, morningEta: e.target.value } : s))} className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full" />
+                    </div>
                   )}
                   {stop.direction !== "MORNING" && (
-                    <input type="time" value={stop.eveningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, eveningEta: e.target.value } : s))} className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)]" />
+                    <div>
+                      <label className="block text-[var(--text-muted)] mb-0.5">PM pickup</label>
+                      <input type="time" value={stop.eveningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, eveningEta: e.target.value } : s))} className="rounded border border-[var(--border-input)] px-1 py-1 bg-[var(--bg-input)] w-full" />
+                    </div>
                   )}
                 </div>
               </div>

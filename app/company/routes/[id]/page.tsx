@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppSelector } from "../../../lib/store/hooks";
@@ -170,11 +170,60 @@ export default function RouteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAssign, setShowAssign] = useState(false);
-  const [companyEmployees, setCompanyEmployees] = useState<CompanyEmployee[]>([]);
+  const [employeeResults, setEmployeeResults] = useState<CompanyEmployee[]>([]);
+  const [employeeSearching, setEmployeeSearching] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedStopId, setSelectedStopId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const employeeComboRef = useRef<HTMLDivElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (employeeComboRef.current && !employeeComboRef.current.contains(e.target as Node)) {
+        setShowEmployeeDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!company?.id || !canManageRoster) return;
+    if (!employeeSearch.trim()) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setEmployeeSearching(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await apiClient.getEmployeesByCompany(company.id, { search: employeeSearch.trim(), limit: 20 });
+        const raw = res?.data ?? res;
+        const list: CompanyEmployee[] = Array.isArray(raw) ? raw : raw?.data ?? [];
+        setEmployeeResults(list);
+      } catch {
+        setEmployeeResults([]);
+      } finally {
+        setEmployeeSearching(false);
+      }
+    }, 300);
+  }, [employeeSearch, company?.id, canManageRoster]);
+
+  const loadDefaultEmployees = useCallback(async () => {
+    if (!company?.id || !canManageRoster || employeeResults.length > 0) return;
+    setEmployeeSearching(true);
+    try {
+      const res = await apiClient.getEmployeesByCompany(company.id, { limit: 20 });
+      const raw = res?.data ?? res;
+      const list: CompanyEmployee[] = Array.isArray(raw) ? raw : raw?.data ?? [];
+      setEmployeeResults(list);
+    } catch {
+      setEmployeeResults([]);
+    } finally {
+      setEmployeeSearching(false);
+    }
+  }, [company?.id, canManageRoster, employeeResults.length]);
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -194,21 +243,11 @@ export default function RouteDetailPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!canManageRoster || !company?.id) return;
-    apiClient.getEmployeesByCompany(company.id, { limit: 200 })
-      .then((res) => {
-        const raw = res?.data ?? res;
-        const list = Array.isArray(raw) ? raw : raw?.data ?? [];
-        setCompanyEmployees(list);
-      })
-      .catch(() => {});
-  }, [canManageRoster, company?.id]);
-
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
   const pickupStops = stops.filter((s) => s.morning_sequence != null);
   const assignedUserIds = new Set(employees.map((a) => a.user_id ?? a.users?.id).filter(Boolean));
+  const filteredEmployees = employeeResults.filter((emp: CompanyEmployee) => !assignedUserIds.has(emp.id));
 
   const handleAssign = async () => {
     if (!routeId || !selectedEmployeeId || !selectedStopId) {
@@ -225,6 +264,7 @@ export default function RouteDetailPage() {
       toast.success("Employee assigned to route");
       setSelectedEmployeeId("");
       setSelectedStopId("");
+      setEmployeeSearch("");
       setShowAssign(false);
       load();
     } catch (err: any) {
@@ -403,7 +443,12 @@ export default function RouteDetailPage() {
                         variant="outline"
                         size="sm"
                         className="gap-1.5"
-                        onClick={() => setShowAssign((v) => !v)}
+                        onClick={() => {
+                          setShowAssign((v) => {
+                            if (v) { setSelectedEmployeeId(""); setEmployeeSearch(""); setSelectedStopId(""); }
+                            return !v;
+                          });
+                        }}
                       >
                         <UserPlus className="w-3.5 h-3.5" />
                         {showAssign ? "Cancel" : "Assign Employee"}
@@ -415,21 +460,52 @@ export default function RouteDetailPage() {
                 {showAssign && canManageRoster && (
                   <div className="px-6 py-4 border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/40">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                      <div>
+                      <div ref={employeeComboRef} className="relative">
                         <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Employee</label>
-                        <select
-                          value={selectedEmployeeId}
-                          onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                        <input
+                          type="text"
+                          value={employeeSearch}
+                          onChange={(e) => {
+                            setEmployeeSearch(e.target.value);
+                            setSelectedEmployeeId("");
+                            setShowEmployeeDropdown(true);
+                          }}
+                          onFocus={() => { setShowEmployeeDropdown(true); loadDefaultEmployees(); }}
+                          placeholder="Search by name or department…"
                           className="mt-1 w-full h-9 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm"
-                        >
-                          <option value="">Select employee</option>
-                          {companyEmployees.map((emp) => (
-                            <option key={emp.id} value={emp.id}>
-                              {emp.full_name}
-                              {assignedUserIds.has(emp.id) ? " (on this route)" : ""}
-                            </option>
-                          ))}
-                        </select>
+                          autoComplete="off"
+                        />
+                        {showEmployeeDropdown && (
+                          <div className="absolute z-50 w-full mt-1 max-h-52 overflow-y-auto rounded-lg border border-[var(--border-input)] bg-[var(--bg-card)] shadow-lg">
+                            {employeeSearching ? (
+                              <div className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-muted)]">
+                                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                Searching…
+                              </div>
+                            ) : filteredEmployees.length > 0 ? (
+                              filteredEmployees.map((emp: CompanyEmployee) => (
+                                <button
+                                  key={emp.id}
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    setSelectedEmployeeId(emp.id);
+                                    setEmployeeSearch(emp.full_name + (emp.department ? ` · ${emp.department}` : ""));
+                                    setShowEmployeeDropdown(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-[var(--bg-subtle)] transition-colors"
+                                >
+                                  <div className="text-sm font-medium text-[var(--text-primary)]">{emp.full_name}</div>
+                                  {emp.department && (
+                                    <div className="text-xs text-[var(--text-muted)]">{emp.department}</div>
+                                  )}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-sm text-[var(--text-muted)]">No employees found</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-[var(--text-muted)] uppercase">Pickup Stop</label>
