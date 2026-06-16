@@ -24,8 +24,9 @@ export default function OvertimeRequestsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [requestDate, setRequestDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [departmentId, setDepartmentId] = useState<string>("");
-  const [shiftPreset, setShiftPreset] = useState<"07:30" | "09:30" | "CUSTOM">("07:30");
-  const [customShiftTime, setCustomShiftTime] = useState("07:30");
+  // Shift timings are evening presets for Changaan flow.
+  const [shiftPreset, setShiftPreset] = useState<"19:30" | "21:30" | "CUSTOM">("19:30");
+  const [customShiftTime, setCustomShiftTime] = useState("19:30");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -244,8 +245,8 @@ export default function OvertimeRequestsPage() {
               disabled={submitting}
               className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
             >
-              <option value="07:30">07:30</option>
-              <option value="09:30">09:30</option>
+              <option value="19:30">07:30 PM</option>
+              <option value="21:30">09:30 PM</option>
               <option value="CUSTOM">Custom…</option>
             </select>
             {shiftPreset === "CUSTOM" && (
