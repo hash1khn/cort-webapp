@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
 import {
   PageHeader,
   COMPANY_PAGE_CLASS,
-  CompanyPageLoader,
   CompanyLoadingButton,
   CompanyModal,
 } from "../components/PageLayout";
@@ -40,12 +40,16 @@ type SuggestionResponse = {
 
 type SavedAssignment = {
   id: number;
-  vehicle_id: number;
+  request_id: number;
   vehicles: { id: number; plate_number: string; make: string | null; model: string | null; seat_capacity: number };
   shuttle_overtime_vehicle_assignment_employees: Array<{
     users: { id: string; full_name: string; department: string | null; home_address: string | null };
   }>;
 };
+
+type VehicleInitData =
+  | { type: "saved"; assignments: SavedAssignment[] }
+  | { type: "suggestion"; data: SuggestionResponse };
 
 type RoutePreview = {
   request_id?: number;
@@ -60,73 +64,115 @@ type ActionState = { id: number; type: "approve" | "reject" } | null;
 
 function formatShiftTime(raw: string | null | undefined): string {
   if (!raw) return "";
-  // Handles "1970-01-01T21:00:00.000Z" or bare "21:00"
   const match = String(raw).match(/(\d{2}:\d{2})/);
   return match ? match[1] : "";
 }
 
-// ─── OvertimeVehicleOptimizer ─────────────────────────────────────────────────
+function initGroupsFromData(initData: VehicleInitData): OvertimeGroup[] {
+  if (initData.type === "saved") {
+    return initData.assignments.map((a) => ({
+      vehicle: a.vehicles,
+      employees: a.shuttle_overtime_vehicle_assignment_employees.map((e) => ({
+        user_id: e.users.id,
+        full_name: e.users.full_name,
+        department: e.users.department,
+        home_address: e.users.home_address,
+      })),
+      occupancy: a.shuttle_overtime_vehicle_assignment_employees.length,
+      pct: Math.round(
+        (a.shuttle_overtime_vehicle_assignment_employees.length / a.vehicles.seat_capacity) * 100,
+      ),
+    }));
+  }
+  return (initData.data.suggested_vehicles ?? []).map((v) => ({
+    vehicle: v,
+    employees: [],
+    occupancy: 0,
+    pct: 0,
+  }));
+}
 
-function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: { requestId: number; companyId: number; overtimeEmployees: OvertimeEmployee[] }) {
-  const [groups, setGroups] = useState<OvertimeGroup[]>([]);
-  const [unassigned, setUnassigned] = useState<OvertimeEmployee[]>([]);
-  const [loading, setLoading] = useState(true);
+function initUnassignedFromData(initData: VehicleInitData, employees: OvertimeEmployee[]): OvertimeEmployee[] {
+  return initData.type === "saved" ? [] : employees;
+}
+
+// ─── Skeleton for vehicle optimizer section ───────────────────────────────────
+
+function VehicleOptimizerSkeleton() {
+  return (
+    <div className="mt-4 space-y-3 border-t border-[var(--border-light)] pt-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-7 w-20 rounded-lg" />
+          <Skeleton className="h-7 w-14 rounded-lg" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-lg border border-[var(--border-light)] bg-[var(--bg-subtle)] p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-2.5 w-16" />
+              </div>
+              <div className="space-y-1.5 items-end flex flex-col">
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-1.5 w-16 rounded-full" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── OvertimeVehicleOptimizer (controlled — no internal fetching) ─────────────
+
+function OvertimeVehicleOptimizer({
+  requestId,
+  companyId,
+  overtimeEmployees,
+  initData,
+}: {
+  requestId: number;
+  companyId: number;
+  overtimeEmployees: OvertimeEmployee[];
+  initData: VehicleInitData;
+}) {
+  const [groups, setGroups] = useState<OvertimeGroup[]>(() => initGroupsFromData(initData));
+  const [unassigned, setUnassigned] = useState<OvertimeEmployee[]>(() =>
+    initUnassignedFromData(initData, overtimeEmployees),
+  );
+  const [resuggesting, setResuggesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moveTarget, setMoveTarget] = useState<{ empId: string; fromGroup: number | "unassigned" } | null>(null);
-  const hasSuggestion = useRef(false);
+  const employeesRef = useRef(overtimeEmployees);
+  employeesRef.current = overtimeEmployees;
 
-  const loadSaved = useCallback(async () => {
-    try {
-      const res: any = await apiClient.getOvertimeVehicleAssignments(companyId, requestId);
-      const saved: SavedAssignment[] = res?.data ?? res ?? [];
-      if (saved.length > 0) {
-        setGroups(
-          saved.map((a) => ({
-            vehicle: a.vehicles,
-            employees: a.shuttle_overtime_vehicle_assignment_employees.map((e) => ({
-              user_id: e.users.id,
-              full_name: e.users.full_name,
-              department: e.users.department,
-              home_address: e.users.home_address,
-            })),
-            occupancy: a.shuttle_overtime_vehicle_assignment_employees.length,
-            pct: Math.round(
-              (a.shuttle_overtime_vehicle_assignment_employees.length / a.vehicles.seat_capacity) * 100,
-            ),
-          })),
-        );
-        setUnassigned([]);
-        hasSuggestion.current = true;
-        return true;
-      }
-    } catch {}
-    return false;
-  }, [companyId, requestId]);
-
-  const suggest = useCallback(async (force = false) => {
-    if (force && !confirm("Re-suggest will replace your current grouping. Continue?")) return;
-    setLoading(true);
+  const resuggest = async () => {
+    if (!confirm("Re-suggest will replace your current grouping. Continue?")) return;
+    setResuggesting(true);
     try {
       const res: any = await apiClient.getOvertimeVehicleSuggestions(companyId, requestId);
       const data: SuggestionResponse = res?.data ?? res;
-      const suggested = data.suggested_vehicles ?? [];
-      setGroups(suggested.map((v) => ({ vehicle: v, employees: [], occupancy: 0, pct: 0 })));
-      setUnassigned(overtimeEmployees);
-      hasSuggestion.current = true;
+      setGroups((data.suggested_vehicles ?? []).map((v) => ({ vehicle: v, employees: [], occupancy: 0, pct: 0 })));
+      setUnassigned(employeesRef.current);
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to generate suggestions");
     } finally {
-      setLoading(false);
+      setResuggesting(false);
     }
-  }, [companyId, requestId, overtimeEmployees]);
-
-  useEffect(() => {
-    (async () => {
-      const hasSaved = await loadSaved();
-      if (!hasSaved) await suggest();
-      setLoading(false);
-    })();
-  }, [loadSaved, suggest]);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -188,15 +234,6 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
     setMoveTarget(null);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-4">
-        <RefreshCw className="w-4 h-4 animate-spin text-[var(--cort-orange)]" />
-        Optimizing vehicle groups…
-      </div>
-    );
-  }
-
   if (groups.length === 0 && unassigned.length === 0 && overtimeEmployees.length > 0) {
     return (
       <div className="text-sm text-amber-600 bg-amber-500/10 rounded-lg px-4 py-3 mt-3">
@@ -218,10 +255,11 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => suggest(true)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]"
+            onClick={resuggest}
+            disabled={resuggesting}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[var(--border-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] disabled:opacity-60"
           >
-            <RefreshCw className="w-3 h-3" /> Re-suggest
+            <RefreshCw className={`w-3 h-3 ${resuggesting ? "animate-spin" : ""}`} /> Re-suggest
           </button>
           <button
             type="button"
@@ -255,11 +293,7 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
                 <div className="mt-1 h-1.5 w-16 rounded-full bg-[var(--bg-card)] overflow-hidden">
                   <div
                     className={`h-full rounded-full ${
-                      group.pct > 90
-                        ? "bg-red-500"
-                        : group.pct > 65
-                          ? "bg-amber-500"
-                          : "bg-emerald-500"
+                      group.pct > 90 ? "bg-red-500" : group.pct > 65 ? "bg-amber-500" : "bg-emerald-500"
                     }`}
                     style={{ width: `${Math.min(group.pct, 100)}%` }}
                   />
@@ -271,20 +305,15 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
                 <div key={emp.user_id} className="flex items-center justify-between text-xs gap-1">
                   <div className="min-w-0">
                     <span className="font-medium truncate">{emp.full_name}</span>
-                    {emp.department && (
-                      <span className="text-[var(--text-muted)] ml-1">· {emp.department}</span>
-                    )}
+                    {emp.department && <span className="text-[var(--text-muted)] ml-1">· {emp.department}</span>}
                   </div>
                   <div className="relative flex-shrink-0">
                     <button
                       type="button"
                       onClick={() =>
-                        setMoveTarget(
-                          moveTarget?.empId === emp.user_id ? null : { empId: emp.user_id, fromGroup: gi },
-                        )
+                        setMoveTarget(moveTarget?.empId === emp.user_id ? null : { empId: emp.user_id, fromGroup: gi })
                       }
                       className="text-[var(--text-muted)] hover:text-[var(--cort-orange)] p-0.5 rounded"
-                      title="Move employee"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>
@@ -330,9 +359,7 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
             <div key={emp.user_id} className="flex items-center justify-between text-xs gap-1">
               <div className="min-w-0">
                 <span className="font-medium">{emp.full_name}</span>
-                {emp.department && (
-                  <span className="text-[var(--text-muted)] ml-1">· {emp.department}</span>
-                )}
+                {emp.department && <span className="text-[var(--text-muted)] ml-1">· {emp.department}</span>}
                 {!emp.home_address && <span className="text-amber-500 ml-1">(no address)</span>}
               </div>
               {groups.length > 0 && (
@@ -341,13 +368,10 @@ function OvertimeVehicleOptimizer({ requestId, companyId, overtimeEmployees }: {
                     type="button"
                     onClick={() =>
                       setMoveTarget(
-                        moveTarget?.empId === emp.user_id
-                          ? null
-                          : { empId: emp.user_id, fromGroup: "unassigned" },
+                        moveTarget?.empId === emp.user_id ? null : { empId: emp.user_id, fromGroup: "unassigned" },
                       )
                     }
                     className="text-[var(--text-muted)] hover:text-[var(--cort-orange)] p-0.5 rounded"
-                    title="Add to vehicle"
                   >
                     <UserPlus className="w-3 h-3" />
                   </button>
@@ -384,36 +408,82 @@ export default function OvertimeApprovalsPage() {
   const [requests, setRequests] = useState<any[]>([]);
   const [approvedRequests, setApprovedRequests] = useState<any[]>([]);
   const [previews, setPreviews] = useState<Record<number, RoutePreview>>({});
-  const [approvedMaps, setApprovedMaps] = useState<Record<number, OvertimeRouteMapData[]>>({});
-  const [loading, setLoading] = useState(false);
+  const [vehicleDataMap, setVehicleDataMap] = useState<Record<number, VehicleInitData>>({});
+  const [listLoading, setListLoading] = useState(true);
+  const [previewsLoading, setPreviewsLoading] = useState(false);
+  const [vehicleDataLoading, setVehicleDataLoading] = useState(false);
   const [actionState, setActionState] = useState<ActionState>(null);
   const [approvalModal, setApprovalModal] = useState<ApprovedMapState | null>(null);
 
-  const loadRouteMaps = useCallback(
-    async (requestIds: number[]) => {
-      if (!companyId || requestIds.length === 0) return;
-      const entries = await Promise.all(
-        requestIds.map(async (id) => {
-          try {
-            const previewRes: any = await apiClient.getOvertimeApprovalPreview(companyId, id);
-            const payload: RoutePreview = previewRes?.data ?? previewRes;
-            return [id, payload] as const;
-          } catch {
-            return [id, null] as const;
-          }
-        }),
-      );
-      return Object.fromEntries(entries.filter(([, preview]) => preview != null)) as Record<
-        number,
-        RoutePreview
-      >;
+  const loadSectionData = useCallback(
+    async (pending: any[], approved: any[]) => {
+      if (!companyId) return;
+      const pendingIds: number[] = pending.map((r) => r.id);
+      const approvedIds: number[] = approved.map((r) => r.id);
+      const allIds = [...new Set([...pendingIds, ...approvedIds])];
+      if (allIds.length === 0) return;
+
+      setPreviewsLoading(true);
+      if (pendingIds.length > 0) setVehicleDataLoading(true);
+
+      // Previews (both tabs) and pending vehicle assignments fire in parallel
+      await Promise.all([
+        // ── Route previews ──────────────────────────────────────────────────
+        apiClient
+          .bulkGetOvertimePreviews(companyId, allIds)
+          .then((res: any) => {
+            const data: Record<string, RoutePreview> = res?.data ?? res ?? {};
+            setPreviews((prev) => ({
+              ...prev,
+              ...Object.fromEntries(Object.entries(data).map(([k, v]) => [Number(k), v])),
+            }));
+          })
+          .catch(() => {})
+          .finally(() => setPreviewsLoading(false)),
+
+        // ── Vehicle data (pending only) ─────────────────────────────────────
+        pendingIds.length > 0
+          ? (async () => {
+              try {
+                const assignRes: any = await apiClient.bulkGetOvertimeVehicleAssignments(companyId, pendingIds);
+                const assignData: Record<string, SavedAssignment[]> = assignRes?.data ?? assignRes ?? {};
+
+                const vehicleMap: Record<number, VehicleInitData> = {};
+                const needsSuggestion: number[] = [];
+
+                for (const id of pendingIds) {
+                  const saved = assignData[String(id)] ?? [];
+                  if (saved.length > 0) {
+                    vehicleMap[id] = { type: "saved", assignments: saved };
+                  } else {
+                    needsSuggestion.push(id);
+                  }
+                }
+
+                if (needsSuggestion.length > 0) {
+                  const suggestRes: any = await apiClient.bulkSuggestOvertimeVehicles(companyId, needsSuggestion);
+                  const suggestData: Record<string, SuggestionResponse> = suggestRes?.data ?? suggestRes ?? {};
+                  for (const id of needsSuggestion) {
+                    if (suggestData[String(id)]) {
+                      vehicleMap[id] = { type: "suggestion", data: suggestData[String(id)] };
+                    }
+                  }
+                }
+
+                setVehicleDataMap((prev) => ({ ...prev, ...vehicleMap }));
+              } finally {
+                setVehicleDataLoading(false);
+              }
+            })()
+          : Promise.resolve(),
+      ]);
     },
     [companyId],
   );
 
   const load = useCallback(async () => {
     if (!companyId) return;
-    setLoading(true);
+    setListLoading(true);
     try {
       const [pendingRes, approvedRes] = await Promise.all([
         apiClient.getOvertimeRequests(companyId, { status: "PENDING" }),
@@ -423,20 +493,16 @@ export default function OvertimeApprovalsPage() {
       const approved = (approvedRes.data ?? []).slice(0, 20);
       setRequests(pending);
       setApprovedRequests(approved);
-      const pendingMaps = await loadRouteMaps(pending.map((r: { id: number }) => r.id));
-      setPreviews(pendingMaps ?? {});
-      const approvedMapData = await loadRouteMaps(approved.map((r: { id: number }) => r.id));
-      const byId: Record<number, OvertimeRouteMapData[]> = {};
-      for (const [id, preview] of Object.entries(approvedMapData ?? {})) {
-        byId[Number(id)] = preview.routes ?? [];
-      }
-      setApprovedMaps(byId);
+      // Reset section data so re-load fetches fresh
+      setPreviews({});
+      setVehicleDataMap({});
+      await loadSectionData(pending, approved);
     } catch {
       toast.error("Failed to load overtime requests");
     } finally {
-      setLoading(false);
+      setListLoading(false);
     }
-  }, [companyId, loadRouteMaps]);
+  }, [companyId, loadSectionData]);
 
   useEffect(() => {
     load();
@@ -459,13 +525,14 @@ export default function OvertimeApprovalsPage() {
         });
       }
       if (impact.length > 0) {
-        const summary = impact
-          .map(
-            (r: { route_name: string; employees_excluded: number; stops_skipped: number }) =>
-              `${r.route_name}: ${r.employees_excluded} removed → ${r.stops_skipped} stops skipped`,
-          )
-          .join(" · ");
-        toast.success(`Approved · ${summary}`);
+        toast.success(
+          `Approved · ${impact
+            .map(
+              (r: { route_name: string; employees_excluded: number; stops_skipped: number }) =>
+                `${r.route_name}: ${r.employees_excluded} removed → ${r.stops_skipped} stops skipped`,
+            )
+            .join(" · ")}`,
+        );
       } else {
         toast.success("Approved");
       }
@@ -517,17 +584,46 @@ export default function OvertimeApprovalsPage() {
         ))}
       </div>
 
-      {loading ? (
-        <CompanyPageLoader label="Loading overtime requests…" minHeight="min-h-[40vh]" />
+      {listLoading ? (
+        <div className="space-y-4">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="p-6 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex-1 space-y-3">
+                  <Skeleton className="h-5 w-64" />
+                  <Skeleton className="h-3 w-48" />
+                  <div className="space-y-1.5 mt-3">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                    <Skeleton className="h-3 w-4/6" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-20 rounded-lg" />
+                  <Skeleton className="h-9 w-16 rounded-lg" />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       ) : tab === "pending" ? (
         requests.length === 0 ? (
           <Card className="p-6 text-sm text-[var(--text-muted)]">No pending requests.</Card>
         ) : (
           requests.map((r) => {
             const preview = previews[r.id];
+            const vehicleInit = vehicleDataMap[r.id];
             const busy = cardBusy(r.id);
             const approving = busy && actionState?.type === "approve";
             const rejecting = busy && actionState?.type === "reject";
+            const overtimeEmployees: OvertimeEmployee[] = (r.shuttle_overtime_request_employees ?? []).map(
+              (e: any) => ({
+                user_id: e.users?.id ?? e.employee_user_id,
+                full_name: e.users?.full_name ?? "",
+                department: e.users?.department ?? null,
+                home_address: e.users?.home_address ?? null,
+              }),
+            );
             return (
               <Card key={r.id} className="p-6 space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -553,7 +649,18 @@ export default function OvertimeApprovalsPage() {
                       ))}
                     </ul>
 
-                    {preview && preview.routes.length > 0 && (
+                    {/* Route preview */}
+                    {previewsLoading && !preview ? (
+                      <div className="mt-4 rounded-lg border border-[var(--border-light)] bg-[var(--surface-subtle)]/50 p-4 space-y-3">
+                        <Skeleton className="h-3 w-36" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-3 w-full" />
+                          <Skeleton className="h-3 w-5/6" />
+                          <Skeleton className="h-3 w-4/6" />
+                        </div>
+                        <Skeleton className="h-[300px] w-full rounded-lg" />
+                      </div>
+                    ) : preview && preview.routes.length > 0 ? (
                       <div className="mt-4 rounded-lg border border-[var(--border-light)] bg-[var(--surface-subtle)]/50 p-4 space-y-4">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
@@ -562,13 +669,10 @@ export default function OvertimeApprovalsPage() {
                           <ul className="space-y-1.5 text-sm">
                             {preview.routes.map((route) => (
                               <li key={route.route_id} className="text-[var(--text-secondary)]">
-                                <span className="font-medium text-[var(--text-primary)]">
-                                  {route.route_name}
-                                </span>
+                                <span className="font-medium text-[var(--text-primary)]">{route.route_name}</span>
                                 {": "}
                                 {route.employees_excluded} employee
-                                {route.employees_excluded !== 1 ? "s" : ""} removed
-                                {" → "}
+                                {route.employees_excluded !== 1 ? "s" : ""} removed{" → "}
                                 {route.stops_skipped} stop{route.stops_skipped !== 1 ? "s" : ""} skipped
                               </li>
                             ))}
@@ -576,18 +680,20 @@ export default function OvertimeApprovalsPage() {
                         </div>
                         <OvertimeRouteMapTabs routes={preview.routes} height="300px" />
                       </div>
-                    )}
+                    ) : null}
 
-                    <OvertimeVehicleOptimizer
-                      requestId={r.id}
-                      companyId={companyId}
-                      overtimeEmployees={(r.shuttle_overtime_request_employees ?? []).map((e: any) => ({
-                        user_id: e.users?.id ?? e.employee_user_id,
-                        full_name: e.users?.full_name ?? "",
-                        department: e.users?.department ?? null,
-                        home_address: e.users?.home_address ?? null,
-                      }))}
-                    />
+                    {/* Vehicle optimizer */}
+                    {vehicleDataLoading && !vehicleInit ? (
+                      <VehicleOptimizerSkeleton />
+                    ) : vehicleInit ? (
+                      <OvertimeVehicleOptimizer
+                        key={r.id}
+                        requestId={r.id}
+                        companyId={companyId}
+                        overtimeEmployees={overtimeEmployees}
+                        initData={vehicleInit}
+                      />
+                    ) : null}
                   </div>
 
                   <div className="flex gap-2">
@@ -620,7 +726,8 @@ export default function OvertimeApprovalsPage() {
         <Card className="p-6 text-sm text-[var(--text-muted)]">No approved requests yet.</Card>
       ) : (
         approvedRequests.map((r) => {
-          const routes = approvedMaps[r.id] ?? [];
+          const preview = previews[r.id];
+          const routes = preview?.routes ?? [];
           return (
             <Card key={r.id} className="p-6 space-y-4">
               <div>
@@ -636,7 +743,9 @@ export default function OvertimeApprovalsPage() {
                   Approved · {r.shuttle_overtime_request_employees?.length ?? 0} employees excluded
                 </p>
               </div>
-              {routes.length > 0 ? (
+              {previewsLoading && !preview ? (
+                <Skeleton className="h-[300px] w-full rounded-lg" />
+              ) : routes.length > 0 ? (
                 <OvertimeRouteMapTabs routes={routes} height="300px" />
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">

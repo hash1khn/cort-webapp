@@ -1893,6 +1893,25 @@ class ApiClient {
         return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/preview`);
     }
 
+    async bulkGetOvertimePreviews(companyId: number, requestIds: number[]) {
+        return this.request<{ success: boolean; data: Record<string, any> }>(
+            `/companies/${companyId}/shuttle-overtime-requests/bulk-previews?ids=${requestIds.join(',')}`,
+        );
+    }
+
+    async bulkGetOvertimeVehicleAssignments(companyId: number, requestIds: number[]) {
+        return this.request<{ success: boolean; data: Record<string, any[]> }>(
+            `/companies/${companyId}/shuttle-overtime-requests/bulk-vehicle-assignments?ids=${requestIds.join(',')}`,
+        );
+    }
+
+    async bulkSuggestOvertimeVehicles(companyId: number, requestIds: number[]) {
+        return this.request<{ success: boolean; data: Record<string, any> }>(
+            `/companies/${companyId}/shuttle-overtime-requests/bulk-suggest-vehicles`,
+            { method: 'POST', body: JSON.stringify({ request_ids: requestIds }) },
+        );
+    }
+
     async rejectOvertimeRequest(companyId: number, requestId: number, rejection_reason?: string) {
         return this.request(`/companies/${companyId}/shuttle-overtime-requests/${requestId}/reject`, {
             method: 'PATCH',
