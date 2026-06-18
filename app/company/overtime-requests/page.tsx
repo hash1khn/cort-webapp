@@ -15,6 +15,29 @@ import {
 import { Card } from "../components/DashboardComponents";
 import { toast } from "sonner";
 
+type OvertimeRequest = {
+  id: number;
+  status: string;
+  shift_time?: string | null;
+  notes?: string | null;
+  rejection_reason?: string | null;
+  departments?: { id: number; name: string };
+  shuttle_overtime_request_employees?: Array<{
+    employee_user_id?: string;
+    users?: {
+      id: string;
+      full_name?: string;
+      employee_id?: string | null;
+      department?: string | null;
+      department_id?: number | null;
+    };
+  }>;
+};
+
+const LATER_SHIFT_BY_EARLIER: Record<string, "21:30"> = {
+  "19:30": "21:30",
+};
+
 export default function OvertimeRequestsPage() {
   const company = useAppSelector(selectCompany);
   const { user, isCompanyAdmin } = useAuth();
@@ -32,11 +55,14 @@ export default function OvertimeRequestsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<OvertimeRequest[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<"create" | "history">("create");
+  const [expandedRequestId, setExpandedRequestId] = useState<number | null>(null);
 
   const PAGE_SIZE = 30;
+
+  const currentShiftTime = shiftPreset === "CUSTOM" ? customShiftTime : shiftPreset;
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -86,6 +112,51 @@ export default function OvertimeRequestsPage() {
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
+  const approvedEarlierRequests = useMemo(
+    () =>
+      history.filter(
+        (r) =>
+          r.status === "APPROVED" &&
+          shiftMinutes(r.shift_time) < shiftMinutes(currentShiftTime),
+      ),
+    [history, currentShiftTime],
+  );
+
+  const isExtensionMode = approvedEarlierRequests.length > 0;
+
+  const extensionEligibleEmployees = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const req of approvedEarlierRequests) {
+      for (const line of req.shuttle_overtime_request_employees ?? []) {
+        const emp = line.users;
+        const id = line.employee_user_id ?? emp?.id;
+        if (!id) continue;
+        map.set(id, {
+          id,
+          full_name: emp?.full_name ?? "Unknown",
+          employee_id: emp?.employee_id,
+          department_id: emp?.department_id,
+          departments: req.departments,
+          department: emp?.department,
+        });
+      }
+    }
+    return [...map.values()];
+  }, [approvedEarlierRequests]);
+
+  const blockedEmployeeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const req of history) {
+      if (req.status !== "APPROVED" && req.status !== "PENDING") continue;
+      if (shiftMinutes(req.shift_time) !== shiftMinutes(currentShiftTime)) continue;
+      for (const line of req.shuttle_overtime_request_employees ?? []) {
+        const id = line.employee_user_id ?? line.users?.id;
+        if (id) ids.add(id);
+      }
+    }
+    return ids;
+  }, [history, currentShiftTime]);
+
   const filteredEmployees = useMemo(() => {
     const deptFilter = departmentId ? Number(departmentId) : null;
     return employees.filter((e) => {
@@ -94,10 +165,33 @@ export default function OvertimeRequestsPage() {
     });
   }, [employees, departmentId]);
 
+  const pickerEmployees = useMemo(() => {
+    const base = isExtensionMode ? extensionEligibleEmployees : filteredEmployees;
+    const q = search.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((e) => {
+      const name = (e.full_name ?? "").toLowerCase();
+      const empId = String(e.employee_id ?? e.id ?? "").toLowerCase();
+      return name.includes(q) || empId.includes(q);
+    });
+  }, [isExtensionMode, extensionEligibleEmployees, filteredEmployees, search]);
+
   const selectedEmployees = useMemo(
-    () => employees.filter((e) => selected.has(e.id)),
-    [employees, selected],
+    () => {
+      const pool = isExtensionMode ? extensionEligibleEmployees : employees;
+      return pool.filter((e) => selected.has(e.id));
+    },
+    [isExtensionMode, extensionEligibleEmployees, employees, selected],
   );
+
+  useEffect(() => {
+    if (!isExtensionMode) return;
+    const eligible = new Set(extensionEligibleEmployees.map((e) => e.id));
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((id) => eligible.has(id) && !blockedEmployeeIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [isExtensionMode, extensionEligibleEmployees, blockedEmployeeIds]);
 
   const resolveSubmitDepartmentId = useCallback((): number | null => {
     if (!isCompanyAdmin) {
@@ -122,13 +216,26 @@ export default function OvertimeRequestsPage() {
   }, [isCompanyAdmin, departmentId, selected, selectedEmployees]);
 
   const toggle = (id: string) => {
-    if (submitting) return;
+    if (submitting || blockedEmployeeIds.has(id)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
+
+  const startExtensionFromRequest = (request: OvertimeRequest) => {
+    const earlierShift = normalizeShiftTime(request.shift_time);
+    const laterShift = LATER_SHIFT_BY_EARLIER[earlierShift];
+    if (!laterShift) {
+      toast.error("No later shift preset available for this request");
+      return;
+    }
+    setTab("create");
+    setShiftPreset(laterShift as "21:30");
+    setSelected(new Set());
+    toast.info(`Select employees staying until ${formatShiftTimeLabel(laterShift)}`);
   };
 
   const handleSubmit = async () => {
@@ -149,15 +256,18 @@ export default function OvertimeRequestsPage() {
 
     setSubmitting(true);
     try {
-      const shift_time = shiftPreset === "CUSTOM" ? customShiftTime : shiftPreset;
       await apiClient.upsertOvertimeRequest(companyId, {
         request_date: requestDate,
-        shift_time,
+        shift_time: currentShiftTime,
         employee_user_ids: [...selected],
         department_id: submitDepartmentId ?? undefined,
         notes: notes || undefined,
       });
-      toast.success("Overtime request submitted for approval");
+      toast.success(
+        isExtensionMode
+          ? "Extension overtime request submitted for approval"
+          : "Overtime request submitted for approval",
+      );
       setSelected(new Set());
       loadHistory();
     } catch (e: any) {
@@ -174,8 +284,12 @@ export default function OvertimeRequestsPage() {
 
   const submitLabel =
     selected.size > 0
-      ? `Submit (${selected.size}) for Approval`
-      : "Submit for Approval";
+      ? isExtensionMode
+        ? `Submit extension (${selected.size}) for Approval`
+        : `Submit (${selected.size}) for Approval`
+      : isExtensionMode
+        ? "Submit extension for Approval"
+        : "Submit for Approval";
 
   const submitLoadingText =
     selected.size > 0
@@ -221,11 +335,20 @@ export default function OvertimeRequestsPage() {
           <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-subtle)] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Today's requests</p>
+                <p className="text-sm font-semibold">Today&apos;s requests</p>
                 <p className="text-xs text-[var(--text-muted)]">
                   Pending / approved / rejected for the selected date (your department).
                 </p>
               </div>
+              <label className="text-xs text-[var(--text-muted)]">
+                Date
+                <input
+                  type="date"
+                  value={requestDate}
+                  onChange={(e) => setRequestDate(e.target.value)}
+                  className="mt-1 block rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-2 py-1.5 text-xs"
+                />
+              </label>
               <button
                 type="button"
                 onClick={loadHistory}
@@ -235,36 +358,84 @@ export default function OvertimeRequestsPage() {
                 {historyLoading ? "Refreshing…" : "Refresh"}
               </button>
             </div>
-            <div className="mt-3 overflow-x-auto">
+            <div className="mt-3 space-y-3">
               {historyLoading ? (
                 <p className="text-xs text-[var(--text-muted)]">Loading…</p>
               ) : history.length === 0 ? (
                 <p className="text-xs text-[var(--text-muted)]">No requests yet for this date.</p>
               ) : (
-                <table className="w-full text-sm">
-                  <thead className="text-xs text-[var(--text-muted)]">
-                    <tr className="border-b border-[var(--border-default)]">
-                      <th className="py-2 text-left font-semibold">Shift time</th>
-                      <th className="py-2 text-left font-semibold">Status</th>
-                      <th className="py-2 text-left font-semibold">Employees</th>
-                      <th className="py-2 text-left font-semibold">Notes</th>
-                      <th className="py-2 text-left font-semibold">Rejection reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((r) => (
-                      <tr key={r.id} className="border-b border-[var(--border-default)]">
-                        <td className="py-2 font-medium text-[var(--cort-orange)]">
-                          {formatShiftTime(r.shift_time) || "—"}
-                        </td>
-                        <td className="py-2 font-medium">{r.status}</td>
-                        <td className="py-2 text-[var(--text-muted)]">{r.shuttle_overtime_request_employees?.length ?? 0}</td>
-                        <td className="py-2 text-[var(--text-muted)]">{r.notes ?? "—"}</td>
-                        <td className="py-2 text-[var(--text-muted)]">{r.rejection_reason ?? "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                history.map((r) => {
+                  const employeeLines = r.shuttle_overtime_request_employees ?? [];
+                  const isExpanded = expandedRequestId === r.id;
+                  const earlierShift = normalizeShiftTime(r.shift_time);
+                  const canExtend =
+                    r.status === "APPROVED" && Boolean(LATER_SHIFT_BY_EARLIER[earlierShift]);
+
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-input)] p-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--cort-orange)]">
+                            {formatShiftTimeLabel(r.shift_time) || "—"}
+                          </p>
+                          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                            Status: <span className="font-medium text-[var(--text-default)]">{r.status}</span>
+                            {" · "}
+                            {employeeLines.length} employee{employeeLines.length === 1 ? "" : "s"}
+                          </p>
+                          {r.notes && (
+                            <p className="text-xs text-[var(--text-muted)] mt-1">Notes: {r.notes}</p>
+                          )}
+                          {r.rejection_reason && (
+                            <p className="text-xs text-red-600 mt-1">Rejected: {r.rejection_reason}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {canExtend && (
+                            <button
+                              type="button"
+                              onClick={() => startExtensionFromRequest(r)}
+                              className="rounded-lg border border-[var(--border-input)] px-2.5 py-1.5 text-xs font-semibold hover:bg-[var(--bg-subtle)]"
+                            >
+                              Request further overtime
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setExpandedRequestId(isExpanded ? null : r.id)}
+                            className="rounded-lg border border-[var(--border-input)] px-2.5 py-1.5 text-xs"
+                          >
+                            {isExpanded ? "Hide employees" : "Show employees"}
+                          </button>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <ul className="mt-3 divide-y divide-[var(--border-default)] border-t border-[var(--border-default)] pt-2">
+                          {employeeLines.length === 0 ? (
+                            <li className="py-2 text-xs text-[var(--text-muted)]">No employees listed.</li>
+                          ) : (
+                            employeeLines.map((line) => {
+                              const emp = line.users;
+                              const name = emp?.full_name ?? "Unknown";
+                              const empId = emp?.employee_id ?? line.employee_user_id?.slice(0, 8);
+                              return (
+                                <li key={line.employee_user_id ?? emp?.id} className="py-2 text-sm">
+                                  <span className="font-medium">{name}</span>
+                                  {empId && (
+                                    <span className="text-xs text-[var(--text-muted)]"> · {empId}</span>
+                                  )}
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -309,7 +480,7 @@ export default function OvertimeRequestsPage() {
                   <select
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
-                    disabled={submitting}
+                    disabled={submitting || isExtensionMode}
                     className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
                   >
                     <option value="">All departments (browse)</option>
@@ -322,12 +493,27 @@ export default function OvertimeRequestsPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by employee name or employee ID"
+                  placeholder={
+                    isExtensionMode
+                      ? "Search approved overtime employees"
+                      : "Search by employee name or employee ID"
+                  }
                   disabled={submitting}
                   className="mt-1 w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
                 />
               </label>
             </div>
+
+            {isExtensionMode && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p className="font-semibold">Extension request</p>
+                <p className="mt-0.5">
+                  An earlier shift is already approved for this date. Select employees from that
+                  approved list who need to stay until {formatShiftTimeLabel(currentShiftTime)}.
+                </p>
+              </div>
+            )}
+
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -336,52 +522,66 @@ export default function OvertimeRequestsPage() {
               className="w-full rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2 text-sm disabled:opacity-60"
               rows={2}
             />
-            {loading ? (
+            {loading && !isExtensionMode ? (
               <CompanyPageLoader label="Loading employees…" minHeight="min-h-[240px]" />
             ) : (
               <div className="max-h-96 overflow-y-auto divide-y divide-[var(--border-default)] border border-[var(--border-default)] rounded-lg">
-                {filteredEmployees.map((e) => (
-                  <label
-                    key={e.id}
-                    className={cx(
-                      "flex items-center gap-3 px-4 py-3",
-                      submitting ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-[var(--bg-subtle)]",
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.has(e.id)}
-                      onChange={() => toggle(e.id)}
-                      disabled={submitting}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">{e.full_name}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{e.departments?.name ?? e.department ?? "—"} · {e.employee_id ?? e.id.slice(0, 8)}</p>
-                    </div>
-                  </label>
-                ))}
-                {filteredEmployees.length === 0 && (
-                  <div className="px-4 py-6 text-sm text-[var(--text-muted)]">No employees found.</div>
+                {pickerEmployees.map((e) => {
+                  const blocked = blockedEmployeeIds.has(e.id);
+                  return (
+                    <label
+                      key={e.id}
+                      className={cx(
+                        "flex items-center gap-3 px-4 py-3",
+                        blocked || submitting
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer hover:bg-[var(--bg-subtle)]",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(e.id)}
+                        onChange={() => toggle(e.id)}
+                        disabled={submitting || blocked}
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{e.full_name}</p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          {e.departments?.name ?? e.department ?? "—"} · {e.employee_id ?? e.id.slice(0, 8)}
+                          {blocked && " · Already on this shift"}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
+                {pickerEmployees.length === 0 && (
+                  <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
+                    {isExtensionMode
+                      ? "No approved overtime employees available for an extension at this shift."
+                      : "No employees found."}
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-[var(--text-muted)]">
-                Showing {filteredEmployees.length} employee{filteredEmployees.length === 1 ? "" : "s"}
-                {search.trim() ? " (filtered by search)" : ""}
-              </p>
-              <CompanyLoadingButton
-                type="button"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!hasMore || loading || submitting}
-                loading={loading && page > 1}
-                loadingText="Loading…"
-                className="px-3 py-2 text-xs"
-              >
-                Load more
-              </CompanyLoadingButton>
-            </div>
+            {!isExtensionMode && (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-[var(--text-muted)]">
+                  Showing {pickerEmployees.length} employee{pickerEmployees.length === 1 ? "" : "s"}
+                  {search.trim() ? " (filtered by search)" : ""}
+                </p>
+                <CompanyLoadingButton
+                  type="button"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!hasMore || loading || submitting}
+                  loading={loading && page > 1}
+                  loadingText="Loading…"
+                  className="px-3 py-2 text-xs"
+                >
+                  Load more
+                </CompanyLoadingButton>
+              </div>
+            )}
 
             <CompanyLoadingButton
               type="button"
@@ -405,10 +605,28 @@ export default function OvertimeRequestsPage() {
   );
 }
 
-function formatShiftTime(raw: string | null | undefined): string {
+function normalizeShiftTime(raw: string | null | undefined): string {
   if (!raw) return "";
   const match = String(raw).match(/(\d{2}:\d{2})/);
   return match ? match[1] : "";
+}
+
+function shiftMinutes(raw: string | null | undefined): number {
+  const t = normalizeShiftTime(raw);
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function formatShiftTimeLabel(raw: string | null | undefined): string {
+  const t = normalizeShiftTime(raw);
+  if (!t) return "";
+  const [hStr, mStr] = t.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(hour12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
 }
 
 function cx(...classes: Array<string | false | null | undefined>) {
