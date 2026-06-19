@@ -33,7 +33,7 @@ export const fetchEmployees = createAsyncThunk(
     'employee/fetchEmployees',
     async (companyId: string, { rejectWithValue }) => {
         try {
-            const response = await apiClient.getEmployeesByCompany(companyId);
+            const response = await apiClient.getEmployees({ company_id: Number(companyId), limit: 1000 } as any);
             return response.data?.data || response.data || response || [];
         } catch (err) {
             return rejectWithValue(err instanceof Error ? err.message : 'Failed to fetch employees');
@@ -66,10 +66,10 @@ export const deactivateEmployee = createAsyncThunk(
     'employee/deactivateEmployee',
     async ({ employeeId, isActive }: { employeeId: string; isActive: boolean }, { rejectWithValue }) => {
         try {
-            await apiClient.toggleEmployeeStatus(employeeId, isActive);
+            await apiClient.updateEmployee(employeeId, { status: isActive ? 'ACTIVE' : 'INACTIVE' } as any);
             return { employeeId, status: isActive ? 'ACTIVE' : 'INACTIVE' };
         } catch (err) {
-            return rejectWithValue(err instanceof Error ? err.message : 'Failed to deactivate employee');
+            return rejectWithValue(err instanceof Error ? err.message : 'Failed to update employee status');
         }
     }
 );
@@ -98,20 +98,15 @@ export const employeeSlice = createSlice({
             })
             // Update
             .addCase(updateEmployee.fulfilled, (state, action) => {
-                // Determine structure based on backend. If payload is the updated employee:
-                // state.employees = state.employees.map(e => e.id === action.payload.id ? action.payload : e);
-                // If it just confirms success, we might need to rely on the passed in arg or refetch. 
-                // Suggestion: re-fetch or assume optimistic update from component for now, but better to update state here.
-                // Assuming payload contains updated properties or the whole object.
-                // For safety/blind implementation, we might not update list here correctly without knowing exact API response.
-                // But typically it returns the object. let's assume `data` field or `payload` itself is the object.
-                // Actually the API response might be { success: true, data: { ...employee } }
-                // Let's assume action.payload is properly parsed. Ideally we should type the response.
-                // For now, to be safe, we will just set loading false.
-                // To actually update the UI, we should update the list.
-                // Let's trigger a re-fetch in the component or implement proper state update if I knew the shape.
-                // Given I don't see the exact response shape, I will just proceed.
-                // But wait, deactivate logic below returns { employeeId, status }.
+                const updated = (action.payload as any)?.data ?? action.payload;
+                if (updated?.id) {
+                    const index = state.employees.findIndex(e => e.id === updated.id);
+                    if (index !== -1) {
+                        state.employees[index] = { ...state.employees[index], ...updated };
+                    }
+                }
+                // Force refetch on next load
+                state.lastFetched = null;
             })
             // Deactivate
             .addCase(deactivateEmployee.fulfilled, (state, action) => {

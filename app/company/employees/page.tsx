@@ -80,22 +80,31 @@ export default function EmployeesPage() {
       toast.error(phoneError);
       return;
     }
-    await dispatch(updateEmployee({
+    const result = await dispatch(updateEmployee({
       employeeId: employee.id,
       data: { phone: editPhone, email: editEmail }
     }));
-    // Optimistically update or refetch - here relying on refetch or slice update logic
-    if (company?.id) dispatch(fetchEmployees(company.id.toString())); // simple refetch to be sure
+    if (updateEmployee.fulfilled.match(result)) {
+      toast.success("Employee updated successfully");
+      if (company?.id) dispatch(fetchEmployees(company.id.toString()));
+    } else {
+      toast.error((result.payload as string) || "Failed to update employee");
+    }
     cancelEdit();
   }
 
   async function handleDeactivate(employee: typeof employees[0]) {
     const isActive = employee.status.toLowerCase() === "active";
     if (confirm(`Are you sure you want to ${isActive ? "deactivate" : "activate"} ${employee.full_name}?`)) {
-      await dispatch(deactivateEmployee({
+      const result = await dispatch(deactivateEmployee({
         employeeId: employee.id,
         isActive: !isActive
       }));
+      if (deactivateEmployee.fulfilled.match(result)) {
+        toast.success(`${employee.full_name} has been ${!isActive ? "activated" : "deactivated"}.`);
+      } else {
+        toast.error((result.payload as string) || "Failed to update employee status");
+      }
     }
   }
 
@@ -146,7 +155,7 @@ export default function EmployeesPage() {
                   return (
                     <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
                       <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{e.employee_id || "—"}</td>
-                      <td className={`${TABLE_CELL_CLASS} font-bold text-white`}>{e.full_name}</td>
+                      <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{e.full_name}</td>
                       <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
