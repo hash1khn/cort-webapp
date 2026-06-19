@@ -210,6 +210,22 @@ export default function CompanyDashboardPage() {
 
   const hasShuttle = isShuttleEnabled;
   const hasChauffeur = isChauffeurEnabled;
+  const isDualService = hasChauffeur && hasShuttle;
+
+  const analyticsGridClass =
+    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[minmax(220px,auto)] grid-flow-dense";
+
+  const smartInsightsClass = hasShuttle && !hasChauffeur
+    ? "lg:col-span-1 xl:col-span-2 dashboard-section dashboard-section-delay-5"
+    : "lg:col-span-2 dashboard-section dashboard-section-delay-5";
+
+  const costVisibilityClass = hasChauffeur && !hasShuttle
+    ? "lg:col-span-2 xl:col-span-2 dashboard-section dashboard-section-delay-4"
+    : "lg:col-span-2 dashboard-section dashboard-section-delay-4";
+
+  const adoptionHealthClass = hasChauffeur && !hasShuttle
+    ? "xl:col-span-2 dashboard-section dashboard-section-delay-3"
+    : "xl:col-span-1 dashboard-section dashboard-section-delay-3";
 
   return (
     <div className="flex flex-col gap-6 pb-12 relative max-w-[1600px] mx-auto">
@@ -284,23 +300,23 @@ export default function CompanyDashboardPage() {
       </div>
 
       {/* 2. Main Analytics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-max">
+      <div className={analyticsGridClass}>
 
         {/* We're Taking Care of This */}
         {hasChauffeur && (
-          <div className="lg:col-span-1 dashboard-section dashboard-section-delay-2">
+          <div className="xl:col-span-1 dashboard-section dashboard-section-delay-2">
             <TakingCareSection data={data.takingCare} />
           </div>
         )}
 
         {/* Employee Usage - Wider card */}
-        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
+        <div className="xl:col-span-1 dashboard-section dashboard-section-delay-3">
           <EmployeeUsageSection data={data.employeeUsage} />
         </div>
 
         {/* Cost Visibility */}
         {hasChauffeur && (
-          <div className="lg:col-span-2 dashboard-section dashboard-section-delay-4">
+          <div className={costVisibilityClass}>
             <CostVisibilitySection
               data={data.cost}
               onEditBudget={() => setIsBudgetModalOpen(true)}
@@ -310,18 +326,18 @@ export default function CompanyDashboardPage() {
 
         {/* Smart Insights */}
         {(hasChauffeur || hasShuttle) && (
-          <div className="lg:col-span-2 dashboard-section dashboard-section-delay-5">
+          <div className={smartInsightsClass}>
             <SmartInsightsSection insights={data.smartInsights} seasonality={data.seasonality} />
           </div>
         )}
 
-        {(hasChauffeur || hasShuttle) && (
-          <div className="lg:col-span-1 dashboard-section dashboard-section-delay-4">
+        {isDualService && (
+          <div className="xl:col-span-1 dashboard-section dashboard-section-delay-4">
             <ServiceUsageSection data={data.services} hasChauffeur={hasChauffeur} hasShuttle={hasShuttle} />
           </div>
         )}
 
-        <div className="lg:col-span-1 dashboard-section dashboard-section-delay-3">
+        <div className={adoptionHealthClass}>
           <AdoptionHealthSection data={data.adminHealth} />
         </div>
       </div>

@@ -249,9 +249,15 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
     const savingsValue = benchmarkDelta != null ? benchmarkDelta : data.estimatedSavings;
     const isBenchmarkSavings = benchmarkDelta != null;
     const isSaving = savingsValue >= 0;
+    const metricsCount = 2 + (hasChauffeur ? 1 : 0) + (hasShuttle ? 1 : 0);
+    const valueGridClass = metricsCount >= 4
+        ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full'
+        : metricsCount === 3
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full'
+            : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full';
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        <div className={valueGridClass}>
             {/* Total Savings */}
             <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
