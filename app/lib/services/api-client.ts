@@ -791,6 +791,13 @@ class ApiClient {
         });
     }
 
+    async resetDriverPassword(id: string, password: string): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/drivers/${id}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({ password }),
+        });
+    }
+
     async deleteDriver(id: string): Promise<void> {
         await this.request<void>(`/drivers/${id}`, {
             method: 'DELETE',

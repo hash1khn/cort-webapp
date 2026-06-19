@@ -19,6 +19,7 @@ import {
     updateAdminDriver,
     updateAdminDriverStatus,
     deleteAdminDriver,
+    resetAdminDriverPassword,
     selectAdminDrivers,
     selectAdminDriversStatus,
     selectAdminDriversError,
@@ -36,6 +37,7 @@ import { CredentialsModal } from "../components/ui/CredentialsModal";
 import { DriverForm } from "./components/DriverForm";
 import { ChauffeurApplicationDetail } from "./components/ChauffeurApplicationDetail";
 import { DriverAvgRating } from "./components/DriverAvgRating";
+import { DriverPasswordResetModal } from "./components/DriverPasswordResetModal";
 import { AdminProtectedPage } from "../components/AdminProtectedPage";
 import { useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
@@ -77,6 +79,8 @@ function DriversPageContent() {
     const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<{ email: string, password?: string } | null>(null);
     const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+    const [passwordResetDriver, setPasswordResetDriver] = useState<Driver | null>(null);
+    const [isPasswordResetModalOpen, setIsPasswordResetModalOpen] = useState(false);
 
     // Zoom Image Modal
     const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
@@ -213,6 +217,17 @@ function DriversPageContent() {
             toast.error(typeof err === "string" ? err : err?.message || "Failed to save driver");
         }
     }
+
+    const handleResetPassword = async (driverId: string, password: string) => {
+        try {
+            await dispatch(resetAdminDriverPassword({ id: driverId, password })).unwrap();
+            toast.success("Password reset successfully!");
+        } catch (err: any) {
+            console.error("Failed to reset password:", err);
+            toast.error(err.message || "Failed to reset password");
+            throw err;
+        }
+    };
 
     const handleDelete = async (id: string) => {
         const ok = await confirm({
@@ -475,6 +490,15 @@ function DriversPageContent() {
                                                     </button>
                                                     <button
                                                         type="button"
+                                                        onClick={() => { setPasswordResetDriver(driver); setIsPasswordResetModalOpen(true); }}
+                                                        disabled={!canUpdate}
+                                                        className="rounded-md p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                                                        title="Reset Password"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         onClick={() => handleEdit(driver)}
                                                         disabled={!canUpdate}
                                                         className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-[#0c225e] transition-colors disabled:opacity-40 disabled:pointer-events-none"
@@ -639,6 +663,14 @@ function DriversPageContent() {
                     </>
                 )}
             </Modal>
+
+            {/* Password Reset Modal */}
+            <DriverPasswordResetModal
+                isOpen={isPasswordResetModalOpen}
+                onClose={() => { setIsPasswordResetModalOpen(false); setPasswordResetDriver(null); }}
+                driver={passwordResetDriver}
+                onReset={(password) => handleResetPassword(passwordResetDriver!.id, password)}
+            />
 
             {/* Credentials Modal */}
             {createdCredentials && (

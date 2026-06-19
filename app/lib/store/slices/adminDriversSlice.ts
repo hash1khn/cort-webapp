@@ -143,6 +143,18 @@ export const deleteAdminDriver = createAsyncThunk(
     }
 );
 
+export const resetAdminDriverPassword = createAsyncThunk(
+    'adminDrivers/resetDriverPassword',
+    async ({ id, password }: { id: string; password: string }, { rejectWithValue }) => {
+        try {
+            await apiClient.resetDriverPassword(id, password);
+            return { id, success: true };
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to reset password');
+        }
+    }
+);
+
 // Slice
 const adminDriversSlice = createSlice({
     name: 'adminDrivers',
@@ -251,6 +263,16 @@ const adminDriversSlice = createSlice({
                 state.data = state.data.filter((d) => d.id !== action.payload);
             })
             .addCase(deleteAdminDriver.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+            })
+            // Reset Driver Password
+            .addCase(resetAdminDriverPassword.pending, (state) => {
+                state.actionStatus = 'loading';
+            })
+            .addCase(resetAdminDriverPassword.fulfilled, (state) => {
+                state.actionStatus = 'succeeded';
+            })
+            .addCase(resetAdminDriverPassword.rejected, (state) => {
                 state.actionStatus = 'failed';
             });
     },
