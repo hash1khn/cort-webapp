@@ -11,6 +11,67 @@ import Modal from "../../bookings/components/Modal";
 import TablePageSkeleton from "../../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 
+function escapeCSV(value: string | number | null | undefined): string {
+  const str = value == null ? "" : String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function exportChauffeurCSV(reports: ChauffeurReport[], companyName: string, startDate: string, endDate: string) {
+  const headers = [
+    "Date", "City", "Booking ID", "Passenger", "Employee ID",
+    "Vehicle", "Plate Number", "Driver",
+    "Pickup", "Dropoff",
+    "Duration (min)", "Distance (km)",
+    "Service Charge (PKR)", "Fuel Cost (PKR)", "Toll (PKR)", "Parking (PKR)", "Accommodation (PKR)", "Outstation Allowance (PKR)", "Total (PKR)"
+  ];
+
+  const rows = reports.map((r) => [
+    r.completed_at ? new Date(r.completed_at).toLocaleString("en-PK", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "",
+    r.city || "",
+    r.id,
+    r.passenger?.full_name || "Guest",
+    r.passenger?.employee_id || "",
+    `${r.vehicle?.make || ""} ${r.vehicle?.model || ""}`.trim(),
+    r.vehicle?.plate_number || "",
+    r.driver?.full_name || "",
+    r.route?.pickup || "",
+    r.route?.dropoff || "",
+    r.total_duration_minutes ?? "",
+    r.total_distance_km ?? "",
+    Number(r.breakdown?.service_charge ?? 0),
+    Number(r.breakdown?.fuel_cost ?? 0),
+    Number(r.breakdown?.toll ?? 0),
+    Number(r.breakdown?.parking ?? 0),
+    Number(r.breakdown?.accommodation ?? 0),
+    Number(r.breakdown?.outstation_allowance ?? 0),
+    Number(r.total_cost ?? 0),
+  ]);
+
+  const csvContent = [
+    `# CORT - Chauffeur Report`,
+    `# Company: ${companyName}`,
+    `# Period: ${startDate || "All"} to ${endDate || "All"}`,
+    `# Generated: ${new Date().toLocaleString("en-PK")}`,
+    `# Total Trips: ${reports.length}`,
+    `# Total Cost: PKR ${reports.reduce((s, r) => s + Number(r.total_cost ?? 0), 0).toLocaleString()}`,
+    "",
+    headers.map(escapeCSV).join(","),
+    ...rows.map((row) => row.map(escapeCSV).join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dateLabel = startDate && endDate ? `_${startDate}_to_${endDate}` : startDate ? `_from_${startDate}` : "";
+  a.href = url;
+  a.download = `cort_chauffeur_report${dateLabel}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ChauffeurReportsPage() {
   const company = useAppSelector(selectCompany);
 
@@ -97,7 +158,7 @@ export default function ChauffeurReportsPage() {
             <button
               type="button"
               className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
-              onClick={() => alert("Export to CSV coming soon")}
+              onClick={() => exportChauffeurCSV(reports, company?.name ?? "Company", startDate, endDate)}
             >
               <svg className="w-4 h-4 text-[var(--text-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               Export CSV

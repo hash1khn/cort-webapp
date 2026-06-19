@@ -47,6 +47,59 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+function escapeCSV(value: string | number | null | undefined): string {
+  const str = value == null ? "" : String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
+  const headers = [
+    "Trip Date", "Direction", "Trip ID", "Route",
+    "Vehicle", "Plate Number", "Driver",
+    "Boarded", "Absent", "Total Assigned", "Completed At"
+  ];
+
+  const rows = reports.map((r) => [
+    r.trip_date ? new Date(r.trip_date).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" }) : "",
+    r.direction || "",
+    r.id,
+    r.route?.name || "",
+    `${r.vehicle?.make || ""} ${r.vehicle?.model || ""}`.trim(),
+    r.vehicle?.plate_number || "",
+    r.driver?.full_name || "",
+    r.passengers?.boarded ?? 0,
+    r.passengers?.absent ?? 0,
+    r.passengers?.total ?? 0,
+    r.completed_at ? new Date(r.completed_at).toLocaleString("en-PK", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "",
+  ]);
+
+  const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
+
+  const csvContent = [
+    `# CORT - Shuttle Report`,
+    `# Company: ${companyName}`,
+    `# Period: ${startDate || "All"} to ${endDate || "All"}`,
+    `# Generated: ${new Date().toLocaleString("en-PK")}`,
+    `# Total Trips: ${reports.length}`,
+    `# Total Passengers Boarded: ${totalBoarded}`,
+    "",
+    headers.map(escapeCSV).join(","),
+    ...rows.map((row) => row.map(escapeCSV).join(",")),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dateLabel = startDate && endDate ? `_${startDate}_to_${endDate}` : startDate ? `_from_${startDate}` : "";
+  a.href = url;
+  a.download = `cort_shuttle_report${dateLabel}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ShuttleReportsPage() {
   const company = useAppSelector(selectCompany);
 
@@ -148,7 +201,7 @@ export default function ShuttleReportsPage() {
             <button
               type="button"
               className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
-              onClick={() => alert("Export to CSV coming soon")}
+              onClick={() => exportShuttleCSV(reports, company?.name ?? "Company", startDate, endDate)}
             >
               <svg
                 className="w-4 h-4 text-[var(--text-primary)]"
