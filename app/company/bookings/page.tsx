@@ -197,6 +197,7 @@ export default function BookingsPage() {
                 <th className="px-6 py-4">Service</th>
                 <th className="px-6 py-4">Fulfillment</th>
                 <th className="px-6 py-4">Passenger</th>
+                <th className="px-6 py-4">Driver</th>
                 <th className="px-6 py-4">Package</th>
                 <th className="px-6 py-4">Pickup</th>
                 <th className="px-6 py-4">City</th>
@@ -211,7 +212,7 @@ export default function BookingsPage() {
                 <TableSkeleton columns={10} rows={8} />
               ) : bookings.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-20 text-center">
+                  <td colSpan={12} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <div className="bg-[var(--surface-subtle)]/50 p-6 rounded-3xl mb-4 shadow-inner">
                         <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -260,6 +261,14 @@ export default function BookingsPage() {
                       </td>
                       <td className="px-6 py-5 font-bold text-[var(--cort-navy)]">
                         {getPassengerName(booking)}
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[var(--text-primary)] text-xs">{booking.users_chauffeur_bookings_driver_idTousers?.full_name || "—"}</span>
+                          {booking.users_chauffeur_bookings_driver_idTousers?.phone && (
+                            <span className="text-[10px] text-[var(--text-muted)] font-medium">{booking.users_chauffeur_bookings_driver_idTousers.phone}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-5 text-[var(--text-muted)] capitalize font-medium">{booking.package_selected.replace(/_/g, " ")}</td>
                       <td className="px-6 py-5">
@@ -440,6 +449,9 @@ export default function BookingsPage() {
                            <div className="flex-1">
                               <div className="text-[8px] text-[var(--text-muted)] font-black uppercase">Chauffeur</div>
                               <div className="text-xs font-black text-[var(--text-primary)]">{selectedBooking.users_chauffeur_bookings_driver_idTousers?.full_name || "Assigning..."}</div>
+                              {selectedBooking.users_chauffeur_bookings_driver_idTousers?.phone && (
+                                <div className="text-[9px] text-[var(--text-muted)] font-bold mt-0.5">{selectedBooking.users_chauffeur_bookings_driver_idTousers.phone}</div>
+                              )}
                            </div>
                            <div className="w-px h-8 bg-white/10" />
                            <div className="flex-1 pl-2">
