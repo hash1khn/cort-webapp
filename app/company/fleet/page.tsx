@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
@@ -629,16 +630,17 @@ function UtilBar({ pct }: { pct: number }) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 modal-center-overlay">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto modal-center-panel">
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-bold text-[var(--text-primary)]">{title}</h2>
                     <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] text-2xl leading-none transition-colors">×</button>
                 </div>
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 

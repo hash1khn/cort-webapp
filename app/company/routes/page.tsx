@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "../../lib/store/hooks";
@@ -355,16 +356,16 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
   const inputCls = "w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all";
   const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5";
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm slideover-overlay"
         onClick={onClose}
       />
 
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto">
+      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto slideover-panel">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-light)] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -608,7 +609,8 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
           </form>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

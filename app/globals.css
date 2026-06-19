@@ -316,6 +316,50 @@ body {
     animation: modal-from-button 0.38s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
+/* Center modal (fleet add vehicle / add driver) */
+.modal-center-overlay {
+    animation: fade-in 0.2s ease-out forwards;
+}
+
+.modal-center-panel {
+    animation: modal-center-enter 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes modal-center-enter {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.01) translateY(-2px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Slide-over panel (routes add employee) */
+.slideover-overlay {
+    animation: fade-in 0.25s ease-out forwards;
+}
+
+.slideover-panel {
+    animation: slide-in-right 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes slide-in-right {
+    from {
+        transform: translateX(100%);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 /* Closing state overrides */
 .modal-overlay-closing {
     animation: fade-in 0.18s ease-in reverse forwards;
