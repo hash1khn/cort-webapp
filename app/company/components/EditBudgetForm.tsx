@@ -31,8 +31,8 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
         setIsSubmitting(true);
         try {
             await apiClient.updateCompany(companyId, { monthly_budget: newBudget });
-            // Refresh dashboard data to reflect the new budget
-            await dispatch(fetchDashboardStats(companyId)).unwrap();
+            // Refresh dashboard data to reflect the new budget (fire-and-forget — don't unwrap)
+            dispatch(fetchDashboardStats(companyId));
             onSuccess();
         } catch (err: any) {
             setError(err.message || 'Failed to update company budget.');
