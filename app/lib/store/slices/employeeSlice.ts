@@ -10,7 +10,7 @@ export type Employee = {
     email: string;
     phone: string | null;
     status: string;
-    company_id: number;
+    company_id: number | null;
     employee_id?: string;
     department?: string | null;
 };
