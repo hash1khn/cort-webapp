@@ -541,7 +541,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             {hasShuttle && (
                                 <div className="flex items-center gap-3">
                                     <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
-                                    <span className="text-xs text-white font-black tracking-tight">
+                                    <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
                                         Shuttle{shuttleCount > 0 ? ` (${shuttleCount})` : ''}
                                     </span>
                                 </div>
@@ -549,7 +549,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             {hasChauffeur && (
                                 <div className="flex items-center gap-3">
                                     <img src="/car_birdeye.png" alt="chauffeur" className="w-5 h-5 object-contain" />
-                                    <span className="text-xs text-white font-black tracking-tight">
+                                    <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
                                         Chauffeur{chauffeurCount > 0 ? ` (${chauffeurCount})` : ''}
                                     </span>
                                 </div>

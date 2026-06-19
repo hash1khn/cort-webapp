@@ -217,7 +217,7 @@ export default function CompanyDashboardPage() {
       {/* Welcome Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dashboard-section dashboard-section-delay-1 relative z-10 has-[.invoice-tooltip-trigger:hover]:z-[200]">
         {/* Welcome Banner - Premium Background Image (Dark Theme - No Fade) */}
-        <div className="lg:col-span-2 relative rounded-[2rem] bg-[#0c1a3d] p-6 sm:p-8 shadow-[0_2px_16px_rgba(0,0,0,0.4)] border border-[var(--border-default)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all duration-200 group">
+        <div className="lg:col-span-2 relative rounded-[2rem] bg-[#0c1a3d] p-6 sm:p-8 shadow-[0_1px_4px_rgba(0,0,0,0.18)] border border-[var(--border-default)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_2px_10px_rgba(0,0,0,0.24)] transition-all duration-200 group">
 
           {/* Background Image Layer */}
           <div

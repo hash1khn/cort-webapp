@@ -34,7 +34,7 @@ const formatCurrency = (value: number) => {
 };
 
 export const Card = ({ children, className = "", withLeftBorder = false }: { children: React.ReactNode; className?: string; withLeftBorder?: boolean }) => (
-    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 h-full shadow-[0_2px_16px_rgba(0,0,0,0.4)] transition-all duration-200 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 ${withLeftBorder ? 'border-l-4 border-l-[#fe8503]' : ''} ${className}`}>
+    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 h-full shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] ${withLeftBorder ? 'border-l-4 border-l-[#fe8503]' : ''} ${className}`}>
         {children}
     </div>
 );
@@ -171,7 +171,7 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     const hasOutstanding = outstandingAmount > 0;
 
     return (
-        <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] h-full transition-all duration-300 hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 flex flex-col justify-between`}>
+        <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] h-full transition-all duration-300 flex flex-col justify-between`}>
             {/* Background Icon matching Savings card */}
             <div className="pointer-events-none absolute inset-y-0 right-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 {hasOutstanding ? (
@@ -253,7 +253,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             {/* Total Savings */}
-            <div className={`p-5 rounded-[2rem] border shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
+            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Zap size={120} className={isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--cort-orange)]'} />
                 </div>
@@ -277,7 +277,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
             </div>
 
         {/* Avg Trip Cost */}
-        <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
+        <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
             <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 <Activity size={120} className="text-[var(--text-primary)]" />
             </div>
@@ -293,7 +293,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
             </div>
         </div>
 
-        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
+        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Car size={120} className="text-[#fe8503]" />
                 </div>
@@ -314,7 +314,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
                 </div>
             </div>
 
-        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_2px_16px_rgba(0,0,0,0.4)] flex flex-col justify-between hover:shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all hover:-translate-y-0.5 relative overflow-hidden group">
+        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Bus size={120} className="text-[#fe8503]" />
                 </div>
