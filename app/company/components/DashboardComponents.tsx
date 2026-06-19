@@ -245,7 +245,7 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     );
 };
 
-export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: DashboardData['valueDelivered']; benchmarkDelta?: number | null }) => {
+export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = true, hasShuttle = true }: { data: DashboardData['valueDelivered']; benchmarkDelta?: number | null; hasChauffeur?: boolean; hasShuttle?: boolean }) => {
     const savingsValue = benchmarkDelta != null ? benchmarkDelta : data.estimatedSavings;
     const isBenchmarkSavings = benchmarkDelta != null;
     const isSaving = savingsValue >= 0;
@@ -293,7 +293,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
             </div>
         </div>
 
-        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
+        {hasChauffeur && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Car size={120} className="text-[#fe8503]" />
                 </div>
@@ -312,9 +312,9 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
                     <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.activeRides}</div>
                     <div className="text-xs text-[var(--accent-success)] font-bold mt-1">In progress</div>
                 </div>
-            </div>
+            </div>}
 
-        <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
+        {hasShuttle && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Bus size={120} className="text-[#fe8503]" />
                 </div>
@@ -325,7 +325,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta }: { data: Dashboar
                     <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.shuttleTrips}</div>
                     <div className="text-xs text-[var(--text-muted)] mt-1">Total runs MTD</div>
                 </div>
-            </div>
+            </div>}
         </div>
     );
 };
@@ -637,12 +637,15 @@ export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHeal
     )
 }
 
-export const ServiceUsageSection = ({ data }: { data: DashboardData['services'] }) => {
-    const chartData = [
-        { label: 'Chauffeur', value: data.chauffeur, color: '#fe8503' },
-        { label: 'Shuttle/Bus', value: data.shuttles, color: 'rgba(255,255,255,0.5)' },
-        { label: 'Event Shuttle', value: data.eventShuttle, color: 'rgba(255,255,255,0.15)' }
+export const ServiceUsageSection = ({ data, hasChauffeur = true, hasShuttle = true }: { data: DashboardData['services']; hasChauffeur?: boolean; hasShuttle?: boolean }) => {
+    const allItems = [
+        { label: 'Chauffeur', value: data.chauffeur, color: '#fe8503', dot: 'bg-[#fe8503]', show: hasChauffeur },
+        { label: 'Shuttle', value: data.shuttles, color: 'rgba(255,255,255,0.5)', dot: 'bg-white/50', show: hasShuttle },
+        { label: 'Event Shuttle', value: data.eventShuttle, color: 'rgba(255,255,255,0.15)', dot: 'bg-white/15', show: hasShuttle },
     ];
+
+    const visibleItems = allItems.filter((i) => i.show);
+    const chartData = visibleItems.map(({ label, value, color }) => ({ label, value, color }));
 
     return (
         <Card>
@@ -652,21 +655,13 @@ export const ServiceUsageSection = ({ data }: { data: DashboardData['services'] 
                 <DonutChart data={chartData} />
 
                 <div className="flex justify-center gap-4 mt-6 w-full">
-                    <div className="flex flex-col items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#fe8503] mb-1"></div>
-                        <div className="text-lg font-bold text-[var(--text-primary)]">{data.chauffeur}%</div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Chauffeur</div>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <div className="w-3 h-3 rounded-full bg-white/50 mb-1"></div>
-                        <div className="text-lg font-bold text-[var(--text-primary)]">{data.shuttles}%</div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Shuttle</div>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <div className="w-3 h-3 rounded-full bg-white/15 mb-1"></div>
-                        <div className="text-lg font-bold text-[var(--text-primary)]">{data.eventShuttle}%</div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Event Shuttle</div>
-                    </div>
+                    {visibleItems.map((item) => (
+                        <div key={item.label} className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full ${item.dot} mb-1`}></div>
+                            <div className="text-lg font-bold text-[var(--text-primary)]">{item.value}%</div>
+                            <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">{item.label}</div>
+                        </div>
+                    ))}
                 </div>
             </div>
         </Card>

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { fetchCompanyProfile, fetchCompanyFeatures, selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
+import { apiClient } from "../../lib/services/api-client";
 import {
   LayoutDashboard,
   Users,
@@ -20,6 +21,7 @@ import {
   Car,
   BarChart2,
   TrendingDown,
+  Building2,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { useCompanyTheme } from "../lib/theme-context";
@@ -29,8 +31,15 @@ import { Toaster } from "sonner";
 type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
 type FeatureLike = { feature_key: string; is_enabled: boolean };
 
-const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[]) => {
+const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[], hasVendors = false) => {
   const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
+
+  const adminItems: any[] = [
+    { href: "/company/employees", label: "Employees", icon: Users },
+  ];
+  if (hasVendors) {
+    adminItems.push({ href: "/company/vendors", label: "Vendors", icon: Building2 });
+  }
 
   const groups = [
     {
@@ -45,9 +54,7 @@ const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[])
     },
     {
       title: "Administration",
-      items: [
-        { href: "/company/employees", label: "Employees", icon: Users },
-      ]
+      items: adminItems,
     }
   ];
 
@@ -104,6 +111,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useCompanyTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasVendors, setHasVendors] = useState(false);
   const features = useAppSelector(selectCompanyFeatures);
   const companyId = user?.company_id?.toString();
 
@@ -115,6 +123,16 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       dispatch(fetchCompanyFeatures(Number(companyId)));
     }
   }, [companyId, company, dispatch]);
+
+  useEffect(() => {
+    if (!user?.company_id) return;
+    apiClient.getCompanyExternalVendors(user.company_id)
+      .then((res: any) => {
+        const data = res?.data ?? res;
+        setHasVendors(Array.isArray(data) && data.some((l: any) => l.is_active && l.external_vendors?.is_active));
+      })
+      .catch(() => setHasVendors(false));
+  }, [user?.company_id]);
 
   // ✅ FIX: Use user's enabled_services as fallback when company profile hasn't loaded yet
   // This prevents showing a second full-page loader
@@ -133,7 +151,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled, features);
+    const navGroups = getNavGroups(servicesEnabled, features, hasVendors);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -161,7 +179,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled, features).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features, hasVendors).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(

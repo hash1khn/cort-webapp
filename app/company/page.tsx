@@ -274,7 +274,7 @@ export default function CompanyDashboardPage() {
       {/* Value Delivered - Hero Row */}
       {(hasChauffeur || hasShuttle) && (
         <div className="w-full dashboard-section dashboard-section-delay-3">
-          <ValueDeliveredSection data={data.valueDelivered} benchmarkDelta={benchmarkDelta} />
+          <ValueDeliveredSection data={data.valueDelivered} benchmarkDelta={benchmarkDelta} hasChauffeur={hasChauffeur} hasShuttle={hasShuttle} />
         </div>
       )}
 
@@ -317,7 +317,7 @@ export default function CompanyDashboardPage() {
 
         {(hasChauffeur || hasShuttle) && (
           <div className="lg:col-span-1 dashboard-section dashboard-section-delay-4">
-            <ServiceUsageSection data={data.services} />
+            <ServiceUsageSection data={data.services} hasChauffeur={hasChauffeur} hasShuttle={hasShuttle} />
           </div>
         )}
 
