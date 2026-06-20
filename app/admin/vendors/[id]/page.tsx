@@ -269,7 +269,8 @@ function VendorDetailsContent() {
                                 logs.map((log: any) => {
                                     const statusRaw = log.status || '';
                                     const isPaid = ['FULLY_PAID', 'PAID'].includes(statusRaw.toUpperCase());
-                                    const canSettle = !isPaid && (log.booking_id || log.invoice_id);
+                                    const hasFinalizedCost = Number(log.cost) > 0;
+                                    const canSettle = !isPaid && hasFinalizedCost && (log.booking_id || log.invoice_id);
 
                                     return (
                                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
