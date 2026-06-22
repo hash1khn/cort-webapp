@@ -7,7 +7,7 @@ export const pakistaniCars = [
     "Toyota Corolla Altis", "Toyota Corolla Grande", "Toyota Yaris", "Toyota Fortuner",
     "Toyota Hilux Revo", "Toyota Corolla Cross", "Toyota Land Cruiser", "Toyota Vitz",
     "Toyota Aqua", "Toyota Prius", "Toyota Passo", "Toyota Rush", "Toyota Pixis",
-    "Toyota Belta", "Toyota Camry",
+    "Toyota Belta", "Toyota Camry", "Toyota Hiace",
 
     // --- Honda (Local & JDM) ---
     "Honda Civic", "Honda City", "Honda BR-V", "Honda HR-V", "Honda Accord", "Honda CR-V",
