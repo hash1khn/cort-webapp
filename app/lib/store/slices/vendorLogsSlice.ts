@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
     apiClient,
     QueryVendorLogsParams,
+    QueryVendorStatsParams,
     VendorLog,
     VendorStats,
     CreateVendorPaymentRequest
@@ -72,9 +73,9 @@ export const fetchVendorLogs = createAsyncThunk(
 
 export const fetchVendorStats = createAsyncThunk(
     'vendorLogs/fetchVendorStats',
-    async (vendorId: number | undefined, { rejectWithValue }) => {
+    async (params: QueryVendorStatsParams | undefined, { rejectWithValue }) => {
         try {
-            const response = await apiClient.getVendorStats(vendorId);
+            const response = await apiClient.getVendorStats(params);
             return response.data;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to fetch vendor stats');

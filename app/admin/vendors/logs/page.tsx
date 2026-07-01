@@ -48,7 +48,10 @@ function VendorLogsContent() {
 
     // Fetch Data on Filter Change
     useEffect(() => {
-        dispatch(fetchVendorStats(filters.vendor_id));
+        dispatch(fetchVendorStats({
+            vendor_id: filters.vendor_id,
+            company_id: filters.company_id,
+        }));
         dispatch(fetchVendorLogs(filters));
     }, [dispatch, filters]);
 
@@ -88,7 +91,10 @@ function VendorLogsContent() {
         try {
             await apiClient.updateVendorTripLog(breakdownLog.booking_id, km);
             dispatch(fetchVendorLogs(filters));
-            dispatch(fetchVendorStats(filters.vendor_id));
+            dispatch(fetchVendorStats({
+            vendor_id: filters.vendor_id,
+            company_id: filters.company_id,
+        }));
             setBreakdownLog(null);
         } catch {
             setDistanceError('Failed to save. Please try again.');

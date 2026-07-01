@@ -70,6 +70,7 @@ export type {
     VendorContract,
     VendorContractResponse,
     QueryVendorLogsParams,
+    QueryVendorStatsParams,
     VendorStats,
     VendorStatsResponse,
     VendorLog,

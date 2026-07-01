@@ -23,7 +23,7 @@ import {
     // Vendors
     CreateVendorRequest, QueryVendorParams, Vendor, VendorResponse, UpdateVendorRequest,
     CreateVendorContractRequest, QueryVendorContractParams, VendorContract, VendorContractResponse, UpdateVendorContractRequest,
-    QueryVendorLogsParams, VendorLogsResponse, VendorStatsResponse, CreateVendorPaymentRequest, VendorPaymentTransaction,
+    QueryVendorLogsParams, QueryVendorStatsParams, VendorLogsResponse, VendorStatsResponse, CreateVendorPaymentRequest, VendorPaymentTransaction,
     // Drivers
     CreateDriverRequest, QueryDriverParams, Driver, DriverResponse, UpdateDriverRequest, UpdateDriverStatusRequest, RideReview,
     // Pricing / Contracts
@@ -650,6 +650,7 @@ class ApiClient {
         if (params.page) queryParams.append('page', params.page.toString());
         if (params.limit) queryParams.append('limit', params.limit.toString());
         if (params.vendor_id) queryParams.append('vendor_id', params.vendor_id.toString());
+        if (params.company_id) queryParams.append('company_id', params.company_id.toString());
         if (params.start_date) queryParams.append('start_date', params.start_date);
         if (params.end_date) queryParams.append('end_date', params.end_date);
         if (params.payment_status) queryParams.append('payment_status', params.payment_status);
@@ -657,10 +658,12 @@ class ApiClient {
         return this.request<VendorLogsResponse>(`/vendors/logs/list?${queryParams.toString()}`);
     }
 
-    async getVendorStats(vendor_id?: number): Promise<VendorStatsResponse> {
+    async getVendorStats(params?: QueryVendorStatsParams): Promise<VendorStatsResponse> {
         const queryParams = new URLSearchParams();
-        if (vendor_id) queryParams.append('vendor_id', vendor_id.toString());
-        return this.request<VendorStatsResponse>(`/vendors/stats/summary?${queryParams.toString()}`);
+        if (params?.vendor_id) queryParams.append('vendor_id', params.vendor_id.toString());
+        if (params?.company_id) queryParams.append('company_id', params.company_id.toString());
+        const query = queryParams.toString();
+        return this.request<VendorStatsResponse>(`/vendors/stats/summary${query ? `?${query}` : ''}`);
     }
 
     async markVendorLogsAsPaid(ids: number[]) {

@@ -7,6 +7,10 @@ import {
     selectAdminVendors,
 } from '../../../lib/store/slices/adminVendorsSlice';
 import {
+    fetchAdminCompanies,
+    selectAdminCompanies,
+} from '../../../lib/store/slices/adminCompaniesSlice';
+import {
     fetchVendorLogs,
     fetchVendorStats,
     markVendorLogsAsPaid,
@@ -39,7 +43,8 @@ function VendorDetailsContent() {
     const stats = useAppSelector(selectVendorStats);
     const logsStatus = useAppSelector(selectVendorLogsStatus);
     const logsPagination = useAppSelector(selectVendorLogsPagination);
-    const vendors = useAppSelector(selectAdminVendors); // To get vendor name if needed, or fetch single
+    const vendors = useAppSelector(selectAdminVendors);
+    const companies = useAppSelector(selectAdminCompanies);
 
     // We might need to fetch the single vendor details if not in list, but let's assume we can get it or just show ID/Logs for now.
     // Or we can rely on the logs to show vendor details? No.
@@ -49,19 +54,29 @@ function VendorDetailsContent() {
     const [filters, setFilters] = useState({
         start_date: '',
         end_date: '',
-        payment_status: ''
+        payment_status: '',
+        company_id: '',
     });
 
-
+    useEffect(() => {
+        dispatch(fetchAdminCompanies({ limit: 200 }));
+    }, [dispatch]);
 
     useEffect(() => {
         if (vendorId) {
-            dispatch(fetchVendorStats(vendorId));
+            const statsParams = {
+                vendor_id: vendorId,
+                ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
+            };
+            dispatch(fetchVendorStats(statsParams));
             dispatch(fetchVendorLogs({
                 vendor_id: vendorId,
                 page: 1,
                 limit: 10,
-                ...filters
+                ...(filters.start_date ? { start_date: filters.start_date } : {}),
+                ...(filters.end_date ? { end_date: filters.end_date } : {}),
+                ...(filters.payment_status ? { payment_status: filters.payment_status } : {}),
+                ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
             }));
         }
     }, [dispatch, vendorId, filters]);
@@ -132,12 +147,18 @@ function VendorDetailsContent() {
 
             await dispatch(createVendorPayment(payload)).unwrap();
 
-            dispatch(fetchVendorStats(vendorId));
+            dispatch(fetchVendorStats({
+                vendor_id: vendorId,
+                ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
+            }));
             dispatch(fetchVendorLogs({
                 vendor_id: vendorId,
                 page: logsPagination.page,
                 limit: logsPagination.limit,
-                ...filters
+                ...(filters.start_date ? { start_date: filters.start_date } : {}),
+                ...(filters.end_date ? { end_date: filters.end_date } : {}),
+                ...(filters.payment_status ? { payment_status: filters.payment_status } : {}),
+                ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
             }));
             closePaymentModal();
         } catch (error: any) {
@@ -221,6 +242,19 @@ function VendorDetailsContent() {
                         <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                         <select
                             className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none bg-transparent"
+                            value={filters.company_id}
+                            onChange={(e) => handleFilterChange('company_id', e.target.value)}
+                        >
+                            <option value="">All Companies</option>
+                            {companies.map((company) => (
+                                <option key={company.id} value={company.id}>{company.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                        <select
+                            className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none bg-transparent"
                             value={filters.payment_status}
                             onChange={(e) => handleFilterChange('payment_status', e.target.value)}
                         >
@@ -245,6 +279,7 @@ function VendorDetailsContent() {
                                 <th className="px-6 py-4 font-semibold text-slate-700">Date</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Type</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Reference / Passenger</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Driver</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Charged Against</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Vehicle</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700 text-right">Vendor Cost</th>
@@ -255,13 +290,13 @@ function VendorDetailsContent() {
                         <tbody className="divide-y divide-slate-100">
                             {logsStatus === 'loading' ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                                         Loading logs...
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                                         No logs found matching criteria.
                                     </td>
                                 </tr>
@@ -288,6 +323,9 @@ function VendorDetailsContent() {
                                             <td className="px-6 py-4">
                                                 <div className="text-slate-900 font-medium">{log.passenger || 'N/A'}</div>
                                                 <div className="text-xs text-slate-500">{log.details || '-'}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-900">{log.driver || '—'}</div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {log.invoice_id ? (
@@ -361,7 +399,10 @@ function VendorDetailsContent() {
                                 vendor_id: vendorId,
                                 page,
                                 limit: logsPagination.limit,
-                                ...filters
+                                ...(filters.start_date ? { start_date: filters.start_date } : {}),
+                                ...(filters.end_date ? { end_date: filters.end_date } : {}),
+                                ...(filters.payment_status ? { payment_status: filters.payment_status } : {}),
+                                ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
                             }));
                         }}
                     />

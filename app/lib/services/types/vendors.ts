@@ -92,9 +92,15 @@ export interface QueryVendorLogsParams {
     page?: number;
     limit?: number;
     vendor_id?: number;
+    company_id?: number;
     start_date?: string;
     end_date?: string;
     payment_status?: string;
+}
+
+export interface QueryVendorStatsParams {
+    vendor_id?: number;
+    company_id?: number;
 }
 
 export interface VendorStats {
