@@ -95,6 +95,7 @@ export type {
     DailyTripLog,
     ChauffeurTripDailyLog,
     QueryChauffeurBookingParams,
+    QueryBookingStatsParams,
     ChauffeurBookingResponse,
     PaymentTransaction,
     PaymentSummary,

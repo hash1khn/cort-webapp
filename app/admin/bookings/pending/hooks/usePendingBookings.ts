@@ -25,15 +25,25 @@ export function usePendingBookings() {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [paymentSummary, setPaymentSummary] = useState<any>(null);
   const [stats, setStats] = useState<BookingStats | null>(null);
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
   const [selectedCarId, setSelectedCarId] = useState("");
   const [selectedDriverId, setSelectedDriverId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const debouncedStatus = useDebounce(statusFilter, 500);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const buildFilterParams = useCallback(() => ({
+    company_id: companyFilter ? Number(companyFilter) : undefined,
+    start_date: startDate || undefined,
+    end_date: endDate || undefined,
+  }), [companyFilter, startDate, endDate]);
 
   const loadData = useCallback(async (page: number, search: string, status: string) => {
     setIsLoading(true);
@@ -43,6 +53,7 @@ export function usePendingBookings() {
         search: search || undefined,
         page,
         limit: LIMIT,
+        ...buildFilterParams(),
       })) as any;
       const raw = res?.data ?? res;
       setBookings(raw?.data ?? raw ?? []);
@@ -53,15 +64,25 @@ export function usePendingBookings() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [buildFilterParams]);
 
   const loadStats = useCallback(async () => {
     try {
-      const res = (await apiClient.getBookingStats()) as any;
+      const res = (await apiClient.getBookingStats(buildFilterParams())) as any;
       const data = res?.data ?? res;
       setStats(data);
     } catch (e) {
       console.error("Failed to load booking stats", e);
+    }
+  }, [buildFilterParams]);
+
+  const loadCompanies = useCallback(async () => {
+    try {
+      const res = (await apiClient.getCompanies({ limit: 200 })) as any;
+      const raw = res?.data ?? res;
+      setCompanies(raw?.data ?? raw ?? []);
+    } catch (e) {
+      console.error("Failed to load companies", e);
     }
   }, []);
 
@@ -81,6 +102,10 @@ export function usePendingBookings() {
   }, []);
 
   useEffect(() => {
+    loadCompanies();
+  }, [loadCompanies]);
+
+  useEffect(() => {
     loadStats();
   }, [loadStats]);
 
@@ -96,7 +121,7 @@ export function usePendingBookings() {
   useEffect(() => {
     setCurrentPage(1);
     loadData(1, debouncedSearch, debouncedStatus);
-  }, [debouncedSearch, debouncedStatus, loadData]);
+  }, [debouncedSearch, debouncedStatus, companyFilter, startDate, endDate, loadData]);
 
   useEffect(() => {
     loadData(currentPage, debouncedSearch, debouncedStatus);
@@ -116,7 +141,8 @@ export function usePendingBookings() {
 
   const refreshList = useCallback(() => {
     loadData(currentPage, debouncedSearch, debouncedStatus);
-  }, [loadData, currentPage, debouncedSearch, debouncedStatus]);
+    loadStats();
+  }, [loadData, loadStats, currentPage, debouncedSearch, debouncedStatus]);
 
   const onOpenBookingModal = async (booking: ChauffeurBooking) => {
     setSelectedBookingId(booking.id);
@@ -176,11 +202,18 @@ export function usePendingBookings() {
     bookings,
     pagination,
     stats,
+    companies,
     isLoading,
     searchQuery,
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    companyFilter,
+    setCompanyFilter,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     currentPage,
     setCurrentPage,
     selectedBooking,

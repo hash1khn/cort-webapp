@@ -89,6 +89,13 @@ function BookingsPageContent() {
         onSearchChange={bookingsState.setSearchQuery}
         statusFilter={bookingsState.statusFilter}
         onStatusChange={bookingsState.setStatusFilter}
+        companyFilter={bookingsState.companyFilter}
+        onCompanyChange={bookingsState.setCompanyFilter}
+        startDate={bookingsState.startDate}
+        onStartDateChange={bookingsState.setStartDate}
+        endDate={bookingsState.endDate}
+        onEndDateChange={bookingsState.setEndDate}
+        companies={bookingsState.companies}
       />
 
       <div className="flex flex-col gap-6">

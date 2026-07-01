@@ -153,7 +153,16 @@ export interface QueryChauffeurBookingParams {
     limit?: number;
     status?: string;
     search?: string;
+    company_id?: number;
+    start_date?: string;
+    end_date?: string;
     fulfillment_type?: 'CORT_MANAGED' | 'EXTERNAL_VENDOR' | 'SELF_MANAGED';
+}
+
+export interface QueryBookingStatsParams {
+    company_id?: number;
+    start_date?: string;
+    end_date?: string;
 }
 
 export interface ChauffeurBookingResponse {

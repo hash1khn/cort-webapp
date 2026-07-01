@@ -38,7 +38,7 @@ import {
     UpdateFixedTermContractRequest,
     SettleFixedTermContractRequest,
     // Bookings
-    CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams,
+    CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams, QueryBookingStatsParams,
     DailyTripLog, AddPaymentRequest,
     // Fleet
     CreateFuelRecordRequest, QueryFuelRecordParams, FuelRecord, FuelRecordResponse, UpdateFuelRecordRequest,
@@ -927,8 +927,13 @@ class ApiClient {
 
     // ===== CHAUFFEUR BOOKINGS =====
 
-    async getBookingStats(): Promise<{ data: { total: number; pending: number; assigned: number; arrived: number; in_progress: number; ended: number; completed: number; cancelled: number } }> {
-        return this.request<any>('/admin/bookings/stats');
+    async getBookingStats(params?: QueryBookingStatsParams): Promise<{ data: { total: number; pending: number; assigned: number; arrived: number; in_progress: number; ended: number; completed: number; cancelled: number } }> {
+        const query = new URLSearchParams();
+        if (params?.company_id) query.append('company_id', params.company_id.toString());
+        if (params?.start_date) query.append('start_date', params.start_date);
+        if (params?.end_date) query.append('end_date', params.end_date);
+        const queryString = query.toString();
+        return this.request<any>(`/admin/bookings/stats${queryString ? `?${queryString}` : ''}`);
     }
 
     async getAllBookings(params: QueryChauffeurBookingParams = {}): Promise<PaginatedResponse<ChauffeurBooking>> {
@@ -937,6 +942,9 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.status) query.append('status', params.status);
         if (params.search) query.append('search', params.search);
+        if (params.company_id) query.append('company_id', params.company_id.toString());
+        if (params.start_date) query.append('start_date', params.start_date);
+        if (params.end_date) query.append('end_date', params.end_date);
         if (params.fulfillment_type) query.append('fulfillment_type', params.fulfillment_type);
 
         const queryString = query.toString();
