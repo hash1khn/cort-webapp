@@ -1,0 +1,89 @@
+{
+  "common": {
+    "actions": {
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "confirm": "تأكيد",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "close": "إغلاق",
+      "back": "رجوع",
+      "next": "التالي",
+      "submit": "إرسال",
+      "search": "بحث",
+      "export": "تصدير",
+      "download": "تنزيل",
+      "view": "عرض",
+      "tryAgain": "حاول مرة أخرى",
+      "signIn": "تسجيل الدخول",
+      "signOut": "تسجيل الخروج",
+      "create": "إنشاء",
+      "add": "إضافة",
+      "update": "تحديث",
+      "activate": "تفعيل",
+      "deactivate": "إلغاء التفعيل",
+      "newBooking": "حجز جديد"
+    },
+    "errors": {
+      "generic": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
+      "somethingWentWrong": "حدث خطأ ما",
+      "failedToLoad": "فشل التحميل",
+      "failedToLoadStats": "فشل تحميل الإحصائيات",
+      "failedToFetchStats": "فشل جلب الإحصائيات",
+      "failedToLoadInvoices": "فشل تحميل الفواتير",
+      "failedToUpdateEmployee": "فشل تحديث الموظف",
+      "failedToUpdateEmployeeStatus": "فشل تحديث حالة الموظف",
+      "loginFailed": "فشل تسجيل الدخول",
+      "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.",
+      "accountInactive": "حسابك غير نشط. يرجى التواصل مع الدعم.",
+      "noCompanySelected": "لم يتم اختيار شركة",
+      "noCompanyData": "لا تتوفر بيانات الشركة",
+      "couldNotLoadSavings": "تعذر تحميل بيانات التوفير",
+      "tryAgainOrContact": "يرجى المحاولة مرة أخرى أو التواصل مع الدعم.",
+      "failedToLoadRoute": "فشل تحميل المسار"
+    },
+    "validation": {
+      "phoneRequired": "رقم الهاتف مطلوب",
+      "phoneInvalid": "يجب أن يتكون رقم الهاتف من 11 رقماً بالضبط",
+      "phonePlaceholder": "03001234567",
+      "validPositiveNumber": "يرجى إدخال رقم موجب صحيح.",
+      "fillRequiredFields": "يرجى ملء جميع الحقول المطلوبة"
+    },
+    "status": {
+      "loading": "جاري التحميل...",
+      "unknown": "غير معروف",
+      "pending": "قيد الانتظار",
+      "assigned": "تم التعيين",
+      "arrived": "وصل",
+      "inProgress": "قيد التنفيذ",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "overdue": "متأخر",
+      "good": "جيد"
+    },
+    "fulfillment": {
+      "cortManaged": "تدار بواسطة CORT",
+      "externalVendor": "مورد خارجي",
+      "selfManaged": "أسطول ذاتي الإدارة",
+      "cort": "CORT",
+      "vendor": "مورد",
+      "pool": "أسطول",
+      "vendorManaged": "تدار بواسطة المورد",
+      "ownPoolCars": "سيارات الأسطول الخاصة"
+    },
+    "currency": {
+      "pkr": "روبية باكستانية"
+    },
+    "misc": {
+      "noAddress": "لا يوجد عنوان",
+      "noEmail": "لم يتم تقديم بريد إلكتروني",
+      "standard": "قياسي",
+      "today": "اليوم",
+      "admin": "مسؤول",
+      "companyAccount": "حساب الشركة",
+      "copyright": "عمليات كورت. جميع الحقوق محفوظة."
+    }
+  }
+}

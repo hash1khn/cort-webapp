@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
     Zap,
     Bus,
@@ -58,12 +59,10 @@ function insightColors(type: string, severity: string, index: number) {
     return { card: 'bg-[var(--cort-navy)] text-white', badge: 'bg-white/20 text-white' };
 }
 
-const LOCKED_SUMMARY =
-    'Personalised action steps to achieve this saving will be available once Cost Saving is enabled for your account.';
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
+    const t = useTranslations('company.costLeakage');
     const [expanded, setExpanded] = useState<number | null>(null);
 
     const insights = data?.insights ?? [];
@@ -81,24 +80,22 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                     </div>
                     <div className="flex flex-col items-center">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-3xl font-black text-[var(--cort-navy)] uppercase tracking-tight">Power Insights</h2>
+                            <h2 className="text-3xl font-black text-[var(--cort-navy)] uppercase tracking-tight">{t('powerInsights')}</h2>
                             {!aiEnabled && hasCards && (
                                 <span className="flex items-center gap-1 bg-gradient-to-r from-[var(--cort-navy)] to-[var(--cort-navy-hover)] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tighter shadow-[0_2px_10px_rgba(0,0,0,0.1)] border border-white/10">
                                     <Crown size={10} className="fill-current" />
-                                    Preview
+                                    {t('preview')}
                                 </span>
                             )}
                         </div>
                         <p className="text-[var(--text-muted)] text-sm font-bold mt-1 uppercase tracking-widest opacity-80">
-                            {aiEnabled
-                                ? 'AI Fleet Insights — Live Analysis'
-                                : 'Cost Leakage Detector & Efficiency Analysis'}
+                            {aiEnabled ? t('aiFleetInsights') : t('costLeakageAnalysis')}
                         </p>
                         {hasCards && totalSaving > 0 && (
                             <p className="text-[var(--cort-navy)] text-sm font-bold mt-2">
-                                You could save up to{' '}
+                                {t('couldSaveUpTo')}{' '}
                                 <span className="text-[var(--cort-orange)]">Rs {Math.round(totalSaving).toLocaleString()}</span>
-                                /month
+                                {t('perMonth')}
                             </p>
                         )}
                     </div>
@@ -135,14 +132,14 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                             <div className="bg-white/90 px-5 py-2.5 rounded-2xl shadow-xl flex items-center gap-2.5">
                                                 <Lock size={14} className="text-[var(--cort-navy)] shrink-0" />
                                                 <span className="text-[10px] font-black uppercase tracking-[0.08em] text-[var(--cort-navy)] leading-tight text-center">
-                                                    Enable Cost Saving to see how
+                                                    {t('enableCostSaving')}
                                                 </span>
                                             </div>
                                         </div>
                                     )}
                                     <div className={!aiEnabled ? 'filter blur-[3px] opacity-60 pointer-events-none select-none' : ''}>
                                         <p className="text-sm opacity-80 leading-relaxed">
-                                            {aiEnabled ? insight.data.summary : LOCKED_SUMMARY}
+                                            {aiEnabled ? insight.data.summary : t('lockedSummary')}
                                         </p>
                                         {aiEnabled && isOpen && insight.data.recommendation && (
                                             <p className="text-xs opacity-70 leading-relaxed mt-3 border-t border-white/20 pt-3">
@@ -156,10 +153,10 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                 <div className="mt-6 pt-6 border-t border-white/10 flex items-end justify-between relative z-10">
                                     <div className="flex flex-col">
                                         <span className="text-[11px] font-black uppercase opacity-60 tracking-widest mb-1">
-                                            {aiEnabled ? 'Est. Monthly Saving' : 'Potential Monthly Savings'}
+                                            {aiEnabled ? t('estMonthlySaving') : t('potentialMonthlySavings')}
                                         </span>
                                         <div className="text-4xl font-black tracking-tighter flex items-baseline">
-                                            <span className="text-xl font-normal opacity-60 mr-1.5 uppercase">Rs</span>
+                                            <span className="text-xl font-normal opacity-60 me-1.5 uppercase">Rs</span>
                                             {insight.estimated_saving_pkr > 0
                                                 ? Math.round(insight.estimated_saving_pkr).toLocaleString()
                                                 : '—'}
@@ -170,7 +167,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
                                             onClick={() => setExpanded(isOpen ? null : insight.id)}
                                             className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide opacity-70 hover:opacity-100 transition-opacity"
                                         >
-                                            {isOpen ? 'Less' : 'Details'}
+                                            {isOpen ? t('less') : t('details')}
                                             <ArrowRight size={12} className={`transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                                         </button>
                                     )}
@@ -182,9 +179,9 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
             ) : (
                 <div className="text-center py-8 px-4">
                     <p className="text-sm text-[var(--text-muted)] font-medium">
-                        Not enough fleet data yet to calculate potential savings.
+                        {t('notEnoughData')}
                         <br />
-                        <span className="text-xs opacity-70">Insights appear once your fleet has operational activity.</span>
+                        <span className="text-xs opacity-70">{t('insightsAppearHint')}</span>
                     </p>
                 </div>
             )}
@@ -193,7 +190,7 @@ const CostLeakageDetector = ({ data }: CostLeakageDetectorProps) => {
             {!aiEnabled && hasCards && (
                 <div className="flex flex-col items-center gap-2 text-center px-4">
                     <p className="text-xs text-[var(--text-muted)] max-w-md">
-                        Savings amounts are calculated from your real fleet data. Enable the Cost Saving feature to unlock personalised recommendations on how to achieve these savings.
+                        {t('footerHint')}
                     </p>
                 </div>
             )}

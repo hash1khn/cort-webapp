@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { ShuttleReport, apiClient } from "../../../lib/services/api-client";
@@ -101,6 +102,8 @@ function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDa
 }
 
 export default function ShuttleReportsPage() {
+  const t = useTranslations("company.reports");
+  const tCommon = useTranslations("common");
   const company = useAppSelector(selectCompany);
 
   const [reports, setReports] = useState<ShuttleReport[]>([]);
@@ -153,7 +156,7 @@ export default function ShuttleReportsPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
       </div>
     );
   }
@@ -163,11 +166,10 @@ export default function ShuttleReportsPage() {
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center flex flex-col items-center justify-center py-12">
           <div className="text-lg font-bold text-[var(--text-primary)]">
-            Shuttle Service Disabled
+            {t("shuttleDisabled")}
           </div>
           <div className="mt-2 text-sm text-[var(--text-muted)]">
-            Shuttle service is not enabled for your company. Please contact Cort
-            Super Admin.
+            {t("shuttleDisabledDescription")}
           </div>
         </Card>
       </div>
@@ -177,8 +179,8 @@ export default function ShuttleReportsPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader
-        label="Financial Reporting"
-        title="Shuttle Reports"
+        label={t("shuttleLabel")}
+        title={t("shuttleTitle")}
         action={
           <>
             <div className="flex items-center gap-2 bg-[var(--bg-subtle)] p-1 rounded-xl border border-[var(--border-strong)] backdrop-blur-sm">
@@ -187,7 +189,7 @@ export default function ShuttleReportsPage() {
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
-                placeholder="Start Date"
+                placeholder={t("startDate")}
               />
               <span className="text-[var(--text-muted)]">/</span>
               <input
@@ -195,7 +197,7 @@ export default function ShuttleReportsPage() {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
-                placeholder="End Date"
+                placeholder={t("endDate")}
               />
             </div>
             <button
@@ -216,7 +218,7 @@ export default function ShuttleReportsPage() {
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              Export CSV
+              {t("exportCsv")}
             </button>
           </>
         }
@@ -225,26 +227,24 @@ export default function ShuttleReportsPage() {
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
           <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">
-            Completed shuttle trips with route, vehicle, driver and boarding summary
+            {t("shuttleTableDescription")}
           </div>
         </div>
 
-        {/* error display removed — errors are logged to console */}
-
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left">
+          <table className="min-w-full text-sm text-start">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
-                <th className={TABLE_HEADER_CELL_CLASS}>Trip Date</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Direction</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Trip ID</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Route</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Vehicle</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Driver</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Boarded</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Absent</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Assigned</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Completed At</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("tripDate")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("direction")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("tripId")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("route")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("vehicle")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("driver")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("boarded")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("absent")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("assigned")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("completedAt")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -269,7 +269,7 @@ export default function ShuttleReportsPage() {
                           />
                         </svg>
                       </span>
-                      <span>No shuttle reports found for the selected period.</span>
+                      <span>{t("noShuttleReports")}</span>
                     </div>
                   </td>
                 </tr>
@@ -319,13 +319,13 @@ export default function ShuttleReportsPage() {
                         {report.driver?.full_name || "—"}
                       </div>
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right font-mono text-emerald-600 font-semibold`}>
+                    <td className={`${TABLE_CELL_CLASS} text-end font-mono text-emerald-600 font-semibold`}>
                       {report.passengers.boarded}
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right font-mono text-rose-500 font-semibold`}>
+                    <td className={`${TABLE_CELL_CLASS} text-end font-mono text-rose-500 font-semibold`}>
                       {report.passengers.absent}
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right font-mono text-[var(--text-primary)]`}>
+                    <td className={`${TABLE_CELL_CLASS} text-end font-mono text-[var(--text-primary)]`}>
                       {report.passengers.total}
                     </td>
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
@@ -342,7 +342,7 @@ export default function ShuttleReportsPage() {
         {pagination.pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-light)]">
             <div className="text-xs text-[var(--text-muted)]">
-              Showing {reports.length} of {pagination.total} trips
+              {t("showingTrips", { shown: reports.length, total: pagination.total })}
             </div>
             <div className="flex gap-1">
               {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(
@@ -369,14 +369,13 @@ export default function ShuttleReportsPage() {
       <Modal
         isOpen={!!selectedReport}
         onClose={() => setSelectedReport(null)}
-        title={selectedReport ? `Shuttle Trip #${selectedReport.id}` : "Trip Details"}
+        title={selectedReport ? t("shuttleTrip", { id: selectedReport.id }) : t("tripDetails")}
       >
         {selectedReport && (
           <div className="space-y-6">
-            {/* Trip Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-xs text-[var(--text-muted)] mb-1">Date</div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("date")}</div>
                 <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.trip_date
                     ? new Date(selectedReport.trip_date).toLocaleDateString("en-PK", {
@@ -388,24 +387,24 @@ export default function ShuttleReportsPage() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-[var(--text-muted)] mb-1">Direction</div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("direction")}</div>
                 <DirectionBadge direction={selectedReport.direction} />
               </div>
               <div>
-                <div className="text-xs text-[var(--text-muted)] mb-1">Route</div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("route")}</div>
                 <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.route?.name || "—"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-[var(--text-muted)] mb-1">Driver</div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("driver")}</div>
                 <div className="font-semibold text-[var(--text-primary)]">
                   {selectedReport.driver?.full_name || "—"}
                 </div>
               </div>
               {selectedReport.vehicle && (
                 <div className="col-span-2">
-                  <div className="text-xs text-[var(--text-muted)] mb-1">Vehicle</div>
+                  <div className="text-xs text-[var(--text-muted)] mb-1">{t("vehicle")}</div>
                   <div className="font-semibold text-[var(--text-primary)]">
                     {selectedReport.vehicle.make} {selectedReport.vehicle.model}{" "}
                     <span className="font-mono text-xs text-[var(--text-muted)]">
@@ -419,35 +418,34 @@ export default function ShuttleReportsPage() {
             {/* Boarding Summary */}
             <div>
               <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)] uppercase mb-3">
-                Boarding Summary
+                {t("boardingSummary")}
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-[var(--surface-subtle)] px-4 py-3 text-center">
                   <div className="text-2xl font-bold text-[var(--text-primary)]">
                     {selectedReport.passengers.total}
                   </div>
-                  <div className="text-xs text-[var(--text-muted)] mt-1">Assigned</div>
+                  <div className="text-xs text-[var(--text-muted)] mt-1">{t("assigned")}</div>
                 </div>
                 <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center">
                   <div className="text-2xl font-bold text-emerald-600">
                     {selectedReport.passengers.boarded}
                   </div>
-                  <div className="text-xs text-emerald-600/70 mt-1">Boarded</div>
+                  <div className="text-xs text-emerald-600/70 mt-1">{t("boarded")}</div>
                 </div>
                 <div className="rounded-xl bg-rose-50 px-4 py-3 text-center">
                   <div className="text-2xl font-bold text-rose-500">
                     {selectedReport.passengers.absent}
                   </div>
-                  <div className="text-xs text-rose-500/70 mt-1">Absent</div>
+                  <div className="text-xs text-rose-500/70 mt-1">{t("absent")}</div>
                 </div>
               </div>
             </div>
 
-            {/* Passenger Details */}
             {selectedReport.passengers.details.length > 0 && (
               <div>
                 <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)] uppercase mb-2">
-                  Passenger Details
+                  {t("passengerDetails")}
                 </div>
                 <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--border-light)] divide-y divide-[var(--border-light)]">
                   {selectedReport.passengers.details.map((log, idx) => (
@@ -457,7 +455,7 @@ export default function ShuttleReportsPage() {
                     >
                       <div>
                         <div className="font-medium text-sm text-[var(--text-primary)]">
-                          {log.employee?.full_name || "Unknown"}
+                          {log.employee?.full_name || tCommon("status.unknown")}
                         </div>
                         <div className="text-xs text-[var(--text-muted)]">
                           {log.employee?.department || ""}{" "}
@@ -483,7 +481,7 @@ export default function ShuttleReportsPage() {
 
             <div>
               <div className="text-xs font-semibold tracking-wider text-[var(--text-muted)] uppercase mb-2">
-                Stop Logs
+                {t("stopLogs")}
               </div>
               <div className="rounded-xl border border-[var(--border-light)] overflow-hidden">
                 {selectedReport.route?.stops && selectedReport.route.stops.length > 0 ? (
@@ -519,33 +517,33 @@ export default function ShuttleReportsPage() {
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">
                               {isEvening
-                                ? "Dropoff from shuttle boarding logs"
+                                ? t("dropoffFromLogs")
                                 : isFinalMorningStop
-                                  ? "Trip completion time"
-                                  : "Arrival from trip stop logs"}
+                                  ? t("tripCompletionTime")
+                                  : t("arrivalFromLogs")}
                             </div>
                           </div>
-                          <div className="text-right text-sm font-mono text-[var(--text-primary)]">
+                          <div className="text-end text-sm font-mono text-[var(--text-primary)]">
                             {isEvening ? (
                               <div>
                                 <div className="text-xs text-[var(--text-muted)]">
-                                  {isFirstEveningStop ? "Trip started at" : "Dropoff time"}
+                                  {isFirstEveningStop ? t("tripStartedAt") : t("dropoffTime")}
                                 </div>
                                 <div>{dropOffAt}</div>
                               </div>
                             ) : isFinalMorningStop ? (
                               <div>
-                                <div className="text-xs text-[var(--text-muted)]">Arrived at</div>
+                                <div className="text-xs text-[var(--text-muted)]">{t("arrivedAt")}</div>
                                 <div>{arrivedAt}</div>
                               </div>
                             ) : (
                               <div className="space-y-1">
                                 <div>
-                                  <div className="text-xs text-[var(--text-muted)]">Arrived at</div>
+                                  <div className="text-xs text-[var(--text-muted)]">{t("arrivedAt")}</div>
                                   <div>{arrivedAt}</div>
                                 </div>
                                 <div>
-                                  <div className="text-xs text-[var(--text-muted)]">Boarded at</div>
+                                  <div className="text-xs text-[var(--text-muted)]">{t("boardedAt")}</div>
                                   <div>{boardedAt}</div>
                                 </div>
                               </div>
@@ -557,7 +555,7 @@ export default function ShuttleReportsPage() {
                   </div>
                 ) : (
                   <div className="px-4 py-6 text-sm text-[var(--text-muted)]">
-                    No stop logs found for this trip.
+                    {t("noStopLogs")}
                   </div>
                 )}
               </div>

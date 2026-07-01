@@ -273,6 +273,40 @@ body {
     color: var(--text-primary);
 }
 
+/* RTL typography and layout */
+html[dir="rtl"] body {
+    font-family: var(--font-noto-arabic), var(--font-geist-sans), system-ui, sans-serif;
+}
+
+html[dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+}
+
+html[dir="rtl"] .slideover-panel {
+    animation-name: slide-in-left;
+}
+
+@keyframes slide-in-left-panel {
+    from {
+        transform: translateX(-100%);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+html[dir="rtl"] .slideover-panel {
+    animation: slide-in-left-panel 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* LTR content in RTL context (phone, email, URLs) */
+.ltr-content {
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
 /* Page transition when changing routes (e.g. sidebar nav) */
 .page-transition-enter {
     animation: fade-slide-up 0.5s ease-out forwards;

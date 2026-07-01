@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus, updateEmployee, deactivateEmployee } from "../../lib/store/slices/employeeSlice";
@@ -32,6 +33,8 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export default function EmployeesPage() {
+  const t = useTranslations("company.employees");
+  const tCommon = useTranslations("common");
   const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
   const employees = useAppSelector(selectEmployees);
@@ -56,7 +59,7 @@ export default function EmployeesPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
       </div>
     );
   }
@@ -75,7 +78,12 @@ export default function EmployeesPage() {
 
   async function saveEdit(employee: typeof employees[0]) {
     if (!editingId) return;
-    const phoneError = getPhoneValidationError(editPhone);
+    const phoneError = getPhoneValidationError(editPhone, {
+      messages: {
+        required: tCommon("validation.phoneRequired"),
+        invalid: tCommon("validation.phoneInvalid"),
+      },
+    });
     if (phoneError) {
       toast.error(phoneError);
       return;
@@ -85,32 +93,38 @@ export default function EmployeesPage() {
       data: { phone: editPhone, email: editEmail }
     }));
     if (updateEmployee.fulfilled.match(result)) {
-      toast.success("Employee updated successfully");
+      toast.success(t("updatedSuccess"));
       if (company?.id) dispatch(fetchEmployees(company.id.toString()));
     } else {
-      toast.error((result.payload as string) || "Failed to update employee");
+      toast.error((result.payload as string) || tCommon("errors.failedToUpdateEmployee"));
     }
     cancelEdit();
   }
 
   async function handleDeactivate(employee: typeof employees[0]) {
     const isActive = employee.status.toLowerCase() === "active";
-    if (confirm(`Are you sure you want to ${isActive ? "deactivate" : "activate"} ${employee.full_name}?`)) {
+    if (confirm(t("confirmStatusChange", {
+      action: isActive ? tCommon("actions.deactivate") : tCommon("actions.activate"),
+      name: employee.full_name,
+    }))) {
       const result = await dispatch(deactivateEmployee({
         employeeId: employee.id,
         isActive: !isActive
       }));
       if (deactivateEmployee.fulfilled.match(result)) {
-        toast.success(`${employee.full_name} has been ${!isActive ? "activated" : "deactivated"}.`);
+        toast.success(t("statusChanged", {
+          name: employee.full_name,
+          status: !isActive ? t("activated") : t("deactivated"),
+        }));
       } else {
-        toast.error((result.payload as string) || "Failed to update employee status");
+        toast.error((result.payload as string) || tCommon("errors.failedToUpdateEmployeeStatus"));
       }
     }
   }
 
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-      <PageHeader label="Roster Management" title="Employees" />
+      <PageHeader label={t("label")} title={t("title")} />
 
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
@@ -119,25 +133,25 @@ export default function EmployeesPage() {
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-[var(--text-primary)]">Read-Only Roster</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">{t("infoTitle")}</div>
               <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
-                This roster is synced from the Cort Admin portal. You can update contact details or deactivate status, but main record creation happens centrally.
+                {t("infoDescription")}
               </div>
             </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left">
+          <table className="min-w-full text-sm text-start">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
-                <th className={TABLE_HEADER_CELL_CLASS}>Employee ID</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Full Name</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Phone</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Email</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Department</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("employeeId")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("fullName")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("phone")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("email")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("department")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("status")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -146,7 +160,7 @@ export default function EmployeesPage() {
               ) : employees.length === 0 && !loading ? (
                 <tr>
                   <td colSpan={7} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>
-                    No employees found. Employees are uploaded by Cort Super Admin.
+                    {t("noEmployees")}
                   </td>
                 </tr>
               ) : (
@@ -164,7 +178,7 @@ export default function EmployeesPage() {
                             maxLength={PHONE_MAX_LENGTH}
                             value={editPhone}
                             onChange={(ev) => setEditPhone(sanitizePhoneInput(ev.target.value))}
-                            placeholder="03001234567"
+                            placeholder={tCommon("validation.phonePlaceholder")}
                           />
                         ) : (
                           <span className="text-[var(--text-secondary)] font-medium">{e.phone || "—"}</span>
@@ -175,7 +189,7 @@ export default function EmployeesPage() {
                           <TextInput
                             value={editEmail}
                             onChange={(ev) => setEditEmail(ev.target.value)}
-                            placeholder="Email"
+                            placeholder={t("email")}
                           />
                         ) : (
                           <span className="text-[var(--text-secondary)]">{e.email || "—"}</span>
@@ -186,11 +200,11 @@ export default function EmployeesPage() {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border ${e.status.toLowerCase() === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                           'bg-rose-500/10 text-rose-400 border-rose-500/20'
                           }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${e.status.toLowerCase() === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                          <span className={`w-1.5 h-1.5 rounded-full me-1.5 ${e.status.toLowerCase() === 'active' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                           {e.status}
                         </span>
                       </td>
-                      <td className={`${TABLE_CELL_CLASS} text-right`}>
+                      <td className={`${TABLE_CELL_CLASS} text-end`}>
                         <div className="flex items-center justify-end gap-2">
                           {isEditing ? (
                             <>
@@ -199,14 +213,14 @@ export default function EmployeesPage() {
                                 onClick={() => saveEdit(e)}
                                 className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--cort-orange)] px-3 text-xs font-bold text-[var(--text-primary)] shadow-sm hover:bg-[var(--cort-orange-hover)] transition-colors"
                               >
-                                Save
+                                {tCommon("actions.save")}
                               </button>
                               <button
                                 type="button"
                                 onClick={cancelEdit}
                                 className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-input)] bg-[var(--bg-subtle)] px-3 text-xs font-bold text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] transition-colors"
                               >
-                                Cancel
+                                {tCommon("actions.cancel")}
                               </button>
                             </>
                           ) : (
@@ -215,7 +229,7 @@ export default function EmployeesPage() {
                                 type="button"
                                 onClick={() => startEdit(e)}
                                 className="p-1.5 text-[var(--text-muted)] hover:text-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/10 rounded-lg transition-colors"
-                                title="Edit Details"
+                                title={t("editDetails")}
                               >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
@@ -223,7 +237,7 @@ export default function EmployeesPage() {
                                 type="button"
                                 onClick={() => handleDeactivate(e)}
                                 className={`p-1.5 rounded-lg transition-colors ${e.status.toLowerCase() === 'active' ? 'text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10' : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-500/10'}`}
-                                title={e.status.toLowerCase() === "active" ? "Deactivate User" : "Activate User"}
+                                title={e.status.toLowerCase() === "active" ? t("deactivateUser") : t("activateUser")}
                               >
                                 {e.status.toLowerCase() === "active" ? (
                                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>

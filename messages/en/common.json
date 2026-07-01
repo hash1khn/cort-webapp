@@ -1,0 +1,89 @@
+{
+  "common": {
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close",
+      "back": "Back",
+      "next": "Next",
+      "submit": "Submit",
+      "search": "Search",
+      "export": "Export",
+      "download": "Download",
+      "view": "View",
+      "tryAgain": "Try again",
+      "signIn": "Sign In",
+      "signOut": "Sign out",
+      "create": "Create",
+      "add": "Add",
+      "update": "Update",
+      "activate": "activate",
+      "deactivate": "deactivate",
+      "newBooking": "New Booking"
+    },
+    "errors": {
+      "generic": "An unexpected error occurred. Please try again.",
+      "somethingWentWrong": "Something went wrong",
+      "failedToLoad": "Failed to load",
+      "failedToLoadStats": "Failed to load stats",
+      "failedToFetchStats": "Failed to fetch stats",
+      "failedToLoadInvoices": "Failed to load invoices",
+      "failedToUpdateEmployee": "Failed to update employee",
+      "failedToUpdateEmployeeStatus": "Failed to update employee status",
+      "loginFailed": "Login failed",
+      "invalidCredentials": "Invalid email or password. Please try again.",
+      "accountInactive": "Your account is inactive. Please contact support.",
+      "noCompanySelected": "No company selected",
+      "noCompanyData": "No company data available",
+      "couldNotLoadSavings": "Could not load savings data",
+      "tryAgainOrContact": "Please try again or contact support.",
+      "failedToLoadRoute": "Failed to load route"
+    },
+    "validation": {
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Phone number must be exactly 11 digits",
+      "phonePlaceholder": "03001234567",
+      "validPositiveNumber": "Please enter a valid positive number.",
+      "fillRequiredFields": "Please fill in all required fields"
+    },
+    "status": {
+      "loading": "Loading...",
+      "unknown": "Unknown",
+      "pending": "Pending",
+      "assigned": "Assigned",
+      "arrived": "Arrived",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "active": "Active",
+      "inactive": "Inactive",
+      "overdue": "OVERDUE",
+      "good": "Good"
+    },
+    "fulfillment": {
+      "cortManaged": "CORT Managed",
+      "externalVendor": "External Vendor",
+      "selfManaged": "Self-Managed Pool",
+      "cort": "CORT",
+      "vendor": "Vendor",
+      "pool": "Pool",
+      "vendorManaged": "Vendor Managed",
+      "ownPoolCars": "Own Pool Cars"
+    },
+    "currency": {
+      "pkr": "PKR"
+    },
+    "misc": {
+      "noAddress": "No address",
+      "noEmail": "No email provided",
+      "standard": "Standard",
+      "today": "Today",
+      "admin": "Admin",
+      "companyAccount": "Company Account",
+      "copyright": "Cort Operations. All rights reserved."
+    }
+  }
+}

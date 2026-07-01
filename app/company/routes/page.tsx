@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -87,6 +88,7 @@ type AiRecommendation = {
 // ─── Stop pills ───────────────────────────────────────────────────────────────
 
 function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNING" | "EVENING" }) {
+  const t = useTranslations("company.routes");
   const sorted = [...stops]
     .filter((s) => direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null)
     .sort((a, b) =>
@@ -94,7 +96,7 @@ function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNI
         ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
         : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
     );
-  if (sorted.length === 0) return <span className="text-xs text-[var(--text-muted)] italic">No stops</span>;
+  if (sorted.length === 0) return <span className="text-xs text-[var(--text-muted)] italic">{t("noStops")}</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {sorted.map((stop, idx) => {
@@ -123,6 +125,8 @@ function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNI
 // ─── AI Route Optimizer (standalone panel) ───────────────────────────────────
 
 function AiRouteOptimizer({ companyId }: { companyId: number }) {
+  const t = useTranslations("company.routes");
+  const tCommon = useTranslations("common");
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiRecommendation | null>(null);
@@ -140,7 +144,7 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
       });
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to get AI recommendation");
+      setError(err instanceof Error ? err.message : t("failedAiRecommendation"));
     } finally {
       setLoading(false);
     }
@@ -159,23 +163,21 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
           <Sparkles className="w-5 h-5 text-[var(--cort-orange)]" />
         </div>
         <div>
-          <h3 className="font-bold text-[var(--text-primary)]">AI Route Optimizer</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Enter a new employee's address and AI instantly recommends which vehicle/route to assign them to — minimizing cost leakage and maximizing vehicle utilization.
-          </p>
+          <h3 className="font-bold text-[var(--text-primary)]">{t("aiOptimizerTitle")}</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">{t("aiOptimizerDescription")}</p>
         </div>
       </div>
 
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          <MapPin className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-            placeholder="e.g. DHA Phase 6, Lahore or Block 4 Gulshan-e-Iqbal, Karachi"
-            className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] pl-9 pr-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all"
+            placeholder={t("addressPlaceholder")}
+            className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] ps-9 pe-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all"
           />
         </div>
         <Button
@@ -184,7 +186,7 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
           className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl px-5 disabled:opacity-50 flex-shrink-0"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {loading ? "Analyzing…" : "Analyze"}
+          {loading ? t("analyzing") : t("analyze")}
         </Button>
       </div>
 
@@ -201,17 +203,17 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
             <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-[var(--cort-orange)] flex-shrink-0" />
-                <span className="font-bold text-[var(--text-primary)]">Best Match: {result.routeName}</span>
+                <span className="font-bold text-[var(--text-primary)]">{t("bestMatch", { routeName: result.routeName })}</span>
               </div>
               <span className={cx("text-xs font-bold px-2.5 py-1 rounded-full border", confidenceColor[result.confidence] ?? confidenceColor.Low)}>
-                {result.confidence} Confidence
+                {t("confidence", { level: result.confidence })}
               </span>
             </div>
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{result.reason}</p>
             {result.routeId && (
               <Link href={`/company/routes/${result.routeId}`}>
                 <button className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-[var(--cort-orange)] hover:underline">
-                  View Route Details <ArrowRight className="w-3 h-3" />
+                  {t("viewRouteDetails")} <ArrowRight className="w-3 h-3" />
                 </button>
               </Link>
             )}
@@ -219,7 +221,7 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
 
           {result.alternativeRoutes.length > 0 && (
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Alternatives</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t("alternatives")}</div>
               <div className="space-y-2">
                 {result.alternativeRoutes.map((alt) => (
                   <div key={alt.id} className="flex items-start gap-3 rounded-xl border border-[var(--border-light)] bg-[var(--bg-subtle)] px-4 py-3">
@@ -252,6 +254,9 @@ type AddEmployeePanelProps = {
 };
 
 function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployeePanelProps) {
+  const t = useTranslations("company.routes");
+  const tEmployees = useTranslations("company.employees");
+  const tCommon = useTranslations("common");
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -294,7 +299,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
       setAiRec(data);
       if (data.routeId) setSelectedRouteId(data.routeId);
     } catch {
-      setAiError("Could not get AI recommendation");
+      setAiError(t("couldNotGetAi"));
     } finally {
       setAiLoading(false);
     }
@@ -341,7 +346,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
         onClose();
       }, 1800);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to add employee");
+      setSubmitError(err instanceof Error ? err.message : t("failedAddEmployee"));
     } finally {
       setSubmitting(false);
     }
@@ -365,7 +370,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
       />
 
       {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto slideover-panel">
+      <div className="fixed inset-y-0 end-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-s border-[var(--border-default)] shadow-2xl overflow-y-auto slideover-panel">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-light)] flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -373,8 +378,8 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
               <UserPlus className="w-5 h-5 text-[var(--cort-orange)]" />
             </div>
             <div>
-              <h2 className="font-bold text-[var(--text-primary)]">Add Employee</h2>
-              <p className="text-xs text-[var(--text-muted)]">AI will recommend the best route based on their address</p>
+              <h2 className="font-bold text-[var(--text-primary)]">{t("addEmployee")}</h2>
+              <p className="text-xs text-[var(--text-muted)]">{t("addEmployeeSubtitle")}</p>
             </div>
           </div>
           <button
@@ -391,9 +396,11 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
               <CheckCheck className="w-8 h-8 text-emerald-400" />
             </div>
             <div className="text-center">
-              <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
+              <div className="font-bold text-[var(--text-primary)] text-lg">{t("employeeAdded")}</div>
               <div className="text-sm text-[var(--text-muted)] mt-1">
-                {form.full_name} has been added and{selectedRouteId ? " assigned to the recommended route" : " created"}.
+                {selectedRouteId
+                  ? t("employeeAddedAssigned", { name: form.full_name })
+                  : t("employeeAddedCreated", { name: form.full_name })}
               </div>
             </div>
           </div>
@@ -404,21 +411,21 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
               {/* Name + Employee ID */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 sm:col-span-1">
-                  <label className={labelCls}>Full Name *</label>
+                  <label className={labelCls}>{t("fullNameRequired")}</label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                    <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                     <input
                       required
                       type="text"
                       value={form.full_name}
                       onChange={(e) => updateField("full_name", e.target.value)}
                       placeholder="Ahmed Khan"
-                      className={cx(inputCls, "pl-9")}
+                      className={cx(inputCls, "ps-9")}
                     />
                   </div>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <label className={labelCls}>Employee ID</label>
+                  <label className={labelCls}>{t("employeeId")}</label>
                   <input
                     type="text"
                     value={form.employee_id}
@@ -431,26 +438,25 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
 
               {/* Email */}
               <div>
-                <label className={labelCls}>Email *</label>
+                <label className={labelCls}>{t("emailRequired")}</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                  <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                   <input
                     required
                     type="email"
                     value={form.email}
                     onChange={(e) => updateField("email", e.target.value)}
                     placeholder="ahmed@company.com"
-                    className={cx(inputCls, "pl-9")}
+                    className={cx(inputCls, "ps-9")}
                   />
                 </div>
               </div>
 
-              {/* Phone + Department */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Phone</label>
+                  <label className={labelCls}>{tEmployees("phone")}</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                    <Phone className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -458,44 +464,43 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                       value={form.phone}
                       onChange={(e) => updateField("phone", sanitizePhoneInput(e.target.value))}
                       placeholder={PHONE_PLACEHOLDER}
-                      className={cx(inputCls, "pl-9")}
+                      className={cx(inputCls, "ps-9")}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Department</label>
+                  <label className={labelCls}>{tEmployees("department")}</label>
                   <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                    <Building2 className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                     <input
                       type="text"
                       value={form.department}
                       onChange={(e) => updateField("department", e.target.value)}
                       placeholder="Engineering"
-                      className={cx(inputCls, "pl-9")}
+                      className={cx(inputCls, "ps-9")}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Home Address → triggers AI */}
               <div>
                 <label className={labelCls}>
-                  Home / Pickup Address
-                  <span className="ml-2 text-[var(--cort-orange)] normal-case font-normal tracking-normal">
-                    — AI will auto-recommend a route
+                  {t("homeAddress")}
+                  <span className="ms-2 text-[var(--cort-orange)] normal-case font-normal tracking-normal">
+                    {t("aiAutoRecommend")}
                   </span>
                 </label>
                 <div className="relative">
-                  <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                  <Home className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
                   <input
                     type="text"
                     value={form.home_address}
                     onChange={(e) => updateField("home_address", e.target.value)}
-                    placeholder="e.g. DHA Phase 6, Lahore"
-                    className={cx(inputCls, "pl-9")}
+                    placeholder={t("addressPlaceholder")}
+                    className={cx(inputCls, "ps-9")}
                   />
                   {aiLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--cort-orange)] animate-spin" />
+                    <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--cort-orange)] animate-spin" />
                   )}
                 </div>
                 {aiError && (
@@ -508,8 +513,8 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                 <div className="rounded-2xl border border-[var(--cort-orange)]/20 bg-[var(--cort-orange)]/5 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-4 h-4 text-[var(--cort-orange)]" />
-                    <span className="text-xs font-bold text-[var(--cort-orange)] uppercase tracking-wider">AI Recommendation</span>
-                    <span className={cx("ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border", confidenceColor[aiRec.confidence] ?? confidenceColor.Low)}>
+                    <span className="text-xs font-bold text-[var(--cort-orange)] uppercase tracking-wider">{t("aiRecommendation")}</span>
+                    <span className={cx("ms-auto text-[10px] font-bold px-2 py-0.5 rounded-full border", confidenceColor[aiRec.confidence] ?? confidenceColor.Low)}>
                       {aiRec.confidence}
                     </span>
                   </div>
@@ -521,10 +526,10 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
               {/* Route selector */}
               <div>
                 <label className={labelCls}>
-                  Assign to Route
-                  {aiRec && <span className="ml-2 text-emerald-400 normal-case font-normal tracking-normal">— AI pre-selected below</span>}
+                  {t("assignToRoute")}
+                  {aiRec && <span className="ms-2 text-emerald-400 normal-case font-normal tracking-normal">{t("aiPreSelected")}</span>}
                 </label>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-56 overflow-y-auto pe-1">
                   <div
                     onClick={() => setSelectedRouteId(null)}
                     className={cx(
@@ -535,7 +540,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                     )}
                   >
                     <div className={cx("w-4 h-4 rounded-full border-2 flex-shrink-0", selectedRouteId === null ? "border-[var(--text-muted)]" : "border-[var(--border-default)]")} />
-                    <span className="text-sm text-[var(--text-muted)]">No route assignment (create employee only)</span>
+                    <span className="text-sm text-[var(--text-muted)]">{t("noRouteAssignment")}</span>
                   </div>
                   {routes.map((route) => {
                     const isSelected = selectedRouteId === route.id;
@@ -562,12 +567,12 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                             <span className="text-sm font-semibold text-[var(--text-primary)]">{route.name}</span>
                             {isAiPick && (
                               <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--cort-orange)] bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 px-1.5 py-0.5 rounded-full">
-                                <Sparkles className="w-2.5 h-2.5" /> AI Pick
+                                <Sparkles className="w-2.5 h-2.5" /> {t("aiPick")}
                               </span>
                             )}
                           </div>
                           <span className="text-xs text-[var(--text-muted)]">
-                            {route.employee_route_assignments?.length ?? 0} passengers
+                            {t("passengersOnRoute", { count: route.employee_route_assignments?.length ?? 0 })}
                             {route.vehicles ? ` · ${route.vehicles.plate_number}` : ""}
                           </span>
                         </div>
@@ -592,7 +597,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                 onClick={onClose}
                 className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
               >
-                Cancel
+                {tCommon("actions.cancel")}
               </button>
               <Button
                 type="submit"
@@ -600,9 +605,9 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                 className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 px-6 disabled:opacity-50"
               >
                 {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("adding")}</>
                 ) : (
-                  <><UserPlus className="w-4 h-4" /> Add Employee{selectedRouteId ? " & Assign Route" : ""}</>
+                  <><UserPlus className="w-4 h-4" /> {selectedRouteId ? t("addEmployeeAssign") : t("addEmployee")}</>
                 )}
               </Button>
             </div>
@@ -617,6 +622,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
 // ─── Route Card ───────────────────────────────────────────────────────────────
 
 function RouteCard({ route }: { route: CompanyRoute }) {
+  const t = useTranslations("company.routes");
   const router = useRouter();
   const employees = route.employee_route_assignments?.map((a) => a.users).filter(Boolean) ?? [];
   const stops = route.route_stops ?? [];
@@ -646,14 +652,14 @@ function RouteCard({ route }: { route: CompanyRoute }) {
               <h3 className="font-bold text-[var(--text-primary)] group-hover:text-[var(--cort-orange)] transition-colors">
                 {route.name}
               </h3>
-              <div className="text-xs text-[var(--text-muted)]">Route #{route.id}</div>
+              <div className="text-xs text-[var(--text-muted)]">{t("routeNumber", { id: route.id })}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link href={`/company/routes/${route.id}/track`} onClick={(e) => e.stopPropagation()}>
               <Button variant="outline" size="sm" className="h-7 px-2 text-[10px] gap-1 border-[var(--border-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                 <Activity className="w-3 h-3" />
-                Track
+                {t("track")}
               </Button>
             </Link>
             <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--cort-orange)] transition-colors" />
@@ -662,10 +668,10 @@ function RouteCard({ route }: { route: CompanyRoute }) {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
           {[
-            { label: "Passengers", value: employees.length, icon: <Users className="w-3 h-3 text-[var(--cort-orange)]" /> },
-            { label: "Stops", value: `${morningStops} stops`, icon: <MapPin className="w-3 h-3 text-emerald-400" /> },
-            { label: "Vehicle", value: vehicle?.plate_number ?? "—", icon: <Car className="w-3 h-3 text-blue-400" /> },
-            { label: "Driver", value: driver?.full_name ?? "Unassigned", icon: <User className="w-3 h-3 text-purple-400" /> },
+            { label: t("passengers"), value: employees.length, icon: <Users className="w-3 h-3 text-[var(--cort-orange)]" /> },
+            { label: t("stops"), value: t("stopsCount", { count: morningStops }), icon: <MapPin className="w-3 h-3 text-emerald-400" /> },
+            { label: t("vehicle"), value: vehicle?.plate_number ?? "—", icon: <Car className="w-3 h-3 text-blue-400" /> },
+            { label: t("driver"), value: driver?.full_name ?? t("unassigned"), icon: <User className="w-3 h-3 text-purple-400" /> },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-light)] px-3 py-2">
               <div className="flex items-center gap-1.5 mb-0.5">
@@ -680,7 +686,7 @@ function RouteCard({ route }: { route: CompanyRoute }) {
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
             <Sunrise className="w-3 h-3 text-amber-500" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Morning stops</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">{t("morningStops")}</span>
           </div>
           <StopPills stops={stops} direction="MORNING" />
         </div>
@@ -704,7 +710,7 @@ function RouteCard({ route }: { route: CompanyRoute }) {
               )}
             </div>
             <span className="text-xs text-[var(--text-muted)]">
-              {employees.length} passenger{employees.length !== 1 ? "s" : ""} · Click to view all
+              {t("passengersCount", { count: employees.length })}
             </span>
           </div>
         )}
@@ -715,6 +721,8 @@ function RouteCard({ route }: { route: CompanyRoute }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function RoutesPage() {
+  const t = useTranslations("company.routes");
+  const tCommon = useTranslations("common");
   const company = useAppSelector(selectCompany);
   const [routes, setRoutes] = useState<CompanyRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -728,7 +736,7 @@ export default function RoutesPage() {
     apiClient
       .request<CompanyRoute[]>(`/routes?company_id=${company.id}`)
       .then((data) => setRoutes(Array.isArray(data) ? data : []))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load routes"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("failedToLoadRoutes")))
       .finally(() => setLoading(false));
   }
 
@@ -740,7 +748,7 @@ export default function RoutesPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
       </div>
     );
   }
@@ -749,10 +757,8 @@ export default function RoutesPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center">
-          <div className="text-lg font-bold text-[var(--text-primary)]">Shuttle Service Disabled</div>
-          <div className="mt-2 text-sm text-[var(--text-muted)]">
-            Shuttle service is not enabled for your company. Please contact Cort Super Admin.
-          </div>
+          <div className="text-lg font-bold text-[var(--text-primary)]">{t("shuttleDisabled")}</div>
+          <div className="mt-2 text-sm text-[var(--text-muted)]">{t("shuttleDisabledDescription")}</div>
         </Card>
       </div>
     );
@@ -761,16 +767,16 @@ export default function RoutesPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader
-        label="Shuttle Operations"
-        title="Route Roster"
-        description="All shuttle routes and vehicles assigned to your company. Click any route to see passengers."
+        label={t("shuttleOperations")}
+        title={t("title")}
+        description={t("pageDescription")}
         action={
           <Button
             onClick={() => setShowAddEmployee(true)}
             className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
           >
             <UserPlus className="w-4 h-4" />
-            Add Employee
+            {t("addEmployee")}
           </Button>
         }
       />
@@ -780,7 +786,7 @@ export default function RoutesPage() {
       {loading ? (
         <Card className="py-16 text-center">
           <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin text-[var(--text-muted)]" />
-          <div className="text-sm text-[var(--text-muted)]">Loading routes…</div>
+          <div className="text-sm text-[var(--text-muted)]">{t("loadingRoutes")}</div>
         </Card>
       ) : error ? (
         <Card className="py-12 text-center">
@@ -789,13 +795,13 @@ export default function RoutesPage() {
       ) : routes.length === 0 ? (
         <Card className="py-16 text-center">
           <Bus className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
-          <div className="text-sm text-[var(--text-muted)]">No routes assigned yet.</div>
-          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">Contact Cort Super Admin to assign routes.</div>
+          <div className="text-sm text-[var(--text-muted)]">{t("noRoutesAssigned")}</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("contactAdminRoutes")}</div>
         </Card>
       ) : (
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-4">
-            {routes.length} route{routes.length !== 1 ? "s" : ""} · Read-only view managed by Cort Operations
+            {t("routesCount", { count: routes.length })}
           </div>
           <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
             {routes.map((route) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
 import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from "../lib/store/slices/dashboardSlice";
 import { selectCompany } from "../lib/store/slices/companySlice";
@@ -8,6 +9,8 @@ import { useAuth } from "../lib/contexts/auth-context";
 import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../lib/services/api-client";
 import { getCalendarMonthRange } from "../lib/date-utils";
+import { useCompanyLocale } from "./lib/locale-context";
+import { formatLocaleDate } from "../lib/i18n/format";
 import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
 import EditBudgetForm from "./components/EditBudgetForm";
@@ -33,8 +36,12 @@ export default function CompanyDashboardPage() {
   const company = useAppSelector(selectCompany);
   const dashboardStats = useAppSelector(selectDashboardStats);
   const status = useAppSelector(selectDashboardStatus);
+  const t = useTranslations('company.dashboard');
+  const tErrors = useTranslations('common.errors');
+  const tCommon = useTranslations('common');
+  const { locale } = useCompanyLocale();
   const loading = status === 'loading';
-  const error = status === 'failed' ? 'Failed to load stats' : null;
+  const error = status === 'failed' ? tErrors('failedToLoadStats') : null;
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -86,26 +93,32 @@ export default function CompanyDashboardPage() {
     const insights = [];
     if (isChauffeurEnabled) {
       if (dashboardStats.chauffeur.spendTrend.startsWith('-')) {
-        insights.push(`Spending is down ${dashboardStats.chauffeur.spendTrend.replace('-', '')} compared to last month.`);
+        insights.push(t('insightSpendingDown', { percent: dashboardStats.chauffeur.spendTrend.replace('-', '') }));
       } else if (dashboardStats.chauffeur.spendTrend !== "0%") {
-        insights.push(`Spending is up ${dashboardStats.chauffeur.spendTrend.replace('+', '')} due to increased demand.`);
+        insights.push(t('insightSpendingUp', { percent: dashboardStats.chauffeur.spendTrend.replace('+', '') }));
       }
 
       if (dashboardStats.chauffeur.topPassengers.length > 0) {
-        insights.push(`${dashboardStats.chauffeur.topPassengers[0].name} has the most rides this month.`);
+        insights.push(t('insightTopPassenger', { name: dashboardStats.chauffeur.topPassengers[0].name }));
       }
     }
 
     if (dashboardStats.employees.departmentUsage.length > 0) {
-      insights.push(`${dashboardStats.employees.departmentUsage[0].name} is the most active department (${dashboardStats.employees.departmentUsage[0].percentage}%).`);
+      insights.push(t('insightTopDepartment', {
+        name: dashboardStats.employees.departmentUsage[0].name,
+        percent: dashboardStats.employees.departmentUsage[0].percentage,
+      }));
     }
 
     if (isShuttleEnabled && dashboardStats.shuttle.monthlyTrips > 0) {
-      insights.push(`${dashboardStats.shuttle.monthlyTrips} shuttle trips completed this month across ${dashboardStats.shuttle.totalRoutes} routes.`);
+      insights.push(t('insightShuttleTrips', {
+        trips: dashboardStats.shuttle.monthlyTrips,
+        routes: dashboardStats.shuttle.totalRoutes,
+      }));
     }
 
     if (insights.length === 0) {
-      insights.push("Start using enabled services to see insights here.");
+      insights.push(t('insightStartUsing'));
     }
     return insights;
   };
@@ -154,8 +167,8 @@ export default function CompanyDashboardPage() {
     },
     smartInsights: generateInsights(),
     seasonality: {
-      highDemandDay: isChauffeurEnabled ? (dashboardStats.seasonality?.highDemandDay || "Analysis Pending") : "Analysis Pending",
-      lowDemandDay: isChauffeurEnabled ? (dashboardStats.seasonality?.lowDemandDay || "Analysis Pending") : "Analysis Pending",
+      highDemandDay: isChauffeurEnabled ? (dashboardStats.seasonality?.highDemandDay || t('analysisPending')) : t('analysisPending'),
+      lowDemandDay: isChauffeurEnabled ? (dashboardStats.seasonality?.lowDemandDay || t('analysisPending')) : t('analysisPending'),
     },
     adminHealth: {
       registeredVsActiveRatio: dashboardStats.employees.total > 0 ? parseFloat((dashboardStats.employees.active / dashboardStats.employees.total).toFixed(2)) : 0,
@@ -194,7 +207,7 @@ export default function CompanyDashboardPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          Error loading company: {error}
+          {error}
         </div>
       </div>
     );
@@ -203,7 +216,7 @@ export default function CompanyDashboardPage() {
   if (!company || !data) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company data available</div>
+        <div className="text-sm text-[var(--text-muted)]">{tErrors('noCompanyData')}</div>
       </div>
     );
   }
@@ -249,16 +262,19 @@ export default function CompanyDashboardPage() {
             <div className="flex flex-col justify-center mt-auto sm:mt-0">
               <div className="flex items-center gap-2 text-white text-opacity-70 mb-1">
                 <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-sm bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                  {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  {formatLocaleDate(today, locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
-                Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">{user?.full_name?.split(' ')[0] || 'Admin'}</span>
+                {t('welcomeBack')}{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
+                  {user?.full_name?.split(' ')[0] || tCommon('misc.admin')}
+                </span>
               </h1>
               <p className="text-white text-opacity-80 max-w-xl text-base sm:text-lg">
                 {hasChauffeur
-                  ? <>You have <span className="text-white font-bold">{todayBookingsCount}</span> upcoming bookings.</>
-                  : <>Your mobility services are active.</>
+                  ? t('upcomingBookings', { count: todayBookingsCount })
+                  : t('servicesActive')
                 }
               </p>
             </div>
@@ -271,7 +287,7 @@ export default function CompanyDashboardPage() {
                 <svg className="w-4 h-4 text-white transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>New Booking</span>
+                <span>{tCommon('actions.newBooking')}</span>
               </button>
             )}
           </div>
@@ -355,7 +371,7 @@ export default function CompanyDashboardPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Create New Booking"
+        title={t('createNewBooking')}
       >
         <CreateBookingForm
           onSuccess={() => setIsModalOpen(false)}
@@ -366,7 +382,7 @@ export default function CompanyDashboardPage() {
       <Modal
         isOpen={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}
-        title="Edit Monthly Budget"
+        title={t('editMonthlyBudget')}
       >
         <EditBudgetForm
           companyId={companyId!}

@@ -1,5 +1,8 @@
 'use client';
 
+import { useTranslations, useLocale } from 'next-intl';
+import { formatLocaleNumber } from '@/app/lib/i18n/format';
+import type { Locale } from '@/i18n/config';
 import { useOutstationEstimate, LegDistance, ContractRateForEstimate } from '../../../hooks/useOutstationEstimate';
 
 interface OutstationEstimatePanelProps {
@@ -12,16 +15,18 @@ interface OutstationEstimatePanelProps {
     accommodationAllowancePerNight: number;
 }
 
-function fmt(n: number) {
-    return n.toLocaleString('en-PK');
-}
-
 export default function OutstationEstimatePanel(props: OutstationEstimatePanelProps) {
+    const t = useTranslations('company.bookings');
+    const tCommon = useTranslations('common');
+    const locale = useLocale() as Locale;
     const { estimate, isLoading, error } = useOutstationEstimate(props);
+
+    const fmt = (n: number) => formatLocaleNumber(n, locale);
 
     if (!props.destinationCities.length) return null;
 
     const nights = Math.max(0, props.noOfDays - 1);
+    const daysLabel = String(props.noOfDays);
 
     return (
         <div className="mt-4 rounded-2xl border border-[#fe8503]/20 bg-[#fe8503]/[0.04] overflow-hidden">
@@ -31,11 +36,11 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">
-                    Estimated Cost
+                    {t('estimatedCost')}
                 </span>
-                <span className="ml-1 text-[9px] text-[var(--text-muted)] font-bold">(round trip)</span>
-                <span className="ml-auto text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                    via Google Maps
+                <span className="ms-1 text-[9px] text-[var(--text-muted)] font-bold">{t('roundTripLabel')}</span>
+                <span className="ms-auto text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                    {t('viaGoogleMaps')}
                 </span>
             </div>
 
@@ -45,7 +50,7 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
                     <div className="flex items-center gap-3 py-3">
                         <div className="h-4 w-4 rounded-full border-2 border-[var(--cort-orange)] border-t-transparent animate-spin shrink-0" />
                         <span className="text-[11px] font-bold text-[var(--text-muted)]">
-                            Calculating road distances…
+                            {t('calculatingDistances')}
                         </span>
                     </div>
                 )}
@@ -56,21 +61,21 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
                         <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                         </svg>
-                        Could not compute distances — check city names and try again.
+                        {t('distanceError')}
                     </div>
                 )}
 
                 {/* No contract rate */}
                 {!isLoading && !error && !props.contractRate && (
                     <div className="text-[11px] text-[var(--text-muted)] font-bold py-2">
-                        Select a vehicle model to see cost estimate.
+                        {t('selectVehicleForEstimate')}
                     </div>
                 )}
 
                 {/* No origin city */}
                 {!isLoading && !error && props.contractRate && !props.originCity.trim() && (
                     <div className="text-[11px] text-[var(--text-muted)] font-bold py-2">
-                        Enter booking city above to calculate route.
+                        {t('enterBookingCity')}
                     </div>
                 )}
 
@@ -84,7 +89,7 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
                                 <div key={i} className="relative flex items-start gap-3 pb-3 last:pb-0">
                                     {/* Timeline line */}
                                     {i < estimate.legs.length - 1 && (
-                                        <div className="absolute left-[7px] top-5 bottom-0 w-px bg-white/10" />
+                                        <div className="absolute start-[7px] top-5 bottom-0 w-px bg-white/10" />
                                     )}
                                     {/* Dot */}
                                     <div className={`relative mt-0.5 shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
@@ -111,16 +116,16 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
                                                 <span className="text-[11px] font-black text-[var(--text-primary)] truncate">{leg.to}</span>
                                                 {leg.isReturn && (
                                                     <span className="shrink-0 text-[9px] font-black uppercase bg-white/10 text-[var(--text-secondary)] px-1.5 py-0.5 rounded-full">
-                                                        return
+                                                        {t('returnLeg')}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="shrink-0 text-right">
+                                            <div className="shrink-0 text-end">
                                                 <span className="text-[11px] font-black text-[#fe8503]">
-                                                    {leg.distanceKm > 0 ? `${leg.distanceKm} km` : '—'}
+                                                    {leg.distanceKm > 0 ? t('kmUnit', { distance: leg.distanceKm }) : '—'}
                                                 </span>
                                                 {leg.durationText && leg.durationText !== 'N/A' && (
-                                                    <span className="ml-1.5 text-[10px] text-[var(--text-muted)] font-bold">({leg.durationText})</span>
+                                                    <span className="ms-1.5 text-[10px] text-[var(--text-muted)] font-bold">({leg.durationText})</span>
                                                 )}
                                             </div>
                                         </div>
@@ -130,8 +135,8 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
 
                             {/* Total distance */}
                             <div className="flex items-center justify-between pt-3 mt-1 border-t border-[#fe8503]/10">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">Total Round-Trip Distance</span>
-                                <span className="text-[13px] font-black text-[var(--text-primary)]">{estimate.totalKm} km</span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">{t('totalRoundTripDistance')}</span>
+                                <span className="text-[13px] font-black text-[var(--text-primary)]">{t('kmUnit', { distance: estimate.totalKm })}</span>
                             </div>
                         </div>
 
@@ -140,54 +145,65 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
 
                             {/* Service charges */}
                             <CostRow
-                                label="Base Package Cost"
+                                label={t('basePackageCost')}
                                 value={estimate.basePackageCost}
-                                sub={`${props.noOfDays} day${props.noOfDays > 1 ? 's' : ''} × rate`}
+                                sub={t('daysRate', { days: daysLabel })}
+                                fmt={fmt}
+                                currency={tCommon('currency.pkr')}
                             />
                             {estimate.outstationAllowance > 0 && (
                                 <CostRow
-                                    label="Outstation Allowance"
+                                    label={t('outstationAllowance')}
                                     value={estimate.outstationAllowance}
-                                    sub={`${props.noOfDays} day${props.noOfDays > 1 ? 's' : ''}`}
+                                    sub={daysLabel}
+                                    fmt={fmt}
+                                    currency={tCommon('currency.pkr')}
                                 />
                             )}
                             {estimate.accommodationAllowance > 0 && (
                                 <CostRow
-                                    label="Accommodation"
+                                    label={t('accommodation')}
                                     value={estimate.accommodationAllowance}
-                                    sub={`${nights} night${nights > 1 ? 's' : ''}`}
+                                    sub={t('nightsCount', { nights: String(nights) })}
+                                    fmt={fmt}
+                                    currency={tCommon('currency.pkr')}
                                 />
                             )}
 
                             {/* SST on service */}
                             <div className="border-t border-dashed border-[var(--border-input)] pt-2.5">
-                                <CostRow label="SST (10% on service)" value={estimate.sst} muted />
+                                <CostRow label={t('sstOnService')} value={estimate.sst} muted fmt={fmt} currency={tCommon('currency.pkr')} />
                             </div>
 
                             {/* Fuel — separate, not taxed */}
                             <div className="border-t border-dashed border-[var(--border-input)] pt-2.5">
                                 <CostRow
-                                    label="Fuel Cost"
+                                    label={t('fuelCost')}
                                     value={estimate.fuelCost}
-                                    sub={`${estimate.totalKm} km × PKR ${Number(props.contractRate?.cost_per_km || 0)}/km`}
+                                    sub={t('fuelCostSub', {
+                                        km: String(estimate.totalKm),
+                                        rate: String(Number(props.contractRate?.cost_per_km || 0)),
+                                    })}
                                     accent
+                                    fmt={fmt}
+                                    currency={tCommon('currency.pkr')}
                                 />
                                 <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">
-                                    Toll &amp; parking billed at actuals — not included
+                                    {t('tollParkingNote')}
                                 </p>
                             </div>
 
                             {/* Grand total */}
                             <div className="border-t-2 border-[var(--border-input)] pt-3 mt-0.5 flex items-center justify-between">
-                                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)]">Estimated Total</span>
+                                <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)]">{t('estimatedTotal')}</span>
                                 <span className="text-[16px] font-black text-[var(--cort-orange)]">
-                                    PKR {fmt(estimate.total)}
+                                    {tCommon('currency.pkr')} {fmt(estimate.total)}
                                 </span>
                             </div>
                         </div>
 
                         <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-tight leading-relaxed">
-                            ⓘ Estimate only · Round trip via Google Maps road distance · Actual invoice calculated at trip completion
+                            {t('estimateDisclaimer')}
                         </p>
                     </div>
                 )}
@@ -196,12 +212,14 @@ export default function OutstationEstimatePanel(props: OutstationEstimatePanelPr
     );
 }
 
-function CostRow({ label, value, sub, muted, accent }: {
+function CostRow({ label, value, sub, muted, accent, fmt, currency }: {
     label: string;
     value: number;
     sub?: string;
     muted?: boolean;
     accent?: boolean;
+    fmt: (n: number) => string;
+    currency: string;
 }) {
     return (
         <div className="flex items-center justify-between">
@@ -212,7 +230,7 @@ function CostRow({ label, value, sub, muted, accent }: {
             <span className={`text-[11px] font-black ${
                 muted ? 'text-[var(--text-muted)]' : accent ? 'text-[#fe8503]' : 'text-white'
             }`}>
-                PKR {value.toLocaleString('en-PK')}
+                {currency} {fmt(value)}
             </span>
         </div>
     );

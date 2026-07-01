@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 export default function CompanyError({
     error,
@@ -9,6 +10,9 @@ export default function CompanyError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    const t = useTranslations("company.error");
+    const tCommon = useTranslations("common.errors");
+
     useEffect(() => {
         console.error("[Company Error Boundary]", error);
     }, [error]);
@@ -22,16 +26,16 @@ export default function CompanyError({
                     </svg>
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">Something went wrong</h2>
+                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">{t("title")}</h2>
                     <p className="mt-1 text-sm text-[var(--text-muted)]">
-                        {error.message || "An unexpected error occurred. Please try again."}
+                        {error.message || tCommon("generic")}
                     </p>
                 </div>
                 <button
                     onClick={reset}
                     className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-orange rounded-lg hover:bg-orange/90 transition-colors"
                 >
-                    Try again
+                    {t("tryAgain")}
                 </button>
             </div>
         </div>

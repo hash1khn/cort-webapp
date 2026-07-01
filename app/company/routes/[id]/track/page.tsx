@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Bus, MapPin, Navigation, RefreshCw, Radio, ChevronLeft, X } from 'lucide-react';
 import { Button } from '@/app/admin/ui/Button';
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS } from '@/app/company/components/PageLayout';
@@ -53,6 +54,9 @@ type PolylineResponse = {
 export default function CompanyRouteTrackingPage() {
     const params = useParams();
     const router = useRouter();
+    const t = useTranslations('company.routes.tracking');
+    const tRoutes = useTranslations('company.routes');
+    const tCommon = useTranslations('common');
     const routeId = params.id ? +params.id : null;
 
     const [trips, setTrips] = useState<ShuttleTrip[]>([]);
@@ -88,7 +92,7 @@ export default function CompanyRouteTrackingPage() {
                 setSelectedTripId(list[0].id);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load tracking data');
+            setError(err instanceof Error ? err.message : t('failedToLoadTracking'));
         } finally {
             setLoading(false);
         }
@@ -133,7 +137,9 @@ export default function CompanyRouteTrackingPage() {
         return {
             id: 'driver',
             position: [driverCoord.lat, driverCoord.lng],
-            label: `Driver · ${driverCoord.speed !== undefined ? `${Math.round((driverCoord.speed ?? 0) * 3.6)} km/h` : 'live'}`,
+            label: driverCoord.speed !== undefined
+                ? t('driverLabel', { speed: `${Math.round((driverCoord.speed ?? 0) * 3.6)} km/h` })
+                : t('driverLive'),
         };
     }, [driverCoord]);
 
@@ -205,9 +211,9 @@ export default function CompanyRouteTrackingPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12 px-4 md:px-6">
             <PageHeader
-                label="Shuttle Operations"
-                title={selectedTrip?.routes?.name || 'Live Route Status'}
-                description="Monitor real-time shuttle positions, stops, and precision telemetry."
+                label={tRoutes('shuttleOperations')}
+                title={selectedTrip?.routes?.name || t('liveRouteStatus')}
+                description={t('description')}
                 action={
                     <div className="flex items-center gap-3">
                         <Button
@@ -216,7 +222,7 @@ export default function CompanyRouteTrackingPage() {
                             className="text-muted hover:text-navy font-semibold text-xs flex items-center gap-1"
                         >
                             <ChevronLeft className="w-4 h-4" />
-                            Back
+                            {tCommon('actions.back')}
                         </Button>
                         <Button
                             variant="outline"
@@ -225,9 +231,9 @@ export default function CompanyRouteTrackingPage() {
                             className="bg-white border-border shadow-sm hover:border-navy/20 h-10 px-4 rounded-lg text-xs font-semibold"
                         >
                             <RefreshCw
-                                className={`w-3.5 h-3.5 mr-2 ${loading ? 'animate-spin' : ''}`}
+                                className={`w-3.5 h-3.5 me-2 ${loading ? 'animate-spin' : ''}`}
                             />
-                            Refresh Data
+                            {t('refreshData')}
                         </Button>
                     </div>
                 }
@@ -238,12 +244,12 @@ export default function CompanyRouteTrackingPage() {
                 <aside className="w-full lg:w-96 shrink-0 flex flex-col gap-6 dashboard-section">
                     <Card className={`overflow-hidden shadow-sm !p-0 ${TABLE_CARD_CLASS}`}>
                         <div className={TABLE_TOP_BAR_CLASS}>
-                            <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Today&apos;s Schedule</h2>
-                            <div className="space-y-3 overflow-y-auto max-h-[40vh] pr-1 custom-scrollbar">
+                            <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">{t('todaysSchedule')}</h2>
+                            <div className="space-y-3 overflow-y-auto max-h-[40vh] pe-1 custom-scrollbar">
                                 {trips.length === 0 && !loading && (
                                     <div className="p-8 text-center border-2 border-dashed border-border rounded-2xl">
                                         <Bus className="w-8 h-8 mx-auto mb-2 text-muted/30" />
-                                        <p className="text-xs text-muted">No trips scheduled today.</p>
+                                        <p className="text-xs text-muted">{t('noTripsToday')}</p>
                                     </div>
                                 )}
 
@@ -253,7 +259,7 @@ export default function CompanyRouteTrackingPage() {
                                         type="button"
                                         onClick={() => setSelectedTripId(trip.id)}
                                         className={`
-                                            w-full text-left rounded-xl border-2 transition-all duration-300
+                                            w-full text-start rounded-xl border-2 transition-all duration-300
                                             p-4
                                             ${selectedTripId === trip.id
                                                 ? 'bg-navy text-white border-navy shadow-md ring-1 ring-navy/20'
@@ -276,10 +282,10 @@ export default function CompanyRouteTrackingPage() {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-sm tracking-tight">
-                                                        {trip.direction} Trip
+                                                        {t('directionTrip', { direction: trip.direction })}
                                                     </p>
                                                     <p className={`text-[10px] mt-0.5 ${selectedTripId === trip.id ? 'text-white/60' : 'text-muted'}`}>
-                                                        {trip.routes?.vehicles?.plate_number ?? 'No Vehicle'}
+                                                        {trip.routes?.vehicles?.plate_number ?? t('noVehicle')}
                                                     </p>
                                                 </div>
                                             </div>
@@ -302,14 +308,14 @@ export default function CompanyRouteTrackingPage() {
                             {selectedTrip ? (
                                 <>
                                     <div>
-                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Live Telemetry</h2>
+                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">{t('liveTelemetry')}</h2>
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between p-3 rounded-xl bg-surface-subtle border border-border">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-lg bg-orange/10 flex items-center justify-center">
                                                         <Navigation className="w-4 h-4 text-orange" />
                                                     </div>
-                                                    <span className="text-sm font-semibold text-navy">Trip Status</span>
+                                                    <span className="text-sm font-semibold text-navy">{t('tripStatus')}</span>
                                                 </div>
                                                 <span className="text-sm font-bold text-orange">{selectedTrip.status}</span>
                                             </div>
@@ -319,33 +325,33 @@ export default function CompanyRouteTrackingPage() {
                                                     <div className="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center">
                                                         <Radio className={`w-4 h-4 ${isConnected ? 'text-green-500' : 'text-blue'}`} />
                                                     </div>
-                                                    <span className="text-sm font-semibold text-navy">Connection</span>
+                                                    <span className="text-sm font-semibold text-navy">{t('connection')}</span>
                                                 </div>
                                                 <span className={`text-[10px] font-bold uppercase ${isConnected ? 'text-green-600' : 'text-muted'}`}>
-                                                    {isConnected ? 'High Precision' : 'Awaiting Signals'}
+                                                    {isConnected ? t('highPrecision') : t('awaitingSignals')}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">Route Info</h2>
+                                        <h2 className="text-xs font-bold text-muted uppercase tracking-widest mb-4">{t('routeInfo')}</h2>
                                         <div className="p-4 rounded-xl bg-navy text-white shadow-xl shadow-navy/10">
                                             <div className="flex items-center gap-3 mb-4">
                                                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                                                     <MapPin className="w-5 h-5 text-orange" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-white/50 uppercase">Total Stops</p>
-                                                    <p className="text-lg font-bold">{selectedTrip.routes?.route_stops?.length || 0} Scheduled</p>
+                                                    <p className="text-[10px] font-bold text-white/50 uppercase">{t('totalStops')}</p>
+                                                    <p className="text-lg font-bold">{t('scheduled', { count: selectedTrip.routes?.route_stops?.length || 0 })}</p>
                                                 </div>
                                             </div>
                                             <div className="h-px bg-white/10 w-full mb-4" />
                                             <div className="flex items-center justify-between text-[11px] font-medium text-white/70">
-                                                <span>Platform Status</span>
+                                                <span>{t('platformStatus')}</span>
                                                 <span className="flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                                    Cloud Integrated
+                                                    {t('cloudIntegrated')}
                                                 </span>
                                             </div>
                                         </div>
@@ -354,7 +360,7 @@ export default function CompanyRouteTrackingPage() {
                             ) : (
                                 <div className="py-8 flex flex-col items-center justify-center text-center grayscale opacity-50">
                                     <MapPin className="w-10 h-10 mb-3 text-muted" />
-                                    <p className="text-xs font-medium text-muted">Select a trip to view telemetry</p>
+                                    <p className="text-xs font-medium text-muted">{t('selectTripTelemetry')}</p>
                                 </div>
                             )}
                         </div>
@@ -376,15 +382,15 @@ export default function CompanyRouteTrackingPage() {
 
                             {/* Map Floating Legend */}
                             {selectedTrip && (
-                                <div className="absolute top-4 left-4 z-10">
+                                <div className="absolute top-4 start-4 z-10">
                                     <div className="bg-white/95 border border-border shadow-md p-2 rounded-lg flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5 pr-3 border-r border-border font-bold text-[10px] text-navy">
+                                        <div className="flex items-center gap-1.5 pe-3 border-e border-border font-bold text-[10px] text-navy">
                                             <div className="w-2.5 h-2.5 rounded-full bg-orange animate-pulse" />
-                                            Live Driver
+                                            {t('liveDriver')}
                                         </div>
                                         <div className="flex items-center gap-1.5 font-bold text-[10px] text-navy/60">
                                             <div className="w-2.5 h-0.5 bg-navy/20" />
-                                            Planned Route
+                                            {t('plannedRoute')}
                                         </div>
                                     </div>
                                 </div>
@@ -396,11 +402,11 @@ export default function CompanyRouteTrackingPage() {
 
             {/* Error Overlay */}
             {error && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+                <div className="fixed top-20 start-1/2 -translate-x-1/2 z-50">
                     <div className="bg-white border-2 border-danger text-danger px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-slide-up font-bold text-sm">
                         <X className="w-4 h-4" />
                         {error}
-                        <button onClick={() => setError(null)} className="ml-4 text-muted hover:text-danger">
+                        <button onClick={() => setError(null)} className="ms-4 text-muted hover:text-danger">
                             <X className="w-4 h-4 font-bold" />
                         </button>
                     </div>
@@ -412,7 +418,7 @@ export default function CompanyRouteTrackingPage() {
                 <div className="fixed inset-0 z-[100] bg-navy/5 backdrop-blur-[2px] flex items-center justify-center">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl border border-border flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-navy border-t-transparent rounded-full animate-spin" />
-                        <p className="text-navy font-bold text-sm uppercase tracking-widest">In Sync</p>
+                        <p className="text-navy font-bold text-sm uppercase tracking-widest">{t('inSync')}</p>
                     </div>
                 </div>
             )}

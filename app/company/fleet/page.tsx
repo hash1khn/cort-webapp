@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
@@ -69,6 +70,8 @@ const getDefaultVehicleForm = () => ({
 });
 
 export default function CompanyFleetPage() {
+    const t = useTranslations("company.fleet");
+    const tCommon = useTranslations("common");
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
 
@@ -111,7 +114,7 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolVehicles(companyId);
             setVehicles(res.data);
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load pool vehicles"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedLoadVehicles")); }
         finally { setVehiclesLoading(false); }
     }, [companyId]);
 
@@ -121,7 +124,7 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolDrivers(companyId);
             setDrivers(res.data);
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to load pool drivers"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedLoadDrivers")); }
         finally { setDriversLoading(false); }
     }, [companyId]);
 
@@ -172,24 +175,24 @@ export default function CompanyFleetPage() {
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
             });
-            toast.success("Vehicle added to pool");
+            toast.success(t("vehicleAdded"));
             setShowAddVehicle(false);
             setVehicleForm(getDefaultVehicleForm());
             fetchVehicles();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to add vehicle");
+            toast.error(err instanceof Error ? err.message : t("failedAddVehicle"));
         } finally {
             setVehicleSaving(false);
         }
     };
 
     const handleDeactivateVehicle = async (vehicleId: number) => {
-        if (!confirm("Deactivate this pool vehicle?")) return;
+        if (!confirm(t("confirmDeactivateVehicle"))) return;
         try {
             await apiClient.deactivatePoolVehicle(companyId, vehicleId);
-            toast.success("Vehicle deactivated");
+            toast.success(t("vehicleDeactivated"));
             fetchVehicles();
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate vehicle"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedDeactivateVehicle")); }
     };
 
     const handleInviteDriver = async (e: React.FormEvent) => {
@@ -210,31 +213,31 @@ export default function CompanyFleetPage() {
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
-            toast.success("Driver invited to pool");
+            toast.success(t("driverInvited"));
             setShowAddDriver(false);
             setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
             fetchDrivers();
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to invite driver");
+            toast.error(err instanceof Error ? err.message : t("failedInviteDriver"));
         } finally {
             setDriverSaving(false);
         }
     };
 
     const handleDeactivateDriver = async (userId: string) => {
-        if (!confirm("Deactivate this pool driver?")) return;
+        if (!confirm(t("confirmDeactivateDriver"))) return;
         try {
             await apiClient.deactivatePoolDriver(companyId, userId);
-            toast.success("Driver deactivated");
+            toast.success(t("driverDeactivated"));
             fetchDrivers();
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to deactivate driver"); }
+        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedDeactivateDriver")); }
     };
 
     if (!featureLoaded) {
         return (
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
                 <div className="flex items-center justify-center py-24">
-                    <div className="text-sm text-[var(--text-muted)]">Loading fleet data…</div>
+                    <div className="text-sm text-[var(--text-muted)]">{t("loadingFleet")}</div>
                 </div>
             </div>
         );
@@ -243,14 +246,14 @@ export default function CompanyFleetPage() {
     if (!isEnabled) {
         return (
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-                <PageHeader label="Self-Managed Fleet" title="Pool Fleet" description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings" />
+                <PageHeader label={t("selfManagedLabel")} title={t("title")} description={t("selfManagedDescription")} />
                 <Card className="flex items-center justify-center min-h-[400px]">
                     <div className="text-center max-w-sm">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--surface-subtle)] mb-4">
                             <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
                         </div>
-                        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">Pool Fleet Not Enabled</h2>
-                        <p className="text-sm text-[var(--text-muted)]">The self-managed fleet feature is not enabled for your company. Contact your CORT account manager to enable it.</p>
+                        <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">{t("notEnabled")}</h2>
+                        <p className="text-sm text-[var(--text-muted)]">{t("notEnabledDescription")}</p>
                     </div>
                 </Card>
             </div>
@@ -260,43 +263,27 @@ export default function CompanyFleetPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <PageHeader
-                label="Self-Managed Fleet"
-                title="Pool Fleet"
-                description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings"
+                label={t("selfManagedLabel")}
+                title={t("title")}
+                description={t("selfManagedDescription")}
                 action={
                     activeTab === "vehicles" ? (
-                        <button
-                            onClick={() => setShowAddVehicle(true)}
-                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
-                        >
-                            + Add Vehicle
+                        <button onClick={() => setShowAddVehicle(true)} className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0">
+                            + {t("addVehicle")}
                         </button>
                     ) : (
-                        <button
-                            onClick={() => setShowAddDriver(true)}
-                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
-                        >
-                            + Invite Driver
+                        <button onClick={() => setShowAddDriver(true)} className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0">
+                            + {t("inviteDriver")}
                         </button>
                     )
                 }
             />
 
-            {/* Tab Nav */}
             <div className="border-b border-[var(--border-light)]">
                 <nav className="-mb-px flex space-x-8">
                     {(["vehicles", "drivers", "analytics"] as const).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={cx(
-                                "whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors",
-                                activeTab === tab
-                                    ? "border-[var(--cort-orange)] text-[var(--cort-orange)]"
-                                    : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]"
-                            )}
-                        >
-                            {tab === "vehicles" ? "Pool Vehicles" : tab === "drivers" ? "Pool Drivers" : "Analytics"}
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={cx("whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors", activeTab === tab ? "border-[var(--cort-orange)] text-[var(--cort-orange)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]")}>
+                            {tab === "vehicles" ? t("poolVehicles") : tab === "drivers" ? t("poolDrivers") : t("analytics")}
                         </button>
                     ))}
                 </nav>
@@ -306,22 +293,22 @@ export default function CompanyFleetPage() {
             {activeTab === "vehicles" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">Pool vehicles registered under your company for self-managed bookings.</p>
+                        <p className="text-sm text-[var(--text-muted)]">{t("vehiclesDescription")}</p>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm text-left">
+                        <table className="min-w-full text-sm text-start">
                             <thead>
                                 <tr className="border-b border-[var(--border-light)]">
-                                    {["Plate", "Make / Model", "Year", "Category", "Status", "Actions"].map((h) => (
+                                    {[t("plate"), t("makeModel"), t("year"), t("category"), t("status"), t("actions")].map((h) => (
                                         <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {vehiclesLoading ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>{tCommon("status.loading")}</td></tr>
                                 ) : vehicles.length === 0 ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool vehicles yet</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>{t("noPoolVehicles")}</td></tr>
                                 ) : vehicles.map((v) => (
                                     <tr key={v.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                                         <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{v.plate_number}</td>
@@ -335,13 +322,13 @@ export default function CompanyFleetPage() {
                                                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                                     : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
                                             )}>
-                                                <span className={cx("w-1.5 h-1.5 rounded-full mr-1.5", v.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", v.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
                                                 {v.status ?? "—"}
                                             </span>
                                         </td>
                                         <td className={TABLE_CELL_CLASS}>
                                             {v.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateVehicle(v.id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
+                                                <button onClick={() => handleDeactivateVehicle(v.id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">{t("deactivate")}</button>
                                             )}
                                         </td>
                                     </tr>
@@ -356,22 +343,22 @@ export default function CompanyFleetPage() {
             {activeTab === "drivers" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">Pool drivers assigned to your company for chauffeur bookings.</p>
+                        <p className="text-sm text-[var(--text-muted)]">{t("driversDescription")}</p>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm text-left">
+                        <table className="min-w-full text-sm text-start">
                             <thead>
                                 <tr className="border-b border-[var(--border-light)]">
-                                    {["Name", "Email", "Phone", "Type", "Status", "Actions"].map((h) => (
+                                    {[t("name"), t("email"), t("phone"), t("type"), t("status"), t("actions")].map((h) => (
                                         <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border-light)]/50">
                                 {driversLoading ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>Loading…</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>{tCommon("status.loading")}</td></tr>
                                 ) : drivers.length === 0 ? (
-                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>No pool drivers yet</td></tr>
+                                    <tr><td colSpan={6} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>{t("noPoolDrivers")}</td></tr>
                                 ) : drivers.map((d) => (
                                     <tr key={d.user_id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                                         <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{d.users.full_name}</td>
@@ -385,13 +372,13 @@ export default function CompanyFleetPage() {
                                                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                                     : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
                                             )}>
-                                                <span className={cx("w-1.5 h-1.5 rounded-full mr-1.5", d.users.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", d.users.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
                                                 {d.users.status ?? "—"}
                                             </span>
                                         </td>
                                         <td className={TABLE_CELL_CLASS}>
                                             {d.users.status === "ACTIVE" && (
-                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">Deactivate</button>
+                                                <button onClick={() => handleDeactivateDriver(d.user_id)} className="text-xs text-rose-400 hover:text-rose-300 transition-colors">{t("deactivate")}</button>
                                             )}
                                         </td>
                                     </tr>
@@ -408,22 +395,18 @@ export default function CompanyFleetPage() {
                     {/* Header row with generate button */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-base font-bold text-[var(--text-primary)]">Pool Fleet Analytics</h2>
-                            <p className="text-xs text-[var(--text-muted)] mt-0.5">Last 30 days · 300 available hours per vehicle</p>
+                            <h2 className="text-base font-bold text-[var(--text-primary)]">{t("poolAnalyticsTitle")}</h2>
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">{t("poolAnalyticsSubtitle")}</p>
                         </div>
-                        <button
-                            onClick={triggerGenerate}
-                            disabled={generating}
-                            className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
+                        <button onClick={triggerGenerate} disabled={generating} className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed">
                             <RefreshCw className={cx("h-4 w-4", generating && "animate-spin")} />
-                            {generating ? "Generating…" : "Run AI Analysis"}
+                            {generating ? t("generating") : t("runAiAnalysis")}
                         </button>
                     </div>
 
                     {analyticsLoading ? (
                         <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
-                            <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading analytics…
+                            <RefreshCw className="h-5 w-5 animate-spin me-2" /> {t("loadingAnalytics")}
                         </div>
                     ) : (
                         <>
@@ -438,25 +421,10 @@ export default function CompanyFleetPage() {
                             {poolUtil && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                                        <KpiCard label="Pool vehicles" value={poolUtil.summary.total_pool_vehicles.toString()} icon={<Car className="h-5 w-5 text-violet-400" />} />
-                                        <KpiCard
-                                            label="Avg utilization"
-                                            value={`${poolUtil.summary.avg_utilization_pct}%`}
-                                            icon={<Clock className="h-5 w-5 text-blue-400" />}
-                                            good={poolUtil.summary.avg_utilization_pct >= 30}
-                                        />
-                                        <KpiCard
-                                            label="Idle vehicles"
-                                            value={poolUtil.summary.idle_vehicle_count.toString()}
-                                            icon={<AlertTriangle className="h-5 w-5 text-amber-400" />}
-                                            good={poolUtil.summary.idle_vehicle_count === 0}
-                                        />
-                                        <KpiCard
-                                            label="Underutilized (<30%)"
-                                            value={poolUtil.summary.underutilized_count.toString()}
-                                            icon={<TrendingDown className="h-5 w-5 text-rose-400" />}
-                                            good={poolUtil.summary.underutilized_count === 0}
-                                        />
+                                        <KpiCard label={t("poolVehiclesKpi")} value={poolUtil.summary.total_pool_vehicles.toString()} icon={<Car className="h-5 w-5 text-violet-400" />} />
+                                        <KpiCard label={t("avgUtilization")} value={`${poolUtil.summary.avg_utilization_pct}%`} icon={<Clock className="h-5 w-5 text-blue-400" />} good={poolUtil.summary.avg_utilization_pct >= 30} />
+                                        <KpiCard label={t("idleVehicles")} value={poolUtil.summary.idle_vehicle_count.toString()} icon={<AlertTriangle className="h-5 w-5 text-amber-400" />} good={poolUtil.summary.idle_vehicle_count === 0} />
+                                        <KpiCard label={t("underutilized")} value={poolUtil.summary.underutilized_count.toString()} icon={<TrendingDown className="h-5 w-5 text-rose-400" />} good={poolUtil.summary.underutilized_count === 0} />
                                     </div>
 
                                     {/* Per-vehicle utilization table */}
@@ -465,14 +433,14 @@ export default function CompanyFleetPage() {
                                             <div className={TABLE_TOP_BAR_CLASS}>
                                                 <div className="flex items-center gap-2">
                                                     <BarChart2 className="h-4 w-4 text-violet-400" />
-                                                    <span className="text-sm font-semibold text-[var(--text-primary)]">Vehicle Utilization</span>
+                                                    <span className="text-sm font-semibold text-[var(--text-primary)]">{t("vehicleUtilization")}</span>
                                                 </div>
                                             </div>
                                             <div className="overflow-x-auto">
-                                                <table className="min-w-full text-sm text-left">
+                                                <table className="min-w-full text-sm text-start">
                                                     <thead>
                                                         <tr className="border-b border-[var(--border-light)]">
-                                                            {["Vehicle", "Category", "Trips", "Hours Used", "Utilization"].map(h => (
+                                                            {[t("vehicle"), t("category"), t("trips"), t("hoursUsed"), t("utilization")].map(h => (
                                                                 <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                                             ))}
                                                         </tr>
@@ -511,8 +479,8 @@ export default function CompanyFleetPage() {
                             {!poolUtil && poolInsights.length === 0 && (
                                 <div className="flex flex-col items-center justify-center py-16 text-[var(--text-muted)]">
                                     <BarChart2 className="h-8 w-8 mb-3 opacity-30" />
-                                    <p className="text-sm font-medium">No analytics data yet</p>
-                                    <p className="text-xs mt-1 opacity-60">Click &quot;Run AI Analysis&quot; to generate pool fleet insights.</p>
+                                    <p className="text-sm font-medium">{t("noAnalyticsData")}</p>
+                                    <p className="text-xs mt-1 opacity-60">{t("noAnalyticsHint")}</p>
                                 </div>
                             )}
                         </>
@@ -522,27 +490,27 @@ export default function CompanyFleetPage() {
 
             {/* Add Vehicle Modal */}
             {showAddVehicle && (
-                <Modal title="Add Pool Vehicle" onClose={() => setShowAddVehicle(false)}>
+                <Modal title={t("addPoolVehicle")} onClose={() => setShowAddVehicle(false)}>
                     <form onSubmit={handleAddVehicle} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Plate Number *"><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Category">
+                            <Field label={t("plate") + " *"}><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("category")}>
                                 <select value={vehicleForm.category} onChange={(e) => setVehicleForm((f) => ({ ...f, category: e.target.value as VehicleCategory }))} className={inputCls}>
                                     {VEHICLE_CATEGORIES.map((c) => (
                                         <option key={c} value={c}>{formatVehicleCategory(c)}</option>
                                     ))}
                                 </select>
                             </Field>
-                            <Field label="Make *"><input required value={vehicleForm.make} onChange={(e) => setVehicleForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Model *"><input required value={vehicleForm.model} onChange={(e) => setVehicleForm((f) => ({ ...f, model: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Year *"><input required type="number" value={vehicleForm.year} onChange={(e) => setVehicleForm((f) => ({ ...f, year: Number(e.target.value) }))} className={inputCls} /></Field>
-                            <Field label="Color"><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
-                            <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label={t("make") + " *"}><input required value={vehicleForm.make} onChange={(e) => setVehicleForm((f) => ({ ...f, make: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("model") + " *"}><input required value={vehicleForm.model} onChange={(e) => setVehicleForm((f) => ({ ...f, model: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("year") + " *"}><input required type="number" value={vehicleForm.year} onChange={(e) => setVehicleForm((f) => ({ ...f, year: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label={t("color")}><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("fuelAvgCity")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
+                            <Field label={t("fuelAvgHighway")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddVehicle(false)} className={cancelBtnCls}>Cancel</button>
-                            <button type="submit" disabled={vehicleSaving} className={saveBtnCls}>{vehicleSaving ? "Adding…" : "Add Vehicle"}</button>
+                            <button type="button" onClick={() => setShowAddVehicle(false)} className={cancelBtnCls}>{tCommon("actions.cancel")}</button>
+                            <button type="submit" disabled={vehicleSaving} className={saveBtnCls}>{vehicleSaving ? t("adding") : t("addVehicle")}</button>
                         </div>
                     </form>
                 </Modal>
@@ -550,19 +518,19 @@ export default function CompanyFleetPage() {
 
             {/* Invite Driver Modal */}
             {showAddDriver && (
-                <Modal title="Invite Pool Driver" onClose={() => setShowAddDriver(false)}>
+                <Modal title={t("invitePoolDriver")} onClose={() => setShowAddDriver(false)}>
                     <form onSubmit={handleInviteDriver} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
-                            <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
-                            <Field label="Email *"><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="License No."><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("fullNameRequired")}><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("phone")}><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
+                            <Field label={t("email") + " *"}><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("passwordRequired")}><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("cnic")}><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
+                            <Field label={t("licenseNo")}><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>Cancel</button>
-                            <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? "Inviting…" : "Invite Driver"}</button>
+                            <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>{tCommon("actions.cancel")}</button>
+                            <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? t("inviting") : t("inviteDriver")}</button>
                         </div>
                     </form>
                 </Modal>
@@ -581,6 +549,7 @@ function severityColor(s: string) {
 }
 
 function InsightCard({ insight }: { insight: PoolInsight }) {
+    const t = useTranslations("company.fleet");
     return (
         <div className={cx('rounded-2xl border p-4', severityColor(insight.severity))}>
             <div className="flex items-start gap-3">
@@ -593,11 +562,11 @@ function InsightCard({ insight }: { insight: PoolInsight }) {
                     <p className="text-sm font-medium">{insight.data.summary}</p>
                     <p className="text-xs mt-1 opacity-80">{insight.data.recommendation}</p>
                     {insight.data.metric_value != null && (
-                        <p className="text-xs mt-1 font-mono opacity-70">Metric: {insight.data.metric_value}</p>
+                        <p className="text-xs mt-1 font-mono opacity-70">{t("metric", { value: insight.data.metric_value })}</p>
                     )}
                     {insight.estimated_saving_pkr && parseFloat(insight.estimated_saving_pkr) > 0 && (
                         <p className="text-xs mt-2 font-semibold">
-                            Est. saving: PKR {parseFloat(insight.estimated_saving_pkr).toLocaleString()} / month
+                            {t("estSaving", { amount: parseFloat(insight.estimated_saving_pkr).toLocaleString() })}
                         </p>
                     )}
                 </div>
@@ -622,7 +591,7 @@ function UtilBar({ pct }: { pct: number }) {
             <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
                 <div className={cx('h-full rounded-full', color)} style={{ width: `${Math.min(100, pct)}%` }} />
             </div>
-            <span className={cx('text-xs font-bold w-10 text-right', pct < 30 ? 'text-rose-400' : 'text-[var(--text-secondary)]')}>{pct}%</span>
+            <span className={`text-xs font-bold w-10 text-end ${pct < 30 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
         </div>
     );
 }

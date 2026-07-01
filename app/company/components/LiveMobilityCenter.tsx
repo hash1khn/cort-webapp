@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import {
     Users,
     Bus,
@@ -25,13 +26,18 @@ import { useLiveMobilityTracking } from '../../lib/hooks/useLiveMobilityTracking
 import type { MapMarker } from '../../admin/ui/Map';
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
+function MapLoading() {
+    const t = useTranslations('company.mobility');
+    return (
+        <div className="w-full h-full bg-[var(--surface-muted)] animate-pulse flex items-center justify-center rounded-2xl">
+            <span className="text-[var(--text-muted)] text-sm font-medium">{t('initializingMap')}</span>
+        </div>
+    );
+}
+
 const Map = dynamic(() => import('../../admin/ui/Map'), {
     ssr: false,
-    loading: () => (
-        <div className="w-full h-full bg-[var(--surface-muted)] animate-pulse flex items-center justify-center rounded-2xl">
-            <span className="text-[var(--text-muted)] text-sm font-medium">Initializing Real-time Map...</span>
-        </div>
-    ),
+    loading: () => <MapLoading />,
 });
 
 interface LiveMobilityCenterProps {
@@ -57,6 +63,8 @@ interface TripEntry {
 }
 
 const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
+    const t = useTranslations('company.mobility');
+    const tDashboard = useTranslations('company.dashboard');
     const router = useRouter();
     const company = useAppSelector(selectCompany);
     const dashboardStats = useAppSelector(selectDashboardStats);
@@ -83,11 +91,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     // ── Real counters from mobility block ─────────────────────────────────────
     const mobility = dashboardStats?.mobility ?? data;
     const stats = [
-        { label: 'Active rides',         value: mobility.activeRides,        icon: <Navigation size={20} />, show: true },
-        { label: 'Employees travelling', value: mobility.employeesTraveling,  icon: <Users size={20} />,     show: true },
-        { label: 'Shuttles running',     value: mobility.shuttlesRunning,     icon: <Bus size={20} />,       show: hasShuttle },
-        { label: 'Chauffeur rides',      value: mobility.chauffeurRides,      icon: <Car size={20} />,       show: hasChauffeur },
-        { label: 'Upcoming rides',       value: mobility.upcomingBookings,    icon: <Calendar size={20} />,  show: true },
+        { label: t('activeRidesLabel'), value: mobility.activeRides, icon: <Navigation size={20} />, show: true },
+        { label: t('employeesTravelingLabel'), value: mobility.employeesTraveling, icon: <Users size={20} />, show: true },
+        { label: t('shuttlesRunningLabel'), value: mobility.shuttlesRunning, icon: <Bus size={20} />, show: hasShuttle },
+        { label: t('chauffeurRidesLabel'), value: mobility.chauffeurRides, icon: <Car size={20} />, show: hasChauffeur },
+        { label: t('upcomingRidesLabel'), value: mobility.upcomingBookings, icon: <Calendar size={20} />, show: true },
     ].filter(s => s.show);
 
     // ── Fetch active trip IDs: shuttles + chauffeur ────────────────────────────
@@ -323,8 +331,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         <div className="relative w-3 h-3 bg-red-500 rounded-full border border-white/20"></div>
                     </div>
                     <div>
-                        <h2 className="text-xl font-black tracking-tight uppercase text-[var(--text-primary)]">Live Mobility Command Center</h2>
-                        <p className="text-[var(--text-secondary)] text-[10px] font-bold tracking-widest uppercase mb-0">Real-time Operational Overview</p>
+                        <h2 className="text-xl font-black tracking-tight uppercase text-[var(--text-primary)]">{t('commandCenter')}</h2>
+                        <p className="text-[var(--text-secondary)] text-[10px] font-bold tracking-widest uppercase mb-0">{t('operationalOverview')}</p>
                     </div>
                 </div>
 
@@ -335,11 +343,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             ? 'bg-green-500/10 border-green-500/30 text-green-400'
                             : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
                         <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
-                        {isConnected ? 'Live' : 'Connecting…'}
+                        {isConnected ? t('live') : t('connecting')}
                     </div>
 
                     <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Ops Time</span>
+                        <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">{t('opsTime')}</span>
                         <div className="font-mono text-lg font-bold text-orange">
                             {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
@@ -347,7 +355,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                     <button
                         onClick={fetchActiveTrips}
                         className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                        title="Refresh trips"
+                        title={t('refreshTrips')}
                     >
                         <RefreshCw size={16} className={`text-[var(--text-primary)] ${tripsLoading ? 'animate-spin' : ''}`} />
                     </button>
@@ -385,7 +393,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         </div>
 
                         {/* Status chip — outside overflow-hidden so it isn't clipped */}
-                        <div className="absolute top-8 left-8 z-[500] flex flex-col gap-2 pointer-events-none">
+                        <div className="absolute top-8 start-8 z-[500] flex flex-col gap-2 pointer-events-none">
                             <div className={`backdrop-blur-md border p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg
                                 ${liveCount > 0
                                     ? 'bg-green-900/80 border-green-500/40'
@@ -398,19 +406,19 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                             : 'bg-white/30'}`} />
                                 <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
                                     {tripsLoading
-                                        ? 'Syncing…'
+                                        ? t('syncing')
                                         : liveCount > 0
-                                            ? `${liveCount} vehicle${liveCount !== 1 ? 's' : ''} live`
+                                            ? t('vehiclesLive', { count: liveCount })
                                             : trips.length > 0
-                                                ? `${trips.length} trip${trips.length !== 1 ? 's' : ''} tracked`
-                                                : 'No active trips'}
+                                                ? t('tripsTracked', { count: trips.length })
+                                                : t('noActiveTrips')}
                                 </span>
                             </div>
                             {lastRefreshed && (
                                 <div className="bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-input)] p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm">
                                     <Clock size={10} className="text-[var(--text-muted)]" />
                                     <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                                        Synced {lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                        {t('synced', { time: lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) })}
                                     </span>
                                 </div>
                             )}
@@ -418,7 +426,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
 
                         {/* Shuttle detail panel — slides in when a shuttle marker is clicked */}
                         {selectedShuttleTrip && (
-                            <div className="absolute top-4 right-4 bottom-4 w-72 z-[600] flex flex-col bg-[var(--bg-card)] border border-[var(--border-default)] rounded-4xl shadow-2xl overflow-hidden">
+                            <div className="absolute top-4 end-4 bottom-4 w-72 z-[600] flex flex-col bg-[var(--bg-card)] border border-[var(--border-default)] rounded-4xl shadow-2xl overflow-hidden">
                                 {/* Header */}
                                 <div className="p-4 border-b border-[var(--border-default)]">
                                     <div className="flex items-start justify-between gap-2">
@@ -429,14 +437,14 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                                         : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
                                                 }`}>
-                                                    {selectedShuttleTrip.direction === 'MORNING' ? '↑ Morning' : '↓ Evening'}
+                                                    {selectedShuttleTrip.direction === 'MORNING' ? t('morning') : t('evening')}
                                                 </span>
                                                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                                     {selectedShuttleTrip.status}
                                                 </span>
                                             </div>
                                             <h3 className="text-sm font-black text-[var(--text-primary)] leading-tight">
-                                                {selectedShuttleTrip.routes?.name ?? `Route ${selectedShuttleTrip.route_id}`}
+                                                {selectedShuttleTrip.routes?.name ?? t('routeLabel', { id: selectedShuttleTrip.route_id })}
                                             </h3>
                                             {selectedShuttleTrip.routes?.vehicles && (
                                                 <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-medium">
@@ -464,7 +472,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                                 <MapPin size={12} className="text-[var(--cort-orange)]" />
                                             </div>
                                             <div>
-                                                <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Current Stop</div>
+                                                <div className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">{t('currentStop')}</div>
                                                 <div className="text-xs font-bold text-[var(--text-primary)]">{currentStop.name}</div>
                                             </div>
                                         </div>
@@ -475,7 +483,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <Users size={13} className="text-[var(--text-muted)]" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Passengers</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{t('passengers')}</span>
                                     </div>
                                     <span className="text-sm font-black text-[var(--text-primary)]">
                                         {selectedShuttleTrip.routes?._count?.employee_route_assignments ?? '—'}
@@ -485,7 +493,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 {/* Employee list */}
                                 <div className="flex-1 overflow-y-auto">
                                     <div className="px-4 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Assigned Employees</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">{t('assignedEmployees')}</span>
                                     </div>
                                     <div className="p-3 space-y-2">
                                         {tripEmployeesLoading ? (
@@ -501,7 +509,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                         ) : tripEmployees.length === 0 ? (
                                             <div className="py-8 flex flex-col items-center gap-2">
                                                 <Users size={20} className="text-[var(--text-muted)] opacity-40" />
-                                                <p className="text-[10px] text-[var(--text-muted)] font-bold">No employees assigned</p>
+                                                <p className="text-[10px] text-[var(--text-muted)] font-bold">{t('noEmployeesAssigned')}</p>
                                             </div>
                                         ) : (
                                             tripEmployees.map((emp: any, i: number) => (
@@ -536,13 +544,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         )}
 
                         {/* Legend — outside overflow-hidden so it isn't clipped */}
-                        <div className="absolute bottom-8 right-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
-                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 font-mono">Live Legend</span>
+                        <div className="absolute bottom-8 end-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
+                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 font-mono">{t('liveLegend')}</span>
                             {hasShuttle && (
                                 <div className="flex items-center gap-3">
                                     <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
                                     <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
-                                        Shuttle{shuttleCount > 0 ? ` (${shuttleCount})` : ''}
+                                        {t('shuttle')}{shuttleCount > 0 ? ` (${shuttleCount})` : ''}
                                     </span>
                                 </div>
                             )}
@@ -550,30 +558,30 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="flex items-center gap-3">
                                     <img src="/car_birdeye.png" alt="chauffeur" className="w-5 h-5 object-contain" />
                                     <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
-                                        Chauffeur{chauffeurCount > 0 ? ` (${chauffeurCount})` : ''}
+                                        {t('chauffeur')}{chauffeurCount > 0 ? ` (${chauffeurCount})` : ''}
                                     </span>
                                 </div>
                             )}
                             {liveCount > 0 && (
                                 <div className="flex items-center gap-2 pt-1 border-t border-white/20">
                                     <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_6px_#4ade80]" />
-                                    <span className="text-[9px] text-green-400 font-black uppercase tracking-wider">Socket Live</span>
+                                    <span className="text-[9px] text-green-400 font-black uppercase tracking-wider">{t('socketLive')}</span>
                                 </div>
                             )}
                             {trips.length === 0 && !tripsLoading && (
-                                <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">No trips today</p>
+                                <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">{t('noTripsToday')}</p>
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Sidebar */}
-                <div className="w-full lg:w-80 m-4 lg:ml-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-[var(--text-primary)]">
+                <div className="w-full lg:w-80 m-4 lg:ms-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-[var(--text-primary)]">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">Active Alerts</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">{t('activeAlerts')}</h3>
                         {hasChauffeur && (dashboardStats?.chauffeur.unassignedBookings ?? 0) > 0 && (
                             <span className="px-2 py-0.5 rounded-full bg-white/20 text-[var(--text-primary)] text-[9px] font-black uppercase border border-[var(--border-input)]">
-                                {dashboardStats!.chauffeur.unassignedBookings} Unassigned
+                                {t('unassigned', { count: dashboardStats!.chauffeur.unassignedBookings })}
                             </span>
                         )}
                     </div>
@@ -588,13 +596,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="flex items-start gap-3">
                                     <AlertTriangle size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-[var(--text-primary)]">Unassigned Bookings</div>
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">{tDashboard('unassignedBookings')}</div>
                                         <div className="text-[10px] text-white font-bold leading-tight mt-1">
-                                            {dashboardStats!.chauffeur.unassignedBookings} booking{dashboardStats!.chauffeur.unassignedBookings !== 1 ? 's' : ''} pending driver assignment.
+                                            {t('unassignedDescription', { count: dashboardStats!.chauffeur.unassignedBookings })}
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <Clock size={10} className="text-[var(--text-secondary)]" />
-                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">Needs attention</span>
+                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">{t('needsAttention')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -610,13 +618,13 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="flex items-start gap-3">
                                     <Calendar size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-[var(--text-primary)]">Upcoming Bookings</div>
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">{t('upcomingBookings')}</div>
                                         <div className="text-[10px] text-white font-bold leading-tight mt-1">
-                                            {mobility.upcomingBookings} ride{mobility.upcomingBookings !== 1 ? 's' : ''} in the next 7 days.
+                                            {t('upcomingDescription', { count: mobility.upcomingBookings })}
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <Clock size={10} className="text-[var(--text-secondary)]" />
-                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">Next 7 days</span>
+                                            <span className="text-[9px] text-[var(--text-secondary)] font-black">{t('next7Days')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -629,12 +637,12 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="flex items-start gap-3">
                                     <Navigation size={16} className="text-[var(--text-primary)] mt-1 shrink-0" />
                                     <div>
-                                        <div className="text-[11px] font-black text-[var(--text-primary)]">On the Map</div>
+                                        <div className="text-[11px] font-black text-[var(--text-primary)]">{t('onTheMap')}</div>
                                         <div className="text-[10px] text-[var(--text-secondary)] font-bold leading-tight mt-1">
-                                            {hasShuttle && shuttleCount > 0 && `${shuttleCount} shuttle${shuttleCount !== 1 ? 's' : ''}`}
+                                            {hasShuttle && shuttleCount > 0 && t('onMapShuttle', { count: shuttleCount })}
                                             {hasShuttle && shuttleCount > 0 && hasChauffeur && chauffeurCount > 0 && ' · '}
-                                            {hasChauffeur && chauffeurCount > 0 && `${chauffeurCount} chauffeur ride${chauffeurCount !== 1 ? 's' : ''}`}
-                                            {liveCount > 0 && ` · ${liveCount} live 🔴`}
+                                            {hasChauffeur && chauffeurCount > 0 && t('onMapChauffeur', { count: chauffeurCount })}
+                                            {liveCount > 0 && t('onMapLive', { count: liveCount })}
                                         </div>
                                     </div>
                                 </div>
@@ -646,8 +654,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             mobility.upcomingBookings === 0 &&
                             trips.length === 0 && (
                             <div className="p-3 rounded-2xl bg-white/10 border border-white/20">
-                                <div className="text-[11px] font-black text-[var(--text-primary)] text-center py-2">✓ All Clear</div>
-                                <div className="text-[10px] text-[var(--text-secondary)] font-bold text-center">No active alerts at this time.</div>
+                                <div className="text-[11px] font-black text-[var(--text-primary)] text-center py-2">{t('allClear')}</div>
+                                <div className="text-[10px] text-[var(--text-secondary)] font-bold text-center">{t('noActiveAlerts')}</div>
                             </div>
                         )}
 
@@ -657,7 +665,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 onClick={() => router.push('/company/routes')}
                                 className="w-full mt-2 py-3 rounded-xl bg-[var(--bg-page)] hover:bg-[var(--bg-card)] text-[var(--text-primary)] text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
                             >
-                                Track Routes Live →
+                                {t('trackRoutesLive')}
                             </button>
                         )}
                         {!hasShuttle && hasChauffeur && (
@@ -665,19 +673,19 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 onClick={() => router.push('/company/bookings')}
                                 className="w-full mt-2 py-3 rounded-xl bg-[var(--bg-page)] hover:bg-[var(--bg-card)] text-[var(--text-primary)] text-xs font-black uppercase tracking-widest transition-all shadow-lg active:translate-y-0.5"
                             >
-                                View Bookings →
+                                {t('viewBookings')}
                             </button>
                         )}
                     </div>
 
                     {/* Service performance */}
                     <div className="pt-4 border-t border-white/15">
-                        <div className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest mb-3 opacity-60">Service Performance</div>
+                        <div className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest mb-3 opacity-60">{t('servicePerformance')}</div>
                         <div className="space-y-3">
                             {onTimeRate !== null && (
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-[var(--text-primary)] mb-1.5 uppercase tracking-tighter">
-                                        <span>On-Time Rate</span>
+                                        <span>{t('onTimeRate')}</span>
                                         <span className="text-white font-black">{onTimeRate}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
@@ -688,7 +696,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             {fleetUtilization !== null && (
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-[var(--text-primary)] mb-1.5 uppercase tracking-tighter">
-                                        <span>Shuttle Utilization</span>
+                                        <span>{t('shuttleUtilization')}</span>
                                         <span className="text-white font-black">{fleetUtilization}%</span>
                                     </div>
                                     <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
@@ -697,7 +705,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </div>
                             )}
                             {onTimeRate === null && fleetUtilization === null && (
-                                <p className="text-[10px] text-[var(--text-muted)] font-bold text-center py-1">Collecting data…</p>
+                                <p className="text-[10px] text-[var(--text-muted)] font-bold text-center py-1">{t('collectingData')}</p>
                             )}
                         </div>
                     </div>

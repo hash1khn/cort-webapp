@@ -7,16 +7,24 @@ export function sanitizePhoneInput(value: string): string {
   return value.replace(/\D/g, "").slice(0, PHONE_MAX_LENGTH);
 }
 
+type PhoneMessages = {
+  required: string;
+  invalid: string;
+};
+
 export function getPhoneValidationError(
   value: string | null | undefined,
-  options: { required?: boolean } = {},
+  options: { required?: boolean; messages?: PhoneMessages } = {},
 ): string | null {
   const digits = (value ?? "").replace(/\D/g, "");
+  const requiredMsg = options.messages?.required ?? "Phone number is required";
+  const invalidMsg = options.messages?.invalid ?? "Phone number must be exactly 11 digits";
+
   if (!digits) {
-    return options.required ? "Phone number is required" : null;
+    return options.required ? requiredMsg : null;
   }
   if (!PHONE_DIGITS_REGEX.test(digits)) {
-    return PHONE_VALIDATION_MESSAGE;
+    return invalidMsg;
   }
   return null;
 }

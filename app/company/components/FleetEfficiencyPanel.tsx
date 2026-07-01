@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useAppSelector } from '@/app/lib/store/hooks';
@@ -149,6 +150,7 @@ function insightIcon(type: string) {
 }
 
 function InsightCard({ insight }: { insight: FleetInsight }) {
+  const t = useTranslations('company.fleetAnalytics');
   return (
     <div className={`rounded-xl border p-4 ${severityColor(insight.severity)}`}>
       <div className="flex items-start gap-3">
@@ -166,7 +168,7 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
           <p className="text-xs mt-1 opacity-80">{insight.data.recommendation}</p>
           {insight.estimated_saving_pkr && parseFloat(insight.estimated_saving_pkr) > 0 && (
             <p className="text-xs mt-2 font-semibold">
-              Est. saving: PKR {parseFloat(insight.estimated_saving_pkr).toLocaleString()} / month
+              {t('estSavingMonth', { amount: parseFloat(insight.estimated_saving_pkr).toLocaleString() })}
             </p>
           )}
         </div>
@@ -176,11 +178,12 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
 }
 
 function DisabledSection({ label }: { label: string }) {
+  const t = useTranslations('company.fleetAnalytics');
   return (
     <div className="rounded-[2rem] border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)]/30 px-6 py-10 text-center">
       <Lock className="h-6 w-6 text-[var(--text-muted)] mx-auto mb-2 opacity-40" />
       <p className="text-sm font-bold text-[var(--text-muted)]">{label}</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60">Contact your administrator to enable this service.</p>
+      <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60">{t('contactAdminEnable')}</p>
     </div>
   );
 }
@@ -188,6 +191,7 @@ function DisabledSection({ label }: { label: string }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FleetEfficiencyPanel() {
+  const t = useTranslations('company.fleetAnalytics');
   const company = useAppSelector(selectCompany);
   const companyId = Number(company?.id);
 
@@ -309,7 +313,7 @@ export function FleetEfficiencyPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
-        <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading fleet metrics…
+        <RefreshCw className="h-6 w-6 animate-spin me-2" /> {t('loadingMetrics')}
       </div>
     );
   }
@@ -329,9 +333,9 @@ export function FleetEfficiencyPanel() {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Bus className="h-5 w-5 text-blue-400" />
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Shuttle Analytics</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">{t('shuttleAnalytics')}</h2>
             {shuttleEnabled && aiEnabled && (
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">Active</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">{t('active')}</span>
             )}
           </div>
           {showGenerate && (
@@ -341,45 +345,30 @@ export function FleetEfficiencyPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-[var(--cort-orange)] px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--cort-orange-hover)] disabled:opacity-60 transition-colors"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} />
-              {generating ? 'Generating…' : 'Run AI Analysis'}
+              {generating ? t('generating') : t('runAiAnalysis')}
             </button>
           )}
         </div>
 
         {!(shuttleEnabled && aiEnabled) ? (
-          <DisabledSection label="Shuttle service + AI Insights must both be enabled" />
+          <DisabledSection label={t('shuttleAiDisabled')} />
         ) : (
           <div className="space-y-6">
             {summary && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <KpiCard label="Trips analysed" value={summary.count.toString()} icon={<Bus className="h-5 w-5 text-blue-500" />} />
-                <KpiCard
-                  label="Avg occupancy"
-                  value={`${summary.avgOccupancy.toFixed(1)}%`}
-                  icon={summary.avgOccupancy >= 70 ? <TrendingUp className="h-5 w-5 text-green-500" /> : <TrendingDown className="h-5 w-5 text-orange-500" />}
-                  good={summary.avgOccupancy >= 70}
-                />
-                <KpiCard
-                  label="Avg detour ratio"
-                  value={summary.avgDetour ? `${summary.avgDetour.toFixed(2)}×` : '—'}
-                  icon={<Navigation className="h-5 w-5 text-purple-500" />}
-                  good={!summary.avgDetour || summary.avgDetour < 1.1}
-                />
-                <KpiCard
-                  label="Total idle (min)"
-                  value={Math.round(summary.totalIdleMin).toLocaleString()}
-                  icon={<Zap className="h-5 w-5 text-yellow-500" />}
-                  good={summary.totalIdleMin < 300}
-                />
+                <KpiCard label={t('tripsAnalysed')} value={summary.count.toString()} icon={<Bus className="h-5 w-5 text-blue-500" />} />
+                <KpiCard label={t('avgOccupancy')} value={`${summary.avgOccupancy.toFixed(1)}%`} icon={summary.avgOccupancy >= 70 ? <TrendingUp className="h-5 w-5 text-green-500" /> : <TrendingDown className="h-5 w-5 text-orange-500" />} good={summary.avgOccupancy >= 70} />
+                <KpiCard label={t('avgDetourRatio')} value={summary.avgDetour ? `${summary.avgDetour.toFixed(2)}×` : '—'} icon={<Navigation className="h-5 w-5 text-purple-500" />} good={!summary.avgDetour || summary.avgDetour < 1.1} />
+                <KpiCard label={t('totalIdleMin')} value={Math.round(summary.totalIdleMin).toLocaleString()} icon={<Zap className="h-5 w-5 text-yellow-500" />} good={summary.totalIdleMin < 300} />
               </div>
             )}
 
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-4">
-                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> AI Insights — Shuttle
+                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> {t('aiInsightsShuttle')}
               </h3>
               {shuttleInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active shuttle insights. Click Run AI Analysis to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">{t('noShuttleInsights')}</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {shuttleInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -392,26 +381,24 @@ export function FleetEfficiencyPanel() {
                 <div className="p-6 border-b border-[var(--border-light)]">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                      <Fuel className="h-4 w-4 text-rose-400" /> Flagged Fuel Variance
+                      <Fuel className="h-4 w-4 text-rose-400" /> {t('flaggedFuelVariance')}
                     </h3>
                     <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">
-                      {fuelFlags.length} flagged
+                      {t('flagged', { count: fuelFlags.length })}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    Flagged when (actual − expected) / expected &gt; 15% for 3+ consecutive days.
-                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{t('fuelVarianceNote')}</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border-light)]">
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Vehicle</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Date</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Variance</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Actual (L)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Expected (L)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Streak</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('vehicle')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('date')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('variance')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('actualL')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('expectedL')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('streak')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -419,12 +406,12 @@ export function FleetEfficiencyPanel() {
                         <tr key={f.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                           <td className="px-6 py-4 font-bold text-[var(--text-primary)]">{f.vehicles?.plate_number ?? f.vehicle_id}</td>
                           <td className="px-6 py-4 text-[var(--text-muted)]">{new Date(f.flag_date).toLocaleDateString()}</td>
-                          <td className={`px-6 py-4 text-right font-bold ${parseFloat(f.variance_pct) > 20 ? 'text-rose-400' : 'text-[var(--cort-orange)]'}`}>
+                          <td className={`px-6 py-4 text-end font-bold ${parseFloat(f.variance_pct) > 20 ? 'text-rose-400' : 'text-[var(--cort-orange)]'}`}>
                             {pct(f.variance_pct)}
                           </td>
-                          <td className="px-6 py-4 text-right text-[var(--text-secondary)]">{fmt(f.actual_litres)}</td>
-                          <td className="px-6 py-4 text-right text-[var(--text-secondary)]">{fmt(f.expected_litres)}</td>
-                          <td className="px-6 py-4 text-right text-[var(--text-muted)]">{f.consecutive_days}d</td>
+                          <td className="px-6 py-4 text-end text-[var(--text-secondary)]">{fmt(f.actual_litres)}</td>
+                          <td className="px-6 py-4 text-end text-[var(--text-secondary)]">{fmt(f.expected_litres)}</td>
+                          <td className="px-6 py-4 text-end text-[var(--text-muted)]">{f.consecutive_days}d</td>
                         </tr>
                       ))}
                     </tbody>
@@ -437,20 +424,20 @@ export function FleetEfficiencyPanel() {
               <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                 <div className="p-6 border-b border-[var(--border-light)]">
                   <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <Bus className="h-4 w-4 text-blue-400" /> Recent Shuttle Trips
+                    <Bus className="h-4 w-4 text-blue-400" /> {t('recentShuttleTrips')}
                   </h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--border-light)]">
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Date</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Dir</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Occupancy</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Detour</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Idle (min)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Fuel Var.</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Route</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('date')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('dir')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('occupancy')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('detour')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('idleMin')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('fuelVar')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('route')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -478,7 +465,7 @@ export function FleetEfficiencyPanel() {
                               }`}
                             >
                               <MapIcon className="h-3 w-3" />
-                              {selectedTripForMap === m.shuttle_trip_id ? 'Close' : 'View'}
+                              {selectedTripForMap === m.shuttle_trip_id ? t('close') : t('view')}
                             </button>
                           </td>
                         </tr>
@@ -492,10 +479,10 @@ export function FleetEfficiencyPanel() {
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/50">
                       <div className="flex items-center gap-2">
                         <MapIcon className="h-4 w-4 text-[var(--text-muted)]" />
-                        <span className="text-sm font-bold text-[var(--text-primary)]">Route Map Overlay</span>
+                        <span className="text-sm font-bold text-[var(--text-primary)]">{t('routeMapOverlay')}</span>
                         <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                          <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-500" /> Planned
-                          <span className="inline-block h-2.5 w-6 rounded-sm bg-[var(--cort-orange)] ml-1" /> Actual
+                          <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-500" /> {t('planned')}
+                          <span className="inline-block h-2.5 w-6 rounded-sm bg-[var(--cort-orange)] ms-1" /> {t('actual')}
                         </span>
                       </div>
                       <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
@@ -504,7 +491,7 @@ export function FleetEfficiencyPanel() {
                     </div>
                     {mapLoading ? (
                       <div className="flex items-center justify-center h-64 text-[var(--text-muted)] text-sm">
-                        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading route data…
+                        <RefreshCw className="h-5 w-5 animate-spin me-2" /> {t('loadingRouteData')}
                       </div>
                     ) : routeComparison ? (
                       <RouteMapOverlay
@@ -513,7 +500,7 @@ export function FleetEfficiencyPanel() {
                       />
                     ) : (
                       <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-sm">
-                        No route data available for this trip.
+                        {t('noRouteData')}
                       </div>
                     )}
                   </div>
@@ -533,22 +520,22 @@ export function FleetEfficiencyPanel() {
       <div>
         <div className="flex items-center gap-2 mb-5">
           <CarFront className="h-5 w-5 text-teal-400" />
-          <h2 className="text-base font-bold text-[var(--text-primary)]">Chauffeur Analytics</h2>
+          <h2 className="text-base font-bold text-[var(--text-primary)]">{t('chauffeurAnalytics')}</h2>
           {chauffeurEnabled && aiEnabled && (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">Active</span>
+            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">{t('active')}</span>
           )}
         </div>
 
         {!(chauffeurEnabled && aiEnabled) ? (
-          <DisabledSection label="Chauffeur service + AI Insights must both be enabled" />
+          <DisabledSection label={t('chauffeurAiDisabled')} />
         ) : (
           <div className="space-y-6">
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-4">
-                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> AI Insights — Chauffeur
+                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> {t('aiInsightsChauffeur')}
               </h3>
               {chauffeurInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active chauffeur insights. Click Run AI Analysis to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">{t('noChauffeurInsights')}</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {chauffeurInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -559,34 +546,18 @@ export function FleetEfficiencyPanel() {
             {chauffeurUtil && (
               <>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <KpiCard label="Total bookings" value={chauffeurUtil.summary.total_bookings.toString()} icon={<CarFront className="h-5 w-5 text-teal-500" />} />
-                  <KpiCard
-                    label="Avg utilization"
-                    value={chauffeurUtil.summary.avg_utilization_pct != null ? `${chauffeurUtil.summary.avg_utilization_pct}%` : '—'}
-                    icon={<Clock className="h-5 w-5 text-blue-500" />}
-                    good={chauffeurUtil.summary.avg_utilization_pct != null && chauffeurUtil.summary.avg_utilization_pct >= 70}
-                  />
-                  <KpiCard
-                    label="Underutilized (<70%)"
-                    value={chauffeurUtil.summary.underutilized_count.toString()}
-                    icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
-                    good={chauffeurUtil.summary.underutilized_count === 0}
-                  />
-                  <KpiCard
-                    label="Est. billing saving"
-                    value={chauffeurUtil.summary.total_estimated_saving_pkr > 0
-                      ? `PKR ${chauffeurUtil.summary.total_estimated_saving_pkr.toLocaleString()}`
-                      : '—'}
-                    icon={<TrendingDown className="h-5 w-5 text-green-500" />}
-                  />
+                  <KpiCard label={t('totalBookings')} value={chauffeurUtil.summary.total_bookings.toString()} icon={<CarFront className="h-5 w-5 text-teal-500" />} />
+                  <KpiCard label={t('avgOccupancy')} value={chauffeurUtil.summary.avg_utilization_pct != null ? `${chauffeurUtil.summary.avg_utilization_pct}%` : '—'} icon={<Clock className="h-5 w-5 text-blue-500" />} good={chauffeurUtil.summary.avg_utilization_pct != null && chauffeurUtil.summary.avg_utilization_pct >= 70} />
+                  <KpiCard label={t('underutilizedBookings')} value={chauffeurUtil.summary.underutilized_count.toString()} icon={<AlertTriangle className="h-5 w-5 text-orange-500" />} good={chauffeurUtil.summary.underutilized_count === 0} />
+                  <KpiCard label={t('estBillingSaving')} value={chauffeurUtil.summary.total_estimated_saving_pkr > 0 ? `PKR ${chauffeurUtil.summary.total_estimated_saving_pkr.toLocaleString()}` : '—'} icon={<TrendingDown className="h-5 w-5 text-green-500" />} />
                 </div>
 
                 {chauffeurUtil.bookings.filter(b => (b.utilization_pct ?? 100) < 70).length > 0 && (
                   <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                     <div className="px-6 py-4 border-b border-[var(--border-light)] flex items-center gap-2">
                       <Package className="h-4 w-4 text-teal-400" />
-                      <span className="text-sm font-bold text-[var(--text-primary)]">Underutilised Bookings</span>
-                      <span className="text-xs text-[var(--text-muted)]">(used &lt;70% of package — consider a smaller package)</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{t('underutilizedBookings')}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{t('underutilizedHint')}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
@@ -652,12 +623,13 @@ function UtilizationBar({ pct }: { pct: number }) {
       <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <span className={`text-xs font-bold w-10 text-right ${pct < 60 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
+      <span className={`text-xs font-bold w-10 text-end ${pct < 60 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
     </div>
   );
 }
 
 function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteComparison; routeInsight: FleetInsight | null }) {
+  const t = useTranslations('company.fleetAnalytics');
   const plannedPolyline: MapPolyline | null = comparison.planned_points.length > 1
     ? { positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]), color: '#2563eb', weight: 4, opacity: 0.85 }
     : null;
@@ -670,8 +642,8 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
   if (comparison.planned_points.length > 0) {
     const first = comparison.planned_points[0];
     const last = comparison.planned_points[comparison.planned_points.length - 1];
-    markers.push({ id: 'start', position: [first.lat, first.lng], label: 'Start', color: '#22c55e', type: 'pickup' });
-    markers.push({ id: 'end', position: [last.lat, last.lng], label: 'End', color: '#ef4444', type: 'dropoff' });
+    markers.push({ id: 'start', position: [first.lat, first.lng], label: t('start'), color: '#22c55e', type: 'pickup' });
+    markers.push({ id: 'end', position: [last.lat, last.lng], label: t('end'), color: '#ef4444', type: 'dropoff' });
   }
 
   const m = comparison.metrics;
@@ -685,11 +657,11 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           <Map markers={markers} polylines={polylines} height="360px" />
         ) : (
           <div className="flex items-center justify-center h-full bg-[var(--surface-subtle)] text-sm text-[var(--text-muted)]">
-            No polyline data recorded for this trip.
+            {t('noPolylineData')}
           </div>
         )}
       </div>
-      <div className="w-full lg:w-64 p-5 border-t lg:border-t-0 lg:border-l border-[var(--border-light)] flex flex-col gap-4 bg-[var(--surface-subtle)]/30">
+      <div className="w-full lg:w-64 p-5 border-t lg:border-t-0 lg:border-s border-[var(--border-light)] flex flex-col gap-4 bg-[var(--surface-subtle)]/30">
         {detour !== null && (
           <div className={`rounded-xl px-4 py-3 text-center border ${
             detour > 1.15
@@ -698,20 +670,20 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
               ? 'bg-[var(--cort-orange)]/10 border-[var(--cort-orange)]/20'
               : 'bg-emerald-500/10 border-emerald-500/20'
           }`}>
-            <p className="text-xs text-[var(--text-muted)] mb-0.5">Detour Ratio</p>
+            <p className="text-xs text-[var(--text-muted)] mb-0.5">{t('detourRatio')}</p>
             <p className={`text-2xl font-bold ${
               detour > 1.15 ? 'text-rose-400' : detour > 1.05 ? 'text-[var(--cort-orange)]' : 'text-emerald-400'
             }`}>
               {detour.toFixed(2)}×
             </p>
-            {detourPct && <p className="text-xs text-[var(--text-muted)]">+{detourPct}% extra distance</p>}
+            {detourPct && <p className="text-xs text-[var(--text-muted)]">{t('extraDistance', { percent: detourPct })}</p>}
           </div>
         )}
         <div className="space-y-2 text-sm">
           {m?.planned_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <span className="inline-block h-2 w-4 rounded-sm bg-blue-500" /> Planned
+                <span className="inline-block h-2 w-4 rounded-sm bg-blue-500" /> {t('planned')}
               </span>
               <span className="font-medium text-[var(--text-primary)]">{m.planned_distance_km.toFixed(2)} km</span>
             </div>
@@ -719,20 +691,20 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           {m?.actual_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <span className="inline-block h-2 w-4 rounded-sm bg-[var(--cort-orange)]" /> Actual
+                <span className="inline-block h-2 w-4 rounded-sm bg-[var(--cort-orange)]" /> {t('actual')}
               </span>
               <span className="font-medium text-[var(--text-primary)]">{m.actual_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {comparison.idle_minutes != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)]">Idle time</span>
+              <span className="text-[var(--text-muted)]">{t('idleTime')}</span>
               <span className="font-medium text-[var(--text-primary)]">{comparison.idle_minutes.toFixed(0)} min</span>
             </div>
           )}
           {m?.fuel_variance_pct != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)]">Fuel variance</span>
+              <span className="text-[var(--text-muted)]">{t('fuelVariance')}</span>
               <span className={`font-medium ${Math.abs(m.fuel_variance_pct) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
                 {m.fuel_variance_pct > 0 ? '+' : ''}{m.fuel_variance_pct.toFixed(1)}%
               </span>
@@ -743,7 +715,7 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Navigation className="h-3.5 w-3.5 text-purple-400" />
-              <span className="text-xs font-bold text-purple-400">AI Note</span>
+              <span className="text-xs font-bold text-purple-400">{t('aiNote')}</span>
             </div>
             <p className="text-xs text-purple-300">{routeInsight.data.recommendation}</p>
           </div>
