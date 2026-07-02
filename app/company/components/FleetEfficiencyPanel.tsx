@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useAppSelector } from '@/app/lib/store/hooks';
 import { selectCompany } from '@/app/lib/store/slices/companySlice';
-import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X, Clock, Users, Package, CarFront, Lock, Car } from 'lucide-react';
+import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X, Clock, Users, Package, CarFront, Lock, Car, ChevronDown } from 'lucide-react';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 
-const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
+const RouteMap = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,6 +23,7 @@ type ShuttleMetric = {
   id: number;
   shuttle_trip_id: number;
   route_id: number | null;
+  vehicle_id: number | null;
   trip_date: string;
   direction: string;
   occupancy_pct: string | null;
@@ -31,6 +32,19 @@ type ShuttleMetric = {
   fuel_variance_pct: string | null;
   actual_distance_km: string | null;
   planned_distance_km: string | null;
+  vehicles: { plate_number: string } | null;
+};
+
+type VehicleFuelGroup = {
+  vehicleId: number;
+  plateNumber: string;
+  records: FuelFlag[];
+};
+
+type VehicleShuttleGroup = {
+  vehicleId: number;
+  plateNumber: string;
+  trips: ShuttleMetric[];
 };
 
 type RouteComparison = {
@@ -130,6 +144,91 @@ function pct(v: string | null | undefined) {
   return v == null ? '—' : `${fmt(v, 1)}%`;
 }
 
+function groupFuelFlagsByVehicle(flags: FuelFlag[]): VehicleFuelGroup[] {
+  const buckets: Record<number, FuelFlag[]> = {};
+  for (const flag of flags) {
+    (buckets[flag.vehicle_id] ??= []).push(flag);
+  }
+
+  return Object.entries(buckets)
+    .map(([vehicleId, records]) => ({
+      vehicleId: Number(vehicleId),
+      plateNumber: records[0]?.vehicles?.plate_number ?? String(vehicleId),
+      records: records.sort(
+        (a, b) => new Date(b.flag_date).getTime() - new Date(a.flag_date).getTime(),
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        new Date(b.records[0].flag_date).getTime() - new Date(a.records[0].flag_date).getTime(),
+    );
+}
+
+function groupShuttleMetricsByVehicle(metrics: ShuttleMetric[]): VehicleShuttleGroup[] {
+  const buckets: Record<number, ShuttleMetric[]> = {};
+  for (const metric of metrics) {
+    const vehicleId = metric.vehicle_id ?? 0;
+    (buckets[vehicleId] ??= []).push(metric);
+  }
+
+  return Object.entries(buckets)
+    .map(([vehicleId, trips]) => ({
+      vehicleId: Number(vehicleId),
+      plateNumber:
+        Number(vehicleId) === 0
+          ? 'Unassigned'
+          : trips[0]?.vehicles?.plate_number ?? String(vehicleId),
+      trips: trips.sort(
+        (a, b) => new Date(b.trip_date).getTime() - new Date(a.trip_date).getTime(),
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        new Date(b.trips[0].trip_date).getTime() - new Date(a.trips[0].trip_date).getTime(),
+    );
+}
+
+function formatShortDate(value: string) {
+  return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function varianceTone(v: string | null | undefined) {
+  const n = v == null ? 0 : parseFloat(v);
+  if (n > 20 || n < -20) return 'text-rose-400';
+  if (n > 15 || n < -15) return 'text-[var(--cort-orange)]';
+  return 'text-[var(--text-primary)]';
+}
+
+const thClass = 'px-5 py-3.5 text-left text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider';
+const thRight = `${thClass} text-right`;
+const tdClass = 'px-5 py-3.5 text-sm text-[var(--text-secondary)]';
+const tdRight = `${tdClass} text-right`;
+
+function ExpandHistoryButton({
+  expanded,
+  count,
+  unit,
+  onClick,
+}: {
+  expanded: boolean;
+  count: number;
+  unit: 'days' | 'trips';
+  onClick: () => void;
+}) {
+  const label = unit === 'days' ? 'day' : 'trip';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] bg-[var(--surface-subtle)] border border-[var(--border-light)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-colors whitespace-nowrap"
+    >
+      {expanded ? 'Hide history' : `Show all ${count} ${label}${count !== 1 ? 's' : ''}`}
+      <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+    </button>
+  );
+}
+
 function severityColor(s: string) {
   if (s === 'CRITICAL') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
   if (s === 'HIGH') return 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border-[var(--cort-orange)]/20';
@@ -218,6 +317,8 @@ export function FleetEfficiencyPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [routeComparison, setRouteComparison] = useState<RouteComparison | null>(null);
   const [mapLoading, setMapLoading] = useState(false);
+  const [expandedFuelVehicleId, setExpandedFuelVehicleId] = useState<number | null>(null);
+  const [expandedShuttleVehicleId, setExpandedShuttleVehicleId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -262,7 +363,7 @@ export function FleetEfficiencyPanel() {
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setSummary(metricsRes.value.summary);
-        setRecentMetrics(metricsRes.value.metrics.slice(0, 10));
+        setRecentMetrics(metricsRes.value.metrics);
       }
       if (fuelRes.status === 'fulfilled' && fuelRes.value) setFuelFlags(fuelRes.value);
       if (insightsRes.status === 'fulfilled') setInsights(insightsRes.value);
@@ -318,6 +419,8 @@ export function FleetEfficiencyPanel() {
   const chauffeurInsights = insights.filter(i => CHAUFFEUR_INSIGHT_TYPES.has(i.insight_type));
   const poolInsights = insights.filter(i => POOL_INSIGHT_TYPES.has(i.insight_type));
   const showGenerate = aiEnabled && (shuttleEnabled || chauffeurEnabled || poolEnabled);
+  const fuelVehicleGroups = groupFuelFlagsByVehicle(fuelFlags);
+  const shuttleVehicleGroups = groupShuttleMetricsByVehicle(recentMetrics);
 
   return (
     <div className="space-y-10">
@@ -387,102 +490,195 @@ export function FleetEfficiencyPanel() {
               )}
             </section>
 
-            {fuelFlags.length > 0 && (
-              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
+            {fuelVehicleGroups.length > 0 && (
+              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl">
                 <div className="p-6 border-b border-[var(--border-light)]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                       <Fuel className="h-4 w-4 text-rose-400" /> Flagged Fuel Variance
                     </h3>
-                    <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">
-                      {fuelFlags.length} flagged
+                    <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 text-xs font-bold text-rose-400">
+                      {fuelVehicleGroups.length} vehicle{fuelVehicleGroups.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {fuelFlags.length} flagged day{fuelFlags.length !== 1 ? 's' : ''} total
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    Flagged when (actual − expected) / expected &gt; 15% for 3+ consecutive days.
+                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+                    Flagged when variance &gt; 15% for 3+ consecutive days. Use <span className="font-semibold text-[var(--text-secondary)]">Show all</span> to view daily history.
                   </p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-b-2xl">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--border-light)]">
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Vehicle</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Date</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Variance</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Actual (L)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Expected (L)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Streak</th>
+                      <tr className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/30">
+                        <th className={thClass}>Vehicle</th>
+                        <th className={thClass}>Date</th>
+                        <th className={thRight}>Variance</th>
+                        <th className={thRight}>Actual (L)</th>
+                        <th className={thRight}>Expected (L)</th>
+                        <th className={thRight}>Streak</th>
+                        <th className={thRight}>History</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-light)]/50">
-                      {fuelFlags.slice(0, 8).map((f) => (
-                        <tr key={f.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
-                          <td className="px-6 py-4 font-bold text-[var(--text-primary)]">{f.vehicles?.plate_number ?? f.vehicle_id}</td>
-                          <td className="px-6 py-4 text-[var(--text-muted)]">{new Date(f.flag_date).toLocaleDateString()}</td>
-                          <td className={`px-6 py-4 text-right font-bold ${parseFloat(f.variance_pct) > 20 ? 'text-rose-400' : 'text-[var(--cort-orange)]'}`}>
-                            {pct(f.variance_pct)}
-                          </td>
-                          <td className="px-6 py-4 text-right text-[var(--text-secondary)]">{fmt(f.actual_litres)}</td>
-                          <td className="px-6 py-4 text-right text-[var(--text-secondary)]">{fmt(f.expected_litres)}</td>
-                          <td className="px-6 py-4 text-right text-[var(--text-muted)]">{f.consecutive_days}d</td>
-                        </tr>
-                      ))}
+                    <tbody className="divide-y divide-[var(--border-light)]/60">
+                      {fuelVehicleGroups.slice(0, 8).map((group) => {
+                        const latest = group.records[0];
+                        const expanded = expandedFuelVehicleId === group.vehicleId;
+                        const hasMore = group.records.length > 1;
+
+                        return (
+                          <Fragment key={group.vehicleId}>
+                            <tr className={`transition-colors ${expanded ? 'bg-[var(--surface-subtle)]/40' : ''}`}>
+                              <td className="px-5 py-3.5">
+                                <span className="font-bold text-[var(--text-primary)]">{group.plateNumber}</span>
+                              </td>
+                              <td className={tdClass}>{formatShortDate(latest.flag_date)}</td>
+                              <td className={`${tdRight} font-bold ${varianceTone(latest.variance_pct)}`}>{pct(latest.variance_pct)}</td>
+                              <td className={tdRight}>{fmt(latest.actual_litres)}</td>
+                              <td className={tdRight}>{fmt(latest.expected_litres)}</td>
+                              <td className={`${tdRight} text-[var(--text-muted)]`}>{latest.consecutive_days}d</td>
+                              <td className={tdRight}>
+                                {hasMore ? (
+                                  <ExpandHistoryButton
+                                    expanded={expanded}
+                                    count={group.records.length}
+                                    unit="days"
+                                    onClick={() =>
+                                      setExpandedFuelVehicleId(expanded ? null : group.vehicleId)
+                                    }
+                                  />
+                                ) : (
+                                  <span className="text-xs text-[var(--text-muted)]">1 day</span>
+                                )}
+                              </td>
+                            </tr>
+                            {expanded && group.records.slice(1).map((record) => (
+                              <tr key={record.id} className="bg-[var(--surface-subtle)]/25">
+                                <td className="px-5 py-2.5" />
+                                <td className="px-5 py-2.5 text-sm text-[var(--text-muted)]">{formatShortDate(record.flag_date)}</td>
+                                <td className={`${tdRight} font-medium ${varianceTone(record.variance_pct)}`}>{pct(record.variance_pct)}</td>
+                                <td className={tdRight}>{fmt(record.actual_litres)}</td>
+                                <td className={tdRight}>{fmt(record.expected_litres)}</td>
+                                <td className={`${tdRight} text-[var(--text-muted)]`}>{record.consecutive_days}d</td>
+                                <td className={tdRight} />
+                              </tr>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </section>
             )}
 
-            {recentMetrics.length > 0 && (
-              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
+            {shuttleVehicleGroups.length > 0 && (
+              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl">
                 <div className="p-6 border-b border-[var(--border-light)]">
                   <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <Bus className="h-4 w-4 text-blue-400" /> Recent Shuttle Trips
                   </h3>
+                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+                    Grouped by vehicle. Use <span className="font-semibold text-[var(--text-secondary)]">Show all</span> to browse earlier trips.
+                  </p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-b-2xl">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--border-light)]">
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Date</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-left">Dir</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Occupancy</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Detour</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Idle (min)</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Fuel Var.</th>
-                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-right">Route</th>
+                      <tr className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/30">
+                        <th className={thClass}>Vehicle</th>
+                        <th className={thClass}>Date</th>
+                        <th className={thClass}>Dir</th>
+                        <th className={thRight}>Occupancy</th>
+                        <th className={thRight}>Detour</th>
+                        <th className={thRight}>Idle (min)</th>
+                        <th className={thRight}>Fuel Var.</th>
+                        <th className={thRight}>Route</th>
+                        <th className={thRight}>History</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-light)]/50">
-                      {recentMetrics.map((m) => (
-                        <tr key={m.id} className={`group transition-colors ${selectedTripForMap === m.shuttle_trip_id ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
-                          <td className="px-6 py-4 text-[var(--text-secondary)]">{new Date(m.trip_date).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 text-[var(--text-muted)]">{m.direction}</td>
-                          <td className={`px-6 py-4 text-right font-medium ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-[var(--cort-orange)]' : 'text-[var(--text-primary)]'}`}>
-                            {pct(m.occupancy_pct)}
-                          </td>
-                          <td className={`px-6 py-4 text-right font-medium ${m.detour_ratio && parseFloat(m.detour_ratio) > 1.2 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
-                            {m.detour_ratio ? `${fmt(m.detour_ratio, 2)}×` : '—'}
-                          </td>
-                          <td className="px-6 py-4 text-right text-[var(--text-muted)]">{fmt(m.idle_minutes, 0)}</td>
-                          <td className={`px-6 py-4 text-right font-medium ${m.fuel_variance_pct && Math.abs(parseFloat(m.fuel_variance_pct)) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
-                            {pct(m.fuel_variance_pct)}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <button
-                              onClick={() => loadRouteComparison(m.shuttle_trip_id, m.route_id)}
-                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
-                                selectedTripForMap === m.shuttle_trip_id
-                                  ? 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border border-[var(--cort-orange)]/20'
-                                  : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-light)]'
+                    <tbody className="divide-y divide-[var(--border-light)]/60">
+                      {shuttleVehicleGroups.slice(0, 10).map((group) => {
+                        const latest = group.trips[0];
+                        const expanded = expandedShuttleVehicleId === group.vehicleId;
+                        const hasMore = group.trips.length > 1;
+
+                        const renderTripRow = (trip: ShuttleMetric, isChild: boolean) => {
+                          const selected = selectedTripForMap === trip.shuttle_trip_id;
+                          const occupancy = trip.occupancy_pct ? parseFloat(trip.occupancy_pct) : null;
+                          const detour = trip.detour_ratio ? parseFloat(trip.detour_ratio) : null;
+                          const fuelVar = trip.fuel_variance_pct ? parseFloat(trip.fuel_variance_pct) : null;
+
+                          return (
+                            <tr
+                              key={trip.id}
+                              className={`transition-colors ${
+                                isChild ? 'bg-[var(--surface-subtle)]/25' : ''
+                              } ${!isChild && expanded ? 'bg-[var(--surface-subtle)]/40' : ''} ${
+                                selected ? 'bg-[var(--cort-orange)]/5' : ''
                               }`}
                             >
-                              <MapIcon className="h-3 w-3" />
-                              {selectedTripForMap === m.shuttle_trip_id ? 'Close' : 'View'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                              <td className="px-5 py-3.5">
+                                {!isChild && (
+                                  <span className="font-bold text-[var(--text-primary)]">{group.plateNumber}</span>
+                                )}
+                              </td>
+                              <td className={isChild ? 'px-5 py-2.5 text-sm text-[var(--text-muted)]' : tdClass}>
+                                {formatShortDate(trip.trip_date)}
+                              </td>
+                              <td className={`${isChild ? 'px-5 py-2.5' : tdClass} text-[var(--text-muted)]`}>{trip.direction}</td>
+                              <td className={`${tdRight} font-medium ${occupancy != null && occupancy < 50 ? 'text-[var(--cort-orange)]' : 'text-[var(--text-primary)]'}`}>
+                                {pct(trip.occupancy_pct)}
+                              </td>
+                              <td className={`${tdRight} font-medium ${detour != null && detour > 1.2 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
+                                {trip.detour_ratio ? `${fmt(trip.detour_ratio, 2)}×` : '—'}
+                              </td>
+                              <td className={`${tdRight} text-[var(--text-muted)]`}>{fmt(trip.idle_minutes, 0)}</td>
+                              <td className={`${tdRight} font-medium ${fuelVar != null && Math.abs(fuelVar) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
+                                {pct(trip.fuel_variance_pct)}
+                              </td>
+                              <td className={tdRight}>
+                                <button
+                                  type="button"
+                                  onClick={() => void loadRouteComparison(trip.shuttle_trip_id, trip.route_id)}
+                                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
+                                    selected
+                                      ? 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border border-[var(--cort-orange)]/20'
+                                      : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-light)]'
+                                  }`}
+                                >
+                                  <MapIcon className="h-3 w-3" />
+                                  {selected ? 'Close' : 'View'}
+                                </button>
+                              </td>
+                              <td className={tdRight}>
+                                {!isChild && (
+                                  hasMore ? (
+                                    <ExpandHistoryButton
+                                      expanded={expanded}
+                                      count={group.trips.length}
+                                      unit="trips"
+                                      onClick={() =>
+                                        setExpandedShuttleVehicleId(expanded ? null : group.vehicleId)
+                                      }
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-[var(--text-muted)]">1 trip</span>
+                                  )
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        };
+
+                        return (
+                          <Fragment key={group.vehicleId}>
+                            {renderTripRow(latest, false)}
+                            {expanded && group.trips.slice(1).map((trip) => renderTripRow(trip, true))}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -682,7 +878,7 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
     <div className="flex flex-col lg:flex-row">
       <div className="flex-1 min-h-0" style={{ height: 360 }}>
         {polylines.length > 0 || markers.length > 0 ? (
-          <Map markers={markers} polylines={polylines} height="360px" />
+          <RouteMap markers={markers} polylines={polylines} height="360px" />
         ) : (
           <div className="flex items-center justify-center h-full bg-[var(--surface-subtle)] text-sm text-[var(--text-muted)]">
             No polyline data recorded for this trip.
