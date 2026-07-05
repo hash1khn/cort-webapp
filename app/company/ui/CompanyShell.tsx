@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { fetchCompanyProfile, fetchCompanyFeatures, selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
@@ -31,7 +31,27 @@ import { Toaster } from "sonner";
 type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
 type FeatureLike = { feature_key: string; is_enabled: boolean };
 
-const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[], hasVendors = false) => {
+const TRIAL_ALLOWED_PREFIXES = ["/company/fleet", "/company/bookings"];
+
+function isTrialAllowedPath(pathname: string): boolean {
+  if (pathname === "/company") return true;
+  return TRIAL_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+const getTrialNavGroups = () => [
+  {
+    title: "",
+    items: [
+      { href: "/company", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/company/fleet", label: "Pool Fleet", icon: Car },
+      { href: "/company/bookings", label: "Bookings", icon: Calendar },
+    ],
+  },
+];
+
+const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[], hasVendors = false, isTrial = false) => {
+  if (isTrial) return getTrialNavGroups();
+
   const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
 
   const adminItems: any[] = [
@@ -105,6 +125,7 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
   const { logout, user } = useAuth();
@@ -134,6 +155,15 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       .catch(() => setHasVendors(false));
   }, [user?.company_id]);
 
+  const isTrialUser = !!user?.is_trial;
+
+  useEffect(() => {
+    if (!isTrialUser || !pathname) return;
+    if (!isTrialAllowedPath(pathname)) {
+      router.replace("/company");
+    }
+  }, [isTrialUser, pathname, router]);
+
   // ✅ FIX: Use user's enabled_services as fallback when company profile hasn't loaded yet
   // This prevents showing a second full-page loader
   const servicesEnabled = useMemo(() => {
@@ -151,7 +181,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled, features, hasVendors);
+    const navGroups = getNavGroups(servicesEnabled, features, hasVendors, isTrialUser);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -160,9 +190,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, servicesEnabled, features]);
+  }, [pathname, servicesEnabled, features, hasVendors, isTrialUser]);
 
   if (isLogin) return <>{children}</>;
+
+  const trialInfo = useMemo(() => {
+    if (!user?.is_trial || !user.trial_expires_at) return null;
+    const expiresAtMs = new Date(user.trial_expires_at).getTime();
+    const now = Date.now();
+    const remainingMs = expiresAtMs - now;
+    const remainingHours = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60)));
+    return { expiresAtMs, remainingHours };
+  }, [user?.is_trial, user?.trial_expires_at]);
 
   const SidebarContent = ({ isMobile = false }) => (
     <>
@@ -179,7 +218,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled, features, hasVendors).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features, hasVendors, isTrialUser).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(
@@ -336,6 +375,33 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8 bg-[var(--bg-page)] min-h-screen">
+            {trialInfo && (
+              <div className="mb-4 rounded-2xl border border-[#f47f00]/25 bg-[#f47f00]/10 px-4 py-3 text-sm text-white/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-col">
+                  <div className="font-semibold">Trial access</div>
+                  <div className="text-xs text-white/60">
+                    Your trial ends in <span className="text-white font-semibold">{trialInfo.remainingHours}h</span>. Book a demo to continue.
+                  </div>
+                  {!user?.trial_onboarding_completed && (
+                    <button
+                      type="button"
+                      onClick={() => router.push("/company?walkthrough=1")}
+                      className="mt-1 text-left text-xs font-semibold text-[#f47f00] hover:underline w-fit"
+                    >
+                      View setup guide
+                    </button>
+                  )}
+                </div>
+                <a
+                  href="https://calendar.app.google/qeHQgMANfWNr77yz6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-4 py-2 text-xs font-bold text-white hover:bg-[#f47f00]/90 transition-colors"
+                >
+                  Book a demo
+                </a>
+              </div>
+            )}
             <div key={pathname} className="page-transition-enter min-h-full">
               {children}
             </div>

@@ -12,6 +12,7 @@ import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import { pakistaniCars } from "../../../lib/data/pakistaniCars";
 import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
+import { useAuth } from "../../../lib/contexts/auth-context";
 import { selectContract } from "../../../lib/store/slices/contractSlice";
 import OutstationEstimatePanel from "./OutstationEstimatePanel";
 import { PoolVehicle, PoolDriver, CompanyVendorLink, VendorVehicle } from "../../../lib/services/types/multi-mode";
@@ -95,6 +96,8 @@ interface CreateBookingFormProps {
 
 export default function CreateBookingForm({ onSuccess, onCancel }: CreateBookingFormProps) {
     const dispatch = useAppDispatch();
+    const { user } = useAuth();
+    const isTrialUser = !!user?.is_trial;
     const company = useAppSelector(selectCompany);
     const employees = useAppSelector(selectEmployees);
     const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
@@ -106,7 +109,9 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
     // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
-    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
+    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">(
+        isTrialUser ? "SELF_MANAGED" : "CORT_MANAGED",
+    );
     const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
     const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
     const [poolVehicleId, setPoolVehicleId] = useState<number | null>(null);
@@ -165,6 +170,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
     const availableFulfillmentTypes = useMemo(() => {
         const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [];
+        if (isTrialUser) {
+            opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
+            return opts;
+        }
         if (features.find((f) => f.feature_key === "chauffeur_cort_managed")?.is_enabled) {
             opts.push({ value: "CORT_MANAGED", label: "CORT Managed" });
         }
@@ -175,7 +184,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
         }
         return opts;
-    }, [features]);
+    }, [features, isTrialUser]);
 
     const showBroadcastOption = useMemo(() => {
         return (
@@ -234,6 +243,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const activeEmployees = useMemo(() => {
         return employees.filter((e) => e.status === "ACTIVE");
     }, [employees]);
+
+    useEffect(() => {
+        if (!isTrialUser || passengerId || activeEmployees.length === 0) return;
+        setPassengerId(activeEmployees[0].id);
+    }, [isTrialUser, passengerId, activeEmployees]);
 
     // Unique vehicle models from vendor vehicles (filtered by selected vendor for EXTERNAL_VENDOR)
     const vendorCarModels = useMemo(() => {
@@ -475,7 +489,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
                         </div>
                     </div>
-                ) : availableFulfillmentTypes.length > 1 && (
+                ) : availableFulfillmentTypes.length > 1 && !isTrialUser && (
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
                         <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">Fulfillment Type</p>
                         <div className="flex flex-wrap gap-2">

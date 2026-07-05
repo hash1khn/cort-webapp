@@ -22,9 +22,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    /**
-     * Load user profile from backend using stored token
-     */
     const loadUserProfile = useCallback(async () => {
         try {
             setLoading(true);
@@ -42,7 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             console.error('Failed to load user profile:', err);
             setError(err instanceof Error ? err.message : 'Failed to load profile');
-            // Clear invalid token
             await apiClient.logout();
             setUser(null);
             setSession(null);
@@ -51,17 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    /**
-     * Initialize auth state on mount
-     */
     useEffect(() => {
         loadUserProfile();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run once on mount
+    }, []);
 
-    /**
-     * Login user with email and password
-     */
     const login = useCallback(async (email: string, password: string) => {
         try {
             setLoading(true);
@@ -72,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(response.data.user);
             setSession(response.data.session);
 
-            // Role-based post-login redirect
             if (response.data.user.role === UserRole.COMPANY_VENDOR) {
                 router.push('/vendor');
             }
@@ -85,9 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [router]);
 
-    /**
-     * Logout user
-     */
     const logout = useCallback(async () => {
         try {
             setLoading(true);
@@ -103,61 +89,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [router]);
 
-    /**
-     * Refresh user profile
-     */
     const refreshProfile = useCallback(async () => {
         await loadUserProfile();
     }, [loadUserProfile]);
 
-    /**
-     * Check if user is authenticated
-     */
+    const markTrialOnboardingComplete = useCallback(() => {
+        setUser((prev) =>
+            prev ? { ...prev, trial_onboarding_completed: true } : prev,
+        );
+    }, []);
+
     const isAuthenticated = !!user && !!apiClient.isAuthenticated();
-
-    /**
-     * Check if user is super admin
-     */
     const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
-
-    /**
-     * Check if user is internal staff
-     */
     const isInternalStaff = user?.role === UserRole.INTERNAL_STAFF;
-
-    /**
-     * Check if user is company admin
-     */
     const isCompanyAdmin = user?.role === UserRole.COMPANY_ADMIN;
-
-    /**
-     * Check if user is employee
-     */
     const isEmployee = user?.role === UserRole.EMPLOYEE;
-
-    /**
-     * Check if user is driver
-     */
     const isDriver = user?.role === UserRole.DRIVER;
-
-    /**
-     * Check if user is a company vendor
-     */
     const isCompanyVendor = user?.role === UserRole.COMPANY_VENDOR;
 
-    /**
-     * Check if user has any of the specified roles
-     */
     const hasRole = useCallback((roles: UserRole[]): boolean => {
         if (!user) return false;
         return roles.includes(user.role);
     }, [user]);
 
-    /**
-     * Check if user has access to a specific company
-     * Super admins have access to all companies
-     * Other users only have access to their own company
-     */
     const hasCompanyAccess = useCallback((companyId: number): boolean => {
         if (!user) return false;
         if (user.role === UserRole.SUPER_ADMIN) return true;
@@ -173,20 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
     }, [user]);
 
-    /** Nav / default route gate: requires `read` on the section for INTERNAL_STAFF. */
     const hasPermission = useCallback(
         (key: PermissionKey): boolean => hasCrud(key, 'read'),
         [hasCrud],
     );
 
-    /**
-     * Check if shuttle service is enabled for the user's company
-     */
     const isShuttleEnabled = !!user && (user.role === UserRole.SUPER_ADMIN || user.enabled_services?.shuttle === true);
-
-    /**
-     * Check if chauffeur service is enabled for the user's company
-     */
     const isChauffeurEnabled = !!user && (user.role === UserRole.SUPER_ADMIN || user.enabled_services?.chauffeur === true);
 
     const value: AuthContextType = {
@@ -197,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshProfile,
+        markTrialOnboardingComplete,
         isAuthenticated,
         isSuperAdmin,
         isInternalStaff,
@@ -215,9 +162,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Hook to use auth context
- */
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {

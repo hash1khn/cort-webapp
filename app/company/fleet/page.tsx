@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
+import { useAuth } from "../../lib/contexts/auth-context";
 import { apiClient } from "../../lib/services/api-client";
 import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/types/multi-mode";
 import { VehicleCategory } from "../../lib/services/types/vehicles";
@@ -68,9 +69,25 @@ const getDefaultVehicleForm = () => ({
     fuel_avg_highway: 13,
 });
 
+function generateDriverPassword(length = 12): string {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+}
+
 export default function CompanyFleetPage() {
+    const { user } = useAuth();
+    const isTrialUser = !!user?.is_trial;
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
+
+    const fleetTabs = useMemo(
+        () => (isTrialUser ? (["vehicles", "drivers"] as const) : (["vehicles", "drivers", "analytics"] as const)),
+        [isTrialUser],
+    );
 
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
     const [featureLoaded, setFeatureLoaded] = useState(false);
@@ -97,11 +114,32 @@ export default function CompanyFleetPage() {
     const [generating, setGenerating] = useState(false);
 
     useEffect(() => {
+        if (typeof window === "undefined") return;
+        const tab = new URLSearchParams(window.location.search).get("tab");
+        if (tab === "drivers") setActiveTab("drivers");
+        else if (tab === "vehicles") setActiveTab("vehicles");
+        else if (tab === "analytics" && !isTrialUser) setActiveTab("analytics");
+    }, [isTrialUser]);
+
+    useEffect(() => {
+        if (isTrialUser && activeTab === "analytics") setActiveTab("vehicles");
+    }, [isTrialUser, activeTab]);
+
+    useEffect(() => {
         if (!companyId) return;
         apiClient.getCompanyFeatures(companyId)
             .then((r) => { setFeatures(r.data); setFeatureLoaded(true); })
             .catch(() => setFeatureLoaded(true));
     }, [companyId]);
+
+    const openAddDriver = () => {
+        if (isTrialUser) {
+            const generated = generateDriverPassword();
+            setDriverForm((f) => ({ ...f, password: generated }));
+            toast.message("Driver password generated — share it with your driver for the mobile app.");
+        }
+        setShowAddDriver(true);
+    };
 
     const isEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
 
@@ -210,7 +248,11 @@ export default function CompanyFleetPage() {
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
-            toast.success("Driver invited to pool");
+            if (isTrialUser) {
+                toast.success(`Driver invited. App login password: ${driverForm.password}`);
+            } else {
+                toast.success("Driver invited to pool");
+            }
             setShowAddDriver(false);
             setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
             fetchDrivers();
@@ -271,21 +313,21 @@ export default function CompanyFleetPage() {
                         >
                             + Add Vehicle
                         </button>
-                    ) : (
+                    ) : activeTab === "drivers" ? (
                         <button
-                            onClick={() => setShowAddDriver(true)}
+                            onClick={openAddDriver}
                             className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
                         >
                             + Invite Driver
                         </button>
-                    )
+                    ) : null
                 }
             />
 
             {/* Tab Nav */}
             <div className="border-b border-[var(--border-light)]">
                 <nav className="-mb-px flex space-x-8">
-                    {(["vehicles", "drivers", "analytics"] as const).map((tab) => (
+                    {fleetTabs.map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}

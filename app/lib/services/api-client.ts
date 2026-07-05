@@ -370,6 +370,10 @@ class ApiClient {
         });
     }
 
+    async completeTrialOnboarding(): Promise<void> {
+        await this.request<void>('/trial/onboarding/complete', { method: 'POST' });
+    }
+
     async logout(): Promise<void> {
         try {
             await this.request<void>('/auth/logout', { method: 'POST' });
@@ -417,6 +421,17 @@ class ApiClient {
             throw new Error('Upload failed: no URL returned');
         }
         return url;
+    }
+
+    storeSession(session: { access_token: string; refresh_token?: string }): void {
+        this.setToken(session.access_token);
+        if (session.refresh_token) {
+            this.setRefreshToken(session.refresh_token);
+        }
+    }
+
+    clearSession(): void {
+        this.removeToken();
     }
 
     isAuthenticated(): boolean {

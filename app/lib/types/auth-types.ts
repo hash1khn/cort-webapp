@@ -74,6 +74,9 @@ export interface AuthUser {
         shuttle: boolean;
         chauffeur: boolean;
     } | null;
+  is_trial?: boolean;
+  trial_expires_at?: string;
+  trial_onboarding_completed?: boolean;
     permissions?: StaffPermissions | null; // only populated for INTERNAL_STAFF
     external_vendor_id?: number | null;    // only populated for COMPANY_VENDOR
     vendor_links?: VendorLink[];           // only populated for COMPANY_VENDOR
@@ -139,6 +142,7 @@ export interface AuthContextType extends AuthState {
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     refreshProfile: () => Promise<void>;
+    markTrialOnboardingComplete: () => void;
     isAuthenticated: boolean;
     isSuperAdmin: boolean;
     isInternalStaff: boolean;
