@@ -5,13 +5,12 @@ import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
 import { fetchDashboardStats, selectDashboardStats, selectDashboardStatus } from "../lib/store/slices/dashboardSlice";
 import { selectCompany } from "../lib/store/slices/companySlice";
 import { useAuth } from "../lib/contexts/auth-context";
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "../lib/services/api-client";
 import { getCalendarMonthRange } from "../lib/date-utils";
 import Modal from "./bookings/components/Modal";
 import CreateBookingForm from "./bookings/components/CreateBookingForm";
 import EditBudgetForm from "./components/EditBudgetForm";
-import { TrialOnboardingWalkthrough } from "./components/TrialOnboardingWalkthrough";
 import {
   TakingCareSection,
   NothingToDoSection,
@@ -376,10 +375,6 @@ export default function CompanyDashboardPage() {
           onCancel={() => setIsBudgetModalOpen(false)}
         />
       </Modal>
-
-      <Suspense fallback={null}>
-        <TrialOnboardingWalkthrough />
-      </Suspense>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
+import { useAuth } from "../../lib/contexts/auth-context";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader } from "../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
@@ -716,6 +717,8 @@ function RouteCard({ route }: { route: CompanyRoute }) {
 
 export default function RoutesPage() {
   const company = useAppSelector(selectCompany);
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
   const [routes, setRoutes] = useState<CompanyRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -765,13 +768,23 @@ export default function RoutesPage() {
         title="Route Roster"
         description="All shuttle routes and vehicles assigned to your company. Click any route to see passengers."
         action={
-          <Button
-            onClick={() => setShowAddEmployee(true)}
-            className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Employee
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isTrialUser && routes.length === 0 && (
+              <Link href="/company/routes/create">
+                <Button className="gap-2 bg-[var(--cort-navy)] hover:bg-[var(--cort-navy)]/90 text-white border-0 rounded-xl">
+                  <Bus className="w-4 h-4" />
+                  Create route
+                </Button>
+              </Link>
+            )}
+            <Button
+              onClick={() => setShowAddEmployee(true)}
+              className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Employee
+            </Button>
+          </div>
         }
       />
 
@@ -789,13 +802,20 @@ export default function RoutesPage() {
       ) : routes.length === 0 ? (
         <Card className="py-16 text-center">
           <Bus className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
-          <div className="text-sm text-[var(--text-muted)]">No routes assigned yet.</div>
-          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">Contact Cort Super Admin to assign routes.</div>
+          <div className="text-sm text-[var(--text-muted)]">No routes yet.</div>
+          {isTrialUser ? (
+            <Link href="/company/routes/create" className="inline-block mt-4 text-sm font-semibold text-[var(--cort-orange)] hover:underline">
+              Create your first shuttle route →
+            </Link>
+          ) : (
+            <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">Contact Cort Super Admin to assign routes.</div>
+          )}
         </Card>
       ) : (
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-4">
-            {routes.length} route{routes.length !== 1 ? "s" : ""} · Read-only view managed by Cort Operations
+            {routes.length} route{routes.length !== 1 ? "s" : ""}
+            {isTrialUser ? " · Trial account" : " · Read-only view managed by Cort Operations"}
           </div>
           <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
             {routes.map((route) => (

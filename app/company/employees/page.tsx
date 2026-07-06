@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus, updateEmployee, deactivateEmployee } from "../../lib/store/slices/employeeSlice";
+import { useAuth } from "../../lib/contexts/auth-context";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import TablePageSkeleton from "../components/TablePageSkeleton";
@@ -33,6 +34,9 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export default function EmployeesPage() {
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
+  const maxEmployees = user?.trial_modules === "both" ? 6 : 3;
   const company = useAppSelector(selectCompany);
   const employees = useAppSelector(selectEmployees);
   const status = useAppSelector(selectEmployeesStatus);
@@ -112,6 +116,13 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader label="Roster Management" title="Employees" />
 
+      {isTrialUser && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+          Trial: {employees.length} of {maxEmployees} employees used. Add employees from the{" "}
+          <a href="/company/routes" className="font-semibold underline">Routes</a> page (Add Employee). Employee app passwords are shown once on create.
+        </div>
+      )}
+
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
           <div className="flex items-start gap-3">
@@ -119,9 +130,13 @@ export default function EmployeesPage() {
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
             <div>
-              <div className="text-sm font-bold text-[var(--text-primary)]">Read-Only Roster</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">
+                {isTrialUser ? "Trial employee roster" : "Read-Only Roster"}
+              </div>
               <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
-                This roster is synced from the Cort Admin portal. You can update contact details or deactivate status, but main record creation happens centrally.
+                {isTrialUser
+                  ? "View employees added during your trial. Create new employees from the Routes page and assign them to your shuttle route."
+                  : "This roster is synced from the Cort Admin portal. You can update contact details or deactivate status, but main record creation happens centrally."}
               </div>
             </div>
           </div>

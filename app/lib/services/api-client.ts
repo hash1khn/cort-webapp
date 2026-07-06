@@ -1681,6 +1681,7 @@ class ApiClient {
         category: string;
         fuel_avg_city: number;
         fuel_avg_highway: number;
+        seat_capacity?: number;
     }) {
         return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/pool/vehicles`, {
             method: 'POST',
@@ -1723,6 +1724,81 @@ class ApiClient {
     async deactivatePoolDriver(companyId: number, userId: string) {
         return this.request<{ success: boolean }>(`/companies/${companyId}/pool/drivers/${userId}`, {
             method: 'DELETE',
+        });
+    }
+
+    // ===== COMPANY SHUTTLE FLEET =====
+
+    async getShuttleVehicles(companyId: number) {
+        return this.request<{ success: boolean; data: PoolVehicle[] }>(`/companies/${companyId}/shuttle/vehicles`);
+    }
+
+    async createShuttleVehicle(companyId: number, dto: {
+        plate_number: string;
+        make: string;
+        model: string;
+        year: number;
+        color?: string;
+        category: string;
+        fuel_avg_city: number;
+        fuel_avg_highway: number;
+        seat_capacity: number;
+    }) {
+        return this.request<{ success: boolean; data: PoolVehicle }>(`/companies/${companyId}/shuttle/vehicles`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async getShuttleDrivers(companyId: number) {
+        return this.request<{ success: boolean; data: PoolDriver[] }>(`/companies/${companyId}/shuttle/drivers`);
+    }
+
+    async inviteShuttleDriver(companyId: number, dto: {
+        email: string;
+        password: string;
+        full_name: string;
+        phone?: string;
+        cnic_number?: string;
+        license_number?: string;
+    }) {
+        return this.request<{ success: boolean; data: PoolDriver }>(`/companies/${companyId}/shuttle/drivers`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async previewCompanyRoutePolyline(stops: { lat: number; lng: number }[]) {
+        return this.request<{ points: { lat: number; lng: number }[] }>('/routes/preview-polyline', {
+            method: 'POST',
+            body: JSON.stringify({ stops }),
+        });
+    }
+
+    async createCompanyRoute(dto: {
+        name: string;
+        company_id: number;
+        assigned_vehicle_id?: number;
+        assigned_driver_id?: string;
+        stops?: Array<{
+            name: string;
+            lat: number;
+            lng: number;
+            morning_eta?: string;
+            evening_eta?: string;
+            sequence_order: number;
+        }>;
+    }) {
+        return this.request<unknown>('/routes', {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async generateShuttleTripsForRoute(routeId: number, dates: string[]) {
+        return this.request<unknown>('/shuttle-trips/generate-for-route', {
+            method: 'POST',
+            body: JSON.stringify({ route_id: routeId, dates }),
         });
     }
 

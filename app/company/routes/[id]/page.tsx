@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
+import { useAuth } from "../../../lib/contexts/auth-context";
+import { toast } from "sonner";
 import { Card } from "../../components/DashboardComponents";
 import { PageHeader } from "../../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
@@ -145,12 +147,15 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
 export default function RouteDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
   const company = useAppSelector(selectCompany);
   const routeId = params.id ? +params.id : null;
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingTrips, setGeneratingTrips] = useState(false);
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -169,6 +174,23 @@ export default function RouteDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function handleGenerateTrips() {
+    if (!routeId) return;
+    setGeneratingTrips(true);
+    try {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      await apiClient.generateShuttleTripsForRoute(routeId, [fmt(today), fmt(tomorrow)]);
+      toast.success("Trips generated for today and tomorrow");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate trips");
+    } finally {
+      setGeneratingTrips(false);
+    }
+  }
 
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
@@ -224,12 +246,24 @@ export default function RouteDetailPage() {
                 {route.name}
               </h1>
             </div>
-            <Link href={`/company/routes/${routeId}/track`}>
-              <Button variant="outline" className="gap-2">
-                <Activity className="w-4 h-4" />
-                Track Live
-              </Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {isTrialUser && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  disabled={generatingTrips}
+                  onClick={handleGenerateTrips}
+                >
+                  {generatingTrips ? "Generating…" : "Generate trips"}
+                </Button>
+              )}
+              <Link href={`/company/routes/${routeId}/track`}>
+                <Button variant="outline" className="gap-2">
+                  <Activity className="w-4 h-4" />
+                  Track Live
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* Stats bar */}

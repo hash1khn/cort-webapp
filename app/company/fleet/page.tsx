@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { useAuth } from "../../lib/contexts/auth-context";
+import type { TrialModules } from "../../lib/types/auth-types";
 import { apiClient } from "../../lib/services/api-client";
 import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/types/multi-mode";
 import { VehicleCategory } from "../../lib/services/types/vehicles";
@@ -67,7 +68,16 @@ const getDefaultVehicleForm = () => ({
     category: VehicleCategory.SEDAN,
     fuel_avg_city: 10,
     fuel_avg_highway: 13,
+    seat_capacity: 14,
 });
+
+function trialHasPool(modules?: TrialModules): boolean {
+    return modules === "pool" || modules === "both" || !modules;
+}
+
+function trialHasShuttle(modules?: TrialModules): boolean {
+    return modules === "shuttle" || modules === "both";
+}
 
 function generateDriverPassword(length = 12): string {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -81,6 +91,7 @@ function generateDriverPassword(length = 12): string {
 export default function CompanyFleetPage() {
     const { user } = useAuth();
     const isTrialUser = !!user?.is_trial;
+    const trialModules = user?.trial_modules;
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
 
@@ -104,11 +115,29 @@ export default function CompanyFleetPage() {
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
     const [showAddDriver, setShowAddDriver] = useState(false);
-    const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+    const [driverForm, setDriverForm] = useState({
+        email: "",
+        password: "",
+        full_name: "",
+        phone: "",
+        cnic_number: "",
+        license_number: "",
+        driver_type: "CHAUFFEUR" as "CHAUFFEUR" | "SHUTTLE",
+    });
     const [driverSaving, setDriverSaving] = useState(false);
 
     // Analytics state
     const [poolUtil, setPoolUtil] = useState<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] } | null>(null);
+    const atVehicleLimit = isTrialUser && vehicles.length >= (trialHasPool(trialModules) && trialHasShuttle(trialModules) ? 2 : 1);
+    const chauffeurDriverCount = drivers.filter((d) => d.driver_type === "CHAUFFEUR").length;
+    const shuttleDriverCount = drivers.filter((d) => d.driver_type === "SHUTTLE").length;
+    const atChauffeurDriverLimit = isTrialUser && trialHasPool(trialModules) && chauffeurDriverCount >= 1;
+    const atShuttleDriverLimit = isTrialUser && trialHasShuttle(trialModules) && shuttleDriverCount >= 1;
+
+    const defaultDriverType = (): "CHAUFFEUR" | "SHUTTLE" => {
+        if (trialHasShuttle(trialModules) && !trialHasPool(trialModules)) return "SHUTTLE";
+        return "CHAUFFEUR";
+    };
     const [poolInsights, setPoolInsights] = useState<PoolInsight[]>([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
@@ -133,15 +162,17 @@ export default function CompanyFleetPage() {
     }, [companyId]);
 
     const openAddDriver = () => {
+        const generated = generateDriverPassword();
+        const driverType = defaultDriverType();
+        setDriverForm((f) => ({ ...f, password: generated, driver_type: driverType }));
         if (isTrialUser) {
-            const generated = generateDriverPassword();
-            setDriverForm((f) => ({ ...f, password: generated }));
-            toast.message("Driver password generated — share it with your driver for the mobile app.");
+            toast.message("Driver password generated — share it for the mobile app.");
         }
         setShowAddDriver(true);
     };
 
-    const isEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const isChauffeurFleetEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const showFleet = isChauffeurFleetEnabled || isTrialUser;
 
     const fetchVehicles = useCallback(async () => {
         if (!companyId) return;
@@ -190,11 +221,11 @@ export default function CompanyFleetPage() {
     };
 
     useEffect(() => {
-        if (!isEnabled) return;
+        if (!showFleet) return;
         if (activeTab === "vehicles") fetchVehicles();
         if (activeTab === "drivers") fetchDrivers();
         if (activeTab === "analytics") fetchAnalytics();
-    }, [activeTab, isEnabled, fetchVehicles, fetchDrivers, fetchAnalytics]);
+    }, [activeTab, showFleet, fetchVehicles, fetchDrivers, fetchAnalytics]);
 
     const handleAddVehicle = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -209,8 +240,9 @@ export default function CompanyFleetPage() {
                 category: vehicleForm.category,
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
+                ...(trialHasShuttle(trialModules) ? { seat_capacity: vehicleForm.seat_capacity } : {}),
             });
-            toast.success("Vehicle added to pool");
+            toast.success("Vehicle added to fleet");
             setShowAddVehicle(false);
             setVehicleForm(getDefaultVehicleForm());
             fetchVehicles();
@@ -244,17 +276,25 @@ export default function CompanyFleetPage() {
                 password: driverForm.password,
                 full_name: driverForm.full_name,
                 phone: driverForm.phone || undefined,
-                driver_type: "CHAUFFEUR",
+                driver_type: driverForm.driver_type,
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
             if (isTrialUser) {
-                toast.success(`Driver invited. App login password: ${driverForm.password}`);
+                toast.success(`Driver invited (${driverForm.driver_type}). App login password: ${driverForm.password}`);
             } else {
-                toast.success("Driver invited to pool");
+                toast.success("Driver invited to fleet");
             }
             setShowAddDriver(false);
-            setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+            setDriverForm({
+                email: "",
+                password: "",
+                full_name: "",
+                phone: "",
+                cnic_number: "",
+                license_number: "",
+                driver_type: defaultDriverType(),
+            });
             fetchDrivers();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to invite driver");
@@ -282,10 +322,10 @@ export default function CompanyFleetPage() {
         );
     }
 
-    if (!isEnabled) {
+    if (!showFleet) {
         return (
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-                <PageHeader label="Self-Managed Fleet" title="Pool Fleet" description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings" />
+                <PageHeader label="Fleet" title="Fleet" description="Manage your company's vehicles and drivers" />
                 <Card className="flex items-center justify-center min-h-[400px]">
                     <div className="text-center max-w-sm">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--surface-subtle)] mb-4">
@@ -302,27 +342,49 @@ export default function CompanyFleetPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <PageHeader
-                label="Self-Managed Fleet"
-                title="Pool Fleet"
-                description="Manage your company's own vehicles and drivers for self-managed chauffeur bookings"
+                label={isTrialUser ? "Trial Fleet" : "Self-Managed Fleet"}
+                title={isTrialUser ? "Fleet" : "Pool Fleet"}
+                description={
+                    isTrialUser
+                        ? "Your company vehicles and drivers. Assign them to chauffeur bookings or shuttle routes."
+                        : "Manage your company's own vehicles and drivers for self-managed chauffeur bookings"
+                }
                 action={
                     activeTab === "vehicles" ? (
                         <button
                             onClick={() => setShowAddVehicle(true)}
-                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
+                            disabled={atVehicleLimit}
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:hover:translate-y-0"
                         >
                             + Add Vehicle
                         </button>
                     ) : activeTab === "drivers" ? (
                         <button
                             onClick={openAddDriver}
-                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0"
+                            disabled={isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules)
+                                ? atChauffeurDriverLimit && atShuttleDriverLimit
+                                : isTrialUser
+                                    ? (trialHasShuttle(trialModules) ? atShuttleDriverLimit : atChauffeurDriverLimit)
+                                    : false}
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:hover:translate-y-0"
                         >
                             + Invite Driver
                         </button>
                     ) : null
                 }
             />
+
+            {isTrialUser && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+                    Trial fleet limits:{" "}
+                    {trialHasPool(trialModules) && trialHasShuttle(trialModules)
+                        ? "up to 2 vehicles, 1 chauffeur driver, and 1 shuttle driver."
+                        : trialHasShuttle(trialModules)
+                            ? "1 vehicle and 1 shuttle driver."
+                            : "1 vehicle and 1 chauffeur driver."}{" "}
+                    Assign vehicles and drivers when creating bookings or routes.
+                </div>
+            )}
 
             {/* Tab Nav */}
             <div className="border-b border-[var(--border-light)]">
@@ -338,7 +400,11 @@ export default function CompanyFleetPage() {
                                     : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]"
                             )}
                         >
-                            {tab === "vehicles" ? "Pool Vehicles" : tab === "drivers" ? "Pool Drivers" : "Analytics"}
+                            {tab === "vehicles"
+                                ? (isTrialUser ? "Vehicles" : "Pool Vehicles")
+                                : tab === "drivers"
+                                    ? (isTrialUser ? "Drivers" : "Pool Drivers")
+                                    : "Analytics"}
                         </button>
                     ))}
                 </nav>
@@ -348,7 +414,11 @@ export default function CompanyFleetPage() {
             {activeTab === "vehicles" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">Pool vehicles registered under your company for self-managed bookings.</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {isTrialUser
+                                ? "Company vehicles — assign to chauffeur bookings or shuttle routes."
+                                : "Pool vehicles registered under your company for self-managed bookings."}
+                        </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm text-left">
@@ -398,7 +468,11 @@ export default function CompanyFleetPage() {
             {activeTab === "drivers" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">Pool drivers assigned to your company for chauffeur bookings.</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {isTrialUser
+                                ? "Company drivers — chauffeur for bookings, shuttle for routes."
+                                : "Pool drivers assigned to your company for chauffeur bookings."}
+                        </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm text-left">
@@ -564,7 +638,7 @@ export default function CompanyFleetPage() {
 
             {/* Add Vehicle Modal */}
             {showAddVehicle && (
-                <Modal title="Add Pool Vehicle" onClose={() => setShowAddVehicle(false)}>
+                <Modal title={isTrialUser ? "Add Fleet Vehicle" : "Add Pool Vehicle"} onClose={() => setShowAddVehicle(false)}>
                     <form onSubmit={handleAddVehicle} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Plate Number *"><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
@@ -581,6 +655,9 @@ export default function CompanyFleetPage() {
                             <Field label="Color"><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg City (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label="Fuel Avg Highway (km/L)"><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
+                            {trialHasShuttle(trialModules) && (
+                                <Field label="Seat capacity"><input type="number" min={1} value={vehicleForm.seat_capacity} onChange={(e) => setVehicleForm((f) => ({ ...f, seat_capacity: Number(e.target.value) }))} className={inputCls} /></Field>
+                            )}
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button type="button" onClick={() => setShowAddVehicle(false)} className={cancelBtnCls}>Cancel</button>
@@ -592,8 +669,20 @@ export default function CompanyFleetPage() {
 
             {/* Invite Driver Modal */}
             {showAddDriver && (
-                <Modal title="Invite Pool Driver" onClose={() => setShowAddDriver(false)}>
+                <Modal title={isTrialUser ? "Invite Fleet Driver" : "Invite Pool Driver"} onClose={() => setShowAddDriver(false)}>
                     <form onSubmit={handleInviteDriver} className="space-y-4">
+                        {isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules) && (
+                            <Field label="Driver type *">
+                                <select
+                                    value={driverForm.driver_type}
+                                    onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
+                                    className={inputCls}
+                                >
+                                    <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>Chauffeur (bookings)</option>
+                                    <option value="SHUTTLE" disabled={atShuttleDriverLimit}>Shuttle (routes)</option>
+                                </select>
+                            </Field>
+                        )}
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
                             <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>

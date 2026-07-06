@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { fetchCompanyProfile, fetchCompanyFeatures, selectCompany, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
@@ -24,33 +24,64 @@ import {
   Building2,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
+import type { TrialModules } from "../../lib/types/auth-types";
 import { useCompanyTheme } from "../lib/theme-context";
 import { Sun, Moon } from "lucide-react";
 import { Toaster } from "sonner";
+import { TrialOnboardingWalkthrough } from "../components/TrialOnboardingWalkthrough";
 
 type ServicesEnabled = { shuttle_enabled: boolean; chauffeur_enabled: boolean };
 type FeatureLike = { feature_key: string; is_enabled: boolean };
 
-const TRIAL_ALLOWED_PREFIXES = ["/company/fleet", "/company/bookings"];
+const TRIAL_FLEET_PREFIXES = ["/company/fleet"];
+const TRIAL_POOL_PREFIXES = ["/company/bookings"];
+const TRIAL_SHUTTLE_PREFIXES = ["/company/routes", "/company/employees"];
 
-function isTrialAllowedPath(pathname: string): boolean {
-  if (pathname === "/company") return true;
-  return TRIAL_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+function trialHasPool(modules?: TrialModules): boolean {
+  return modules === "pool" || modules === "both" || !modules;
 }
 
-const getTrialNavGroups = () => [
-  {
-    title: "",
-    items: [
-      { href: "/company", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/company/fleet", label: "Pool Fleet", icon: Car },
-      { href: "/company/bookings", label: "Bookings", icon: Calendar },
-    ],
-  },
-];
+function trialHasShuttle(modules?: TrialModules): boolean {
+  return modules === "shuttle" || modules === "both";
+}
 
-const getNavGroups = (servicesEnabled: ServicesEnabled, features: FeatureLike[], hasVendors = false, isTrial = false) => {
-  if (isTrial) return getTrialNavGroups();
+function isTrialAllowedPath(pathname: string, modules?: TrialModules): boolean {
+  if (pathname === "/company") return true;
+  const prefixes: string[] = [...TRIAL_FLEET_PREFIXES];
+  if (trialHasPool(modules)) prefixes.push(...TRIAL_POOL_PREFIXES);
+  if (trialHasShuttle(modules)) prefixes.push(...TRIAL_SHUTTLE_PREFIXES);
+  return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+const getTrialNavGroups = (modules?: TrialModules) => {
+  const items: { href: string; label: string; icon: typeof LayoutDashboard }[] = [
+    { href: "/company", label: "Dashboard", icon: LayoutDashboard },
+  ];
+
+  if (trialHasPool(modules) || trialHasShuttle(modules)) {
+    items.push({ href: "/company/fleet", label: "Fleet", icon: Car });
+  }
+
+  if (trialHasPool(modules)) {
+    items.push({ href: "/company/bookings", label: "Bookings", icon: Calendar });
+  }
+
+  if (trialHasShuttle(modules)) {
+    items.push({ href: "/company/routes", label: "Routes", icon: Map });
+    items.push({ href: "/company/employees", label: "Employees", icon: Users });
+  }
+
+  return [{ title: "", items }];
+};
+
+const getNavGroups = (
+  servicesEnabled: ServicesEnabled,
+  features: FeatureLike[],
+  hasVendors = false,
+  isTrial = false,
+  trialModules?: TrialModules,
+) => {
+  if (isTrial) return getTrialNavGroups(trialModules);
 
   const hasFeature = (key: string) => features.find((f) => f.feature_key === key)?.is_enabled ?? false;
 
@@ -133,6 +164,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasVendors, setHasVendors] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const features = useAppSelector(selectCompanyFeatures);
   const companyId = user?.company_id?.toString();
 
@@ -156,13 +188,14 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   }, [user?.company_id]);
 
   const isTrialUser = !!user?.is_trial;
+  const trialModules = user?.trial_modules;
 
   useEffect(() => {
     if (!isTrialUser || !pathname) return;
-    if (!isTrialAllowedPath(pathname)) {
+    if (!isTrialAllowedPath(pathname, trialModules)) {
       router.replace("/company");
     }
-  }, [isTrialUser, pathname, router]);
+  }, [isTrialUser, pathname, router, trialModules]);
 
   // ✅ FIX: Use user's enabled_services as fallback when company profile hasn't loaded yet
   // This prevents showing a second full-page loader
@@ -181,7 +214,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/company";
-    const navGroups = getNavGroups(servicesEnabled, features, hasVendors, isTrialUser);
+    const navGroups = getNavGroups(servicesEnabled, features, hasVendors, isTrialUser, trialModules);
 
     // Flatten items for search
     const allItems = navGroups.flatMap(g => g.items);
@@ -190,7 +223,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     if (found) return found.href;
     const prefix = allItems.find((n) => n.href !== "/company" && pathname.startsWith(n.href));
     return prefix?.href ?? "/company";
-  }, [pathname, servicesEnabled, features, hasVendors, isTrialUser]);
+  }, [pathname, servicesEnabled, features, hasVendors, isTrialUser, trialModules]);
 
   if (isLogin) return <>{children}</>;
 
@@ -218,7 +251,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="px-3 mt-2 space-y-6">
-          {getNavGroups(servicesEnabled, features, hasVendors, isTrialUser).map((group, groupIndex) => (
+          {getNavGroups(servicesEnabled, features, hasVendors, isTrialUser, trialModules).map((group, groupIndex) => (
             <div key={groupIndex}>
               {group.title && (
                 <div className={cx(
@@ -373,8 +406,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <main className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8 bg-[var(--bg-page)] min-h-screen">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <Suspense fallback={null}>
+            <TrialOnboardingWalkthrough
+              forceOpen={guideOpen}
+              onClose={() => setGuideOpen(false)}
+              sidebarCollapsed={collapsed}
+            />
+          </Suspense>
+          <main
+            data-company-main
+            className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8 bg-[var(--bg-page)] min-h-screen"
+          >
             {trialInfo && (
               <div className="mb-4 rounded-2xl border border-[#f47f00]/25 bg-[#f47f00]/10 px-4 py-3 text-sm text-white/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex flex-col">
@@ -385,7 +428,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                   {!user?.trial_onboarding_completed && (
                     <button
                       type="button"
-                      onClick={() => router.push("/company?walkthrough=1")}
+                      onClick={() => setGuideOpen(true)}
                       className="mt-1 text-left text-xs font-semibold text-[#f47f00] hover:underline w-fit"
                     >
                       View setup guide

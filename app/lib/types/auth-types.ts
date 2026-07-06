@@ -61,6 +61,8 @@ export interface VendorLink {
     companies?: { id: number; name: string };
 }
 
+export type TrialModules = 'pool' | 'shuttle' | 'both';
+
 // Authenticated user interface
 export interface AuthUser {
     id: string;
@@ -77,6 +79,7 @@ export interface AuthUser {
   is_trial?: boolean;
   trial_expires_at?: string;
   trial_onboarding_completed?: boolean;
+  trial_modules?: TrialModules;
     permissions?: StaffPermissions | null; // only populated for INTERNAL_STAFF
     external_vendor_id?: number | null;    // only populated for COMPANY_VENDOR
     vendor_links?: VendorLink[];           // only populated for COMPANY_VENDOR
