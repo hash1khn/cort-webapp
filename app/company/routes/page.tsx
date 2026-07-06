@@ -40,6 +40,7 @@ import {
   PHONE_PLACEHOLDER,
   sanitizePhoneInput,
 } from "../../lib/utils/phone";
+import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -268,6 +269,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -313,7 +315,7 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
     setSubmitError(null);
     try {
       // 1. Create the employee
-      const created = await apiClient.request<{ data: { id: string } }>("/employees/create", {
+      const created = await apiClient.request<{ data: { id: string; password?: string } }>("/employees/create", {
         method: "POST",
         body: JSON.stringify({
           full_name: form.full_name.trim(),
@@ -326,7 +328,8 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
         }),
       });
 
-      const userId = (created as any)?.data?.id ?? (created as any)?.id;
+      const userId = created?.data?.id;
+      const password = created?.data?.password;
 
       // 2. Assign to route if selected
       if (selectedRouteId && userId) {
@@ -336,11 +339,11 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
         });
       }
 
+      if (password) {
+        setCreatedCredentials({ email: form.email.trim(), password });
+      }
       setDone(true);
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1800);
+      onSuccess();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Failed to add employee");
     } finally {
@@ -387,15 +390,32 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
         </div>
 
         {done ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 py-12">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <CheckCheck className="w-8 h-8 text-emerald-400" />
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
-              <div className="text-sm text-[var(--text-muted)] mt-1">
-                {form.full_name} has been added and{selectedRouteId ? " assigned to the recommended route" : " created"}.
+          <div className="flex flex-col flex-1 px-6 py-8 gap-6">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <CheckCheck className="w-8 h-8 text-emerald-400" />
               </div>
+              <div className="text-center">
+                <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
+                <div className="text-sm text-[var(--text-muted)] mt-1">
+                  {form.full_name} has been added{selectedRouteId ? " and assigned to the route" : ""}.
+                </div>
+              </div>
+            </div>
+            {createdCredentials ? (
+              <AccountCredentialsReveal
+                email={createdCredentials.email}
+                password={createdCredentials.password}
+                fullName={form.full_name}
+                subtitle="Share these credentials for the employee mobile app."
+              />
+            ) : (
+              <SaveCredentialsNote accountType="employee" />
+            )}
+            <div className="mt-auto flex justify-end pt-2 border-t border-[var(--border-light)]">
+              <Button type="button" onClick={onClose} className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 px-6">
+                Done
+              </Button>
             </div>
           </div>
         ) : (
@@ -584,6 +604,8 @@ function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployee
                   {submitError}
                 </div>
               )}
+
+              <SaveCredentialsNote accountType="employee" />
             </div>
 
             {/* Footer */}

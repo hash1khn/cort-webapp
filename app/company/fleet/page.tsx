@@ -11,6 +11,7 @@ import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/type
 import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
 import { Card } from "../components/DashboardComponents";
+import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
 import {
@@ -115,6 +116,12 @@ export default function CompanyFleetPage() {
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
     const [showAddDriver, setShowAddDriver] = useState(false);
+    const [driverCreatedCredentials, setDriverCreatedCredentials] = useState<{
+        email: string;
+        password: string;
+        full_name: string;
+        driver_type: string;
+    } | null>(null);
     const [driverForm, setDriverForm] = useState({
         email: "",
         password: "",
@@ -280,20 +287,11 @@ export default function CompanyFleetPage() {
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
-            if (isTrialUser) {
-                toast.success(`Driver invited (${driverForm.driver_type}). App login password: ${driverForm.password}`);
-            } else {
-                toast.success("Driver invited to fleet");
-            }
-            setShowAddDriver(false);
-            setDriverForm({
-                email: "",
-                password: "",
-                full_name: "",
-                phone: "",
-                cnic_number: "",
-                license_number: "",
-                driver_type: defaultDriverType(),
+            setDriverCreatedCredentials({
+                email: driverForm.email,
+                password: driverForm.password,
+                full_name: driverForm.full_name,
+                driver_type: driverForm.driver_type,
             });
             fetchDrivers();
         } catch (err) {
@@ -302,6 +300,20 @@ export default function CompanyFleetPage() {
             setDriverSaving(false);
         }
     };
+
+    function closeDriverModal() {
+        setShowAddDriver(false);
+        setDriverCreatedCredentials(null);
+        setDriverForm({
+            email: "",
+            password: "",
+            full_name: "",
+            phone: "",
+            cnic_number: "",
+            license_number: "",
+            driver_type: defaultDriverType(),
+        });
+    }
 
     const handleDeactivateDriver = async (userId: string) => {
         if (!confirm("Deactivate this pool driver?")) return;
@@ -669,33 +681,51 @@ export default function CompanyFleetPage() {
 
             {/* Invite Driver Modal */}
             {showAddDriver && (
-                <Modal title={isTrialUser ? "Invite Fleet Driver" : "Invite Pool Driver"} onClose={() => setShowAddDriver(false)}>
-                    <form onSubmit={handleInviteDriver} className="space-y-4">
-                        {isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules) && (
-                            <Field label="Driver type *">
-                                <select
-                                    value={driverForm.driver_type}
-                                    onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
-                                    className={inputCls}
-                                >
-                                    <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>Chauffeur (bookings)</option>
-                                    <option value="SHUTTLE" disabled={atShuttleDriverLimit}>Shuttle (routes)</option>
-                                </select>
-                            </Field>
-                        )}
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
-                            <Field label="Email *"><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
-                            <Field label="License No."><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                <Modal title={driverCreatedCredentials ? "Driver Created" : (isTrialUser ? "Invite Fleet Driver" : "Invite Pool Driver")} onClose={closeDriverModal}>
+                    {driverCreatedCredentials ? (
+                        <div className="space-y-5">
+                            <div className="text-center text-sm text-[var(--text-muted)]">
+                                {driverCreatedCredentials.full_name} has been invited as a {driverCreatedCredentials.driver_type.toLowerCase()} driver.
+                            </div>
+                            <AccountCredentialsReveal
+                                email={driverCreatedCredentials.email}
+                                password={driverCreatedCredentials.password}
+                                fullName={driverCreatedCredentials.full_name}
+                                subtitle="Share these credentials for the driver mobile app."
+                            />
+                            <div className="flex justify-end pt-2">
+                                <button type="button" onClick={closeDriverModal} className={saveBtnCls}>Done</button>
+                            </div>
                         </div>
-                        <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>Cancel</button>
-                            <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? "Inviting…" : "Invite Driver"}</button>
-                        </div>
-                    </form>
+                    ) : (
+                        <form onSubmit={handleInviteDriver} className="space-y-4">
+                            <SaveCredentialsNote accountType="driver" />
+                            {isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules) && (
+                                <Field label="Driver type *">
+                                    <select
+                                        value={driverForm.driver_type}
+                                        onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
+                                        className={inputCls}
+                                    >
+                                        <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>Chauffeur (bookings)</option>
+                                        <option value="SHUTTLE" disabled={atShuttleDriverLimit}>Shuttle (routes)</option>
+                                    </select>
+                                </Field>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Full Name *"><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
+                                <Field label="Phone"><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
+                                <Field label="Email *"><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
+                                <Field label="Password *"><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
+                                <Field label="CNIC"><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
+                                <Field label="License No."><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button type="button" onClick={closeDriverModal} className={cancelBtnCls}>Cancel</button>
+                                <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? "Inviting…" : "Invite Driver"}</button>
+                            </div>
+                        </form>
+                    )}
                 </Modal>
             )}
         </div>
