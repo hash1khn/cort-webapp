@@ -334,8 +334,12 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             if (!cortBroadcastCarModels || cortBroadcastCarModels.length === 0) return false;
         }
 
+        if (fulfillmentType === "SELF_MANAGED" && !isEventShuttle) {
+            if (!poolVehicleId || !poolDriverId) return false;
+        }
+
         return true;
-    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays, fulfillmentType, broadcastToAllVendors, vendorsLoading, vendorLinks.length, cortBroadcastCarModels]);
+    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays, fulfillmentType, broadcastToAllVendors, vendorsLoading, vendorLinks.length, cortBroadcastCarModels, poolVehicleId, poolDriverId]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -630,22 +634,37 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 )}
                             </div>
                         )}
-                        {fulfillmentType === "SELF_MANAGED" && (
-                            <div className="mt-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">Pool Driver</label>
-                                    <select
-                                        value={poolDriverId ?? ""}
-                                        onChange={(e) => setPoolDriverId(e.target.value || null)}
-                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                                    >
-                                        <option value="">— Select Driver —</option>
-                                        {poolDrivers.map((d) => (
-                                            <option key={d.user_id} value={d.user_id}>{d.users.full_name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
+                    </div>
+                )}
+
+                {fulfillmentType === "SELF_MANAGED" && !featuresLoading && (
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">
+                            Pool assignment
+                        </p>
+                        <Field label="Pool Driver" required>
+                            <Select
+                                value={poolDriverId ?? ""}
+                                onChange={(e) => setPoolDriverId(e.target.value || null)}
+                                required
+                                disabled={poolDrivers.length === 0}
+                            >
+                                <option value="">
+                                    {poolDrivers.length === 0
+                                        ? "No pool drivers — add one in Pool Fleet first"
+                                        : "Select driver"}
+                                </option>
+                                {poolDrivers.map((d) => (
+                                    <option key={d.user_id} value={d.user_id}>
+                                        {d.users.full_name}
+                                    </option>
+                                ))}
+                            </Select>
+                        </Field>
+                        {poolDrivers.length === 0 && (
+                            <p className="mt-2 text-xs text-rose-600 font-semibold">
+                                Invite a pool driver under Pool Fleet → Drivers before creating a booking.
+                            </p>
                         )}
                     </div>
                 )}
