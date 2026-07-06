@@ -104,7 +104,7 @@ export default function EmployeesPage() {
         employee_id: employeeForm.employee_id.trim() || undefined,
         company_id: Number(company.id),
       });
-      const password = created.data?.password ?? (created.data as { generatedPassword?: string })?.generatedPassword;
+      const password = created.data?.password;
       if (password) {
         setCreatedCredentials({
           email: employeeForm.email.trim(),

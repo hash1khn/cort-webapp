@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "../../lib/store/hooks";
@@ -26,21 +25,7 @@ import {
   ArrowRight,
   Sunrise,
   User,
-  UserPlus,
-  X,
-  Phone,
-  Mail,
-  Building2,
-  Home,
-  CheckCheck,
 } from "lucide-react";
-import {
-  getPhoneValidationError,
-  PHONE_MAX_LENGTH,
-  PHONE_PLACEHOLDER,
-  sanitizePhoneInput,
-} from "../../lib/utils/phone";
-import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -244,399 +229,6 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
   );
 }
 
-// ─── Add Employee Panel ───────────────────────────────────────────────────────
-
-type AddEmployeePanelProps = {
-  companyId: number;
-  routes: CompanyRoute[];
-  onClose: () => void;
-  onSuccess: () => void;
-};
-
-function AddEmployeePanel({ companyId, routes, onClose, onSuccess }: AddEmployeePanelProps) {
-  const [form, setForm] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    department: "",
-    home_address: "",
-    employee_id: "",
-  });
-  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
-  const [aiRec, setAiRec] = useState<AiRecommendation | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
-
-  const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function updateField(field: keyof typeof form, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (field === "home_address") {
-      // Debounce AI recommendation when address changes
-      if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
-      if (value.trim().length > 10) {
-        aiDebounceRef.current = setTimeout(() => runAiRecommend(value.trim()), 900);
-      } else {
-        setAiRec(null);
-      }
-    }
-  }
-
-  async function runAiRecommend(address: string) {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const data = await apiClient.request<AiRecommendation>("/routes/recommend-for-address", {
-        method: "POST",
-        body: JSON.stringify({ address, company_id: companyId }),
-      });
-      setAiRec(data);
-      if (data.routeId) setSelectedRouteId(data.routeId);
-    } catch {
-      setAiError("Could not get AI recommendation");
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.full_name.trim() || !form.email.trim()) return;
-    const phoneError = getPhoneValidationError(form.phone);
-    if (phoneError) {
-      setSubmitError(phoneError);
-      return;
-    }
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      // 1. Create the employee
-      const created = await apiClient.request<{ data: { id: string; password?: string } }>("/employees/create", {
-        method: "POST",
-        body: JSON.stringify({
-          full_name: form.full_name.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim() || undefined,
-          department: form.department.trim() || undefined,
-          home_address: form.home_address.trim() || undefined,
-          employee_id: form.employee_id.trim() || undefined,
-          company_id: companyId,
-        }),
-      });
-
-      const userId = created?.data?.id;
-      const password = created?.data?.password;
-
-      // 2. Assign to route if selected
-      if (selectedRouteId && userId) {
-        await apiClient.request("/employee-route-assignments/assign", {
-          method: "POST",
-          body: JSON.stringify({ user_id: userId, route_id: selectedRouteId }),
-        });
-      }
-
-      if (password) {
-        setCreatedCredentials({ email: form.email.trim(), password });
-      }
-      setDone(true);
-      onSuccess();
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to add employee");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const confidenceColor: Record<string, string> = {
-    High: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-    Medium: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-    Low: "text-red-400 bg-red-500/10 border-red-500/20",
-  };
-
-  const inputCls = "w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all";
-  const labelCls = "block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5";
-
-  return createPortal(
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm slideover-overlay"
-        onClick={onClose}
-      />
-
-      {/* Slide-over panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-lg bg-[var(--bg-card)] border-l border-[var(--border-default)] shadow-2xl overflow-y-auto slideover-panel">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--border-light)] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[var(--cort-orange)]/10">
-              <UserPlus className="w-5 h-5 text-[var(--cort-orange)]" />
-            </div>
-            <div>
-              <h2 className="font-bold text-[var(--text-primary)]">Add Employee</h2>
-              <p className="text-xs text-[var(--text-muted)]">AI will recommend the best route based on their address</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-[var(--bg-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {done ? (
-          <div className="flex flex-col flex-1 px-6 py-8 gap-6">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <CheckCheck className="w-8 h-8 text-emerald-400" />
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-[var(--text-primary)] text-lg">Employee Added!</div>
-                <div className="text-sm text-[var(--text-muted)] mt-1">
-                  {form.full_name} has been added{selectedRouteId ? " and assigned to the route" : ""}.
-                </div>
-              </div>
-            </div>
-            {createdCredentials ? (
-              <AccountCredentialsReveal
-                email={createdCredentials.email}
-                password={createdCredentials.password}
-                fullName={form.full_name}
-                subtitle="Share these credentials for the employee mobile app."
-              />
-            ) : (
-              <SaveCredentialsNote accountType="employee" />
-            )}
-            <div className="mt-auto flex justify-end pt-2 border-t border-[var(--border-light)]">
-              <Button type="button" onClick={onClose} className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 px-6">
-                Done
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1">
-            <div className="flex-1 px-6 py-6 space-y-5 overflow-y-auto">
-
-              {/* Name + Employee ID */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2 sm:col-span-1">
-                  <label className={labelCls}>Full Name *</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                    <input
-                      required
-                      type="text"
-                      value={form.full_name}
-                      onChange={(e) => updateField("full_name", e.target.value)}
-                      placeholder="Ahmed Khan"
-                      className={cx(inputCls, "pl-9")}
-                    />
-                  </div>
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className={labelCls}>Employee ID</label>
-                  <input
-                    type="text"
-                    value={form.employee_id}
-                    onChange={(e) => updateField("employee_id", e.target.value)}
-                    placeholder="EMP-001"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className={labelCls}>Email *</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                  <input
-                    required
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => updateField("email", e.target.value)}
-                    placeholder="ahmed@company.com"
-                    className={cx(inputCls, "pl-9")}
-                  />
-                </div>
-              </div>
-
-              {/* Phone + Department */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Phone</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={PHONE_MAX_LENGTH}
-                      value={form.phone}
-                      onChange={(e) => updateField("phone", sanitizePhoneInput(e.target.value))}
-                      placeholder={PHONE_PLACEHOLDER}
-                      className={cx(inputCls, "pl-9")}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className={labelCls}>Department</label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                    <input
-                      type="text"
-                      value={form.department}
-                      onChange={(e) => updateField("department", e.target.value)}
-                      placeholder="Engineering"
-                      className={cx(inputCls, "pl-9")}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Home Address → triggers AI */}
-              <div>
-                <label className={labelCls}>
-                  Home / Pickup Address
-                  <span className="ml-2 text-[var(--cort-orange)] normal-case font-normal tracking-normal">
-                    — AI will auto-recommend a route
-                  </span>
-                </label>
-                <div className="relative">
-                  <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-                  <input
-                    type="text"
-                    value={form.home_address}
-                    onChange={(e) => updateField("home_address", e.target.value)}
-                    placeholder="e.g. DHA Phase 6, Lahore"
-                    className={cx(inputCls, "pl-9")}
-                  />
-                  {aiLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--cort-orange)] animate-spin" />
-                  )}
-                </div>
-                {aiError && (
-                  <p className="mt-1 text-xs text-red-400">{aiError}</p>
-                )}
-              </div>
-
-              {/* AI recommendation result */}
-              {aiRec && (
-                <div className="rounded-2xl border border-[var(--cort-orange)]/20 bg-[var(--cort-orange)]/5 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-[var(--cort-orange)]" />
-                    <span className="text-xs font-bold text-[var(--cort-orange)] uppercase tracking-wider">AI Recommendation</span>
-                    <span className={cx("ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border", confidenceColor[aiRec.confidence] ?? confidenceColor.Low)}>
-                      {aiRec.confidence}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{aiRec.routeName}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">{aiRec.reason}</p>
-                </div>
-              )}
-
-              {/* Route selector */}
-              <div>
-                <label className={labelCls}>
-                  Assign to Route
-                  {aiRec && <span className="ml-2 text-emerald-400 normal-case font-normal tracking-normal">— AI pre-selected below</span>}
-                </label>
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  <div
-                    onClick={() => setSelectedRouteId(null)}
-                    className={cx(
-                      "flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all",
-                      selectedRouteId === null
-                        ? "border-[var(--border-input)] bg-[var(--bg-subtle)] text-[var(--text-muted)]"
-                        : "border-[var(--border-light)] hover:bg-[var(--bg-subtle)]"
-                    )}
-                  >
-                    <div className={cx("w-4 h-4 rounded-full border-2 flex-shrink-0", selectedRouteId === null ? "border-[var(--text-muted)]" : "border-[var(--border-default)]")} />
-                    <span className="text-sm text-[var(--text-muted)]">No route assignment (create employee only)</span>
-                  </div>
-                  {routes.map((route) => {
-                    const isSelected = selectedRouteId === route.id;
-                    const isAiPick = aiRec?.routeId === route.id;
-                    return (
-                      <div
-                        key={route.id}
-                        onClick={() => setSelectedRouteId(route.id)}
-                        className={cx(
-                          "flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all",
-                          isSelected
-                            ? "border-[var(--cort-orange)]/40 bg-[var(--cort-orange)]/5"
-                            : "border-[var(--border-light)] hover:bg-[var(--bg-subtle)]"
-                        )}
-                      >
-                        <div className={cx(
-                          "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                          isSelected ? "border-[var(--cort-orange)] bg-[var(--cort-orange)]" : "border-[var(--border-default)]"
-                        )}>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-[var(--text-primary)]">{route.name}</span>
-                            {isAiPick && (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-[var(--cort-orange)] bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 px-1.5 py-0.5 rounded-full">
-                                <Sparkles className="w-2.5 h-2.5" /> AI Pick
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-[var(--text-muted)]">
-                            {route.employee_route_assignments?.length ?? 0} passengers
-                            {route.vehicles ? ` · ${route.vehicles.plate_number}` : ""}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {submitError && (
-                <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  {submitError}
-                </div>
-              )}
-
-              <SaveCredentialsNote accountType="employee" />
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[var(--border-light)] flex-shrink-0">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Cancel
-              </button>
-              <Button
-                type="submit"
-                disabled={submitting || !form.full_name.trim() || !form.email.trim()}
-                className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 px-6 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
-                ) : (
-                  <><UserPlus className="w-4 h-4" /> Add Employee{selectedRouteId ? " & Assign Route" : ""}</>
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
-    </>,
-    document.body
-  );
-}
-
 // ─── Route Card ───────────────────────────────────────────────────────────────
 
 function RouteCard({ route }: { route: CompanyRoute }) {
@@ -744,7 +336,6 @@ export default function RoutesPage() {
   const [routes, setRoutes] = useState<CompanyRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddEmployee, setShowAddEmployee] = useState(false);
 
   function loadRoutes() {
     if (!company?.id) { setLoading(false); return; }
@@ -790,23 +381,14 @@ export default function RoutesPage() {
         title="Route Roster"
         description="All shuttle routes and vehicles assigned to your company. Click any route to see passengers."
         action={
-          <div className="flex flex-wrap gap-2">
-            {isTrialUser && routes.length === 0 && (
-              <Link href="/company/routes/create">
-                <Button className="gap-2 bg-[var(--cort-navy)] hover:bg-[var(--cort-navy)]/90 text-white border-0 rounded-xl">
-                  <Bus className="w-4 h-4" />
-                  Create route
-                </Button>
-              </Link>
-            )}
-            <Button
-              onClick={() => setShowAddEmployee(true)}
-              className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Employee
-            </Button>
-          </div>
+          isTrialUser && routes.length === 0 ? (
+            <Link href="/company/routes/create">
+              <Button className="gap-2 bg-[var(--cort-navy)] hover:bg-[var(--cort-navy)]/90 text-white border-0 rounded-xl">
+                <Bus className="w-4 h-4" />
+                Create route
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 
@@ -845,15 +427,6 @@ export default function RoutesPage() {
             ))}
           </div>
         </div>
-      )}
-
-      {showAddEmployee && (
-        <AddEmployeePanel
-          companyId={company.id}
-          routes={routes}
-          onClose={() => setShowAddEmployee(false)}
-          onSuccess={() => loadRoutes()}
-        />
       )}
     </div>
   );

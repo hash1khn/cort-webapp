@@ -32,7 +32,7 @@ export interface QueryEmployeeParams {
 }
 
 export interface EmployeeResponse {
-    data: Employee & { generatedPassword?: string };
+    data: Employee & { password?: string };
     statusCode: number;
     message: string;
 }
