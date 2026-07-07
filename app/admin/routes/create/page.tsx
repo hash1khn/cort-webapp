@@ -260,6 +260,10 @@ function CreateRoutePageContent() {
                     {/* Stop Search */}
                     <div className="shrink-0">
                         <Label>Add Stop by Address</Label>
+                        <p className="text-xs text-gray-500 mt-1 mb-2">
+                            Add employee pickups first, then the office as the <strong>last stop</strong>.
+                            Pickup order is auto-optimized on save; evening drops reverse morning.
+                        </p>
                         <StopAddressSearch
                             onSelect={handleAddressSelect}
                             placeholder="Search for a location..."

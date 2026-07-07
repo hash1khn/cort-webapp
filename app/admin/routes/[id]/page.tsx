@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
     fetchAdminRoute,
     updateAdminRoute,
+    optimizeAdminRoute,
     deleteAdminRoute,
     createRouteStop,
     updateRouteStop,
@@ -24,7 +25,7 @@ import { Label } from '@/app/admin/ui/Label';
 import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import RosteringTab from './components/RosteringTab';
 import ManageStopsTab from './components/ManageStopsTab';
-import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered } from 'lucide-react';
+import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
@@ -68,6 +69,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         hasCrud('routes', 'update') ||
         hasCrud('routes', 'delete');
 
+    const [isOptimizing, setIsOptimizing] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'stops' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: '', assigned_vehicle_id: '', assigned_driver_id: '' });
@@ -297,6 +299,20 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         }
     };
 
+    const handleOptimizeRoute = async () => {
+        if (!canEditRoutes || !route) return;
+        setIsOptimizing(true);
+        try {
+            await dispatch(optimizeAdminRoute(route.id)).unwrap();
+            toast.success('Route optimized — morning pickups reordered, evening reversed');
+            schedulePolylineRefresh();
+        } catch (err: any) {
+            toast.error(err || 'Failed to optimize route');
+        } finally {
+            setIsOptimizing(false);
+        }
+    };
+
     const handleSaveDetails = async () => {
         if (!canEditRoutes) return;
         if (!route) return;
@@ -422,13 +438,24 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         </>
                     ) : (
                         canEditRoutes && (
-                            <Button
-                                variant="outline"
-                                onClick={handleDeleteRoute}
-                                className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                                <Trash className="w-4 h-4 mr-1" /> Delete Route
-                            </Button>
+                            <>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleOptimizeRoute}
+                                    disabled={isOptimizing || (route.route_stops?.length ?? 0) < 3}
+                                    title="Optimize pickup order from office (last stop). Evening auto-reverses morning."
+                                >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    {isOptimizing ? 'Optimizing…' : 'Optimize Route'}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleDeleteRoute}
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
+                                >
+                                    <Trash className="w-4 h-4 mr-1" /> Delete Route
+                                </Button>
+                            </>
                         )
                     )}
                 </div>

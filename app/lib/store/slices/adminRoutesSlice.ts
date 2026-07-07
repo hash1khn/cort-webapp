@@ -195,6 +195,19 @@ export const updateAdminRoute = createAsyncThunk(
     }
 );
 
+export const optimizeAdminRoute = createAsyncThunk(
+    'adminRoutes/optimizeRoute',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            return await apiClient.request<Route>(`/routes/${id}/optimize`, {
+                method: 'POST',
+            });
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to optimize route');
+        }
+    }
+);
+
 export const deleteAdminRoute = createAsyncThunk(
     'adminRoutes/deleteRoute',
     async (id: number, { rejectWithValue }) => {
@@ -377,6 +390,24 @@ export const adminRoutesSlice = createSlice({
                 }
             })
             .addCase(updateAdminRoute.rejected, (state, action) => {
+                state.actionStatus = 'failed';
+                state.actionError = action.payload as string;
+            })
+            .addCase(optimizeAdminRoute.pending, (state) => {
+                state.actionStatus = 'loading';
+                state.actionError = null;
+            })
+            .addCase(optimizeAdminRoute.fulfilled, (state, action) => {
+                state.actionStatus = 'succeeded';
+                const index = state.routes.findIndex(r => r.id === action.payload.id);
+                if (index !== -1) {
+                    state.routes[index] = action.payload;
+                }
+                if (state.currentRoute?.id === action.payload.id) {
+                    state.currentRoute = action.payload;
+                }
+            })
+            .addCase(optimizeAdminRoute.rejected, (state, action) => {
                 state.actionStatus = 'failed';
                 state.actionError = action.payload as string;
             })
