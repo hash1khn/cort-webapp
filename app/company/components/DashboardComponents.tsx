@@ -1,3 +1,4 @@
+'use client';
 
 import React from 'react';
 import {
@@ -21,6 +22,7 @@ import {
     Wallet
 } from 'lucide-react';
 import { DashboardData } from '../types';
+import { useCompanyTheme } from '../lib/theme-context';
 
 // --- Shared Components ---
 
@@ -246,6 +248,8 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
 };
 
 export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = true, hasShuttle = true }: { data: DashboardData['valueDelivered']; benchmarkDelta?: number | null; hasChauffeur?: boolean; hasShuttle?: boolean }) => {
+    const { theme } = useCompanyTheme();
+    const isLight = theme === 'light';
     const savingsValue = benchmarkDelta != null ? benchmarkDelta : data.estimatedSavings;
     const isBenchmarkSavings = benchmarkDelta != null;
     const isSaving = savingsValue >= 0;
@@ -256,23 +260,49 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full'
             : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full';
 
+    const savingsCardBg = isBenchmarkSavings
+        ? isSaving
+            ? isLight
+                ? 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200'
+                : 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40'
+            : isLight
+                ? 'bg-gradient-to-br from-red-50 to-white border-red-200'
+                : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40'
+        : 'bg-[var(--bg-card)] border-[var(--border-default)]';
+
+    const savingsAccentIcon = isBenchmarkSavings
+        ? isSaving
+            ? isLight ? 'text-emerald-500' : 'text-emerald-400'
+            : isLight ? 'text-red-500' : 'text-red-400'
+        : 'text-[var(--cort-orange)]';
+
+    const savingsBadge = isSaving
+        ? isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/20 text-emerald-400'
+        : isLight ? 'bg-red-100 text-red-700' : 'bg-red-500/20 text-red-400';
+
+    const savingsValueText = isBenchmarkSavings
+        ? isSaving
+            ? isLight ? 'text-emerald-700' : 'text-emerald-400'
+            : isLight ? 'text-red-700' : 'text-red-400'
+        : 'text-[var(--text-primary)]';
+
     return (
         <div className={valueGridClass}>
             {/* Total Savings */}
-            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
+            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${savingsCardBg}`}>
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
-                    <Zap size={120} className={isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--cort-orange)]'} />
+                    <Zap size={120} className={savingsAccentIcon} />
                 </div>
                 <div className="relative z-10 flex items-center justify-between">
                     <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
                     {isBenchmarkSavings && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSaving ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${savingsBadge}`}>
                             vs vendor
                         </span>
                     )}
                 </div>
                 <div className="relative z-10">
-                    <div className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1 ${isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--text-primary)]'}`}>
+                    <div className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1 ${savingsValueText}`}>
                         <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
                         {formatCurrency(Math.abs(savingsValue))}
                     </div>

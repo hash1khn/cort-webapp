@@ -126,10 +126,20 @@ function CompaniesPageContent() {
     });
     if (!ok) return;
 
+    // Open the tab synchronously (right after the confirm click) so the
+    // browser doesn't treat it as an unsolicited popup once the async
+    // ticket request resolves.
+    const newTab = window.open("about:blank", "_blank");
+
     try {
       const result = await dispatch(impersonateCompany(company.id)).unwrap();
-      window.location.href = result.redirectUrl;
+      if (newTab) {
+        newTab.location.href = result.redirectUrl;
+      } else {
+        toast.error("Your browser blocked the new tab — allow popups for this site and try again.");
+      }
     } catch (err: any) {
+      newTab?.close();
       toast.error(err.message || "Failed to generate login link");
     }
   };
