@@ -31,6 +31,8 @@ import { CredentialsModal } from "../components/ui/CredentialsModal";
 import { CompanyForm, type CompanyFormData } from "./components/CompanyForm";
 import { PasswordResetModal } from "./components/PasswordResetModal";
 
+const IMPERSONATION_ALLOWED_EMAILS = ["hashir.ahmed@cort.com.pk", "aqeel@cort.com.pk"];
+
 // -- Main Page Definition --
 
 export default function CompaniesPage() {
@@ -45,7 +47,9 @@ function CompaniesPageContent() {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
   const ability = useAdminAbility();
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
+  const canImpersonate =
+    isSuperAdmin && !!user?.email && IMPERSONATION_ALLOWED_EMAILS.includes(user.email.toLowerCase());
   const canCreate = ability.can("create", ADMIN_SUBJECTS.companies);
   const canUpdate = ability.can("update", ADMIN_SUBJECTS.companies);
   const canDelete = ability.can("delete", ADMIN_SUBJECTS.companies);
@@ -245,7 +249,7 @@ function CompaniesPageContent() {
                       <button
                         type="button"
                         onClick={() => handleImpersonate(company)}
-                        disabled={!isSuperAdmin}
+                        disabled={!canImpersonate}
                         className="rounded-md p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                         title="Login as Company"
                       >
