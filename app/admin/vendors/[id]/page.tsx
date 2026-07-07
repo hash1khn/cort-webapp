@@ -304,8 +304,8 @@ function VendorDetailsContent() {
                                 logs.map((log: any) => {
                                     const statusRaw = log.status || '';
                                     const isPaid = ['FULLY_PAID', 'PAID'].includes(statusRaw.toUpperCase());
-                                    const hasFinalizedCost = Number(log.cost) > 0;
-                                    const canSettle = !isPaid && hasFinalizedCost && (log.booking_id || log.invoice_id);
+                                    const canSettle = !isPaid && (log.booking_id || log.invoice_id);
+                                    const isAdvanceOnly = Number(log.cost) <= 0;
 
                                     return (
                                         <tr key={log.id} className="hover:bg-slate-50 transition-colors">
@@ -378,7 +378,7 @@ function VendorDetailsContent() {
                                                         className="text-orange hover:opacity-80 font-bold text-xs inline-flex items-center gap-1 uppercase"
                                                     >
                                                         <DollarSign className="w-3.5 h-3.5" />
-                                                        Settle
+                                                        {isAdvanceOnly ? 'Pay Advance' : 'Settle'}
                                                     </button>
                                                 )}
                                             </td>
