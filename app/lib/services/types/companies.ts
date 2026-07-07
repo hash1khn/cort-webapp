@@ -57,3 +57,9 @@ export interface CompanyResponse {
     statusCode: number;
     message: string;
 }
+
+export interface ImpersonateCompanyResponse {
+    data: { redirectUrl: string };
+    statusCode: number;
+    message: string;
+}

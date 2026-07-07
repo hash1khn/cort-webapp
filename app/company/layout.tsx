@@ -16,9 +16,12 @@ export default function CompanyLayout({ children }: { children: ReactNode }) {
     pathname === "/login" ||
     pathname === "/company/login" ||
     pathname === "/company/trial" ||
+    pathname === "/company/impersonate" ||
+    pathname === "/impersonate" ||
     pathname === "/";
 
-  // Login and trial entry pages don't need protection
+  // Login, trial entry, and ticket-exchange pages don't need protection —
+  // the user isn't authenticated yet when they land on these.
   if (isPublicPage) {
     return <>{children}</>;
   }

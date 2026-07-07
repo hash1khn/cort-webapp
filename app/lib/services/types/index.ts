@@ -14,6 +14,7 @@ export type {
     VehicleWhitelist,
     Company,
     CompanyResponse,
+    ImpersonateCompanyResponse,
 } from './companies';
 
 // Employees

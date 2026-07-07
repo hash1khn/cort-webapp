@@ -414,6 +414,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
               sidebarCollapsed={collapsed}
             />
           </Suspense>
+          {user?.impersonated_by && (
+            <div className="sticky top-0 z-30 flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950">
+              <span>Viewing as {company?.name || "this company"} — logged in via superadmin impersonation</span>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="rounded-md bg-amber-950/10 px-2.5 py-1 text-xs font-semibold hover:bg-amber-950/20 transition-colors"
+              >
+                Exit
+              </button>
+            </div>
+          )}
           <main
             data-company-main
             className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8 bg-[var(--bg-page)] min-h-screen"

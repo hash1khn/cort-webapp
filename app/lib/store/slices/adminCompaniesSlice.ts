@@ -106,6 +106,18 @@ export const resetCompanyPassword = createAsyncThunk(
     }
 );
 
+export const impersonateCompany = createAsyncThunk(
+    'adminCompanies/impersonate',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.impersonateCompany(id);
+            return response.data;
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to generate login link');
+        }
+    }
+);
+
 
 export const adminCompaniesSlice = createSlice({
     name: 'adminCompanies',

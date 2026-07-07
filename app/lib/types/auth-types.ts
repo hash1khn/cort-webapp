@@ -83,6 +83,7 @@ export interface AuthUser {
     permissions?: StaffPermissions | null; // only populated for INTERNAL_STAFF
     external_vendor_id?: number | null;    // only populated for COMPANY_VENDOR
     vendor_links?: VendorLink[];           // only populated for COMPANY_VENDOR
+    impersonated_by?: string;              // present only when a super-admin is viewing as this company
 }
 
 

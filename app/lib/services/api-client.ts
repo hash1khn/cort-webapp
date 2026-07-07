@@ -16,6 +16,7 @@ import {
     TrackerConfig,
     // Companies
     CreateCompanyRequest, QueryCompanyParams, Company, CompanyResponse, UpdateCompanyRequest,
+    ImpersonateCompanyResponse,
     // Employees
     CreateEmployeeRequest, QueryEmployeeParams, Employee, EmployeeResponse, UpdateEmployeeRequest,
     // Vehicles
@@ -479,6 +480,32 @@ class ApiClient {
             method: 'PATCH',
             body: JSON.stringify({ password }),
         });
+    }
+
+    async impersonateCompany(id: number | string): Promise<ImpersonateCompanyResponse> {
+        return this.request<ImpersonateCompanyResponse>(`/companies/${id}/impersonate`, {
+            method: 'POST',
+        });
+    }
+
+    /**
+     * Exchanges a one-time impersonation ticket for a real session, storing
+     * the returned tokens exactly like `login()` does.
+     */
+    async exchangeImpersonationTicket(ticket: string): Promise<LoginResponse> {
+        const response = await this.request<LoginResponse>('/auth/impersonate/exchange', {
+            method: 'POST',
+            body: JSON.stringify({ ticket }),
+        });
+
+        if (response.data?.session?.access_token) {
+            this.setToken(response.data.session.access_token);
+            if (response.data.session.refresh_token) {
+                this.setRefreshToken(response.data.session.refresh_token);
+            }
+        }
+
+        return response;
     }
 
     async deleteCompany(id: number): Promise<void> {
