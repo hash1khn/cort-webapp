@@ -179,6 +179,9 @@ Summary Screen: Shows "Earnings" (Note: This is Driver Earnings, not Client Invo
 
 
 
+
+
+
 Module: Chauffeur Driver App (Gig/Public)
 Primary Goal: Execute trips and capture data for "Invoice 1151".
 1. Authentication & Profile
