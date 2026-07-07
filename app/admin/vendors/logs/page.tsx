@@ -69,6 +69,10 @@ function VendorLogsContent() {
 
     const loading = status === 'loading';
     const [breakdownLog, setBreakdownLog] = useState<VendorLog | null>(null);
+    const [settlementLog, setSettlementLog] = useState<any | null>(null);
+    const [settlementLoading, setSettlementLoading] = useState(false);
+    const [settlementError, setSettlementError] = useState<string | null>(null);
+    const [settlementTxns, setSettlementTxns] = useState<any[]>([]);
     const [editDistance, setEditDistance] = useState<string>('');
     const [savingDistance, setSavingDistance] = useState(false);
     const [distanceError, setDistanceError] = useState<string | null>(null);
@@ -100,6 +104,27 @@ function VendorLogsContent() {
             setDistanceError('Failed to save. Please try again.');
         } finally {
             setSavingDistance(false);
+        }
+    };
+
+    const openSettlementModal = async (log: any) => {
+        setSettlementLog(log);
+        setSettlementError(null);
+        setSettlementTxns([]);
+
+        if (!log?.booking_id || log?.type !== 'CHAUFFEUR') {
+            return;
+        }
+
+        setSettlementLoading(true);
+        try {
+            const res: any = await apiClient.getVendorPaymentHistory(log.booking_id);
+            const txns = Array.isArray(res) ? res : (res?.data ?? []);
+            setSettlementTxns(Array.isArray(txns) ? txns : []);
+        } catch (e: any) {
+            setSettlementError(e?.message || 'Failed to load settlement history');
+        } finally {
+            setSettlementLoading(false);
         }
     };
 
@@ -210,7 +235,12 @@ function VendorLogsContent() {
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {logs.map((log: any) => (
-                                    <tr key={log.id} className="hover:bg-surface/50">
+                                    <tr
+                                        key={log.id}
+                                        className="hover:bg-surface/50 cursor-pointer"
+                                        onClick={() => openSettlementModal(log)}
+                                        title={log.type === 'CHAUFFEUR' ? 'Click to view settlement breakdown' : 'Settlement breakdown not available for shuttle yet'}
+                                    >
                                         <td className="px-4 py-3 text-ink">
                                             {log.date ? new Date(log.date).toLocaleDateString() : '-'}
                                         </td>
@@ -469,6 +499,108 @@ function VendorLogsContent() {
                 </div>
                 );
             })()}
+        </Modal>
+
+        {/* Settlement Breakdown Modal */}
+        <Modal
+            isOpen={settlementLog !== null}
+            onClose={() => {
+                setSettlementLog(null);
+                setSettlementTxns([]);
+                setSettlementError(null);
+            }}
+            title="Settlement Breakdown"
+            size="lg"
+            priority={breakdownLog ? 'elevated' : 'default'}
+        >
+            {settlementLog && (
+                <div className="space-y-4">
+                    <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm space-y-1">
+                        <div className="flex justify-between">
+                            <span className="text-muted">Type</span>
+                            <span className="font-medium text-ink">{settlementLog.type}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted">Booking</span>
+                            <span className="font-medium text-ink">
+                                {settlementLog.booking_id ? `#${settlementLog.booking_id}` : '—'}
+                            </span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted">Vendor</span>
+                            <span className="font-medium text-ink">{settlementLog.vendor_name || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted">Total Cost</span>
+                            <span className="font-medium text-ink">Rs. {Number(settlementLog.cost || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted">Paid</span>
+                            <span className="font-medium text-green-700">Rs. {Number(settlementLog.amount_paid || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted">Remaining</span>
+                            <span className="font-medium text-orange-700">Rs. {Number(settlementLog.amount_remaining || 0).toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    {settlementLog.type !== 'CHAUFFEUR' ? (
+                        <div className="text-sm text-muted">
+                            Settlement breakdown is currently available for chauffeur logs only.
+                        </div>
+                    ) : settlementLoading ? (
+                        <div className="text-sm text-muted">Loading settlement history…</div>
+                    ) : settlementError ? (
+                        <div className="text-sm text-red-600">{settlementError}</div>
+                    ) : (
+                        <div className="space-y-2">
+                            <div className="text-xs font-semibold uppercase tracking-wider text-muted">Payments</div>
+                            <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 text-xs font-semibold tracking-wider text-muted">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">Date</th>
+                                            <th className="px-3 py-2 text-right">Amount</th>
+                                            <th className="px-3 py-2 text-left">Method</th>
+                                            <th className="px-3 py-2 text-left">Notes</th>
+                                            <th className="px-3 py-2 text-left">Settled By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {settlementTxns.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-3 py-10 text-center text-muted">
+                                                    No payments recorded yet.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            settlementTxns.map((t: any) => (
+                                                <tr key={t.id}>
+                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                        {t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right font-medium text-ink whitespace-nowrap">
+                                                        Rs. {Number(t.amount || 0).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                        {t.payment_method || '—'}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-ink">
+                                                        {t.notes || '—'}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                        {t.users?.full_name || t.created_by || '—'}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </Modal>
         </>
     );

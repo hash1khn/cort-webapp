@@ -24,6 +24,7 @@ import { ArrowLeft, Calendar, Filter, DollarSign, X } from 'lucide-react';
 import Pagination from '../../../components/ui/Pagination';
 import { AdminProtectedPage } from '../../components/AdminProtectedPage';
 import { ADMIN_SUBJECTS } from '../../../lib/abilities/admin-subjects';
+import { apiClient } from '../../../lib/services/api-client';
 
 export default function VendorDetailsPage() {
     return (
@@ -97,6 +98,35 @@ function VendorDetailsContent() {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentNotes, setPaymentNotes] = useState('');
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
+    // Settlement breakdown modal state (chauffeur only)
+    const [settlementOpen, setSettlementOpen] = useState(false);
+    const [settlementLog, setSettlementLog] = useState<any | null>(null);
+    const [settlementLoading, setSettlementLoading] = useState(false);
+    const [settlementError, setSettlementError] = useState<string | null>(null);
+    const [settlementTxns, setSettlementTxns] = useState<any[]>([]);
+
+    const openSettlement = async (log: any) => {
+        setSettlementLog(log);
+        setSettlementOpen(true);
+        setSettlementError(null);
+        setSettlementTxns([]);
+
+        if (!log?.booking_id || log?.type !== 'CHAUFFEUR') {
+            return;
+        }
+
+        setSettlementLoading(true);
+        try {
+            const res: any = await apiClient.getVendorPaymentHistory(log.booking_id);
+            const txns = Array.isArray(res) ? res : (res?.data ?? []);
+            setSettlementTxns(Array.isArray(txns) ? txns : []);
+        } catch (e: any) {
+            setSettlementError(e?.message || 'Failed to load settlement history');
+        } finally {
+            setSettlementLoading(false);
+        }
+    };
 
     const openPaymentModal = (
         log: { type?: string; booking_id?: number; invoice_id?: number; cost: number; amount_paid?: number },
@@ -309,7 +339,12 @@ function VendorDetailsContent() {
                                     const isAdvanceOnly = Number(log.cost) <= 0;
 
                                     return (
-                                        <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr
+                                            key={log.id}
+                                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                            onClick={() => openSettlement(log)}
+                                            title={log.type === 'CHAUFFEUR' ? 'Click to view settlement breakdown' : 'Settlement breakdown not available for shuttle yet'}
+                                        >
                                             <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
                                                 {new Date(log.date).toLocaleDateString()}
                                                 <div className="text-[10px] text-slate-400">
@@ -512,6 +547,116 @@ function VendorDetailsContent() {
                     </div>
                 )
             }
+
+            {/* Settlement Breakdown Modal */}
+            {settlementOpen && settlementLog && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                    onClick={() => {
+                        setSettlementOpen(false);
+                        setSettlementLog(null);
+                        setSettlementTxns([]);
+                        setSettlementError(null);
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                            <h3 className="text-lg font-semibold text-slate-900">Settlement Breakdown</h3>
+                            <button
+                                onClick={() => {
+                                    setSettlementOpen(false);
+                                    setSettlementLog(null);
+                                    setSettlementTxns([]);
+                                    setSettlementError(null);
+                                }}
+                                className="text-slate-400 hover:text-slate-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-4">
+                            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <div className="text-xs text-slate-500">Type</div>
+                                    <div className="font-semibold text-slate-900">{settlementLog.type}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-slate-500">Booking</div>
+                                    <div className="font-semibold text-slate-900">{settlementLog.booking_id ? `#${settlementLog.booking_id}` : '—'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-slate-500">Status</div>
+                                    <div className="font-semibold text-slate-900">{settlementLog.status || 'UNPAID'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-slate-500">Total Cost</div>
+                                    <div className="font-semibold text-slate-900">PKR {Number(settlementLog.cost || 0).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-slate-500">Paid</div>
+                                    <div className="font-semibold text-green-700">PKR {Number(settlementLog.amount_paid || 0).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-slate-500">Remaining</div>
+                                    <div className="font-semibold text-orange-700">PKR {Number(settlementLog.amount_remaining || 0).toLocaleString()}</div>
+                                </div>
+                            </div>
+
+                            {settlementLog.type !== 'CHAUFFEUR' ? (
+                                <div className="text-sm text-slate-500">
+                                    Settlement breakdown is currently available for chauffeur logs only.
+                                </div>
+                            ) : settlementLoading ? (
+                                <div className="text-sm text-slate-500">Loading settlement history…</div>
+                            ) : settlementError ? (
+                                <div className="text-sm text-red-600">{settlementError}</div>
+                            ) : (
+                                <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                    <table className="min-w-full text-left text-sm">
+                                        <thead className="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-4 py-3 font-semibold text-slate-700">Date</th>
+                                                <th className="px-4 py-3 font-semibold text-slate-700 text-right">Amount</th>
+                                                <th className="px-4 py-3 font-semibold text-slate-700">Method</th>
+                                                <th className="px-4 py-3 font-semibold text-slate-700">Notes</th>
+                                                <th className="px-4 py-3 font-semibold text-slate-700">Settled By</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {settlementTxns.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                                                        No payments recorded yet.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                settlementTxns.map((t: any) => (
+                                                    <tr key={t.id} className="hover:bg-slate-50">
+                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                            {t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">
+                                                            PKR {Number(t.amount || 0).toLocaleString()}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{t.payment_method || '—'}</td>
+                                                        <td className="px-4 py-3 text-slate-700">{t.notes || '—'}</td>
+                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                            {t.users?.full_name || t.created_by || '—'}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
