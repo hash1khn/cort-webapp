@@ -198,6 +198,7 @@ function VendorLogsContent() {
                             <thead className="bg-surface text-xs font-semibold tracking-wider text-muted">
                                 <tr>
                                     <th className="px-4 py-3 text-left">Date</th>
+                                    <th className="px-4 py-3 text-left">Settled At</th>
                                     <th className="px-4 py-3 text-left">Type</th>
                                     <th className="px-4 py-3 text-left">Vehicle / Vendor</th>
                                     <th className="px-4 py-3 text-left">Reference / Passenger</th>
@@ -212,6 +213,11 @@ function VendorLogsContent() {
                                     <tr key={log.id} className="hover:bg-surface/50">
                                         <td className="px-4 py-3 text-ink">
                                             {log.date ? new Date(log.date).toLocaleDateString() : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-ink">
+                                            {log.settled_at
+                                                ? new Date(log.settled_at).toLocaleString()
+                                                : '—'}
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${log.type === 'SHUTTLE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -275,7 +281,7 @@ function VendorLogsContent() {
                                 ))}
                                 {logs.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan={7} className="px-4 py-12 text-center text-muted">
+                                        <td colSpan={9} className="px-4 py-12 text-center text-muted">
                                             No trips found matching your filters.
                                         </td>
                                     </tr>

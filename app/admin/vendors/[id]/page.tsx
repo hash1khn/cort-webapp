@@ -277,6 +277,7 @@ function VendorDetailsContent() {
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Date</th>
+                                <th className="px-6 py-4 font-semibold text-slate-700">Settled At</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Type</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Reference / Passenger</th>
                                 <th className="px-6 py-4 font-semibold text-slate-700">Driver</th>
@@ -314,6 +315,18 @@ function VendorDetailsContent() {
                                                 <div className="text-[10px] text-slate-400">
                                                     {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600 whitespace-nowrap">
+                                                {log.settled_at ? (
+                                                    <>
+                                                        {new Date(log.settled_at).toLocaleDateString()}
+                                                        <div className="text-[10px] text-slate-400">
+                                                            {new Date(log.settled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400">—</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${log.type === 'SHUTTLE' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>

@@ -129,6 +129,8 @@ export interface VendorLog {
     vendor_payment_status: string;
     vendor_amount_paid?: number;
     vendor_amount_remaining?: number;
+    /** Date/time when vendor payment was last settled (latest transaction), null if never settled */
+    settled_at?: string | null;
     // Cost breakdown
     base_package_cost?: number;
     fuel_cost_calculated?: number;
