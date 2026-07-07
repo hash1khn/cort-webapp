@@ -13,6 +13,7 @@ export type Employee = {
     company_id: number | null;
     employee_id?: string | null;
     department?: string | null;
+    home_address?: string | null;
 };
 
 interface EmployeeState {

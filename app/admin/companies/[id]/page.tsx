@@ -152,6 +152,16 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
             />
           </div>
           <div>
+            <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Home Address</label>
+            <input
+              type="text"
+              value={d.newEmpHomeAddress}
+              onChange={(e) => d.setNewEmpHomeAddress(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="e.g. DHA Phase 6, Lahore"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Email</label>
             <input
               type="email"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { apiClient, Company, Employee } from "../../../../lib/services/api-client";
 import { CompanyFeature, CompanyVendorLink, ExternalVendor } from "../../../../lib/services/types/multi-mode";
@@ -47,6 +47,7 @@ export function useCompanyDetail(id: string) {
     const [newEmpEmail, setNewEmpEmail] = useState("");
     const [newEmpPhone, setNewEmpPhone] = useState("");
     const [newEmpPassword, setNewEmpPassword] = useState("");
+    const [newEmpHomeAddress, setNewEmpHomeAddress] = useState("");
 
     // Benchmarks Modal
     const [isBenchmarksModalOpen, setIsBenchmarksModalOpen] = useState(false);
@@ -55,10 +56,133 @@ export function useCompanyDetail(id: string) {
     const [isCreatingEmp, setIsCreatingEmp] = useState(false);
     const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
+    // CSV bulk upload modal state
+    const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [csvRawText, setCsvRawText] = useState<string>("");
+    const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+    const [csvPreviewRows, setCsvPreviewRows] = useState<any[]>([]);
+    const [csvSkippedRows, setCsvSkippedRows] = useState<Array<{ row: number; missing: string[] }>>([]);
+    const [csvMissingHeaders, setCsvMissingHeaders] = useState<string[]>([]);
+    const [csvHasPreview, setCsvHasPreview] = useState(false);
+
     // Hardcoded for now - list of all possible vehicle models
     const availableVehicleModels = [
         "Toyota Corolla", "Honda Civic", "Suzuki Alto", "Suzuki Cultus", "Kia Sportage", "Hyundai Tucson"
     ];
+
+    const csvRequiredHeaders = useMemo(() => ["full_name", "email"], []);
+    const csvOptionalHeaders = useMemo(
+        () => ["phone", "employee_id", "department", "home_address"],
+        [],
+    );
+    const csvAllKnownHeaders = useMemo(
+        () => [...csvRequiredHeaders, ...csvOptionalHeaders],
+        [csvOptionalHeaders, csvRequiredHeaders],
+    );
+
+    const resetCsvState = useCallback(() => {
+        setCsvFile(null);
+        setCsvRawText("");
+        setCsvHeaders([]);
+        setCsvPreviewRows([]);
+        setCsvSkippedRows([]);
+        setCsvMissingHeaders([]);
+        setCsvHasPreview(false);
+    }, []);
+
+    const openCsvModal = useCallback(() => {
+        resetCsvState();
+        setIsCsvModalOpen(true);
+    }, [resetCsvState]);
+
+    const closeCsvModal = useCallback(() => {
+        setIsCsvModalOpen(false);
+        resetCsvState();
+    }, [resetCsvState]);
+
+    const parseCsvForPreview = useCallback(
+        async (file: File) => {
+            if (!company) return;
+            const text = await file.text();
+            if (!text) {
+                toast.error("CSV file is empty.");
+                return;
+            }
+
+            const lines = text.split(/\r?\n/);
+            const headers = (lines[0] || "")
+                .split(",")
+                .map((h) => h.trim().toLowerCase())
+                .filter(Boolean);
+
+            const missingHeaders = csvRequiredHeaders.filter((h) => !headers.includes(h));
+
+            const previewRows: any[] = [];
+            const skipped: Array<{ row: number; missing: string[] }> = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const values = line.split(",");
+                const emp: any = { company_id: company.id };
+
+                headers.forEach((h, index) => {
+                    const val = values[index]?.trim();
+                    if (val) emp[h] = val;
+                });
+
+                const missingRequired = csvRequiredHeaders.filter(
+                    (h) => !emp[h] || String(emp[h]).trim().length === 0,
+                );
+
+                if (missingRequired.length > 0) {
+                    skipped.push({ row: i + 1, missing: missingRequired });
+                }
+
+                previewRows.push(emp);
+            }
+
+            setCsvFile(file);
+            setCsvRawText(text);
+            setCsvHeaders(headers);
+            setCsvMissingHeaders(missingHeaders);
+            setCsvSkippedRows(skipped);
+            setCsvPreviewRows(previewRows);
+            setCsvHasPreview(true);
+        },
+        [company, csvRequiredHeaders],
+    );
+
+    const handleCsvFileSelected = useCallback(
+        async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file || !company) return;
+            await parseCsvForPreview(file);
+        },
+        [company, parseCsvForPreview],
+    );
+
+    const csvPreviewSummary = useMemo(() => {
+        const totalRows = csvPreviewRows.length;
+        const missingReqCols = csvMissingHeaders.length;
+        const skippedRows = csvSkippedRows.length;
+        const canUpload =
+            csvHasPreview &&
+            missingReqCols === 0 &&
+            totalRows > 0 &&
+            totalRows - skippedRows > 0;
+
+        return {
+            totalRows,
+            skippedRows,
+            uploadableRows: Math.max(0, totalRows - skippedRows),
+            missingReqCols,
+            canUpload,
+        };
+    }, [csvHasPreview, csvMissingHeaders.length, csvPreviewRows.length, csvSkippedRows.length]);
 
     const fetchCompanyData = async () => {
         try {
@@ -230,6 +354,7 @@ export function useCompanyDetail(id: string) {
                 password: newEmpPassword || undefined,
                 employee_id: newEmpId || undefined,
                 department: newEmpDepartment || undefined,
+                home_address: newEmpHomeAddress || undefined,
             });
             await fetchCompanyData(); // Refresh list
             setNewEmpName("");
@@ -239,6 +364,7 @@ export function useCompanyDetail(id: string) {
             setNewEmpPassword("");
             setNewEmpId("");
             setNewEmpDepartment("");
+            setNewEmpHomeAddress("");
             setIsEmpModalOpen(false);
         } catch (err: any) {
             toast.error(err.message || "Failed to create employee");
@@ -247,68 +373,68 @@ export function useCompanyDetail(id: string) {
         }
     };
 
-    const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || e.target.files.length === 0 || !company) return;
+    const uploadCsvFromPreview = useCallback(async () => {
+        if (!company) return;
+        if (!csvHasPreview || !csvFile) {
+            toast.error("Please select a CSV file and preview it first.");
+            return;
+        }
+        if (csvMissingHeaders.length > 0) {
+            toast.error(
+                `CSV is missing required column(s): ${csvMissingHeaders.join(", ")}.`,
+            );
+            return;
+        }
 
-        const file = e.target.files[0];
+        // Upload only the rows that have required fields present
+        const rowsToUpload = csvPreviewRows.filter((r) =>
+            csvRequiredHeaders.every((h) => r[h] && String(r[h]).trim().length > 0),
+        );
+
+        if (rowsToUpload.length === 0) {
+            toast.error("No valid rows to upload (missing required fields).");
+            return;
+        }
+
         setIsUploadingCsv(true);
+        try {
+            const result = await apiClient.bulkCreateEmployees(rowsToUpload);
+            const { successful, failed } = result.data;
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const text = event.target?.result as string;
-            if (!text) return;
+            let message =
+                `CSV upload finished.\n` +
+                `Rows previewed: ${csvPreviewRows.length}\n` +
+                `Uploaded: ${rowsToUpload.length}\n` +
+                `Successful: ${successful.length}\n` +
+                `Failed (API): ${failed.length}\n` +
+                `Skipped (missing required): ${csvSkippedRows.length}`;
 
-            // Simple CSV Parser
-            // Expected headers: full_name, email, phone, employee_id, department
-            const lines = text.split(/\r?\n/);
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-            const employeesToCreate: any[] = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                const values = line.split(',');
-                // Basic mapping
-                const emp: any = { company_id: company.id };
-                headers.forEach((h, index) => {
-                    const val = values[index]?.trim();
-                    if (val) emp[h] = val;
-                });
-
-                if (emp.email && emp.full_name) {
-                    employeesToCreate.push(emp);
-                }
+            if (failed.length > 0) {
+                message += `\n\nFailures:\n` + failed.map((f) => `${f.email}: ${f.reason}`).join("\n");
             }
 
-            if (employeesToCreate.length === 0) {
-                toast.error("No valid rows found in CSV. Headers should include: full_name, email, phone, employee_id, department");
-                setIsUploadingCsv(false);
-                return;
-            }
+            if (failed.length > 0 || csvSkippedRows.length > 0) toast.error(message);
+            else toast.success(message);
 
-            try {
-                const result = await apiClient.bulkCreateEmployees(employeesToCreate);
-                const { successful, failed } = result.data;
-
-                let message = `Processed ${employeesToCreate.length} rows.\n\nSuccessful: ${successful.length}`;
-                if (failed.length > 0) {
-                    message += `\nFailed: ${failed.length}\n\nFailures:\n` + failed.map(f => `${f.email}: ${f.reason}`).join('\n');
-                }
-
-                toast.error(message);
-                await fetchCompanyData();
-            } catch (err: any) {
-                console.error(err);
-                toast.error("Failed to upload CSV: " + err.message);
-            } finally {
-                setIsUploadingCsv(false);
-                e.target.value = ""; // Reset input
-            }
-        };
-        reader.readAsText(file);
-    };
+            await fetchCompanyData();
+            closeCsvModal();
+        } catch (err: any) {
+            toast.error("Failed to upload CSV: " + (err?.message || "Unknown error"));
+        } finally {
+            setIsUploadingCsv(false);
+        }
+    }, [
+        closeCsvModal,
+        company,
+        csvFile,
+        csvHasPreview,
+        csvMissingHeaders.length,
+        csvMissingHeaders,
+        csvPreviewRows,
+        csvRequiredHeaders,
+        csvSkippedRows.length,
+        fetchCompanyData,
+    ]);
 
     const handleToggleStatus = async (emp: Employee) => {
         try {
@@ -440,9 +566,23 @@ export function useCompanyDetail(id: string) {
     companyVendorLinks, vendorsLoading, allVendors, showLinkModal, setShowLinkModal, linkSaving, linkForm, setLinkForm,
     isEmpModalOpen, setIsEmpModalOpen, newEmpName, setNewEmpName, newEmpEmail, setNewEmpEmail, newEmpPhone, setNewEmpPhone,
     newEmpPassword, setNewEmpPassword, isBenchmarksModalOpen, setIsBenchmarksModalOpen, newEmpId, setNewEmpId,
-    newEmpDepartment, setNewEmpDepartment, isCreatingEmp, isUploadingCsv, availableVehicleModels,
+    newEmpDepartment, setNewEmpDepartment, newEmpHomeAddress, setNewEmpHomeAddress, isCreatingEmp, isUploadingCsv, availableVehicleModels,
     toggleFeature, saveTrackerConfig, updateLink,
-    handleCreateEmployee, handleCsvUpload, handleExportCredentials,
+    handleCreateEmployee,
+    openCsvModal,
+    closeCsvModal,
+    isCsvModalOpen,
+    handleCsvFileSelected,
+    csvRequiredHeaders,
+    csvOptionalHeaders,
+    csvAllKnownHeaders,
+    csvHeaders,
+    csvMissingHeaders,
+    csvSkippedRows,
+    csvPreviewRows,
+    csvPreviewSummary,
+    uploadCsvFromPreview,
+    handleExportCredentials,
     toggleVehicleModel, handleChauffeurCortManagedToggle, handleShuttleCortManagedToggle, currentModels,
     toggleService, openLinkModal, handleLinkVendor, removeLink, handleToggleStatus, isTogglePending,
   };

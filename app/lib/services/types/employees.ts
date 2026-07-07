@@ -6,6 +6,7 @@ export interface CreateEmployeeRequest {
     password?: string;
     employee_id?: string;
     department?: string;
+    home_address?: string;
 }
 
 export interface UpdateEmployeeRequest extends Partial<CreateEmployeeRequest> {
@@ -19,6 +20,7 @@ export interface Employee {
     phone: string | null;
     employee_id: string | null;
     department: string | null;
+    home_address?: string | null;
     status: string;
     company_id: number | null;
     created_at: string;

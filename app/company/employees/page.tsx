@@ -225,6 +225,7 @@ export default function EmployeesPage() {
               <tr className="border-b border-[var(--border-light)]">
                 <th className={TABLE_HEADER_CELL_CLASS}>Employee ID</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Full Name</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>Home Address</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Phone</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Email</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>Department</th>
@@ -234,10 +235,10 @@ export default function EmployeesPage() {
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
               {loading && employees.length === 0 ? (
-                <TableSkeleton columns={7} rows={8} />
+                <TableSkeleton columns={8} rows={8} />
               ) : employees.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={7} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>
+                  <td colSpan={8} className={`${TABLE_CELL_CLASS} py-12 text-center text-[var(--text-muted)]`}>
                     No employees found. Employees are uploaded by Cort Super Admin.
                   </td>
                 </tr>
@@ -248,6 +249,9 @@ export default function EmployeesPage() {
                     <tr key={e.id} className={`group transition-colors ${isEditing ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
                       <td className={`${TABLE_CELL_CLASS} font-mono text-xs text-[var(--text-muted)]`}>{e.employee_id || "—"}</td>
                       <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)]`}>{e.full_name}</td>
+                      <td className={`${TABLE_CELL_CLASS} text-[var(--text-secondary)] max-w-[420px]`}>
+                        <span className="line-clamp-2">{e.home_address || "—"}</span>
+                      </td>
                       <td className={TABLE_CELL_CLASS}>
                         {isEditing ? (
                           <TextInput
