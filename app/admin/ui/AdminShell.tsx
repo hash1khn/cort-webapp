@@ -43,6 +43,7 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   permission?: PermissionKey;
+  allowInternalStaff?: boolean;
 };
 
 const nav: NavItem[] = [
@@ -59,8 +60,8 @@ const nav: NavItem[] = [
   { href: "/admin/drivers", label: "Drivers", icon: Users, permission: "drivers" },
   { href: "/admin/bookings/pending", label: "Bookings", icon: Calendar, permission: "bookings" },
   { href: "/admin/routes", label: "Routes", icon: Map, permission: "routes" },
-  // Super Admin-only utilities (no permission key)
-  { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin },
+  // Utilities
+  { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin, allowInternalStaff: true },
   { href: "/admin/routes/shuttle-trips", label: "Shuttle trip scheduling", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },
@@ -80,7 +81,7 @@ function readCollapsed(): boolean {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { logout, user, isSuperAdmin, hasPermission } = useAuth();
+  const { logout, user, isSuperAdmin, isInternalStaff, hasPermission } = useAuth();
   const { theme, toggle } = useAdminTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -98,11 +99,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   const visibleNav = useMemo(() => {
     return nav.filter((item) => {
+      if (item.allowInternalStaff && isInternalStaff) return true;
       if (!item.permission) return isSuperAdmin;
       if (isSuperAdmin) return true;
       return hasPermission(item.permission);
     });
-  }, [isSuperAdmin, hasPermission]);
+  }, [isSuperAdmin, isInternalStaff, hasPermission]);
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/admin";
