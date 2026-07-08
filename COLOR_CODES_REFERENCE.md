@@ -10,6 +10,10 @@ Navy Blue:      #0c225e  (Dark, professional, primary)
 Orange:         #f47f00  (Warm, energetic, accent)
 ```
 
+
+
+
+
 ### Neutral Colors
 ```
 White:          #ffffff  (Backgrounds, text)
