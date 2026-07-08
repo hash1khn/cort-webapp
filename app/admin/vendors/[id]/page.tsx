@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, Calendar, Filter, DollarSign, X, Pencil, Check } from 'lucide-react';
 import Pagination from '../../../components/ui/Pagination';
 import { AdminProtectedPage } from '../../components/AdminProtectedPage';
+import { useAdminAbility } from '../../../lib/abilities/AdminAbilityProvider';
 import { ADMIN_SUBJECTS } from '../../../lib/abilities/admin-subjects';
 import { apiClient } from '../../../lib/services/api-client';
 
@@ -38,6 +39,8 @@ function VendorDetailsContent() {
     const params = useParams();
     const router = useRouter();
     const dispatch = useAppDispatch();
+    const ability = useAdminAbility();
+    const canEditPayments = ability.can('update', ADMIN_SUBJECTS.vendor_logs);
     const vendorId = Number(params.id);
 
     const logs = useAppSelector(selectVendorLogs);
@@ -772,7 +775,9 @@ function VendorDetailsContent() {
                                                                 {t.users?.full_name || t.created_by || '—'}
                                                             </td>
                                                             <td className="sticky right-0 bg-white group-hover:bg-slate-50 px-4 py-3 text-right whitespace-nowrap shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
-                                                                {isEditing ? (
+                                                                {!canEditPayments ? (
+                                                                    <span className="text-slate-300">—</span>
+                                                                ) : isEditing ? (
                                                                     <div className="flex items-center justify-end gap-1">
                                                                         <button
                                                                             type="button"

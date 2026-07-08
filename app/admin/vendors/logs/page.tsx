@@ -21,6 +21,7 @@ import { Modal } from "../../components/ui/Modal";
 import { VendorLog } from "../../../lib/services/types/vendors";
 import { apiClient } from "../../../lib/services/api-client";
 import { AdminProtectedPage } from "../../components/AdminProtectedPage";
+import { useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 
 export default function VendorLogsPage() {
@@ -33,6 +34,8 @@ export default function VendorLogsPage() {
 
 function VendorLogsContent() {
     const dispatch = useDispatch<AppDispatch>();
+    const ability = useAdminAbility();
+    const canEditPayments = ability.can('update', ADMIN_SUBJECTS.vendor_logs);
 
     // Selectors
     const logs = useSelector(selectVendorLogs);
@@ -702,7 +705,9 @@ function VendorLogsContent() {
                                                             {t.users?.full_name || t.created_by || '—'}
                                                         </td>
                                                         <td className="sticky right-0 bg-white px-3 py-2 text-right whitespace-nowrap shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
-                                                            {isEditing ? (
+                                                            {!canEditPayments ? (
+                                                                <span className="text-slate-300">—</span>
+                                                            ) : isEditing ? (
                                                                 <div className="flex items-center justify-end gap-1">
                                                                     <button
                                                                         type="button"
