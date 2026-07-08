@@ -1155,6 +1155,13 @@ class ApiClient {
         });
     }
 
+    async assignEmployeeToRoute(data: { user_id: string; route_id: number; pickup_stop_id?: number }): Promise<any> {
+        return this.request<any>('/employee-route-assignments/assign', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
     // ===== REPORTS =====
 
     async getChauffeurReports(companyId: number, params: ReportQueryParams = {}): Promise<PaginatedResponse<ChauffeurReport>> {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
+import { fetchEmployees, selectEmployees, selectEmployeesStatus } from "../../../lib/store/slices/employeeSlice";
 import { useAuth } from "../../../lib/contexts/auth-context";
 import { toast } from "sonner";
 import { Card } from "../../components/DashboardComponents";
@@ -25,6 +26,8 @@ import {
   Mail,
   Car,
   RefreshCw,
+  UserPlus,
+  X,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -151,11 +154,24 @@ export default function RouteDetailPage() {
   const isTrialUser = !!user?.is_trial;
   const company = useAppSelector(selectCompany);
   const routeId = params.id ? +params.id : null;
+  const dispatch = useAppDispatch();
+  const allEmployees = useAppSelector(selectEmployees);
+  const employeeStatus = useAppSelector(selectEmployeesStatus);
+
+  useEffect(() => {
+    if (company?.id && employeeStatus === "idle") {
+      dispatch(fetchEmployees(company.id.toString()));
+    }
+  }, [company?.id, employeeStatus, dispatch]);
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingTrips, setGeneratingTrips] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedStopId, setSelectedStopId] = useState<number | "">("");
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -189,6 +205,27 @@ export default function RouteDetailPage() {
       toast.error(err instanceof Error ? err.message : "Failed to generate trips");
     } finally {
       setGeneratingTrips(false);
+    }
+  }
+
+  async function handleAssignEmployee() {
+    if (!routeId || !selectedUserId) return;
+    setAssigning(true);
+    try {
+      await apiClient.assignEmployeeToRoute({
+        user_id: selectedUserId,
+        route_id: routeId,
+        pickup_stop_id: selectedStopId ? Number(selectedStopId) : undefined,
+      });
+      toast.success("Employee assigned successfully");
+      setShowAssignModal(false);
+      setSelectedUserId("");
+      setSelectedStopId("");
+      load(); // Refresh route data
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign employee");
+    } finally {
+      setAssigning(false);
     }
   }
 
@@ -255,6 +292,16 @@ export default function RouteDetailPage() {
                   onClick={handleGenerateTrips}
                 >
                   {generatingTrips ? "Generating…" : "Generate trips"}
+                </Button>
+              )}
+              {isTrialUser && (
+                <Button
+                  variant="default"
+                  className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
+                  onClick={() => setShowAssignModal(true)}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Assign Employee
                 </Button>
               )}
               <Link href={`/company/routes/${routeId}/track`}>
@@ -340,9 +387,20 @@ export default function RouteDetailPage() {
                   <div className="py-16 text-center">
                     <Users className="w-8 h-8 mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
                     <div className="text-sm text-[var(--text-muted)]">No employees assigned to this route yet.</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
-                      Contact Cort Operations to assign employees.
-                    </div>
+                    {isTrialUser ? (
+                      <Button 
+                        variant="outline" 
+                        className="mt-4 gap-2"
+                        onClick={() => setShowAssignModal(true)}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Assign an Employee
+                      </Button>
+                    ) : (
+                      <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
+                        Contact Cort Operations to assign employees.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-light)]">
@@ -464,6 +522,76 @@ export default function RouteDetailPage() {
             </div>
           </div>
         </>
+      )}
+
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md !p-0 shadow-2xl border-[var(--border-light)] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-subtle)]">
+              <h3 className="font-bold text-[var(--text-primary)]">Assign Employee</h3>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="p-1 rounded-lg hover:bg-[var(--border-light)] text-[var(--text-muted)] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
+                  Select Employee
+                </label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+                >
+                  <option value="">-- Choose an employee --</option>
+                  {allEmployees
+                    .filter((emp) => !employees.some((assigned) => assigned.users?.id === emp.id))
+                    .map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.full_name} {emp.department ? `(${emp.department})` : ""}
+                      </option>
+                    ))}
+                </select>
+                {allEmployees.length === 0 && employeeStatus !== "loading" && (
+                  <p className="text-xs text-amber-500 mt-1">No employees found in your company.</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
+                  Pickup Stop <span className="text-[var(--text-muted)] font-normal">(Optional)</span>
+                </label>
+                <select
+                  value={selectedStopId}
+                  onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+                >
+                  <option value="">-- None / Automatic --</option>
+                  {stops.map((stop) => (
+                    <option key={stop.id} value={stop.id}>
+                      {stop.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowAssignModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!selectedUserId || assigning}
+                onClick={handleAssignEmployee}
+                className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
+              >
+                {assigning ? "Assigning..." : "Confirm Assignment"}
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
