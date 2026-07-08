@@ -201,6 +201,13 @@ export interface CreateVendorPaymentRequest {
     notes?: string;
 }
 
+export interface UpdateVendorPaymentRequest {
+    amount?: number;
+    payment_method?: string;
+    notes?: string;
+    payment_date?: string;
+}
+
 export interface VendorPaymentTransaction {
     id: number;
     booking_id: number;

@@ -25,6 +25,7 @@ import {
     CreateVendorRequest, QueryVendorParams, Vendor, VendorResponse, UpdateVendorRequest,
     CreateVendorContractRequest, QueryVendorContractParams, VendorContract, VendorContractResponse, UpdateVendorContractRequest,
     QueryVendorLogsParams, QueryVendorStatsParams, VendorLogsResponse, VendorStatsResponse, CreateVendorPaymentRequest, VendorPaymentTransaction,
+    UpdateVendorPaymentRequest,
     // Drivers
     CreateDriverRequest, QueryDriverParams, Driver, DriverResponse, UpdateDriverRequest, UpdateDriverStatusRequest, RideReview,
     // Pricing / Contracts
@@ -732,6 +733,13 @@ class ApiClient {
 
     async getVendorPaymentHistory(bookingId: number): Promise<VendorPaymentTransaction[]> {
         return this.request<VendorPaymentTransaction[]>(`/vendors/payments/${bookingId}`);
+    }
+
+    async updateVendorPayment(id: number, data: UpdateVendorPaymentRequest): Promise<VendorPaymentTransaction> {
+        return this.request<VendorPaymentTransaction>(`/vendors/payments/txn/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
     }
 
     // ===== DRIVERS =====

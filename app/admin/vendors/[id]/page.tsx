@@ -20,7 +20,7 @@ import {
     selectVendorLogsPagination,
     createVendorPayment
 } from '../../../lib/store/slices/vendorLogsSlice';
-import { ArrowLeft, Calendar, Filter, DollarSign, X } from 'lucide-react';
+import { ArrowLeft, Calendar, Filter, DollarSign, X, Pencil, Check } from 'lucide-react';
 import Pagination from '../../../components/ui/Pagination';
 import { AdminProtectedPage } from '../../components/AdminProtectedPage';
 import { ADMIN_SUBJECTS } from '../../../lib/abilities/admin-subjects';
@@ -106,11 +106,87 @@ function VendorDetailsContent() {
     const [settlementError, setSettlementError] = useState<string | null>(null);
     const [settlementTxns, setSettlementTxns] = useState<any[]>([]);
 
+    // Inline row-edit state for settlement transactions
+    const [editingTxnId, setEditingTxnId] = useState<number | null>(null);
+    const [editTxnForm, setEditTxnForm] = useState({ amount: '', payment_method: '', notes: '', payment_date: '' });
+    const [savingTxn, setSavingTxn] = useState(false);
+    const [txnEditError, setTxnEditError] = useState<string | null>(null);
+
+    const toDatetimeLocal = (iso: string) => {
+        const d = new Date(iso);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const startEditTxn = (t: any) => {
+        setEditingTxnId(t.id);
+        setEditTxnForm({
+            amount: String(Number(t.amount || 0)),
+            payment_method: t.payment_method || '',
+            notes: t.notes || '',
+            payment_date: t.payment_date ? toDatetimeLocal(t.payment_date) : '',
+        });
+        setTxnEditError(null);
+    };
+
+    const cancelEditTxn = () => {
+        setEditingTxnId(null);
+        setTxnEditError(null);
+    };
+
+    const refreshVendorLogsAndStats = () => {
+        dispatch(fetchVendorStats({
+            vendor_id: vendorId,
+            ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
+        }));
+        dispatch(fetchVendorLogs({
+            vendor_id: vendorId,
+            page: logsPagination.page,
+            limit: logsPagination.limit,
+            ...(filters.start_date ? { start_date: filters.start_date } : {}),
+            ...(filters.end_date ? { end_date: filters.end_date } : {}),
+            ...(filters.payment_status ? { payment_status: filters.payment_status } : {}),
+            ...(filters.company_id ? { company_id: Number(filters.company_id) } : {}),
+        }));
+    };
+
+    const saveEditTxn = async (txnId: number) => {
+        const amount = parseFloat(editTxnForm.amount);
+        if (isNaN(amount) || amount <= 0) {
+            setTxnEditError('Enter a valid amount greater than zero.');
+            return;
+        }
+        setSavingTxn(true);
+        setTxnEditError(null);
+        try {
+            await apiClient.updateVendorPayment(txnId, {
+                amount,
+                payment_method: editTxnForm.payment_method || undefined,
+                notes: editTxnForm.notes || undefined,
+                payment_date: editTxnForm.payment_date ? new Date(editTxnForm.payment_date).toISOString() : undefined,
+            });
+
+            if (settlementLog?.booking_id) {
+                const res: any = await apiClient.getVendorPaymentHistory(settlementLog.booking_id);
+                const txns = Array.isArray(res) ? res : (res?.data ?? []);
+                setSettlementTxns(Array.isArray(txns) ? txns : []);
+            }
+            refreshVendorLogsAndStats();
+            setEditingTxnId(null);
+        } catch (e: any) {
+            setTxnEditError(e?.message || 'Failed to save changes.');
+        } finally {
+            setSavingTxn(false);
+        }
+    };
+
     const openSettlement = async (log: any) => {
         setSettlementLog(log);
         setSettlementOpen(true);
         setSettlementError(null);
         setSettlementTxns([]);
+        setEditingTxnId(null);
+        setTxnEditError(null);
 
         if (!log?.booking_id || log?.type !== 'CHAUFFEUR') {
             return;
@@ -560,7 +636,7 @@ function VendorDetailsContent() {
                     }}
                 >
                     <div
-                        className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        className="bg-white rounded-xl shadow-xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between p-4 border-b border-slate-100">
@@ -615,6 +691,10 @@ function VendorDetailsContent() {
                                 <div className="text-sm text-red-600">{settlementError}</div>
                             ) : (
                                 <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                    {txnEditError && (
+                                        <div className="px-4 py-2 text-sm text-red-600 bg-red-50 border-b border-red-100">{txnEditError}</div>
+                                    )}
+                                    <div className="overflow-x-auto">
                                     <table className="min-w-full text-left text-sm">
                                         <thead className="bg-slate-50 border-b border-slate-200">
                                             <tr>
@@ -623,34 +703,114 @@ function VendorDetailsContent() {
                                                 <th className="px-4 py-3 font-semibold text-slate-700">Method</th>
                                                 <th className="px-4 py-3 font-semibold text-slate-700">Notes</th>
                                                 <th className="px-4 py-3 font-semibold text-slate-700">Settled By</th>
+                                                <th className="sticky right-0 bg-slate-50 px-4 py-3 font-semibold text-slate-700 text-right shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {settlementTxns.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                                                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                                                         No payments recorded yet.
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                settlementTxns.map((t: any) => (
-                                                    <tr key={t.id} className="hover:bg-slate-50">
-                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                                                            {t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">
-                                                            PKR {Number(t.amount || 0).toLocaleString()}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{t.payment_method || '—'}</td>
-                                                        <td className="px-4 py-3 text-slate-700">{t.notes || '—'}</td>
-                                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                                                            {t.users?.full_name || t.created_by || '—'}
-                                                        </td>
-                                                    </tr>
-                                                ))
+                                                settlementTxns.map((t: any) => {
+                                                    const isEditing = editingTxnId === t.id;
+                                                    return (
+                                                        <tr key={t.id} className="group hover:bg-slate-50">
+                                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="datetime-local"
+                                                                        value={editTxnForm.payment_date}
+                                                                        onChange={(e) => setEditTxnForm(f => ({ ...f, payment_date: e.target.value }))}
+                                                                        className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                    />
+                                                                ) : (
+                                                                    t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        value={editTxnForm.amount}
+                                                                        onChange={(e) => setEditTxnForm(f => ({ ...f, amount: e.target.value }))}
+                                                                        className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right"
+                                                                    />
+                                                                ) : (
+                                                                    `PKR ${Number(t.amount || 0).toLocaleString()}`
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editTxnForm.payment_method}
+                                                                        onChange={(e) => setEditTxnForm(f => ({ ...f, payment_method: e.target.value }))}
+                                                                        className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                    />
+                                                                ) : (
+                                                                    t.payment_method || '—'
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-700">
+                                                                {isEditing ? (
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editTxnForm.notes}
+                                                                        onChange={(e) => setEditTxnForm(f => ({ ...f, notes: e.target.value }))}
+                                                                        className="w-full min-w-[10rem] rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                    />
+                                                                ) : (
+                                                                    t.notes || '—'
+                                                                )}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                                {t.users?.full_name || t.created_by || '—'}
+                                                            </td>
+                                                            <td className="sticky right-0 bg-white group-hover:bg-slate-50 px-4 py-3 text-right whitespace-nowrap shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                                                                {isEditing ? (
+                                                                    <div className="flex items-center justify-end gap-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => saveEditTxn(t.id)}
+                                                                            disabled={savingTxn}
+                                                                            title="Save"
+                                                                            className="rounded-md p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-50"
+                                                                        >
+                                                                            <Check className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={cancelEditTxn}
+                                                                            disabled={savingTxn}
+                                                                            title="Cancel"
+                                                                            className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                        >
+                                                                            <X className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => startEditTxn(t)}
+                                                                        title="Edit payment"
+                                                                        className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                                                    >
+                                                                        <Pencil className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             )}
                         </div>

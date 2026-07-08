@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Pencil, Check, X } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../../../lib/store/store";
 import {
@@ -77,6 +78,68 @@ function VendorLogsContent() {
     const [savingDistance, setSavingDistance] = useState(false);
     const [distanceError, setDistanceError] = useState<string | null>(null);
 
+    // Inline row-edit state for settlement transactions
+    const [editingTxnId, setEditingTxnId] = useState<number | null>(null);
+    const [editTxnForm, setEditTxnForm] = useState({ amount: '', payment_method: '', notes: '', payment_date: '' });
+    const [savingTxn, setSavingTxn] = useState(false);
+    const [txnEditError, setTxnEditError] = useState<string | null>(null);
+
+    const toDatetimeLocal = (iso: string) => {
+        const d = new Date(iso);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    const startEditTxn = (t: any) => {
+        setEditingTxnId(t.id);
+        setEditTxnForm({
+            amount: String(Number(t.amount || 0)),
+            payment_method: t.payment_method || '',
+            notes: t.notes || '',
+            payment_date: t.payment_date ? toDatetimeLocal(t.payment_date) : '',
+        });
+        setTxnEditError(null);
+    };
+
+    const cancelEditTxn = () => {
+        setEditingTxnId(null);
+        setTxnEditError(null);
+    };
+
+    const saveEditTxn = async (txnId: number) => {
+        const amount = parseFloat(editTxnForm.amount);
+        if (isNaN(amount) || amount <= 0) {
+            setTxnEditError('Enter a valid amount greater than zero.');
+            return;
+        }
+        setSavingTxn(true);
+        setTxnEditError(null);
+        try {
+            await apiClient.updateVendorPayment(txnId, {
+                amount,
+                payment_method: editTxnForm.payment_method || undefined,
+                notes: editTxnForm.notes || undefined,
+                payment_date: editTxnForm.payment_date ? new Date(editTxnForm.payment_date).toISOString() : undefined,
+            });
+
+            if (settlementLog?.booking_id) {
+                const res: any = await apiClient.getVendorPaymentHistory(settlementLog.booking_id);
+                const txns = Array.isArray(res) ? res : (res?.data ?? []);
+                setSettlementTxns(Array.isArray(txns) ? txns : []);
+            }
+            dispatch(fetchVendorLogs(filters));
+            dispatch(fetchVendorStats({
+                vendor_id: filters.vendor_id,
+                company_id: filters.company_id,
+            }));
+            setEditingTxnId(null);
+        } catch (e: any) {
+            setTxnEditError(e?.message || 'Failed to save changes.');
+        } finally {
+            setSavingTxn(false);
+        }
+    };
+
     // Sync edit input when modal opens
     useEffect(() => {
         if (breakdownLog) {
@@ -111,6 +174,8 @@ function VendorLogsContent() {
         setSettlementLog(log);
         setSettlementError(null);
         setSettlementTxns([]);
+        setEditingTxnId(null);
+        setTxnEditError(null);
 
         if (!log?.booking_id || log?.type !== 'CHAUFFEUR') {
             return;
@@ -510,7 +575,7 @@ function VendorLogsContent() {
                 setSettlementError(null);
             }}
             title="Settlement Breakdown"
-            size="lg"
+            size="xl"
             priority={breakdownLog ? 'elevated' : 'default'}
         >
             {settlementLog && (
@@ -556,6 +621,10 @@ function VendorLogsContent() {
                         <div className="space-y-2">
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted">Payments</div>
                             <div className="rounded-lg border border-slate-200 overflow-hidden">
+                                {txnEditError && (
+                                    <div className="px-3 py-2 text-sm text-red-600 bg-red-50 border-b border-red-100">{txnEditError}</div>
+                                )}
+                                <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 text-xs font-semibold tracking-wider text-muted">
                                         <tr>
@@ -564,38 +633,114 @@ function VendorLogsContent() {
                                             <th className="px-3 py-2 text-left">Method</th>
                                             <th className="px-3 py-2 text-left">Notes</th>
                                             <th className="px-3 py-2 text-left">Settled By</th>
+                                            <th className="sticky right-0 bg-slate-50 px-3 py-2 text-right shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {settlementTxns.length === 0 ? (
                                             <tr>
-                                                <td colSpan={5} className="px-3 py-10 text-center text-muted">
+                                                <td colSpan={6} className="px-3 py-10 text-center text-muted">
                                                     No payments recorded yet.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            settlementTxns.map((t: any) => (
-                                                <tr key={t.id}>
-                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
-                                                        {t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-medium text-ink whitespace-nowrap">
-                                                        Rs. {Number(t.amount || 0).toLocaleString()}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
-                                                        {t.payment_method || '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-ink">
-                                                        {t.notes || '—'}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-ink whitespace-nowrap">
-                                                        {t.users?.full_name || t.created_by || '—'}
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            settlementTxns.map((t: any) => {
+                                                const isEditing = editingTxnId === t.id;
+                                                return (
+                                                    <tr key={t.id}>
+                                                        <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="datetime-local"
+                                                                    value={editTxnForm.payment_date}
+                                                                    onChange={(e) => setEditTxnForm(f => ({ ...f, payment_date: e.target.value }))}
+                                                                    className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                />
+                                                            ) : (
+                                                                t.payment_date ? new Date(t.payment_date).toLocaleString() : '—'
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right font-medium text-ink whitespace-nowrap">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    value={editTxnForm.amount}
+                                                                    onChange={(e) => setEditTxnForm(f => ({ ...f, amount: e.target.value }))}
+                                                                    className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm text-right"
+                                                                />
+                                                            ) : (
+                                                                `Rs. ${Number(t.amount || 0).toLocaleString()}`
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editTxnForm.payment_method}
+                                                                    onChange={(e) => setEditTxnForm(f => ({ ...f, payment_method: e.target.value }))}
+                                                                    className="w-28 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                />
+                                                            ) : (
+                                                                t.payment_method || '—'
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-ink">
+                                                            {isEditing ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={editTxnForm.notes}
+                                                                    onChange={(e) => setEditTxnForm(f => ({ ...f, notes: e.target.value }))}
+                                                                    className="w-full min-w-[10rem] rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                                                />
+                                                            ) : (
+                                                                t.notes || '—'
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-ink whitespace-nowrap">
+                                                            {t.users?.full_name || t.created_by || '—'}
+                                                        </td>
+                                                        <td className="sticky right-0 bg-white px-3 py-2 text-right whitespace-nowrap shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">
+                                                            {isEditing ? (
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => saveEditTxn(t.id)}
+                                                                        disabled={savingTxn}
+                                                                        title="Save"
+                                                                        className="rounded-md p-1.5 text-green-600 hover:bg-green-50 disabled:opacity-50"
+                                                                    >
+                                                                        <Check className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={cancelEditTxn}
+                                                                        disabled={savingTxn}
+                                                                        title="Cancel"
+                                                                        className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                                                                    >
+                                                                        <X className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => startEditTxn(t)}
+                                                                    title="Edit payment"
+                                                                    className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </div>
                     )}

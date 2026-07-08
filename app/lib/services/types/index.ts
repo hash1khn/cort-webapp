@@ -79,6 +79,7 @@ export type {
     BulkPayVendorLogsDto,
     CreateVendorPaymentRequest,
     VendorPaymentTransaction,
+    UpdateVendorPaymentRequest,
 } from './vendors';
 
 // Bookings
