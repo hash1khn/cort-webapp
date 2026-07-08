@@ -1863,11 +1863,30 @@ class ApiClient {
         return this.request<{ success: boolean; data: TrackerConfig }>(`/companies/${companyId}/tracker/config`);
     }
 
-    async upsertTrackerConfig(companyId: number, dto: { api_endpoint?: string; api_key?: string; config?: Record<string, unknown> }) {
+    async upsertTrackerConfig(companyId: number, dto: {
+        api_endpoint?: string;
+        api_key?: string;
+        config?: {
+            user_id?: string;
+            password?: string;
+            phone?: string;
+            year?: string;
+            [key: string]: unknown;
+        };
+    }) {
         return this.request<{ success: boolean; data: TrackerConfig }>(`/companies/${companyId}/tracker/config`, {
             method: 'PUT',
             body: JSON.stringify(dto),
         });
+    }
+
+    /** Test TPL Trakker connection — returns all vehicles the account is tracking */
+    async getActiveTrackerVehicles(companyId: number): Promise<{
+        success: boolean;
+        data: Array<{ RegNo: string; Lat: string; Long: string; Speed: string; GpsDateTime: string }>;
+        message: string;
+    }> {
+        return this.request(`/companies/${companyId}/tracker/active-vehicles`);
     }
 
     // ===== DASHBOARD =====

@@ -29,8 +29,10 @@ export function useCompanyDetail(id: string) {
     // Feature flags state
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
     const [featuresLoading, setFeaturesLoading] = useState(false);
-    const [trackerForm, setTrackerForm] = useState({ api_endpoint: "", api_key: "" });
+    const [trackerForm, setTrackerForm] = useState({ user_id: '', password: '', phone: '', year: '' });
     const [trackerSaving, setTrackerSaving] = useState(false);
+    const [trackerTesting, setTrackerTesting] = useState(false);
+    const [trackerTestResult, setTrackerTestResult] = useState<{ count: number; vehicles: string[] } | null>(null);
     const [pendingToggleKeys, setPendingToggleKeys] = useState<string[]>([]);
 
     // External vendors tab state
@@ -210,12 +212,20 @@ export function useCompanyDetail(id: string) {
         try {
             const res = await apiClient.getCompanyFeatures(Number(id));
             setFeatures(res.data);
-            const tracker = res.data.find((f) => f.feature_key === "tracker_api_integration");
-            if (tracker?.config) {
-                setTrackerForm({
-                    api_endpoint: (tracker.config.api_endpoint as string) ?? "",
-                    api_key: (tracker.config.api_key as string) ?? "",
-                });
+            // Also fetch the saved tracker config to pre-fill the credential form
+            try {
+                const cfgRes = await apiClient.getTrackerConfig(Number(id));
+                const cfg = (cfgRes as any)?.data?.config ?? {};
+                if (cfg.user_id || cfg.phone) {
+                    setTrackerForm({
+                        user_id: (cfg.user_id as string) ?? '',
+                        password: (cfg.password as string) ?? '',
+                        phone: (cfg.phone as string) ?? '',
+                        year: (cfg.year as string) ?? '',
+                    });
+                }
+            } catch {
+                // silently ignore — config may not exist yet
             }
         } catch {
             // silently ignore
@@ -270,12 +280,39 @@ export function useCompanyDetail(id: string) {
         e.preventDefault();
         setTrackerSaving(true);
         try {
-            await apiClient.upsertTrackerConfig(Number(id), { api_endpoint: trackerForm.api_endpoint, api_key: trackerForm.api_key });
-            toast.success("Tracker config saved");
+            await apiClient.upsertTrackerConfig(Number(id), {
+                config: {
+                    user_id: trackerForm.user_id.trim(),
+                    password: trackerForm.password.trim(),
+                    phone: trackerForm.phone.trim(),
+                    year: trackerForm.year.trim(),
+                },
+            });
+            toast.success('TPL Trakker credentials saved');
+            setTrackerTestResult(null); // reset test result so user can re-test
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to save tracker config");
+            toast.error(err instanceof Error ? err.message : 'Failed to save tracker config');
         } finally {
             setTrackerSaving(false);
+        }
+    };
+
+    const testTrackerConnection = async () => {
+        setTrackerTesting(true);
+        setTrackerTestResult(null);
+        try {
+            const res = await apiClient.getActiveTrackerVehicles(Number(id));
+            const vehicles = (res as any)?.data ?? [];
+            const count = Array.isArray(vehicles) ? vehicles.length : 0;
+            const plates = Array.isArray(vehicles)
+                ? vehicles.slice(0, 5).map((v: any) => v.RegNo ?? '?')
+                : [];
+            setTrackerTestResult({ count, vehicles: plates });
+            toast.success(`Connection successful — ${count} vehicle(s) found`);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Connection test failed');
+        } finally {
+            setTrackerTesting(false);
         }
     };
 
@@ -562,12 +599,12 @@ export function useCompanyDetail(id: string) {
   return {
     company, employees, isLoading, error, canCreate, canUpdate, canViewPricing,
     activeTab, setActiveTab, linkContext, setLinkContext,
-    features, featuresLoading, trackerForm, setTrackerForm, trackerSaving, pendingToggleKeys,
+    features, featuresLoading, trackerForm, setTrackerForm, trackerSaving, trackerTesting, trackerTestResult, pendingToggleKeys,
     companyVendorLinks, vendorsLoading, allVendors, showLinkModal, setShowLinkModal, linkSaving, linkForm, setLinkForm,
     isEmpModalOpen, setIsEmpModalOpen, newEmpName, setNewEmpName, newEmpEmail, setNewEmpEmail, newEmpPhone, setNewEmpPhone,
     newEmpPassword, setNewEmpPassword, isBenchmarksModalOpen, setIsBenchmarksModalOpen, newEmpId, setNewEmpId,
     newEmpDepartment, setNewEmpDepartment, newEmpHomeAddress, setNewEmpHomeAddress, isCreatingEmp, isUploadingCsv, availableVehicleModels,
-    toggleFeature, saveTrackerConfig, updateLink,
+    toggleFeature, saveTrackerConfig, testTrackerConnection, updateLink,
     handleCreateEmployee,
     openCsvModal,
     closeCsvModal,

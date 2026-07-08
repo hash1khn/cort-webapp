@@ -271,18 +271,95 @@ export function CompanyServicesTab({ detail: d }: Props) {
                                         </div>
                                         {tEnabled && (
                                             <form onSubmit={d.saveTrackerConfig} className="mt-3 bg-blue-50 rounded-lg border border-blue-200 p-4 space-y-3">
-                                                <p className="text-xs font-semibold text-blue-800">Tracker API Configuration</p>
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">API Endpoint</label>
-                                                    <input type="url" value={d.trackerForm.api_endpoint} onChange={(e) => d.setTrackerForm(f => ({ ...f, api_endpoint: e.target.value }))} placeholder="https://tracker.example.com/api" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                                                <p className="text-xs font-semibold text-blue-800">TPL Trakker Credentials</p>
+                                                <p className="text-[11px] text-blue-600">
+                                                    Enter the account credentials from TPL Trakker. The system will call
+                                                    <code className="mx-1 px-1 py-0.5 bg-blue-100 rounded text-[10px]">GetToken</code> then
+                                                    <code className="mx-1 px-1 py-0.5 bg-blue-100 rounded text-[10px]">GetVLL</code>
+                                                    every 30 seconds to update vehicle positions.
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">UserID</label>
+                                                        <input
+                                                            type="text"
+                                                            value={d.trackerForm.user_id}
+                                                            onChange={(e) => d.setTrackerForm(f => ({ ...f, user_id: e.target.value }))}
+                                                            placeholder="e.g. Z1X5CVA"
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+                                                        <input
+                                                            type="password"
+                                                            value={d.trackerForm.password}
+                                                            onChange={(e) => d.setTrackerForm(f => ({ ...f, password: e.target.value }))}
+                                                            placeholder="••••••••"
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                                                        <input
+                                                            type="text"
+                                                            value={d.trackerForm.phone}
+                                                            onChange={(e) => d.setTrackerForm(f => ({ ...f, phone: e.target.value }))}
+                                                            placeholder="e.g. 03156618471"
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">Year</label>
+                                                        <input
+                                                            type="text"
+                                                            value={d.trackerForm.year}
+                                                            onChange={(e) => d.setTrackerForm(f => ({ ...f, year: e.target.value }))}
+                                                            placeholder="e.g. 1992"
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">API Key</label>
-                                                    <input type="text" value={d.trackerForm.api_key} onChange={(e) => d.setTrackerForm(f => ({ ...f, api_key: e.target.value }))} placeholder="••••••••" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <button
+                                                        type="submit"
+                                                        disabled={d.trackerSaving}
+                                                        className="bg-[#f47f00] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50"
+                                                    >
+                                                        {d.trackerSaving ? 'Saving…' : 'Save Credentials'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={d.testTrackerConnection}
+                                                        disabled={d.trackerTesting || !d.trackerForm.user_id || !d.trackerForm.phone}
+                                                        className="border border-blue-400 text-blue-700 bg-white text-sm px-4 py-2 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
+                                                    >
+                                                        {d.trackerTesting ? 'Testing…' : 'Test Connection'}
+                                                    </button>
                                                 </div>
-                                                <button type="submit" disabled={d.trackerSaving} className="bg-[#f47f00] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50">{d.trackerSaving ? "Saving…" : "Save Config"}</button>
+                                                {d.trackerTestResult && (
+                                                    <div className={`rounded-lg p-3 text-xs border ${d.trackerTestResult.count > 0 ? 'bg-green-50 border-green-200 text-green-800' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}>
+                                                        {d.trackerTestResult.count > 0 ? (
+                                                            <>
+                                                                <span className="font-bold">✓ {d.trackerTestResult.count} vehicle(s) found.</span>
+                                                                {d.trackerTestResult.vehicles.length > 0 && (
+                                                                    <span className="ml-2 font-mono">
+                                                                        {d.trackerTestResult.vehicles.join(', ')}
+                                                                        {d.trackerTestResult.count > 5 ? ` +${d.trackerTestResult.count - 5} more` : ''}
+                                                                    </span>
+                                                                )}
+                                                                <p className="mt-1 text-green-700 font-medium">
+                                                                    Vehicles matching active trip plate numbers will appear live on the mobility map.
+                                                                </p>
+                                                            </>
+                                                        ) : (
+                                                            <span className="font-bold">⚠ Connected but no vehicles found. Check Phone and Year fields.</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </form>
                                         )}
+
                                     </div>
                                 );
                             })()}
