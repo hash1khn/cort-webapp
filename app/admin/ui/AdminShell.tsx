@@ -23,6 +23,7 @@ import {
   Users,
   Calendar,
   Map,
+  MapPin,
   Bus,
   BarChart3,
   Receipt,
@@ -58,6 +59,8 @@ const nav: NavItem[] = [
   { href: "/admin/drivers", label: "Drivers", icon: Users, permission: "drivers" },
   { href: "/admin/bookings/pending", label: "Bookings", icon: Calendar, permission: "bookings" },
   { href: "/admin/routes", label: "Routes", icon: Map, permission: "routes" },
+  // Super Admin-only utilities (no permission key)
+  { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin },
   { href: "/admin/routes/shuttle-trips", label: "Shuttle trip scheduling", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },

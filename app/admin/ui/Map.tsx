@@ -6,6 +6,7 @@ export type MapMarker = {
   id: string;
   position: [number, number]; // [lat, lng]
   label?: string;
+  description?: string;
   color?: string;
   type?: string;
 };
@@ -160,7 +161,12 @@ export default function Map({
       if (marker.label) {
         const iw = infoWindowRef.current!;
         gmMarker.addListener('click', () => {
-          iw.setContent(`<div style="font-size:12px;font-weight:600">${marker.label}</div>`);
+          const description = marker.description
+            ? `<div style="font-size:11px;color:#4b5563;margin-top:4px">${marker.description}</div>`
+            : '';
+          iw.setContent(
+            `<div style="font-size:12px;font-weight:600">${marker.label}</div>${description}`,
+          );
           iw.open({ anchor: gmMarker, map: mapRef.current });
           onMarkerClickRef.current?.(marker.id);
         });
