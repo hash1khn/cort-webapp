@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAppSelector } from "../../../lib/store/hooks";
+import { useAppSelector, useAppDispatch } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus } from "../../../lib/store/slices/employeeSlice";
