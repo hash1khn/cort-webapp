@@ -30,6 +30,7 @@ import {
     OwnershipType,
     apiClient,
 } from "../../../lib/services/api-client";
+import { BookingTagPicker, TaggedBooking } from "../../components/BookingTagPicker";
 
 export default function FuelingPage() {
     return (
@@ -82,7 +83,8 @@ function FuelingPageContent() {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Form Data
-    const [formData, setFormData] = useState<Partial<CreateFuelRecordRequest>>({});
+    const [formData, setFormData] = useState<Omit<Partial<CreateFuelRecordRequest>, 'booking_id'> & { booking_id?: number | null }>({});
+    const [taggedBooking, setTaggedBooking] = useState<TaggedBooking | null>(null);
 
     const loadData = useCallback(() => {
         const params: QueryFuelRecordParams = { limit: 100 };
@@ -187,6 +189,7 @@ function FuelingPageContent() {
             date: toLocalDateInputValue(new Date()),
             current_fuel_rate: autoRate,
         });
+        setTaggedBooking(null);
         setModalMode("create");
         setIsModalOpen(true);
     };
@@ -202,7 +205,9 @@ function FuelingPageContent() {
             current_fuel_rate: record.current_fuel_rate,
             odometer_reading: record.odometer_reading ?? undefined,
             billed: record.billed,
+            booking_id: record.booking_id ?? undefined,
         });
+        setTaggedBooking(record.booking_id ? { id: record.booking_id, label: `Booking #${record.booking_id}` } : null);
         setModalMode("edit");
         setIsModalOpen(true);
     };
@@ -211,6 +216,7 @@ function FuelingPageContent() {
         setIsModalOpen(false);
         setSelectedRecord(null);
         setFormData({});
+        setTaggedBooking(null);
     };
 
     const renderForm = () => (
@@ -299,6 +305,23 @@ function FuelingPageContent() {
                         </div>
                     );
                 })()}
+            </label>
+
+            <label className="flex flex-col gap-1 sm:col-span-2">
+                <span
+                    className="text-xs font-semibold tracking-wider text-muted"
+                    title="If this fuel purchase was for a specific ride, tag it — it'll replace the estimated fuel cost on that booking's invoice and count toward Chauffeur COGS. Leave blank to log it as a general fleet expense."
+                >
+                    Tag to a booking (optional)
+                </span>
+                <BookingTagPicker
+                    value={taggedBooking}
+                    onChange={(b) => {
+                        setTaggedBooking(b);
+                        setFormData({ ...formData, booking_id: b ? b.id : null });
+                    }}
+                    vehicleId={formData.vehicle_id}
+                />
             </label>
 
             {/* Removed "Mark as Billed" checkbox for creation */}
@@ -510,6 +533,14 @@ function FuelingPageContent() {
                                     <td className="px-4 py-3">
                                         <div className="font-medium text-ink">{r.vehicles?.plate_number}</div>
                                         <div className="text-xs text-muted">{r.vehicles?.make} {r.vehicles?.model}</div>
+                                        {r.booking_id && (
+                                            <span
+                                                className="mt-1 inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-800"
+                                                title={`Tagged to booking #${r.booking_id} — replaces the estimated fuel cost on that booking's invoice and counts in Chauffeur COGS`}
+                                            >
+                                                #{r.booking_id}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right text-muted">
                                         {r.odometer_reading ? `${Number(r.odometer_reading).toLocaleString()} km` : <span className="text-xs">—</span>}

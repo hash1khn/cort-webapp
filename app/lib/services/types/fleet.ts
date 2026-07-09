@@ -17,6 +17,8 @@ export interface CreateFuelRecordRequest {
     fuel_cost?: number; // Auto-calculated if not provided
     odometer_reading?: number;
     billed?: boolean;
+    /** Optional booking to tag this fuel purchase to. Tagged actual cost replaces the formula estimate for that booking's invoice and Chauffeur COGS. */
+    booking_id?: number;
 }
 
 export interface BulkPayFuelRequest {
@@ -45,6 +47,7 @@ export interface FuelRecord {
     billed: boolean;
     created_at: string;
     updated_at: string;
+    booking_id?: number | null;
     vehicles?: {
         id: number;
         plate_number: string;

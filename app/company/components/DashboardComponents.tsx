@@ -307,7 +307,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
                         {formatCurrency(Math.abs(savingsValue))}
                     </div>
                     <div className="text-xs text-[var(--text-muted)] mt-1">
-                        {isBenchmarkSavings ? (isSaving ? 'Saved this month vs previous vendor' : 'Over previous vendor this month') : 'Estimated MTD'}
+                        {isBenchmarkSavings ? (isSaving ? 'Saved this month vs previous month' : 'Over previous month this month') : 'Estimated MTD'}
                     </div>
                 </div>
             </div>

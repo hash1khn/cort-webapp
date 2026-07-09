@@ -9,7 +9,12 @@ export enum ExpenseCategory {
     ENTERTAINMENT = 'ENTERTAINMENT',
     SUBSCRIPTION = 'SUBSCRIPTION',
     MISC = 'MISC',
+    TOLL = 'TOLL',
+    PARKING = 'PARKING',
 }
+
+/** Categories that can optionally be tagged to a booking, feeding that booking's invoice + Chauffeur COGS. */
+export const BOOKING_TAGGABLE_CATEGORIES = [ExpenseCategory.TOLL, ExpenseCategory.PARKING];
 
 export interface Expense {
     id: number;
@@ -21,6 +26,7 @@ export interface Expense {
     paid_at: string | null;
     created_at: string;
     updated_at: string;
+    booking_id: number | null;
 }
 
 export interface CreateExpenseRequest {
@@ -28,6 +34,7 @@ export interface CreateExpenseRequest {
     amount: number;
     date: string;
     description?: string;
+    booking_id?: number;
 }
 
 export interface ExpenseFilterParams {

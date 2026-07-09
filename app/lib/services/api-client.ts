@@ -996,6 +996,7 @@ class ApiClient {
         if (params.start_date) query.append('start_date', params.start_date);
         if (params.end_date) query.append('end_date', params.end_date);
         if (params.fulfillment_type) query.append('fulfillment_type', params.fulfillment_type);
+        if (params.vehicle_id) query.append('vehicle_id', params.vehicle_id.toString());
 
         const queryString = query.toString();
         const endpoint = `/admin/bookings${queryString ? `?${queryString}` : ''}`;

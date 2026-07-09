@@ -8,10 +8,12 @@ import {
     ExpenseCategory,
     CreateExpenseRequest,
 } from "../../lib/services/api-client";
+import { BOOKING_TAGGABLE_CATEGORIES } from "../../lib/services/types/expenses";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
 import { adminStatCard } from "../components/ui/admin-styles";
+import { BookingTagPicker, TaggedBooking } from "../components/BookingTagPicker";
 
 function getCurrentMonthValue() {
     const now = new Date();
@@ -300,6 +302,14 @@ function ExpensesPageContent() {
                                     <span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold leading-5 text-blue-800">
                                         {expense.category.replace(/_/g, " ")}
                                     </span>
+                                    {expense.booking_id && (
+                                        <span
+                                            className="ml-1.5 inline-flex rounded-full bg-purple-50 px-2 py-1 text-xs font-semibold leading-5 text-purple-800"
+                                            title={`Tagged to booking #${expense.booking_id} — counted in Chauffeur COGS`}
+                                        >
+                                            #{expense.booking_id}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-500">
                                     {expense.description || "-"}
@@ -425,9 +435,19 @@ function AddExpenseModal({
     const [category, setCategory] = useState<ExpenseCategory | "">("");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [description, setDescription] = useState("");
+    const [taggedBooking, setTaggedBooking] = useState<TaggedBooking | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     if (!isOpen) return null;
+
+    const isTaggable = category !== "" && BOOKING_TAGGABLE_CATEGORIES.includes(category);
+
+    const handleCategoryChange = (next: ExpenseCategory | "") => {
+        setCategory(next);
+        if (next === "" || !BOOKING_TAGGABLE_CATEGORIES.includes(next)) {
+            setTaggedBooking(null);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -440,6 +460,7 @@ function AddExpenseModal({
                 category: category as ExpenseCategory,
                 date: new Date(date).toISOString(),
                 description,
+                booking_id: isTaggable ? taggedBooking?.id : undefined,
             });
         } catch (err: any) {
             alert("Failed to create expense: " + (err.message || "Unknown error"));
@@ -460,7 +481,7 @@ function AddExpenseModal({
                         <select
                             required
                             value={category}
-                            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+                            onChange={(e) => handleCategoryChange(e.target.value as ExpenseCategory)}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
                         >
                             <option value="">Select Category</option>
@@ -471,6 +492,18 @@ function AddExpenseModal({
                             ))}
                         </select>
                     </div>
+
+                    {isTaggable && (
+                        <div>
+                            <label
+                                className="mb-1 block text-sm font-medium text-gray-700"
+                                title={`If this ${category.toLowerCase()} was for a specific ride, tag it here — it'll be added to that booking's invoice and count toward Chauffeur COGS. Leave blank to log it as a general expense.`}
+                            >
+                                Tag to a booking (optional)
+                            </label>
+                            <BookingTagPicker value={taggedBooking} onChange={setTaggedBooking} />
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
