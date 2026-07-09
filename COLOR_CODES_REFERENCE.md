@@ -14,6 +14,9 @@ Orange:         #f47f00  (Warm, energetic, accent)
 
 
 
+
+
+
 ### Neutral Colors
 ```
 White:          #ffffff  (Backgrounds, text)
