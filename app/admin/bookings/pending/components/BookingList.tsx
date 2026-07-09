@@ -134,7 +134,13 @@ export function BookingList({
                     <td className="px-4 py-4 text-center">
                       <div onClick={(e) => e.stopPropagation()}>
                         <select
-                          value={b.status}
+                          value={
+                            b.status === "DROPPED_OFF"
+                              ? "IN_PROGRESS"
+                              : b.status === "OTW"
+                                ? "ASSIGNED"
+                                : b.status
+                          }
                           onChange={(e) => {
                             if (!canEditBookings) return;
                             onStatusChange(b, e.target.value);
