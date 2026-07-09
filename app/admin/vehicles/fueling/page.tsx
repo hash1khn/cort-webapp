@@ -310,7 +310,7 @@ function FuelingPageContent() {
             <label className="flex flex-col gap-1 sm:col-span-2">
                 <span
                     className="text-xs font-semibold tracking-wider text-muted"
-                    title="If this fuel purchase was for a specific ride, tag it — it'll replace the estimated fuel cost on that booking's invoice and count toward Chauffeur COGS. Leave blank to log it as a general fleet expense."
+                    title="If this fuel purchase was for a specific ride, tag it — the actual cost counts toward that booking's Chauffeur COGS. Customer billing fuel stays distance × contract rate. Leave blank for a general fleet expense."
                 >
                     Tag to a booking (optional)
                 </span>
@@ -536,7 +536,7 @@ function FuelingPageContent() {
                                         {r.booking_id && (
                                             <span
                                                 className="mt-1 inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-800"
-                                                title={`Tagged to booking #${r.booking_id} — replaces the estimated fuel cost on that booking's invoice and counts in Chauffeur COGS`}
+                                                title={`Tagged to booking #${r.booking_id} — actual fuel cost attributed to this ride for Chauffeur COGS`}
                                             >
                                                 #{r.booking_id}
                                             </span>

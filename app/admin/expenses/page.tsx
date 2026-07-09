@@ -497,7 +497,7 @@ function AddExpenseModal({
                         <div>
                             <label
                                 className="mb-1 block text-sm font-medium text-gray-700"
-                                title={`If this ${category.toLowerCase()} was for a specific ride, tag it here — it'll be added to that booking's invoice and count toward Chauffeur COGS. Leave blank to log it as a general expense.`}
+                                title={`If this ${category.toLowerCase()} was for a specific ride, tag it here — the actual cost counts toward that booking's Chauffeur COGS. Customer billing is unchanged. Leave blank for a general expense.`}
                             >
                                 Tag to a booking (optional)
                             </label>
