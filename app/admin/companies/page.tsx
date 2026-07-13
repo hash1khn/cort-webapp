@@ -93,7 +93,15 @@ function CompaniesPageContent() {
       confirmLabel: "Delete",
     });
     if (!ok) return;
-    dispatch(deleteAdminCompany(id));
+
+    try {
+      await dispatch(deleteAdminCompany(id)).unwrap();
+      toast.success("Company deleted successfully");
+      dispatch(fetchAdminCompanies({ limit: 10, page: pagination.page, exclude_trials: true }));
+    } catch (err: unknown) {
+      const message = typeof err === "string" ? err : "Failed to delete company";
+      toast.error(message);
+    }
   };
 
   const handleSave = async (data: CompanyFormData) => {
