@@ -69,11 +69,11 @@ function CompaniesPageContent() {
   const [passwordResetCompany, setPasswordResetCompany] = useState<Company | null>(null);
 
   useEffect(() => {
-    dispatch(fetchAdminCompanies({ limit: 10, page: 1 }));
+    dispatch(fetchAdminCompanies({ limit: 10, page: 1, exclude_trials: true }));
   }, [dispatch]);
 
   const handlePageChange = (page: number) => {
-    dispatch(fetchAdminCompanies({ limit: 10, page }));
+    dispatch(fetchAdminCompanies({ limit: 10, page, exclude_trials: true }));
   };
 
   const handleCreateNew = () => {
@@ -112,7 +112,7 @@ function CompaniesPageContent() {
       setIsModalOpen(false);
       setEditingCompany(null);
       // Refresh list to ensure consistency
-      dispatch(fetchAdminCompanies({ limit: 10, page: pagination.page }));
+      dispatch(fetchAdminCompanies({ limit: 10, page: pagination.page, exclude_trials: true }));
     } catch (err: any) {
       console.error("Failed to save company:", err);
       toast.error(err.message || "Failed to save company");

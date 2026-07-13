@@ -451,6 +451,7 @@ class ApiClient {
         if (params.page) query.append('page', params.page.toString());
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.search) query.append('search', params.search);
+        if (params.exclude_trials) query.append('exclude_trials', 'true');
 
         const queryString = query.toString();
         const endpoint = `/companies/list${queryString ? `?${queryString}` : ''}`;

@@ -21,6 +21,7 @@ export interface QueryCompanyParams {
     page?: number;
     limit?: number;
     search?: string;
+    exclude_trials?: boolean;
 }
 
 export interface VehicleWhitelist {
