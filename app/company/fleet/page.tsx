@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
+import { useAuth } from "../../lib/contexts/auth-context";
+import type { TrialModules } from "../../lib/types/auth-types";
 import { apiClient } from "../../lib/services/api-client";
 import { CompanyFeature, PoolVehicle, PoolDriver } from "../../lib/services/types/multi-mode";
 import { VehicleCategory } from "../../lib/services/types/vehicles";
 import { toast } from "sonner";
 import { Card } from "../components/DashboardComponents";
+import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import { AlertTriangle, Car, Clock, TrendingDown, RefreshCw, BarChart2 } from "lucide-react";
 import {
@@ -22,8 +26,6 @@ import {
 function cx(...classes: Array<string | false | null | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
-
-// ─── Analytics types ──────────────────────────────────────────────────────────
 
 type PoolVehicleRow = {
     vehicle_id: number;
@@ -46,17 +48,16 @@ type PoolUtilizationSummary = {
 type PoolInsight = {
     id: number;
     insight_type: string;
-    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
     estimated_saving_pkr: string;
     data: { summary: string; recommendation: string; metric_value?: number | string | null };
     generated_at: string;
 };
 
 const VEHICLE_CATEGORIES = Object.values(VehicleCategory);
-const DRIVER_TYPES = ["PERMANENT", "PART_TIME", "CONTRACT"];
 
 const formatVehicleCategory = (category: string) =>
-    category.split('_').map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+    category.split("_").map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
 
 const getDefaultVehicleForm = () => ({
     plate_number: "",
@@ -67,37 +68,94 @@ const getDefaultVehicleForm = () => ({
     category: VehicleCategory.SEDAN,
     fuel_avg_city: 10,
     fuel_avg_highway: 13,
+    seat_capacity: 14,
 });
+
+function trialHasPool(modules?: TrialModules): boolean {
+    return modules === "pool" || modules === "both" || !modules;
+}
+
+function trialHasShuttle(modules?: TrialModules): boolean {
+    return modules === "shuttle" || modules === "both";
+}
+
+function generateDriverPassword(length = 12): string {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+}
 
 export default function CompanyFleetPage() {
     const t = useTranslations("company.fleet");
+    const tCredentials = useTranslations("company.credentials");
     const tCommon = useTranslations("common");
+    const searchParams = useSearchParams();
+    const { user } = useAuth();
+    const isTrialUser = !!user?.is_trial;
+    const trialModules = user?.trial_modules;
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
 
+    const fleetTabs = useMemo(
+        () => (isTrialUser ? (["vehicles", "drivers"] as const) : (["vehicles", "drivers", "analytics"] as const)),
+        [isTrialUser],
+    );
+
     const [features, setFeatures] = useState<CompanyFeature[]>([]);
     const [featureLoaded, setFeatureLoaded] = useState(false);
-    const [activeTab, setActiveTab] = useState<"vehicles" | "drivers" | "analytics">("vehicles");
+    const initialTab = searchParams.get("tab");
+    const [activeTab, setActiveTab] = useState<"vehicles" | "drivers" | "analytics">(
+        initialTab === "drivers" ? "drivers" : initialTab === "analytics" && !isTrialUser ? "analytics" : "vehicles",
+    );
 
-    // Vehicles state
     const [vehicles, setVehicles] = useState<PoolVehicle[]>([]);
     const [vehiclesLoading, setVehiclesLoading] = useState(false);
     const [showAddVehicle, setShowAddVehicle] = useState(false);
     const [vehicleForm, setVehicleForm] = useState(getDefaultVehicleForm);
     const [vehicleSaving, setVehicleSaving] = useState(false);
 
-    // Drivers state
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
     const [showAddDriver, setShowAddDriver] = useState(false);
-    const [driverForm, setDriverForm] = useState({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+    const [driverCreatedCredentials, setDriverCreatedCredentials] = useState<{
+        email: string;
+        password: string;
+        full_name: string;
+        driver_type: string;
+    } | null>(null);
+    const [driverForm, setDriverForm] = useState({
+        email: "",
+        password: "",
+        full_name: "",
+        phone: "",
+        cnic_number: "",
+        license_number: "",
+        driver_type: "CHAUFFEUR" as "CHAUFFEUR" | "SHUTTLE",
+    });
     const [driverSaving, setDriverSaving] = useState(false);
 
-    // Analytics state
     const [poolUtil, setPoolUtil] = useState<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] } | null>(null);
     const [poolInsights, setPoolInsights] = useState<PoolInsight[]>([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
+
+    const atVehicleLimit = isTrialUser && vehicles.length >= (trialHasPool(trialModules) && trialHasShuttle(trialModules) ? 2 : 1);
+    const chauffeurDriverCount = drivers.filter((d) => d.driver_type === "CHAUFFEUR").length;
+    const shuttleDriverCount = drivers.filter((d) => d.driver_type === "SHUTTLE").length;
+    const atChauffeurDriverLimit = isTrialUser && trialHasPool(trialModules) && chauffeurDriverCount >= 1;
+    const atShuttleDriverLimit = isTrialUser && trialHasShuttle(trialModules) && shuttleDriverCount >= 1;
+
+    const defaultDriverType = (): "CHAUFFEUR" | "SHUTTLE" => {
+        if (trialHasShuttle(trialModules) && !trialHasPool(trialModules)) return "SHUTTLE";
+        return "CHAUFFEUR";
+    };
+
+    useEffect(() => {
+        if (isTrialUser && activeTab === "analytics") setActiveTab("vehicles");
+    }, [isTrialUser, activeTab]);
 
     useEffect(() => {
         if (!companyId) return;
@@ -106,7 +164,18 @@ export default function CompanyFleetPage() {
             .catch(() => setFeatureLoaded(true));
     }, [companyId]);
 
-    const isEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const openAddDriver = () => {
+        const generated = generateDriverPassword();
+        const driverType = defaultDriverType();
+        setDriverForm((f) => ({ ...f, password: generated, driver_type: driverType }));
+        if (isTrialUser) {
+            toast.message(t("driverPasswordGenerated"));
+        }
+        setShowAddDriver(true);
+    };
+
+    const isChauffeurFleetEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const showFleet = isChauffeurFleetEnabled || isTrialUser;
 
     const fetchVehicles = useCallback(async () => {
         if (!companyId) return;
@@ -114,9 +183,12 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolVehicles(companyId);
             setVehicles(res.data);
-        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedLoadVehicles")); }
-        finally { setVehiclesLoading(false); }
-    }, [companyId]);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : t("failedLoadVehicles"));
+        } finally {
+            setVehiclesLoading(false);
+        }
+    }, [companyId, t]);
 
     const fetchDrivers = useCallback(async () => {
         if (!companyId) return;
@@ -124,21 +196,24 @@ export default function CompanyFleetPage() {
         try {
             const res = await apiClient.getPoolDrivers(companyId);
             setDrivers(res.data);
-        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedLoadDrivers")); }
-        finally { setDriversLoading(false); }
-    }, [companyId]);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : t("failedLoadDrivers"));
+        } finally {
+            setDriversLoading(false);
+        }
+    }, [companyId, t]);
 
     const fetchAnalytics = useCallback(async () => {
         if (!companyId) return;
         setAnalyticsLoading(true);
         try {
             const [utilRes, insightsRes] = await Promise.allSettled([
-                apiClient.request<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] }>('/company/pool-utilization'),
-                apiClient.request<PoolInsight[]>('/company/fleet-insights'),
+                apiClient.request<{ summary: PoolUtilizationSummary; vehicles: PoolVehicleRow[] }>("/company/pool-utilization"),
+                apiClient.request<PoolInsight[]>("/company/fleet-insights"),
             ]);
-            if (utilRes.status === 'fulfilled') setPoolUtil(utilRes.value);
-            if (insightsRes.status === 'fulfilled') {
-                setPoolInsights((insightsRes.value as PoolInsight[]).filter(i => i.insight_type === 'POOL_UTILIZATION'));
+            if (utilRes.status === "fulfilled") setPoolUtil(utilRes.value);
+            if (insightsRes.status === "fulfilled") {
+                setPoolInsights((insightsRes.value as PoolInsight[]).filter((i) => i.insight_type === "POOL_UTILIZATION"));
             }
         } catch { /* silent */ }
         finally { setAnalyticsLoading(false); }
@@ -147,7 +222,7 @@ export default function CompanyFleetPage() {
     const triggerGenerate = async () => {
         setGenerating(true);
         try {
-            await apiClient.request<{ generated: number }>('/company/fleet-insights/generate', { method: 'POST' });
+            await apiClient.request<{ generated: number }>("/company/fleet-insights/generate", { method: "POST" });
             await fetchAnalytics();
         } finally {
             setGenerating(false);
@@ -155,11 +230,11 @@ export default function CompanyFleetPage() {
     };
 
     useEffect(() => {
-        if (!isEnabled) return;
+        if (!showFleet) return;
         if (activeTab === "vehicles") fetchVehicles();
         if (activeTab === "drivers") fetchDrivers();
         if (activeTab === "analytics") fetchAnalytics();
-    }, [activeTab, isEnabled, fetchVehicles, fetchDrivers, fetchAnalytics]);
+    }, [activeTab, showFleet, fetchVehicles, fetchDrivers, fetchAnalytics]);
 
     const handleAddVehicle = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -174,8 +249,9 @@ export default function CompanyFleetPage() {
                 category: vehicleForm.category,
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
+                ...(trialHasShuttle(trialModules) ? { seat_capacity: vehicleForm.seat_capacity } : {}),
             });
-            toast.success(t("vehicleAdded"));
+            toast.success(isTrialUser ? t("vehicleAddedFleet") : t("vehicleAdded"));
             setShowAddVehicle(false);
             setVehicleForm(getDefaultVehicleForm());
             fetchVehicles();
@@ -192,7 +268,9 @@ export default function CompanyFleetPage() {
             await apiClient.deactivatePoolVehicle(companyId, vehicleId);
             toast.success(t("vehicleDeactivated"));
             fetchVehicles();
-        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedDeactivateVehicle")); }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : t("failedDeactivateVehicle"));
+        }
     };
 
     const handleInviteDriver = async (e: React.FormEvent) => {
@@ -209,13 +287,16 @@ export default function CompanyFleetPage() {
                 password: driverForm.password,
                 full_name: driverForm.full_name,
                 phone: driverForm.phone || undefined,
-                driver_type: "CHAUFFEUR",
+                driver_type: driverForm.driver_type,
                 cnic_number: driverForm.cnic_number || undefined,
                 license_number: driverForm.license_number || undefined,
             });
-            toast.success(t("driverInvited"));
-            setShowAddDriver(false);
-            setDriverForm({ email: "", password: "", full_name: "", phone: "", cnic_number: "", license_number: "" });
+            setDriverCreatedCredentials({
+                email: driverForm.email,
+                password: driverForm.password,
+                full_name: driverForm.full_name,
+                driver_type: driverForm.driver_type,
+            });
             fetchDrivers();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : t("failedInviteDriver"));
@@ -224,14 +305,36 @@ export default function CompanyFleetPage() {
         }
     };
 
+    function closeDriverModal() {
+        setShowAddDriver(false);
+        setDriverCreatedCredentials(null);
+        setDriverForm({
+            email: "",
+            password: "",
+            full_name: "",
+            phone: "",
+            cnic_number: "",
+            license_number: "",
+            driver_type: defaultDriverType(),
+        });
+    }
+
     const handleDeactivateDriver = async (userId: string) => {
         if (!confirm(t("confirmDeactivateDriver"))) return;
         try {
             await apiClient.deactivatePoolDriver(companyId, userId);
             toast.success(t("driverDeactivated"));
             fetchDrivers();
-        } catch (err) { toast.error(err instanceof Error ? err.message : t("failedDeactivateDriver")); }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : t("failedDeactivateDriver"));
+        }
     };
+
+    const trialLimitsText = useMemo(() => {
+        if (trialHasPool(trialModules) && trialHasShuttle(trialModules)) return t("trialLimitsBoth");
+        if (trialHasShuttle(trialModules)) return t("trialLimitsShuttle");
+        return t("trialLimitsPool");
+    }, [trialModules, t]);
 
     if (!featureLoaded) {
         return (
@@ -243,10 +346,10 @@ export default function CompanyFleetPage() {
         );
     }
 
-    if (!isEnabled) {
+    if (!showFleet) {
         return (
             <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
-                <PageHeader label={t("selfManagedLabel")} title={t("title")} description={t("selfManagedDescription")} />
+                <PageHeader label={t("fleetLabel")} title={t("fleetTitle")} description={t("fleetDescription")} />
                 <Card className="flex items-center justify-center min-h-[400px]">
                     <div className="text-center max-w-sm">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--surface-subtle)] mb-4">
@@ -263,37 +366,73 @@ export default function CompanyFleetPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <PageHeader
-                label={t("selfManagedLabel")}
-                title={t("title")}
-                description={t("selfManagedDescription")}
+                label={isTrialUser ? t("trialFleetLabel") : t("selfManagedLabel")}
+                title={isTrialUser ? t("trialFleetTitle") : t("title")}
+                description={isTrialUser ? t("trialFleetDescription") : t("selfManagedDescription")}
                 action={
                     activeTab === "vehicles" ? (
-                        <button onClick={() => setShowAddVehicle(true)} className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0">
+                        <button
+                            onClick={() => setShowAddVehicle(true)}
+                            disabled={atVehicleLimit}
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:hover:translate-y-0"
+                        >
                             + {t("addVehicle")}
                         </button>
-                    ) : (
-                        <button onClick={() => setShowAddDriver(true)} className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] hover:shadow-[0_8px_20px_rgba(244,127,0,0.35)] active:translate-y-0">
+                    ) : activeTab === "drivers" ? (
+                        <button
+                            onClick={openAddDriver}
+                            disabled={
+                                isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules)
+                                    ? atChauffeurDriverLimit && atShuttleDriverLimit
+                                    : isTrialUser
+                                        ? (trialHasShuttle(trialModules) ? atShuttleDriverLimit : atChauffeurDriverLimit)
+                                        : false
+                            }
+                            className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:hover:translate-y-0"
+                        >
                             + {t("inviteDriver")}
                         </button>
-                    )
+                    ) : null
                 }
             />
 
+            {isTrialUser && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+                    <span className="font-semibold">{t("trialLimitsTitle")}</span>{" "}
+                    {trialLimitsText}{" "}
+                    {t("trialLimitsAssign")}
+                </div>
+            )}
+
             <div className="border-b border-[var(--border-light)]">
                 <nav className="-mb-px flex space-x-8">
-                    {(["vehicles", "drivers", "analytics"] as const).map((tab) => (
-                        <button key={tab} onClick={() => setActiveTab(tab)} className={cx("whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors", activeTab === tab ? "border-[var(--cort-orange)] text-[var(--cort-orange)]" : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]")}>
-                            {tab === "vehicles" ? t("poolVehicles") : tab === "drivers" ? t("poolDrivers") : t("analytics")}
+                    {fleetTabs.map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cx(
+                                "whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors",
+                                activeTab === tab
+                                    ? "border-[var(--cort-orange)] text-[var(--cort-orange)]"
+                                    : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-light)]",
+                            )}
+                        >
+                            {tab === "vehicles"
+                                ? (isTrialUser ? t("vehicles") : t("poolVehicles"))
+                                : tab === "drivers"
+                                    ? (isTrialUser ? t("drivers") : t("poolDrivers"))
+                                    : t("analytics")}
                         </button>
                     ))}
                 </nav>
             </div>
 
-            {/* Vehicles Tab */}
             {activeTab === "vehicles" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">{t("vehiclesDescription")}</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {isTrialUser ? t("trialVehiclesDescription") : t("vehiclesDescription")}
+                        </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm text-start">
@@ -320,9 +459,9 @@ export default function CompanyFleetPage() {
                                                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border",
                                                 v.status === "ACTIVE"
                                                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
+                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]",
                                             )}>
-                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", v.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", v.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")} />
                                                 {v.status ?? "—"}
                                             </span>
                                         </td>
@@ -339,11 +478,12 @@ export default function CompanyFleetPage() {
                 </Card>
             )}
 
-            {/* Drivers Tab */}
             {activeTab === "drivers" && (
                 <Card className={TABLE_CARD_CLASS}>
                     <div className={TABLE_TOP_BAR_CLASS}>
-                        <p className="text-sm text-[var(--text-muted)]">{t("driversDescription")}</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {isTrialUser ? t("trialDriversDescription") : t("driversDescription")}
+                        </p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm text-start">
@@ -370,9 +510,9 @@ export default function CompanyFleetPage() {
                                                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold border",
                                                 d.users.status === "ACTIVE"
                                                     ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]"
+                                                    : "bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]",
                                             )}>
-                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", d.users.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")}></span>
+                                                <span className={cx("w-1.5 h-1.5 rounded-full me-1.5", d.users.status === "ACTIVE" ? "bg-emerald-400" : "bg-[var(--text-muted)]")} />
                                                 {d.users.status ?? "—"}
                                             </span>
                                         </td>
@@ -389,16 +529,18 @@ export default function CompanyFleetPage() {
                 </Card>
             )}
 
-            {/* Analytics Tab */}
             {activeTab === "analytics" && (
                 <div className="space-y-6">
-                    {/* Header row with generate button */}
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-base font-bold text-[var(--text-primary)]">{t("poolAnalyticsTitle")}</h2>
                             <p className="text-xs text-[var(--text-muted)] mt-0.5">{t("poolAnalyticsSubtitle")}</p>
                         </div>
-                        <button onClick={triggerGenerate} disabled={generating} className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button
+                            onClick={triggerGenerate}
+                            disabled={generating}
+                            className="flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-[0_4px_12px_rgba(244,127,0,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <RefreshCw className={cx("h-4 w-4", generating && "animate-spin")} />
                             {generating ? t("generating") : t("runAiAnalysis")}
                         </button>
@@ -410,14 +552,12 @@ export default function CompanyFleetPage() {
                         </div>
                     ) : (
                         <>
-                            {/* AI Insights */}
                             {poolInsights.length > 0 && (
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    {poolInsights.map(i => <InsightCard key={i.id} insight={i} />)}
+                                    {poolInsights.map((i) => <InsightCard key={i.id} insight={i} />)}
                                 </div>
                             )}
 
-                            {/* KPI Cards */}
                             {poolUtil && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -427,7 +567,6 @@ export default function CompanyFleetPage() {
                                         <KpiCard label={t("underutilized")} value={poolUtil.summary.underutilized_count.toString()} icon={<TrendingDown className="h-5 w-5 text-rose-400" />} good={poolUtil.summary.underutilized_count === 0} />
                                     </div>
 
-                                    {/* Per-vehicle utilization table */}
                                     {poolUtil.vehicles.length > 0 && (
                                         <Card className={TABLE_CARD_CLASS}>
                                             <div className={TABLE_TOP_BAR_CLASS}>
@@ -440,18 +579,18 @@ export default function CompanyFleetPage() {
                                                 <table className="min-w-full text-sm text-start">
                                                     <thead>
                                                         <tr className="border-b border-[var(--border-light)]">
-                                                            {[t("vehicle"), t("category"), t("trips"), t("hoursUsed"), t("utilization")].map(h => (
+                                                            {[t("vehicle"), t("category"), t("trips"), t("hoursUsed"), t("utilization")].map((h) => (
                                                                 <th key={h} className={TABLE_HEADER_CELL_CLASS}>{h}</th>
                                                             ))}
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-[var(--border-light)]/50">
-                                                        {poolUtil.vehicles.map(v => (
+                                                        {poolUtil.vehicles.map((v) => (
                                                             <tr key={v.vehicle_id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
                                                                 <td className={TABLE_CELL_CLASS}>
                                                                     <div className="font-bold text-[var(--text-primary)]">{v.plate_number}</div>
                                                                     {(v.make || v.model) && (
-                                                                        <div className="text-xs text-[var(--text-muted)]">{[v.make, v.model].filter(Boolean).join(' ')}</div>
+                                                                        <div className="text-xs text-[var(--text-muted)]">{[v.make, v.model].filter(Boolean).join(" ")}</div>
                                                                     )}
                                                                 </td>
                                                                 <td className={TABLE_CELL_CLASS}>
@@ -488,9 +627,8 @@ export default function CompanyFleetPage() {
                 </div>
             )}
 
-            {/* Add Vehicle Modal */}
             {showAddVehicle && (
-                <Modal title={t("addPoolVehicle")} onClose={() => setShowAddVehicle(false)}>
+                <Modal title={isTrialUser ? t("addFleetVehicle") : t("addPoolVehicle")} onClose={() => setShowAddVehicle(false)}>
                     <form onSubmit={handleAddVehicle} className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <Field label={t("plate") + " *"}><input required value={vehicleForm.plate_number} onChange={(e) => setVehicleForm((f) => ({ ...f, plate_number: e.target.value }))} className={inputCls} /></Field>
@@ -507,6 +645,11 @@ export default function CompanyFleetPage() {
                             <Field label={t("color")}><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label={t("fuelAvgCity")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label={t("fuelAvgHighway")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
+                            {trialHasShuttle(trialModules) && (
+                                <Field label={t("seatCapacity")}>
+                                    <input type="number" min={1} value={vehicleForm.seat_capacity} onChange={(e) => setVehicleForm((f) => ({ ...f, seat_capacity: Number(e.target.value) }))} className={inputCls} />
+                                </Field>
+                            )}
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button type="button" onClick={() => setShowAddVehicle(false)} className={cancelBtnCls}>{tCommon("actions.cancel")}</button>
@@ -516,47 +659,78 @@ export default function CompanyFleetPage() {
                 </Modal>
             )}
 
-            {/* Invite Driver Modal */}
             {showAddDriver && (
-                <Modal title={t("invitePoolDriver")} onClose={() => setShowAddDriver(false)}>
-                    <form onSubmit={handleInviteDriver} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field label={t("fullNameRequired")}><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
-                            <Field label={t("phone")}><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
-                            <Field label={t("email") + " *"}><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
-                            <Field label={t("passwordRequired")}><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
-                            <Field label={t("cnic")}><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
-                            <Field label={t("licenseNo")}><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                <Modal title={driverCreatedCredentials ? t("driverCreatedTitle") : (isTrialUser ? t("inviteFleetDriver") : t("invitePoolDriver"))} onClose={closeDriverModal}>
+                    {driverCreatedCredentials ? (
+                        <div className="space-y-5">
+                            <div className="text-center text-sm text-[var(--text-muted)]">
+                                {t("driverInvitedAs", {
+                                    name: driverCreatedCredentials.full_name,
+                                    type: driverCreatedCredentials.driver_type === "SHUTTLE" ? t("driverTypeShuttle") : t("driverTypeChauffeur"),
+                                })}
+                            </div>
+                            <AccountCredentialsReveal
+                                email={driverCreatedCredentials.email}
+                                password={driverCreatedCredentials.password}
+                                fullName={driverCreatedCredentials.full_name}
+                                subtitle={tCredentials("driverAppSubtitle")}
+                                accountTypeKey="driver"
+                            />
+                            <div className="flex justify-end pt-2">
+                                <button type="button" onClick={closeDriverModal} className={saveBtnCls}>{tCredentials("done")}</button>
+                            </div>
                         </div>
-                        <div className="flex justify-end gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddDriver(false)} className={cancelBtnCls}>{tCommon("actions.cancel")}</button>
-                            <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? t("inviting") : t("inviteDriver")}</button>
-                        </div>
-                    </form>
+                    ) : (
+                        <form onSubmit={handleInviteDriver} className="space-y-4">
+                            <SaveCredentialsNote accountTypeKey="driver" />
+                            {isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules) && (
+                                <Field label={t("driverTypeLabel")}>
+                                    <select
+                                        value={driverForm.driver_type}
+                                        onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
+                                        className={inputCls}
+                                    >
+                                        <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>{t("driverTypeChauffeur")}</option>
+                                        <option value="SHUTTLE" disabled={atShuttleDriverLimit}>{t("driverTypeShuttle")}</option>
+                                    </select>
+                                </Field>
+                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label={t("fullNameRequired")}><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
+                                <Field label={t("phone")}><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
+                                <Field label={t("email") + " *"}><input required type="email" value={driverForm.email} onChange={(e) => setDriverForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} /></Field>
+                                <Field label={t("passwordRequired")}><input required type="password" minLength={8} value={driverForm.password} onChange={(e) => setDriverForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} /></Field>
+                                <Field label={t("cnic")}><input value={driverForm.cnic_number} onChange={(e) => setDriverForm((f) => ({ ...f, cnic_number: e.target.value }))} className={inputCls} /></Field>
+                                <Field label={t("licenseNo")}><input value={driverForm.license_number} onChange={(e) => setDriverForm((f) => ({ ...f, license_number: e.target.value }))} className={inputCls} /></Field>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button type="button" onClick={closeDriverModal} className={cancelBtnCls}>{tCommon("actions.cancel")}</button>
+                                <button type="submit" disabled={driverSaving} className={saveBtnCls}>{driverSaving ? t("inviting") : t("inviteDriver")}</button>
+                            </div>
+                        </form>
+                    )}
                 </Modal>
             )}
         </div>
     );
 }
 
-// ─── Analytics sub-components ────────────────────────────────────────────────
-
 function severityColor(s: string) {
-    if (s === 'CRITICAL') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-    if (s === 'HIGH') return 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border-[var(--cort-orange)]/20';
-    if (s === 'MEDIUM') return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    if (s === "CRITICAL") return "bg-rose-500/10 text-rose-400 border-rose-500/20";
+    if (s === "HIGH") return "bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border-[var(--cort-orange)]/20";
+    if (s === "MEDIUM") return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
+    return "bg-blue-500/10 text-blue-400 border-blue-500/20";
 }
 
 function InsightCard({ insight }: { insight: PoolInsight }) {
     const t = useTranslations("company.fleet");
     return (
-        <div className={cx('rounded-2xl border p-4', severityColor(insight.severity))}>
+        <div className={cx("rounded-2xl border p-4", severityColor(insight.severity))}>
             <div className="flex items-start gap-3">
                 <Car className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide">{insight.insight_type.replace(/_/g, ' ')}</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide">{insight.insight_type.replace(/_/g, " ")}</span>
                         <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-white/10">{insight.severity}</span>
                     </div>
                     <p className="text-sm font-medium">{insight.data.summary}</p>
@@ -579,24 +753,22 @@ function KpiCard({ label, value, icon, good }: { label: string; value: string; i
     return (
         <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
             <div className="flex items-center gap-2 mb-2">{icon}<span className="text-xs text-[var(--text-muted)] font-medium">{label}</span></div>
-            <p className={cx('text-2xl font-bold', good === true ? 'text-emerald-400' : good === false ? 'text-rose-400' : 'text-[var(--text-primary)]')}>{value}</p>
+            <p className={cx("text-2xl font-bold", good === true ? "text-emerald-400" : good === false ? "text-rose-400" : "text-[var(--text-primary)]")}>{value}</p>
         </div>
     );
 }
 
 function UtilBar({ pct }: { pct: number }) {
-    const color = pct >= 80 ? 'bg-emerald-500' : pct >= 30 ? 'bg-yellow-400' : 'bg-rose-500';
+    const color = pct >= 80 ? "bg-emerald-500" : pct >= 30 ? "bg-yellow-400" : "bg-rose-500";
     return (
         <div className="flex items-center gap-2">
             <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
-                <div className={cx('h-full rounded-full', color)} style={{ width: `${Math.min(100, pct)}%` }} />
+                <div className={cx("h-full rounded-full", color)} style={{ width: `${Math.min(100, pct)}%` }} />
             </div>
-            <span className={`text-xs font-bold w-10 text-end ${pct < 30 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
+            <span className={cx("text-xs font-bold w-10 text-end", pct < 30 ? "text-rose-400" : "text-[var(--text-secondary)]")}>{pct}%</span>
         </div>
     );
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
     return createPortal(
@@ -609,7 +781,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
                 {children}
             </div>
         </div>,
-        document.body
+        document.body,
     );
 }
 

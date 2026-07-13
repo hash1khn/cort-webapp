@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { selectCompany } from "../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus, updateEmployee, deactivateEmployee } from "../../lib/store/slices/employeeSlice";
+import { useAuth } from "../../lib/contexts/auth-context";
+import { apiClient } from "../../lib/services/api-client";
 import { Card } from "../components/DashboardComponents";
+import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS } from "../components/PageLayout";
 import TablePageSkeleton from "../components/TablePageSkeleton";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 import {
   getPhoneValidationError,
   PHONE_MAX_LENGTH,
+  PHONE_PLACEHOLDER,
   sanitizePhoneInput,
 } from "../../lib/utils/phone";
 import { toast } from "sonner";
@@ -34,8 +40,12 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export default function EmployeesPage() {
   const t = useTranslations("company.employees");
+  const tCredentials = useTranslations("company.credentials");
   const tCommon = useTranslations("common");
   const dispatch = useAppDispatch();
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
+  const maxEmployees = user?.trial_modules === "both" ? 6 : 3;
   const company = useAppSelector(selectCompany);
   const employees = useAppSelector(selectEmployees);
   const status = useAppSelector(selectEmployeesStatus);
@@ -55,6 +65,71 @@ export default function EmployeesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPhone, setEditPhone] = useState<string>("");
   const [editEmail, setEditEmail] = useState<string>("");
+
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [employeeSaving, setEmployeeSaving] = useState(false);
+  const [employeeFormError, setEmployeeFormError] = useState<string | null>(null);
+  const [employeeCreated, setEmployeeCreated] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; full_name: string } | null>(null);
+  const [employeeForm, setEmployeeForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    department: "",
+    employee_id: "",
+  });
+
+  const atEmployeeLimit = isTrialUser && employees.length >= maxEmployees;
+
+  function closeAddEmployeeModal() {
+    setShowAddEmployee(false);
+    setEmployeeCreated(false);
+    setCreatedCredentials(null);
+    setEmployeeFormError(null);
+    setEmployeeForm({ full_name: "", email: "", phone: "", department: "", employee_id: "" });
+  }
+
+  async function handleAddEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!company?.id) return;
+    const phoneError = getPhoneValidationError(employeeForm.phone, {
+      messages: {
+        required: tCommon("validation.phoneRequired"),
+        invalid: tCommon("validation.phoneInvalid"),
+      },
+    });
+    if (phoneError) {
+      setEmployeeFormError(phoneError);
+      return;
+    }
+    setEmployeeSaving(true);
+    setEmployeeFormError(null);
+    try {
+      const created = await apiClient.createEmployee({
+        full_name: employeeForm.full_name.trim(),
+        email: employeeForm.email.trim(),
+        phone: employeeForm.phone.trim(),
+        department: employeeForm.department.trim() || undefined,
+        employee_id: employeeForm.employee_id.trim() || undefined,
+        company_id: Number(company.id),
+      });
+      const password = created.data?.password ?? (created.data as { generatedPassword?: string })?.generatedPassword;
+      if (password) {
+        setCreatedCredentials({
+          email: employeeForm.email.trim(),
+          password,
+          full_name: employeeForm.full_name.trim(),
+        });
+      }
+      setEmployeeCreated(true);
+      dispatch(fetchEmployees(company.id.toString()));
+      toast.success(t("employeeCreatedSuccess"));
+    } catch (err) {
+      setEmployeeFormError(err instanceof Error ? err.message : t("failedCreateEmployee"));
+    } finally {
+      setEmployeeSaving(false);
+    }
+  }
 
   if (!company) {
     return (
@@ -126,18 +201,39 @@ export default function EmployeesPage() {
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader label={t("label")} title={t("title")} />
 
+      {isTrialUser && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+          {t("trialBanner", { used: employees.length, max: maxEmployees })}
+        </div>
+      )}
+
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-lg text-[var(--cort-orange)]">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div>
-              <div className="text-sm font-bold text-[var(--text-primary)]">{t("infoTitle")}</div>
-              <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
-                {t("infoDescription")}
+          <div className="flex items-start justify-between gap-4 w-full">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-lg text-[var(--cort-orange)]">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <div className="text-sm font-bold text-[var(--text-primary)]">
+                  {isTrialUser ? t("trialInfoTitle") : t("infoTitle")}
+                </div>
+                <div className="text-sm text-[var(--text-muted)] mt-0.5 leading-relaxed max-w-3xl">
+                  {isTrialUser ? t("trialInfoDescription") : t("infoDescription")}
+                </div>
               </div>
             </div>
+            {isTrialUser && (
+              <button
+                type="button"
+                onClick={() => setShowAddEmployee(true)}
+                disabled={atEmployeeLimit}
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] shadow-sm hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                {t("addEmployee")}
+              </button>
+            )}
           </div>
         </div>
 
@@ -257,6 +353,98 @@ export default function EmployeesPage() {
           </table>
         </div>
       </Card>
+
+      {showAddEmployee && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">
+                {employeeCreated ? t("employeeCreatedTitle") : t("addEmployee")}
+              </h2>
+              <button type="button" onClick={closeAddEmployeeModal} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {employeeCreated ? (
+              <div className="space-y-5">
+                {createdCredentials ? (
+                  <AccountCredentialsReveal
+                    email={createdCredentials.email}
+                    password={createdCredentials.password}
+                    fullName={createdCredentials.full_name}
+                    subtitle={tCredentials("employeeAppSubtitle")}
+                    accountTypeKey="employee"
+                  />
+                ) : (
+                  <SaveCredentialsNote accountTypeKey="employee" />
+                )}
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={closeAddEmployeeModal}
+                    className="bg-[var(--cort-orange)] text-[var(--text-primary)] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[var(--cort-orange-hover)] transition-colors"
+                  >
+                    {tCredentials("done")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddEmployee} className="space-y-4">
+                <SaveCredentialsNote accountTypeKey="employee" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t("fullName")} *</label>
+                    <TextInput required value={employeeForm.full_name} onChange={(e) => setEmployeeForm((f) => ({ ...f, full_name: e.target.value }))} placeholder={t("namePlaceholder")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t("employeeId")}</label>
+                    <TextInput value={employeeForm.employee_id} onChange={(e) => setEmployeeForm((f) => ({ ...f, employee_id: e.target.value }))} placeholder={t("employeeIdPlaceholder")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t("department")}</label>
+                    <TextInput value={employeeForm.department} onChange={(e) => setEmployeeForm((f) => ({ ...f, department: e.target.value }))} placeholder={t("departmentPlaceholder")} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t("email")} *</label>
+                    <TextInput required type="email" value={employeeForm.email} onChange={(e) => setEmployeeForm((f) => ({ ...f, email: e.target.value }))} placeholder={t("emailPlaceholder")} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t("phone")}</label>
+                    <TextInput
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={PHONE_MAX_LENGTH}
+                      value={employeeForm.phone}
+                      onChange={(e) => setEmployeeForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))}
+                      placeholder={PHONE_PLACEHOLDER}
+                    />
+                  </div>
+                </div>
+                {employeeFormError && (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                    {employeeFormError}
+                  </div>
+                )}
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={closeAddEmployeeModal} className="border border-[var(--border-light)] text-[var(--text-secondary)] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--surface-subtle)] transition-colors">
+                    {tCommon("actions.cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={employeeSaving || !employeeForm.full_name.trim() || !employeeForm.email.trim()}
+                    className="inline-flex items-center gap-2 bg-[var(--cort-orange)] text-[var(--text-primary)] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    {employeeSaving ? t("addingEmployee") : t("addEmployee")}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
