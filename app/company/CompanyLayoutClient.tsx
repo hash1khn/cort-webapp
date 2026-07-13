@@ -9,17 +9,19 @@ import { CompanyLocaleProvider } from "./lib/locale-context";
 import { companyStore } from "../lib/store/company-store";
 import { ProtectedRoute } from "../lib/components/protected-route";
 import { UserRole } from "../lib/types/auth-types";
-import { isSaudiRoute, stripSaudiPrefix } from "../lib/i18n/saudi-route";
+import { getCompanyLoginPath, isSaudiRoute, stripSaudiPrefix } from "../lib/i18n/saudi-route";
 
 function CompanyLoginWrapper({ children }: { children: ReactNode }) {
   return <CompanyLocaleProvider>{children}</CompanyLocaleProvider>;
 }
 
 function CompanyAppWrapper({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   return (
     <ProtectedRoute
       allowedRoles={[UserRole.COMPANY_ADMIN, UserRole.EMPLOYEE, UserRole.SUPER_ADMIN]}
-      redirectTo="/login"
+      redirectTo={getCompanyLoginPath(pathname)}
     >
       <Provider store={companyStore}>
         <CompanyLocaleProvider>
@@ -38,6 +40,8 @@ function isPublicCompanyPath(pathname: string | null): boolean {
   const normalized = isSaudiRoute(pathname) ? stripSaudiPrefix(pathname) : pathname;
 
   return (
+    pathname === "/sa" ||
+    pathname === "/sa/" ||
     normalized === "/login" ||
     normalized === "/company/login" ||
     normalized === "/company/trial" ||

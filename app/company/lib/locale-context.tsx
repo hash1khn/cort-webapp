@@ -45,14 +45,20 @@ function applyDocumentLocale(locale: Locale) {
   document.cookie = `${LOCALE_COOKIE}=${locale};path=/;max-age=31536000;SameSite=Lax`;
 }
 
+function resolveInitialLocale(onSaudiRoute: boolean): Locale {
+  if (!onSaudiRoute) return defaultLocale;
+  if (typeof window === "undefined") return "ar";
+  return readStoredLocale() || "ar";
+}
+
 export function CompanyLocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const onSaudiRoute = isSaudiRoute(pathname);
+  const [locale, setLocaleState] = useState<Locale>(() => resolveInitialLocale(onSaudiRoute));
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const initial = onSaudiRoute ? readStoredLocale() || "ar" : defaultLocale;
+    const initial = resolveInitialLocale(onSaudiRoute);
     setLocaleState(initial);
     if (typeof window !== "undefined") {
       localStorage.setItem(LOCALE_STORAGE_KEY, initial);
@@ -79,8 +85,9 @@ export function CompanyLocaleProvider({ children }: { children: React.ReactNode 
   const isRtl = isRtlLocale(locale);
 
   if (!mounted) {
+    const fallbackLocale = onSaudiRoute ? "ar" : defaultLocale;
     return (
-      <NextIntlClientProvider locale={defaultLocale} messages={loadMessages(defaultLocale)}>
+      <NextIntlClientProvider locale={fallbackLocale} messages={loadMessages(fallbackLocale)}>
         {children}
       </NextIntlClientProvider>
     );

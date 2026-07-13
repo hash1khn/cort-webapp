@@ -15,3 +15,8 @@ export function stripSaudiPrefix(pathname: string): string {
 export function withSaudiBase(path: string, basePath: string): string {
   return `${basePath}${path}`;
 }
+
+export function getCompanyLoginPath(pathname: string | null | undefined): string {
+  const basePath = getSaudiBasePath(pathname);
+  return basePath ? `${basePath}/company/login` : "/login";
+}
