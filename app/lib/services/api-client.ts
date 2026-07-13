@@ -1961,6 +1961,24 @@ class ApiClient {
         }>('/admin/leads');
     }
 
+    /** Traflinq Explore page trial leads (superadmin UI; requires same auth as dashboard). */
+    async getTrialLeads() {
+        return this.request<{
+            data: {
+                id: number;
+                name: string;
+                role: string | null;
+                email: string;
+                phone: string | null;
+                organization: string | null;
+                country: string | null;
+                locale: string | null;
+                modules: string;
+                created_at: string;
+            }[];
+        }>('/admin/leads/trial');
+    }
+
     // ---------------------------------------------------------------------------
     // Web Push
     // ---------------------------------------------------------------------------
