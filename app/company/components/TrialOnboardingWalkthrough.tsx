@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Bus, Car, Calendar, Map, Smartphone, UserPlus, Users, Sparkles, Play } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { apiClient } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import type { TrialModules } from "../../lib/types/auth-types";
+import { useCompanyBasePath } from "../lib/use-company-base-path";
+import { stripSaudiPrefix } from "../../lib/i18n/saudi-route";
 
 type WalkthroughStep = {
   id: string;
@@ -19,118 +22,78 @@ type WalkthroughStep = {
   showNext?: boolean;
 };
 
-function poolSteps(): WalkthroughStep[] {
+type StepCopy = {
+  title: string;
+  body: string;
+  cta: string;
+};
+
+function poolSteps(
+  t: (key: string) => string,
+  companyPath: (path: string) => string,
+): WalkthroughStep[] {
+  const step = (id: string, key: string, icon: LucideIcon, href: string | null, showNext?: boolean): WalkthroughStep => ({
+    id,
+    title: t(`steps.${key}.title`),
+    body: t(`steps.${key}.body`),
+    cta: t(`steps.${key}.cta`),
+    icon,
+    href: href ? companyPath(href) : null,
+    showNext,
+  });
+
   return [
-    {
-      id: "pool-welcome",
-      title: "Pool trial — chauffeur bookings",
-      body: "Add a vehicle and chauffeur driver to your fleet, then assign them when you create a booking.",
-      icon: Car,
-      cta: "Next",
-      href: null,
-    },
-    {
-      id: "pool-vehicle",
-      title: "Add a fleet vehicle",
-      body: "Register a company vehicle in Fleet. Assign it when creating a self-managed chauffeur booking.",
-      icon: Car,
-      cta: "Go to Fleet → Vehicles",
-      href: "/company/fleet?tab=vehicles",
-      showNext: true,
-    },
-    {
-      id: "pool-driver",
-      title: "Invite a chauffeur driver",
-      body: "Add a chauffeur-type driver to your fleet for bookings.",
-      icon: UserPlus,
-      cta: "Go to Fleet → Drivers",
-      href: "/company/fleet?tab=drivers",
-      showNext: true,
-    },
-    {
-      id: "pool-booking",
-      title: "Create a booking",
-      body: "Create a self-managed chauffeur booking using your pool vehicle and driver. Add employees first if you need passengers other than yourself.",
-      icon: Calendar,
-      cta: "Create a booking",
-      href: "/company/bookings?action=new",
-      showNext: true,
-    },
+    step("pool-welcome", "poolWelcome", Car, null),
+    step("pool-vehicle", "poolVehicle", Car, "/company/fleet?tab=vehicles", true),
+    step("pool-driver", "poolDriver", UserPlus, "/company/fleet?tab=drivers", true),
+    step("pool-booking", "poolBooking", Calendar, "/company/bookings?action=new", true),
   ];
 }
 
-function shuttleSteps(): WalkthroughStep[] {
+function shuttleSteps(
+  t: (key: string) => string,
+  companyPath: (path: string) => string,
+): WalkthroughStep[] {
+  const step = (id: string, key: string, icon: LucideIcon, href: string | null, showNext?: boolean): WalkthroughStep => ({
+    id,
+    title: t(`steps.${key}.title`),
+    body: t(`steps.${key}.body`),
+    cta: t(`steps.${key}.cta`),
+    icon,
+    href: href ? companyPath(href) : null,
+    showNext,
+  });
+
   return [
-    {
-      id: "shuttle-welcome",
-      title: "Shuttle trial — routes & employees",
-      body: "Use your company fleet: add a vehicle and shuttle driver, then assign them when you create a route.",
-      icon: Bus,
-      cta: "Next",
-      href: null,
-    },
-    {
-      id: "shuttle-vehicle",
-      title: "Add a fleet vehicle",
-      body: "Register a company vehicle with seat capacity. You will assign it to a shuttle route later.",
-      icon: Bus,
-      cta: "Go to Fleet → Vehicles",
-      href: "/company/fleet?tab=vehicles",
-      showNext: true,
-    },
-    {
-      id: "shuttle-driver",
-      title: "Invite a shuttle driver",
-      body: "Add a shuttle-type driver to your fleet. They use these credentials in the driver mobile app.",
-      icon: UserPlus,
-      cta: "Go to Fleet → Drivers",
-      href: "/company/fleet?tab=drivers",
-      showNext: true,
-    },
-    {
-      id: "shuttle-route",
-      title: "Create a route",
-      body: "Build a route with at least two stops and assign your shuttle vehicle and driver.",
-      icon: Map,
-      cta: "Create a route",
-      href: "/company/routes/create",
-      showNext: true,
-    },
-    {
-      id: "shuttle-employees",
-      title: "Add & assign employees",
-      body: "Create up to 3 employees (6 if you selected both modules), then assign them to your route from the Routes page.",
-      icon: Users,
-      cta: "Go to Routes → Add Employee",
-      href: "/company/routes",
-      showNext: true,
-    },
-    {
-      id: "shuttle-test",
-      title: "Generate trips & test",
-      body: "Open your route to track trips. Generate scheduled trips for today, then test with the driver and employee apps.",
-      icon: Play,
-      cta: "View routes",
-      href: "/company/routes",
-      showNext: true,
-    },
+    step("shuttle-welcome", "shuttleWelcome", Bus, null),
+    step("shuttle-vehicle", "shuttleVehicle", Bus, "/company/fleet?tab=vehicles", true),
+    step("shuttle-driver", "shuttleDriver", UserPlus, "/company/fleet?tab=drivers", true),
+    step("shuttle-route", "shuttleRoute", Map, "/company/routes/create", true),
+    step("shuttle-employees", "shuttleEmployees", Users, "/company/routes", true),
+    step("shuttle-test", "shuttleTest", Play, "/company/routes", true),
   ];
 }
 
-function buildSteps(modules?: TrialModules): WalkthroughStep[] {
+function buildSteps(
+  modules: TrialModules | undefined,
+  t: (key: string) => string,
+  companyPath: (path: string) => string,
+): WalkthroughStep[] {
   const m = modules ?? "pool";
+  const welcomeBody =
+    m === "both"
+      ? t("steps.welcome.bodyBoth")
+      : m === "shuttle"
+        ? t("steps.welcome.bodyShuttle")
+        : t("steps.welcome.bodyPool");
+
   const steps: WalkthroughStep[] = [
     {
       id: "welcome",
-      title: "Welcome to your Traflinq trial",
-      body:
-        m === "both"
-          ? "You have 72 hours to explore pool chauffeur and shuttle commute. We'll guide you through both modules."
-          : m === "shuttle"
-            ? "You have 72 hours to explore shuttle routes and employee commute."
-            : "You have 72 hours to explore pool car management and chauffeur bookings.",
+      title: t("steps.welcome.title"),
+      body: welcomeBody,
       icon: Sparkles,
-      cta: "Let's go",
+      cta: t("steps.welcome.cta"),
       href: null,
     },
   ];
@@ -139,36 +102,36 @@ function buildSteps(modules?: TrialModules): WalkthroughStep[] {
     if (m === "both") {
       steps.push({
         id: "section-pool",
-        title: "Part 1 — Pool (chauffeur)",
-        body: "Start with pool fleet and bookings.",
+        title: t("steps.sectionPool.title"),
+        body: t("steps.sectionPool.body"),
         icon: Car,
-        cta: "Next",
+        cta: t("steps.sectionPool.cta"),
         href: null,
       });
     }
-    steps.push(...poolSteps());
+    steps.push(...poolSteps(t, companyPath));
   }
 
   if (m === "shuttle" || m === "both") {
     if (m === "both") {
       steps.push({
         id: "section-shuttle",
-        title: "Part 2 — Shuttle",
-        body: "Now set up shuttle fleet, routes, and employee assignments.",
+        title: t("steps.sectionShuttle.title"),
+        body: t("steps.sectionShuttle.body"),
         icon: Bus,
-        cta: "Next",
+        cta: t("steps.sectionShuttle.cta"),
         href: null,
       });
     }
-    steps.push(...shuttleSteps());
+    steps.push(...shuttleSteps(t, companyPath));
   }
 
   steps.push({
     id: "app",
-    title: "Mobile apps",
-    body: "Drivers use the chauffeur/shuttle driver app with credentials from the invite step. Employees use the employee app with credentials shown when you create each employee.",
+    title: t("steps.app.title"),
+    body: t("steps.app.body"),
     icon: Smartphone,
-    cta: "Get started",
+    cta: t("steps.app.cta"),
     href: null,
   });
 
@@ -202,16 +165,22 @@ export function TrialOnboardingWalkthrough({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, markTrialOnboardingComplete } = useAuth();
+  const { companyPath } = useCompanyBasePath();
+  const t = useTranslations("company.trial");
   const [stepIndex, setStepIndex] = useState(0);
   const [completing, setCompleting] = useState(false);
 
-  const STEPS = useMemo(() => buildSteps(user?.trial_modules), [user?.trial_modules]);
+  const STEPS = useMemo(
+    () => buildSteps(user?.trial_modules, t, companyPath),
+    [user?.trial_modules, t, companyPath],
+  );
 
   const manuallyOpened = forceOpen || searchParams.get("walkthrough") === "1";
+  const normalizedPath = pathname ? stripSaudiPrefix(pathname) : "";
 
   const shouldShow =
     manuallyOpened ||
-    (user?.is_trial && !user.trial_onboarding_completed && pathname === "/company");
+    (user?.is_trial && !user.trial_onboarding_completed && normalizedPath === "/company");
 
   const step = STEPS[stepIndex];
   const StepIcon = step.icon;
@@ -285,15 +254,15 @@ export function TrialOnboardingWalkthrough({
   return (
     <div
       className={cx(
-        "fixed top-0 right-0 bottom-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm",
-        "left-0",
-        sidebarCollapsed ? "md:left-[6rem]" : "md:left-[19rem]",
+        "fixed top-0 end-0 bottom-0 z-[100] flex items-center justify-center bg-black/70 px-4 py-8 backdrop-blur-sm",
+        "start-0",
+        sidebarCollapsed ? "md:start-[6rem]" : "md:start-[19rem]",
       )}
     >
       <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-[#0f172a] p-8 shadow-2xl text-white">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="text-xs font-bold uppercase tracking-widest text-[#f47f00]">
-            Trial setup · {stepIndex + 1} / {STEPS.length}
+            {t("setupProgress", { current: stepIndex + 1, total: STEPS.length })}
           </div>
           {manuallyOpened ? (
             <button
@@ -301,7 +270,7 @@ export function TrialOnboardingWalkthrough({
               onClick={dismiss}
               className="text-xs text-white/40 hover:text-white/70 transition-colors"
             >
-              Close
+              {t("close")}
             </button>
           ) : (
             !forceOpen &&
@@ -311,7 +280,7 @@ export function TrialOnboardingWalkthrough({
                 onClick={handleSkip}
                 className="text-xs text-white/40 hover:text-white/70 transition-colors"
               >
-                Skip for now
+                {t("skipForNow")}
               </button>
             )
           )}
@@ -333,7 +302,7 @@ export function TrialOnboardingWalkthrough({
                 rel="noopener noreferrer"
                 className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-white/80 hover:bg-white/5"
               >
-                App Store
+                {t("appStore")}
               </Link>
             )}
             {playStoreUrl && (
@@ -343,7 +312,7 @@ export function TrialOnboardingWalkthrough({
                 rel="noopener noreferrer"
                 className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-white/80 hover:bg-white/5"
               >
-                Google Play
+                {t("googlePlay")}
               </Link>
             )}
           </div>
@@ -356,10 +325,10 @@ export function TrialOnboardingWalkthrough({
               onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
               className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-white/70 hover:bg-white/5"
             >
-              Back
+              {t("back")}
             </button>
           )}
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ms-auto flex items-center gap-3">
             {step.showNext && (
               <button
                 type="button"
@@ -367,7 +336,7 @@ export function TrialOnboardingWalkthrough({
                 disabled={completing}
                 className="rounded-xl border border-white/10 px-5 py-2.5 text-sm font-semibold text-white/80 hover:bg-white/5 disabled:opacity-60"
               >
-                Next
+                {t("next")}
               </button>
             )}
             <button
@@ -376,7 +345,7 @@ export function TrialOnboardingWalkthrough({
               disabled={completing}
               className="rounded-xl bg-[#f47f00] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#f47f00]/90 disabled:opacity-60"
             >
-              {completing ? "Saving…" : step.cta}
+              {completing ? t("saving") : step.cta}
             </button>
           </div>
         </div>

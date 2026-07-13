@@ -428,17 +428,19 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             {trialInfo && (
               <div className="mb-4 rounded-2xl border border-[#f47f00]/25 bg-[#f47f00]/10 px-4 py-3 text-sm text-white/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex flex-col">
-                  <div className="font-semibold">Trial access</div>
+                  <div className="font-semibold">{t("trial.banner.title")}</div>
                   <div className="text-xs text-white/60">
-                    Your trial ends in <span className="text-white font-semibold">{trialInfo.remainingHours}h</span>. Book a demo to continue.
+                    {t.rich("trial.banner.expires", {
+                      hours: () => <span className="text-white font-semibold">{trialInfo.remainingHours}h</span>,
+                    })}
                   </div>
                   {!user?.trial_onboarding_completed && (
                     <button
                       type="button"
                       onClick={() => setGuideOpen(true)}
-                      className="mt-1 text-left text-xs font-semibold text-[#f47f00] hover:underline w-fit"
+                      className="mt-1 text-start text-xs font-semibold text-[#f47f00] hover:underline w-fit"
                     >
-                      View setup guide
+                      {t("trial.banner.viewGuide")}
                     </button>
                   )}
                 </div>
@@ -448,7 +450,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center rounded-lg bg-[#f47f00] px-4 py-2 text-xs font-bold text-white hover:bg-[#f47f00]/90 transition-colors"
                 >
-                  Book a demo
+                  {t("trial.banner.bookDemo")}
                 </a>
               </div>
             )}

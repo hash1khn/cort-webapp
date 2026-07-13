@@ -852,6 +852,96 @@
       "details": "Details",
       "less": "Less",
       "footerHint": "Savings amounts are calculated from your real fleet data. Enable the Cost Saving feature to unlock personalised recommendations on how to achieve these savings."
+    },
+    "trial": {
+      "setupProgress": "Trial setup · {current} / {total}",
+      "close": "Close",
+      "skipForNow": "Skip for now",
+      "back": "Back",
+      "next": "Next",
+      "saving": "Saving…",
+      "appStore": "App Store",
+      "googlePlay": "Google Play",
+      "banner": {
+        "title": "Trial access",
+        "expires": "Your trial ends in {hours}h. Book a demo to continue.",
+        "viewGuide": "View setup guide",
+        "bookDemo": "Book a demo"
+      },
+      "steps": {
+        "welcome": {
+          "title": "Welcome to your Traflinq trial",
+          "bodyPool": "You have 72 hours to explore pool car management and chauffeur bookings.",
+          "bodyShuttle": "You have 72 hours to explore shuttle routes and employee commute.",
+          "bodyBoth": "You have 72 hours to explore pool chauffeur and shuttle commute. We'll guide you through both modules.",
+          "cta": "Let's go"
+        },
+        "sectionPool": {
+          "title": "Part 1 — Pool (chauffeur)",
+          "body": "Start with pool fleet and bookings.",
+          "cta": "Next"
+        },
+        "sectionShuttle": {
+          "title": "Part 2 — Shuttle",
+          "body": "Now set up shuttle fleet, routes, and employee assignments.",
+          "cta": "Next"
+        },
+        "poolWelcome": {
+          "title": "Pool trial — chauffeur bookings",
+          "body": "Add a vehicle and chauffeur driver to your fleet, then assign them when you create a booking.",
+          "cta": "Next"
+        },
+        "poolVehicle": {
+          "title": "Add a fleet vehicle",
+          "body": "Register a company vehicle in Fleet. Assign it when creating a self-managed chauffeur booking.",
+          "cta": "Go to Fleet → Vehicles"
+        },
+        "poolDriver": {
+          "title": "Invite a chauffeur driver",
+          "body": "Add a chauffeur-type driver to your fleet for bookings.",
+          "cta": "Go to Fleet → Drivers"
+        },
+        "poolBooking": {
+          "title": "Create a booking",
+          "body": "Create a self-managed chauffeur booking using your pool vehicle and driver. Add employees first if you need passengers other than yourself.",
+          "cta": "Create a booking"
+        },
+        "shuttleWelcome": {
+          "title": "Shuttle trial — routes & employees",
+          "body": "Use your company fleet: add a vehicle and shuttle driver, then assign them when you create a route.",
+          "cta": "Next"
+        },
+        "shuttleVehicle": {
+          "title": "Add a fleet vehicle",
+          "body": "Register a company vehicle with seat capacity. You will assign it to a shuttle route later.",
+          "cta": "Go to Fleet → Vehicles"
+        },
+        "shuttleDriver": {
+          "title": "Invite a shuttle driver",
+          "body": "Add a shuttle-type driver to your fleet. They use these credentials in the driver mobile app.",
+          "cta": "Go to Fleet → Drivers"
+        },
+        "shuttleRoute": {
+          "title": "Create a route",
+          "body": "Build a route with at least two stops and assign your shuttle vehicle and driver.",
+          "cta": "Create a route"
+        },
+        "shuttleEmployees": {
+          "title": "Add & assign employees",
+          "body": "Create up to 3 employees (6 if you selected both modules), then assign them to your route from the Routes page.",
+          "cta": "Go to Routes → Add Employee"
+        },
+        "shuttleTest": {
+          "title": "Generate trips & test",
+          "body": "Open your route to track trips. Generate scheduled trips for today, then test with the driver and employee apps.",
+          "cta": "View routes"
+        },
+        "app": {
+          "title": "Mobile apps",
+          "body": "Drivers use the chauffeur/shuttle driver app with credentials from the invite step. Employees use the employee app with credentials shown when you create each employee.",
+          "cta": "Get started"
+        }
+      }
     }
   }
 }
