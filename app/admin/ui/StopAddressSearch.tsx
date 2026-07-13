@@ -93,22 +93,22 @@ export default function StopAddressSearch({
     return (
         <div ref={containerRef} className={`relative ${className}`}>
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
                 <input
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-9 pr-8 py-2 border border-[var(--border-input)] rounded-lg text-sm bg-[var(--bg-input)] text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)]"
                     autoComplete="off"
                 />
                 {isLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] animate-spin" />
                 )}
             </div>
 
             {open && suggestions.length > 0 && (
-                <ul className="absolute z-50 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+                <ul className="absolute z-50 top-full mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
                     {suggestions.map((s) => (
                         <li key={s.place_id}>
                             <button
@@ -118,10 +118,10 @@ export default function StopAddressSearch({
                                     e.preventDefault();
                                     handleSelect(s);
                                 }}
-                                className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-start gap-3 border-b border-gray-100 last:border-b-0 transition-colors"
+                                className="w-full text-left px-4 py-3 hover:bg-[var(--bg-subtle)] flex items-start gap-3 border-b border-[var(--border-default)] last:border-b-0 transition-colors"
                             >
-                                <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                                <span className="text-sm text-gray-700 leading-snug">{s.display_name}</span>
+                                <MapPin className="w-4 h-4 text-[var(--text-muted)] shrink-0 mt-0.5" />
+                                <span className="text-sm text-[var(--text-primary)] leading-snug">{s.display_name}</span>
                             </button>
                         </li>
                     ))}
@@ -129,7 +129,7 @@ export default function StopAddressSearch({
             )}
 
             {open && !isLoading && suggestions.length === 0 && query.length >= 3 && (
-                <div className="absolute z-50 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-gray-500">
+                <div className="absolute z-50 top-full mt-1 w-full bg-[var(--bg-card)] border border-[var(--border-default)] rounded-lg shadow-lg px-4 py-3 text-sm text-[var(--text-muted)]">
                     No results found
                 </div>
             )}
