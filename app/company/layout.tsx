@@ -1,41 +1,6 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { CompanyShell } from "./ui/CompanyShell";
-import { CompanyThemeProvider } from "./lib/theme-context";import { Provider } from "react-redux";
-import { companyStore } from "../lib/store/company-store";
-import { useAuth } from "../lib/contexts/auth-context";
-import { ProtectedRoute } from "../lib/components/protected-route";
-import { UserRole } from "../lib/types/auth-types";
+import CompanyLayoutClient from "./CompanyLayoutClient";
 
 export default function CompanyLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const isPublicPage =
-    pathname === "/login" ||
-    pathname === "/company/login" ||
-    pathname === "/company/trial" ||
-    pathname === "/company/impersonate" ||
-    pathname === "/impersonate" ||
-    pathname === "/";
-
-  // Login, trial entry, and ticket-exchange pages don't need protection —
-  // the user isn't authenticated yet when they land on these.
-  if (isPublicPage) {
-    return <>{children}</>;
-  }
-
-  return (
-    <ProtectedRoute
-      allowedRoles={[UserRole.COMPANY_ADMIN, UserRole.EMPLOYEE, UserRole.SUPER_ADMIN]}
-      redirectTo="/login"
-    >
-      <Provider store={companyStore}>
-        <CompanyThemeProvider>
-          <CompanyShell>{children}</CompanyShell>
-        </CompanyThemeProvider>
-      </Provider>
-    </ProtectedRoute>
-  );
+  return <CompanyLayoutClient>{children}</CompanyLayoutClient>;
 }

@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { apiClient } from '@/app/lib/services/api-client';
 import { getCalendarMonthRange } from '@/app/lib/date-utils';
+import { formatLocaleNumber } from '@/app/lib/i18n/format';
+import type { Locale } from '@/i18n/config';
 import {
   TrendingDown,
   TrendingUp,
@@ -58,9 +61,10 @@ interface SavingsResult {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function pkr(n: number) {
-  return `PKR ${Math.abs(n).toLocaleString('en-PK')}`;
-}
+const MONTH_KEYS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+] as const;
 
 function formatVehicleLabel(row: VehicleBreakdownRow): string {
   const cat = row.vehicle_category
@@ -113,11 +117,6 @@ function resolveVehicleRows(result: SavingsResult): VehicleBreakdownRow[] {
   });
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function SummaryCard({
@@ -147,8 +146,25 @@ function SummaryCard({
   );
 }
 
-function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
+function VehicleTable({
+  rows,
+  formatPkr,
+}: {
+  rows: VehicleBreakdownRow[];
+  formatPkr: (n: number) => string;
+}) {
+  const t = useTranslations('company.savings');
+
   if (rows.length === 0) return null;
+
+  const tableHeaders = [
+    t('vehicle'),
+    t('qty'),
+    t('previousVendorName'),
+    t('previousVendorMonthly'),
+    t('traflinqInvoiceMonth'),
+    t('youSaved'),
+  ];
 
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[1.5rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.3)]">
@@ -156,11 +172,11 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
         <div className="flex items-center gap-2">
           <Car className="h-4 w-4 text-[#fe8503]" />
           <h3 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide">
-            Per-Vehicle Savings Breakdown
+            {t('perVehicleBreakdown')}
           </h3>
         </div>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          One row per vehicle type: your previous vendor&apos;s monthly cost vs your Traflinq invoice for the selected month.
+          {t('perVehicleDescription')}
         </p>
       </div>
 
@@ -169,16 +185,14 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border-default)]">
-              {['Vehicle', 'Qty', 'Previous Vendor', 'Previous vendor (monthly)', 'Traflinq invoice (month)', 'You saved'].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="text-left px-5 py-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]"
-                  >
-                    {h}
-                  </th>
-                ),
-              )}
+              {tableHeaders.map((h) => (
+                <th
+                  key={h}
+                  className="text-start px-5 py-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]"
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -208,10 +222,10 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
                     {row.vendor_name ?? <span className="italic opacity-50">—</span>}
                   </td>
                   <td className="px-5 py-4 text-[var(--text-primary)]">
-                    {pkr(row.benchmark_monthly_pkr)}
+                    {formatPkr(row.benchmark_monthly_pkr)}
                   </td>
                   <td className="px-5 py-4 text-[var(--text-primary)]">
-                    {pkr(row.actual_period_pkr)}
+                    {formatPkr(row.actual_period_pkr)}
                   </td>
                   <td className="px-5 py-4">
                     <span
@@ -225,7 +239,7 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
                         <TrendingUp className="h-3.5 w-3.5" />
                       )}
                       {isSaving ? '−' : '+'}
-                      {pkr(Math.abs(saved))}
+                      {formatPkr(Math.abs(saved))}
                     </span>
                   </td>
                 </tr>
@@ -256,22 +270,22 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
                   className={`text-sm font-bold ${isSaving ? 'text-emerald-400' : 'text-red-400'}`}
                 >
                   {isSaving ? '−' : '+'}
-                  {pkr(Math.abs(saved))}
+                  {formatPkr(Math.abs(saved))}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs mt-1">
                 <div className="bg-white/[0.04] rounded-xl px-3 py-2">
-                  <p className="text-[var(--text-muted)]">Previous vendor</p>
-                  <p className="font-semibold text-[var(--text-primary)]">{pkr(row.benchmark_monthly_pkr)}</p>
+                  <p className="text-[var(--text-muted)]">{t('previousVendor')}</p>
+                  <p className="font-semibold text-[var(--text-primary)]">{formatPkr(row.benchmark_monthly_pkr)}</p>
                 </div>
                 <div className="bg-white/[0.04] rounded-xl px-3 py-2">
-                  <p className="text-[var(--text-muted)]">Traflinq invoice</p>
-                  <p className="font-semibold text-[var(--text-primary)]">{pkr(row.actual_period_pkr)}</p>
+                  <p className="text-[var(--text-muted)]">{t('traflinqInvoice')}</p>
+                  <p className="font-semibold text-[var(--text-primary)]">{formatPkr(row.actual_period_pkr)}</p>
                 </div>
               </div>
               {row.vendor_name && (
                 <p className="text-xs text-[var(--text-muted)]">
-                  Previous vendor: <span className="text-[var(--text-secondary)]">{row.vendor_name}</span>
+                  {t('previousVendorColon', { name: row.vendor_name })}
                 </p>
               )}
             </div>
@@ -285,6 +299,20 @@ function VehicleTable({ rows }: { rows: VehicleBreakdownRow[] }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function SavingsPage() {
+  const t = useTranslations('company.savings');
+  const tCommon = useTranslations('common');
+  const locale = useLocale() as Locale;
+
+  const formatPkr = useCallback(
+    (n: number) => `${tCommon('currency.pkr')} ${formatLocaleNumber(Math.abs(n), locale)}`,
+    [tCommon, locale],
+  );
+
+  const getMonthName = useCallback(
+    (monthIndex: number) => t(`months.${MONTH_KEYS[monthIndex]}`),
+    [t],
+  );
+
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -333,6 +361,7 @@ export default function SavingsPage() {
   }
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+  const selectedMonthName = getMonthName(selectedMonth);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -343,10 +372,10 @@ export default function SavingsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">
-            Savings Realisation
+            {t('title')}
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            After your first month with Traflinq, see how your monthly invoice compares to what you paid your previous vendor — per vehicle.
+            {t('description')}
           </p>
         </div>
 
@@ -359,7 +388,7 @@ export default function SavingsPage() {
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span className="text-sm font-bold text-[var(--text-primary)] min-w-[130px] text-center">
-            {MONTH_NAMES[selectedMonth]} {selectedYear}
+            {selectedMonthName} {selectedYear}
           </span>
           <button
             onClick={nextMonth}
@@ -393,9 +422,9 @@ export default function SavingsPage() {
             <PiggyBank className="h-8 w-8 text-[var(--text-muted)]" />
           </div>
           <div>
-            <p className="text-lg font-bold text-[var(--text-primary)]">No benchmarks configured</p>
+            <p className="text-lg font-bold text-[var(--text-primary)]">{t('noBenchmarks')}</p>
             <p className="text-sm text-[var(--text-muted)] mt-1 max-w-md">
-              Your CORT account manager needs to set up your pre-CORT baselines before savings comparisons can be shown.
+              {t('noBenchmarksDescription')}
             </p>
           </div>
         </div>
@@ -408,8 +437,8 @@ export default function SavingsPage() {
             <AlertCircle className="h-8 w-8 text-red-400" />
           </div>
           <div>
-            <p className="text-lg font-bold text-[var(--text-primary)]">Could not load savings data</p>
-            <p className="text-sm text-[var(--text-muted)] mt-1">Please try again or contact support.</p>
+            <p className="text-lg font-bold text-[var(--text-primary)]">{tCommon('errors.couldNotLoadSavings')}</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1">{tCommon('errors.tryAgainOrContact')}</p>
           </div>
         </div>
       )}
@@ -419,38 +448,38 @@ export default function SavingsPage() {
         <>
           {isCurrentMonth && (
             <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 -mt-2">
-              This month is still in progress. Totals update when your monthly Traflinq invoice is issued.
+              {t('monthInProgress')}
             </p>
           )}
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <SummaryCard
-              label="Previous vendor"
-              value={pkr(result.benchmark_total_pkr)}
-              sub="Monthly cost with your old vendor"
+              label={t('previousVendor')}
+              value={formatPkr(result.benchmark_total_pkr)}
+              sub={t('monthlyCostOldVendor')}
               accent="neutral"
             />
             <SummaryCard
-              label="Traflinq invoice"
-              value={pkr(result.actual_total_pkr)}
-              sub={`Invoice for ${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
+              label={t('traflinqInvoice')}
+              value={formatPkr(result.actual_total_pkr)}
+              sub={t('invoiceForMonth', { month: selectedMonthName, year: selectedYear })}
               accent="neutral"
             />
             <SummaryCard
-              label={result.delta_pkr >= 0 ? 'Total saved' : 'Difference'}
-              value={(result.delta_pkr >= 0 ? '−' : '+') + pkr(Math.abs(result.delta_pkr))}
-              sub="This month vs your previous vendor"
+              label={result.delta_pkr >= 0 ? t('totalSaved') : t('difference')}
+              value={(result.delta_pkr >= 0 ? '−' : '+') + formatPkr(Math.abs(result.delta_pkr))}
+              sub={t('thisMonthVsVendor')}
               accent={result.delta_pkr >= 0 ? 'green' : 'red'}
             />
             <SummaryCard
-              label="Savings %"
+              label={t('savingsPercent')}
               value={
                 result.savings_pct != null
                   ? `${result.delta_pkr >= 0 ? '' : '+'}${Math.abs(result.savings_pct).toFixed(1)}%`
                   : '—'
               }
-              sub={result.delta_pkr >= 0 ? 'Less than before' : 'More than before'}
+              sub={result.delta_pkr >= 0 ? t('lessThanBefore') : t('moreThanBefore')}
               accent={result.delta_pkr >= 0 ? 'green' : 'red'}
             />
           </div>
@@ -459,11 +488,10 @@ export default function SavingsPage() {
           {(() => {
             const vehicleRows = resolveVehicleRows(result);
             return vehicleRows.length > 0 ? (
-              <VehicleTable rows={vehicleRows} />
+              <VehicleTable rows={vehicleRows} formatPkr={formatPkr} />
             ) : (
               <div className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[1.5rem] p-6 text-sm text-[var(--text-muted)]">
-                No vehicle benchmarks configured for this month. Ask your account manager to add your
-                previous vendor costs per vehicle type.
+                {t('noVehicleBenchmarks')}
               </div>
             );
           })()}
@@ -476,7 +504,7 @@ export default function SavingsPage() {
                   <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wide text-emerald-400">
-                  AI Analysis
+                  {t('aiAnalysis')}
                 </span>
               </div>
               <p className="text-sm text-[var(--text-primary)] leading-relaxed">{result.narrative}</p>

@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAppSelector, useAppDispatch } from "../../../lib/store/hooks";
+import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
-import { fetchEmployees, selectEmployees, selectEmployeesStatus } from "../../../lib/store/slices/employeeSlice";
-import { useAuth } from "../../../lib/contexts/auth-context";
-import { toast } from "sonner";
 import { Card } from "../../components/DashboardComponents";
 import { PageHeader } from "../../components/PageLayout";
 import { Button } from "@/app/admin/ui/Button";
@@ -26,8 +24,6 @@ import {
   Mail,
   Car,
   RefreshCw,
-  UserPlus,
-  X,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -90,6 +86,7 @@ function cx(...classes: Array<string | false | null | undefined>) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MORNING" | "EVENING" }) {
+  const t = useTranslations("company.routes");
   const sorted = [...stops]
     .filter((s) =>
       direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null
@@ -101,13 +98,12 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
     );
 
   if (sorted.length === 0) {
-    return <p className="text-xs text-[var(--text-muted)] italic">No stops configured.</p>;
+    return <p className="text-xs text-[var(--text-muted)] italic">{t("noStopsConfigured")}</p>;
   }
 
   return (
     <div className="relative">
-      {/* Vertical line */}
-      <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[var(--border-light)]" />
+      <div className="absolute start-3.5 top-4 bottom-4 w-px bg-[var(--border-light)]" />
       <div className="space-y-3">
         {sorted.map((stop, idx) => {
           const eta =
@@ -133,7 +129,7 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
                 <div className="text-sm font-semibold text-[var(--text-primary)]">{stop.name}</div>
                 {eta && (
                   <div className="text-xs text-[var(--text-muted)]">
-                    {direction === "MORNING" ? "Pickup" : "Drop-off"}: {eta}
+                    {direction === "MORNING" ? t("pickup") : t("dropoff")}: {eta}
                   </div>
                 )}
               </div>
@@ -150,28 +146,14 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
 export default function RouteDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
-  const isTrialUser = !!user?.is_trial;
+  const t = useTranslations("company.routes");
+  const tCommon = useTranslations("common");
   const company = useAppSelector(selectCompany);
   const routeId = params.id ? +params.id : null;
-  const dispatch = useAppDispatch();
-  const allEmployees = useAppSelector(selectEmployees);
-  const employeeStatus = useAppSelector(selectEmployeesStatus);
-
-  useEffect(() => {
-    if (company?.id && employeeStatus === "idle") {
-      dispatch(fetchEmployees(company.id.toString()));
-    }
-  }, [company?.id, employeeStatus, dispatch]);
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [generatingTrips, setGeneratingTrips] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assigning, setAssigning] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedStopId, setSelectedStopId] = useState<number | "">("");
 
   const load = useCallback(async () => {
     if (!routeId) return;
@@ -181,7 +163,7 @@ export default function RouteDetailPage() {
       const data = await apiClient.request<RouteDetail>(`/routes/${routeId}`);
       setRoute(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load route");
+      setError(err instanceof Error ? err.message : tCommon("errors.failedToLoadRoute"));
     } finally {
       setLoading(false);
     }
@@ -190,44 +172,6 @@ export default function RouteDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function handleGenerateTrips() {
-    if (!routeId) return;
-    setGeneratingTrips(true);
-    try {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
-      await apiClient.generateShuttleTripsForRoute(routeId, [fmt(today), fmt(tomorrow)]);
-      toast.success("Trips generated for today and tomorrow");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate trips");
-    } finally {
-      setGeneratingTrips(false);
-    }
-  }
-
-  async function handleAssignEmployee() {
-    if (!routeId || !selectedUserId) return;
-    setAssigning(true);
-    try {
-      await apiClient.assignEmployeeToRoute({
-        user_id: selectedUserId,
-        route_id: routeId,
-        pickup_stop_id: selectedStopId ? Number(selectedStopId) : undefined,
-      });
-      toast.success("Employee assigned successfully");
-      setShowAssignModal(false);
-      setSelectedUserId("");
-      setSelectedStopId("");
-      load(); // Refresh route data
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to assign employee");
-    } finally {
-      setAssigning(false);
-    }
-  }
 
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
@@ -241,7 +185,7 @@ export default function RouteDetailPage() {
   if (!company) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
       </div>
     );
   }
@@ -252,7 +196,7 @@ export default function RouteDetailPage() {
         <Link href="/company/routes">
           <Button variant="outline" size="sm" className="gap-1.5">
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to Routes
+            {t("backToRoutes")}
           </Button>
         </Link>
       </div>
@@ -260,7 +204,7 @@ export default function RouteDetailPage() {
       {loading ? (
         <Card className="py-16 text-center">
           <RefreshCw className="w-5 h-5 mx-auto mb-3 animate-spin text-[var(--text-muted)]" />
-          <div className="text-sm text-[var(--text-muted)]">Loading route…</div>
+          <div className="text-sm text-[var(--text-muted)]">{t("loadingRoute")}</div>
         </Card>
       ) : error ? (
         <Card className="py-12 text-center">
@@ -268,75 +212,51 @@ export default function RouteDetailPage() {
         </Card>
       ) : !route ? (
         <Card className="py-12 text-center">
-          <div className="text-sm text-[var(--text-muted)]">Route not found.</div>
+          <div className="text-sm text-[var(--text-muted)]">{t("routeNotFound")}</div>
         </Card>
       ) : (
         <>
-          {/* Header */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1">
-                Shuttle Operations · Route Detail
+                {t("routeDetailLabel")}
               </div>
               <h1 className="text-3xl font-extrabold tracking-tight text-[var(--text-primary)] flex items-center gap-3">
                 <Bus className="w-7 h-7 text-[var(--cort-orange)]" />
                 {route.name}
               </h1>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {isTrialUser && (
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  disabled={generatingTrips}
-                  onClick={handleGenerateTrips}
-                >
-                  {generatingTrips ? "Generating…" : "Generate trips"}
-                </Button>
-              )}
-              {isTrialUser && (
-                <Button
-                  variant="default"
-                  className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
-                  onClick={() => setShowAssignModal(true)}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Assign Employee
-                </Button>
-              )}
-              <Link href={`/company/routes/${routeId}/track`}>
-                <Button variant="outline" className="gap-2">
-                  <Activity className="w-4 h-4" />
-                  Track Live
-                </Button>
-              </Link>
-            </div>
+            <Link href={`/company/routes/${routeId}/track`}>
+              <Button variant="outline" className="gap-2">
+                <Activity className="w-4 h-4" />
+                {t("trackLive")}
+              </Button>
+            </Link>
           </div>
 
-          {/* Stats bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               {
-                label: "Passengers",
+                label: t("passengers"),
                 value: employees.length,
                 icon: <Users className="w-4 h-4" />,
                 color: "text-[var(--cort-orange)]",
               },
               {
-                label: "Stops",
+                label: t("stops"),
                 value: stops.filter((s) => s.morning_sequence != null).length,
                 icon: <MapPin className="w-4 h-4" />,
                 color: "text-emerald-400",
               },
               {
-                label: "Vehicle",
+                label: t("vehicle"),
                 value: vehicle?.plate_number ?? "—",
                 icon: <Car className="w-4 h-4" />,
                 color: "text-blue-400",
               },
               {
-                label: utilizationPct !== null ? `Utilization (${employees.length}/${capacity})` : "Driver",
-                value: utilizationPct !== null ? `${utilizationPct}%` : (driver?.full_name ?? "Unassigned"),
+                label: utilizationPct !== null ? t("utilization", { count: `${employees.length}/${capacity}` }) : t("driver"),
+                value: utilizationPct !== null ? `${utilizationPct}%` : (driver?.full_name ?? t("unassigned")),
                 icon: <User className="w-4 h-4" />,
                 color: utilizationPct !== null && utilizationPct > 85 ? "text-red-400" : "text-purple-400",
               },
@@ -361,7 +281,7 @@ export default function RouteDetailPage() {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-[var(--cort-orange)]" />
                     <span className="font-semibold text-[var(--text-primary)]">
-                      Passengers on this Route
+                      {t("passengersOnThisRoute")}
                     </span>
                     <span className="rounded-full bg-[var(--cort-orange)]/10 px-2 py-0.5 text-xs font-bold text-[var(--cort-orange)]">
                       {employees.length}
@@ -369,7 +289,7 @@ export default function RouteDetailPage() {
                   </div>
                   {capacity && (
                     <div className="text-xs text-[var(--text-muted)]">
-                      {employees.length}/{capacity} capacity
+                      {t("capacity", { current: employees.length, max: capacity })}
                       <div className="mt-1 h-1.5 w-20 rounded-full bg-[var(--bg-subtle)] overflow-hidden">
                         <div
                           className={cx(
@@ -386,21 +306,10 @@ export default function RouteDetailPage() {
                 {employees.length === 0 ? (
                   <div className="py-16 text-center">
                     <Users className="w-8 h-8 mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
-                    <div className="text-sm text-[var(--text-muted)]">No employees assigned to this route yet.</div>
-                    {isTrialUser ? (
-                      <Button 
-                        variant="outline" 
-                        className="mt-4 gap-2"
-                        onClick={() => setShowAssignModal(true)}
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Assign an Employee
-                      </Button>
-                    ) : (
-                      <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
-                        Contact Cort Operations to assign employees.
-                      </div>
-                    )}
+                    <div className="text-sm text-[var(--text-muted)]">{t("noEmployeesAssigned")}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
+                      {t("contactOperations")}
+                    </div>
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-light)]">
@@ -421,7 +330,7 @@ export default function RouteDetailPage() {
 
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm text-[var(--text-primary)] truncate">
-                              {emp?.full_name ?? "Unknown"}
+                              {emp?.full_name ?? tCommon("status.unknown")}
                             </div>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                               {emp?.department && (
@@ -461,7 +370,7 @@ export default function RouteDetailPage() {
               {/* Vehicle & Driver info */}
               <Card className="!p-5">
                 <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                  Vehicle & Driver
+                  {t("vehicleAndDriver")}
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
@@ -469,9 +378,9 @@ export default function RouteDetailPage() {
                       <Car className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs text-[var(--text-muted)]">Vehicle</div>
+                      <div className="text-xs text-[var(--text-muted)]">{t("vehicle")}</div>
                       <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {vehicle ? `${vehicle.plate_number}${vehicle.model ? ` · ${vehicle.model}` : ""}` : "Not assigned"}
+                        {vehicle ? `${vehicle.plate_number}${vehicle.model ? ` · ${vehicle.model}` : ""}` : t("notAssigned")}
                       </div>
                     </div>
                   </div>
@@ -480,9 +389,9 @@ export default function RouteDetailPage() {
                       <User className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs text-[var(--text-muted)]">Driver</div>
+                      <div className="text-xs text-[var(--text-muted)]">{t("driver")}</div>
                       <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {driver?.full_name ?? "Not assigned"}
+                        {driver?.full_name ?? t("notAssigned")}
                       </div>
                       {driver?.phone && (
                         <div className="text-xs text-[var(--text-muted)]">{driver.phone}</div>
@@ -497,10 +406,10 @@ export default function RouteDetailPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Sunrise className="w-4 h-4 text-amber-500" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-                    Morning Route
+                    {t("morningRoute")}
                   </span>
                   <span className="text-xs text-[var(--text-muted)]">
-                    ({stops.filter((s) => s.morning_sequence != null).length} stops)
+                    {t("stopsCountParen", { count: stops.filter((s) => s.morning_sequence != null).length })}
                   </span>
                 </div>
                 <StopTimeline stops={stops} direction="MORNING" />
@@ -511,10 +420,10 @@ export default function RouteDetailPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Sunset className="w-4 h-4 text-indigo-500" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
-                    Evening Route
+                    {t("eveningRoute")}
                   </span>
                   <span className="text-xs text-[var(--text-muted)]">
-                    ({stops.filter((s) => s.evening_sequence != null).length} stops)
+                    {t("stopsCountParen", { count: stops.filter((s) => s.evening_sequence != null).length })}
                   </span>
                 </div>
                 <StopTimeline stops={stops} direction="EVENING" />
@@ -522,76 +431,6 @@ export default function RouteDetailPage() {
             </div>
           </div>
         </>
-      )}
-
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md !p-0 shadow-2xl border-[var(--border-light)] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-subtle)]">
-              <h3 className="font-bold text-[var(--text-primary)]">Assign Employee</h3>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="p-1 rounded-lg hover:bg-[var(--border-light)] text-[var(--text-muted)] transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
-                  Select Employee
-                </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
-                >
-                  <option value="">-- Choose an employee --</option>
-                  {allEmployees
-                    .filter((emp) => !employees.some((assigned) => assigned.users?.id === emp.id))
-                    .map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.full_name} {emp.department ? `(${emp.department})` : ""}
-                      </option>
-                    ))}
-                </select>
-                {allEmployees.length === 0 && employeeStatus !== "loading" && (
-                  <p className="text-xs text-amber-500 mt-1">No employees found in your company.</p>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
-                  Pickup Stop <span className="text-[var(--text-muted)] font-normal">(Optional)</span>
-                </label>
-                <select
-                  value={selectedStopId}
-                  onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
-                >
-                  <option value="">-- None / Automatic --</option>
-                  {stops.map((stop) => (
-                    <option key={stop.id} value={stop.id}>
-                      {stop.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowAssignModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={!selectedUserId || assigning}
-                onClick={handleAssignEmployee}
-                className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
-              >
-                {assigning ? "Assigning..." : "Confirm Assignment"}
-              </Button>
-            </div>
-          </Card>
-        </div>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { formatDateTime } from "@/app/lib/utils";
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
@@ -73,6 +74,8 @@ function exportChauffeurCSV(reports: ChauffeurReport[], companyName: string, sta
 }
 
 export default function ChauffeurReportsPage() {
+  const t = useTranslations("company.reports");
+  const tCommon = useTranslations("common");
   const company = useAppSelector(selectCompany);
 
   const [reports, setReports] = useState<ChauffeurReport[]>([]);
@@ -110,7 +113,7 @@ export default function ChauffeurReportsPage() {
     // If company is loading, shell might cover it, or we can show skeleton.
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+        <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
       </div>
     );
   }
@@ -119,13 +122,8 @@ export default function ChauffeurReportsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <Card className="max-w-md text-center flex flex-col items-center justify-center py-12">
-          <div className="text-lg font-bold text-[var(--text-primary)]">
-            Chauffeur Service Disabled
-          </div>
-          <div className="mt-2 text-sm text-[var(--text-muted)]">
-            Chauffeur service is not enabled for your company. Please contact Cort
-            Super Admin.
-          </div>
+          <div className="text-lg font-bold text-[var(--text-primary)]">{t("chauffeurDisabled")}</div>
+          <div className="mt-2 text-sm text-[var(--text-muted)]">{t("chauffeurDisabledDescription")}</div>
         </Card>
       </div>
     );
@@ -134,34 +132,18 @@ export default function ChauffeurReportsPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
       <PageHeader
-        label="Financial Reporting"
-        title="Chauffeur Reports"
+        label={t("chauffeurLabel")}
+        title={t("chauffeurTitle")}
         action={
           <>
             <div className="flex items-center gap-2 bg-[var(--bg-subtle)] p-1 rounded-xl border border-[var(--border-strong)] backdrop-blur-sm">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
-                placeholder="Start Date"
-              />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0" placeholder={t("startDate")} />
               <span className="text-[var(--text-muted)]">/</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0"
-                placeholder="End Date"
-              />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 rounded-lg border-0 bg-transparent px-3 text-sm text-[var(--text-primary)] focus:ring-0" placeholder={t("endDate")} />
             </div>
-            <button
-              type="button"
-              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
-              onClick={() => exportChauffeurCSV(reports, company?.name ?? "Company", startDate, endDate)}
-            >
+            <button type="button" className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md" onClick={() => exportChauffeurCSV(reports, company?.name ?? "Company", startDate, endDate)}>
               <svg className="w-4 h-4 text-[var(--text-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Export CSV
+              {t("exportCsv")}
             </button>
           </>
         }
@@ -169,27 +151,25 @@ export default function ChauffeurReportsPage() {
 
       <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
         <div className={TABLE_TOP_BAR_CLASS}>
-          <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">
-            Comprehensive completed trips report with detailed cost breakdown
-          </div>
+          <div className="mt-1 text-sm font-medium text-[var(--text-primary)]">{t("chauffeurTableDescription")}</div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm text-left">
+          <table className="min-w-full text-sm text-start">
             <thead>
               <tr className="border-b border-[var(--border-light)]">
-                <th className={TABLE_HEADER_CELL_CLASS}>Date</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>City</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Booking ID</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Passenger</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Vehicle</th>
-                <th className={TABLE_HEADER_CELL_CLASS}>Route</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Dur (min)</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Dist (km)</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Svc Chg</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Fuel</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Extras</th>
-                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Total (PKR)</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("date")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("city")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("bookingId")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("passenger")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("vehicle")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("route")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("durMin")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("distKm")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("svcChg")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("fuel")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("extras")}</th>
+                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("totalPkr")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -204,7 +184,7 @@ export default function ChauffeurReportsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </span>
-                      <span>No reports found for the selected period.</span>
+                      <span>{t("noReports")}</span>
                     </div>
                   </td>
                 </tr>
@@ -226,7 +206,7 @@ export default function ChauffeurReportsPage() {
                     </td>
                     <td className={TABLE_CELL_CLASS}>
                       <div className="font-bold text-[var(--text-primary)] text-sm">
-                        {report.passenger?.full_name || "Guest"}
+                        {report.passenger?.full_name || t("guest")}
                       </div>
                       <div className="text-xs text-[var(--text-muted)]">
                         {report.passenger?.employee_id || "-"}
@@ -240,16 +220,16 @@ export default function ChauffeurReportsPage() {
                     </td>
                     <td className={`${TABLE_CELL_CLASS} max-w-xs`}>
                       <div title={report.route.pickup} className="truncate text-[var(--text-primary)] font-medium text-xs">
-                        <span className="text-emerald-500 font-bold mr-1">A</span> {report.route.pickup || "-"}
+                        <span className="text-emerald-500 font-bold me-1">A</span> {report.route.pickup || "-"}
                       </div>
                       <div title={report.route.dropoff} className="truncate text-[var(--text-muted)] text-xs mt-0.5">
-                        <span className="text-rose-500 font-bold mr-1">B</span> {report.route.dropoff || "-"}
+                        <span className="text-rose-500 font-bold me-1">B</span> {report.route.dropoff || "-"}
                       </div>
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right text-[var(--text-primary)] font-mono text-xs`}>
+                    <td className={`${TABLE_CELL_CLASS} text-end text-[var(--text-primary)] font-mono text-xs`}>
                       {report.total_duration_minutes}
                     </td>
-                    <td className={`${TABLE_CELL_CLASS} text-right text-[var(--text-primary)] font-mono text-xs`}>
+                    <td className={`${TABLE_CELL_CLASS} text-end text-[var(--text-primary)] font-mono text-xs`}>
                       {report.total_distance_km}
                     </td>
                     <td className={`${TABLE_CELL_CLASS} text-right text-[var(--text-muted)] text-xs`}>
@@ -280,73 +260,70 @@ export default function ChauffeurReportsPage() {
       <Modal
         isOpen={!!selectedReport}
         onClose={() => setSelectedReport(null)}
-        title={selectedReport ? `Trip Details #${selectedReport.id}` : "Trip Details"}
+        title={selectedReport ? t("tripDetails") + ` #${selectedReport.id}` : t("tripDetails")}
       >
         {selectedReport && (
           <div className="space-y-6">
-            {/* Passenger & Vehicle Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[var(--surface-subtle)] p-4 rounded-xl border border-[var(--border-light)]">
-                <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Passenger</h4>
-                <div className="font-bold text-[var(--text-primary)]">{selectedReport.passenger?.full_name || "Guest"}</div>
+                <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">{t("passenger")}</h4>
+                <div className="font-bold text-[var(--text-primary)]">{selectedReport.passenger?.full_name || t("guest")}</div>
                 <div className="text-sm text-[var(--text-muted)] font-mono mt-1">{selectedReport.passenger?.employee_id || "N/A"}</div>
 
               </div>
               <div className="bg-[var(--surface-subtle)] p-4 rounded-xl border border-[var(--border-light)]">
-                <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Vehicle & Driver</h4>
+                <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">{t("vehicleAndDriver")}</h4>
                 <div className="font-bold text-[var(--text-primary)]">{selectedReport.vehicle?.make} {selectedReport.vehicle?.model}</div>
                 <div className="text-sm text-[var(--text-muted)] font-mono mt-1">{selectedReport.vehicle?.plate_number}</div>
-                <div className="text-sm text-[var(--text-muted)] mt-1">Driver: {selectedReport.driver?.full_name || "Assigned Driver"}</div>
+                <div className="text-sm text-[var(--text-muted)] mt-1">{t("driver")}: {selectedReport.driver?.full_name || t("assignedDriver")}</div>
               </div>
             </div>
 
-            {/* Route Info */}
             <div className="bg-[var(--surface-subtle)] p-4 rounded-xl border border-[var(--border-light)]">
-              <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">Route Journey</h4>
+              <h4 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t("routeJourney")}</h4>
               <div className="flex flex-col gap-3 relative">
-                <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[var(--border-light)]"></div>
+                <div className="absolute start-[11px] top-2 bottom-2 w-0.5 bg-[var(--border-light)]"></div>
                 <div className="flex gap-3 items-start relative z-10">
                   <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 ring-4 ring-white">A</div>
                   <div>
                     <div className="text-sm font-medium text-[var(--text-primary)]">{selectedReport.route.pickup}</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-0.5">Pickup Location</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">{t("pickupLocation")}</div>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start relative z-10">
                   <div className="w-6 h-6 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-bold shrink-0 ring-4 ring-white">B</div>
                   <div>
                     <div className="text-sm font-medium text-[var(--text-primary)]">{selectedReport.route.dropoff}</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-0.5">Dropoff Location</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">{t("dropoffLocation")}</div>
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-[var(--border-light)]">
                 <div>
-                  <span className="text-xs text-[var(--text-muted)]">Duration:</span>
-                  <span className="ml-2 text-sm font-bold text-[var(--text-primary)]">{selectedReport.total_duration_minutes} mins</span>
+                  <span className="text-xs text-[var(--text-muted)]">{t("duration")}:</span>
+                  <span className="ms-2 text-sm font-bold text-[var(--text-primary)]">{t("mins", { count: selectedReport.total_duration_minutes })}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-[var(--text-muted)]">Distance:</span>
-                  <span className="ml-2 text-sm font-bold text-[var(--text-primary)]">{selectedReport.total_distance_km} km</span>
+                  <span className="text-xs text-[var(--text-muted)]">{t("distance")}:</span>
+                  <span className="ms-2 text-sm font-bold text-[var(--text-primary)]">{t("km", { count: selectedReport.total_distance_km })}</span>
                 </div>
               </div>
             </div>
 
-            {/* Trip Breakdown (Daily Logs) */}
             {selectedReport.daily_logs && selectedReport.daily_logs.length > 0 && (
               <div>
                 <h4 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--cort-orange)]"></span>
-                  Trip Breakdown
+                  {t("tripBreakdown")}
                 </h4>
                 <div className="bg-white border border-[var(--border-light)] rounded-lg overflow-hidden shadow-sm">
-                  <table className="min-w-full text-left text-xs">
+                  <table className="min-w-full text-start text-xs">
                     <thead className="bg-[var(--surface-subtle)] font-bold text-[var(--text-muted)] uppercase tracking-tight">
                       <tr>
-                        <th className="px-4 py-2.5 border-b border-[var(--border-light)]">Date</th>
-                        <th className="px-4 py-2.5 border-b border-[var(--border-light)]">Type</th>
-                        <th className="px-4 py-2.5 border-b border-[var(--border-light)] text-right">Hours</th>
-                        <th className="px-4 py-2.5 border-b border-[var(--border-light)] text-right">Full Day</th>
+                        <th className="px-4 py-2.5 border-b border-[var(--border-light)]">{t("date")}</th>
+                        <th className="px-4 py-2.5 border-b border-[var(--border-light)]">{t("tripType")}</th>
+                        <th className="px-4 py-2.5 border-b border-[var(--border-light)] text-end">{t("hours")}</th>
+                        <th className="px-4 py-2.5 border-b border-[var(--border-light)] text-end">{t("fullDay")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-light)]">
@@ -361,19 +338,19 @@ export default function ChauffeurReportsPage() {
                           </td>
                           <td className="px-4 py-2.5">
                             {log.trip_type === 'OUT_STATION' ? (
-                              <span className="text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded text-[10px]">OUTSTATION</span>
+                              <span className="text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded text-[10px]">{t("outstation")}</span>
                             ) : (
-                              <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded text-[10px]">IN CITY</span>
+                              <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded text-[10px]">{t("inCity")}</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-right font-mono text-[var(--text-primary)]">
+                          <td className="px-4 py-2.5 text-end font-mono text-[var(--text-primary)]">
                             {log.hours_used ? parseFloat(log.hours_used.toString()).toFixed(1) : (log.is_full_day ? "24.0" : "0.0")}
                           </td>
-                          <td className="px-4 py-2.5 text-right">
+                          <td className="px-4 py-2.5 text-end">
                             {log.is_full_day ? (
-                              <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded uppercase">Yes</span>
+                              <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded uppercase">{t("yes")}</span>
                             ) : (
-                              <span className="text-[var(--text-muted)] text-[10px] font-bold bg-[var(--surface-subtle)] px-2 py-0.5 rounded uppercase">No</span>
+                              <span className="text-[var(--text-muted)] text-[10px] font-bold bg-[var(--surface-subtle)] px-2 py-0.5 rounded uppercase">{t("no")}</span>
                             )}
                           </td>
                         </tr>
@@ -388,63 +365,62 @@ export default function ChauffeurReportsPage() {
             <div>
               <h4 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--cort-orange)]"></span>
-                Cost Breakdown
+                {t("costBreakdown")}
               </h4>
               <div className="bg-white border border-[var(--border-light)] rounded-lg overflow-hidden shadow-sm">
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-[var(--border-light)]">
                     <tr className="hover:bg-[var(--surface-subtle)]/50">
-                      <td className="px-4 py-3 text-[var(--text-primary)]">Service Charge (Base)</td>
-                      <td className="px-4 py-3 text-right font-medium text-[var(--text-primary)]">PKR {Number(selectedReport.breakdown.service_charge).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)]">{t("serviceChargeBase")}</td>
+                      <td className="px-4 py-3 text-end font-medium text-[var(--text-primary)]">PKR {Number(selectedReport.breakdown.service_charge).toLocaleString()}</td>
                     </tr>
                     <tr className="hover:bg-[var(--surface-subtle)]/50">
-                      <td className="px-4 py-3 text-[var(--text-primary)]">Fuel Surcharge</td>
-                      <td className="px-4 py-3 text-right font-medium text-[var(--text-primary)]">PKR {Number(selectedReport.breakdown.fuel_cost).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)]">{t("fuelSurcharge")}</td>
+                      <td className="px-4 py-3 text-end font-medium text-[var(--text-primary)]">PKR {Number(selectedReport.breakdown.fuel_cost).toLocaleString()}</td>
                     </tr>
                     {Number(selectedReport.breakdown.toll) > 0 && (
                       <tr className="bg-[var(--surface-subtle)]/30">
-                        <td className="px-4 py-2 text-[var(--text-muted)] pl-8 text-xs">Toll Charges</td>
-                        <td className="px-4 py-2 text-right text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.toll).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-[var(--text-muted)] ps-8 text-xs">{t("tollCharges")}</td>
+                        <td className="px-4 py-2 text-end text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.toll).toLocaleString()}</td>
                       </tr>
                     )}
                     {Number(selectedReport.breakdown.parking) > 0 && (
                       <tr className="bg-[var(--surface-subtle)]/30">
-                        <td className="px-4 py-2 text-[var(--text-muted)] pl-8 text-xs">Parking Fees</td>
-                        <td className="px-4 py-2 text-right text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.parking).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-[var(--text-muted)] ps-8 text-xs">{t("parkingFees")}</td>
+                        <td className="px-4 py-2 text-end text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.parking).toLocaleString()}</td>
                       </tr>
                     )}
                     {Number(selectedReport.breakdown.outstation_allowance) > 0 && (
                       <tr className="bg-[var(--surface-subtle)]/30">
-                        <td className="px-4 py-2 text-[var(--text-muted)] pl-8 text-xs">Outstation Allowance</td>
-                        <td className="px-4 py-2 text-right text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.outstation_allowance).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-[var(--text-muted)] ps-8 text-xs">{t("outstationAllowance")}</td>
+                        <td className="px-4 py-2 text-end text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.outstation_allowance).toLocaleString()}</td>
                       </tr>
                     )}
                     {Number(selectedReport.breakdown.accommodation) > 0 && (
                       <tr className="bg-[var(--surface-subtle)]/30">
-                        <td className="px-4 py-2 text-[var(--text-muted)] pl-8 text-xs">Accommodation</td>
-                        <td className="px-4 py-2 text-right text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.accommodation).toLocaleString()}</td>
+                        <td className="px-4 py-2 text-[var(--text-muted)] ps-8 text-xs">{t("accommodation")}</td>
+                        <td className="px-4 py-2 text-end text-[var(--text-primary)] text-xs">PKR {Number(selectedReport.breakdown.accommodation).toLocaleString()}</td>
                       </tr>
                     )}
                     <tr className="bg-[var(--surface-subtle)] font-bold border-t border-[var(--border-light)]">
-                      <td className="px-4 py-3 text-[var(--text-primary)]">Total Trip Cost</td>
-                      <td className="px-4 py-3 text-right text-[var(--cort-orange)]">PKR {Number(selectedReport.total_cost).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-[var(--text-primary)]">{t("totalTripCost")}</td>
+                      <td className="px-4 py-3 text-end text-[var(--cort-orange)]">PKR {Number(selectedReport.total_cost).toLocaleString()}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Receipts Section */}
             {(selectedReport.breakdown.expense_toll_image_url || selectedReport.breakdown.expense_parking_image_url) && (
               <div>
                 <h4 className="text-sm font-bold text-[var(--text-primary)] mb-3 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--cort-orange)]"></span>
-                  Expense Receipts
+                  {t("expenseReceipts")}
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   {selectedReport.breakdown.expense_toll_image_url && (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Toll Receipt</p>
+                      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t("tollReceipt")}</p>
                       <a
                         href={selectedReport.breakdown.expense_toll_image_url}
                         target="_blank"
@@ -466,7 +442,7 @@ export default function ChauffeurReportsPage() {
                   )}
                   {selectedReport.breakdown.expense_parking_image_url && (
                     <div className="space-y-2">
-                      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Parking Receipt</p>
+                      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t("parkingReceipt")}</p>
                       <a
                         href={selectedReport.breakdown.expense_parking_image_url}
                         target="_blank"

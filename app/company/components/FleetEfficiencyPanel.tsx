@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback, Fragment } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useAppSelector } from '@/app/lib/store/hooks';
 import { selectCompany } from '@/app/lib/store/slices/companySlice';
-import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X, Clock, Users, Package, CarFront, Lock, Car, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X, Clock, Users, Package, CarFront, Lock, Car } from 'lucide-react';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 
-const RouteMap = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
+const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,6 @@ type ShuttleMetric = {
   id: number;
   shuttle_trip_id: number;
   route_id: number | null;
-  vehicle_id: number | null;
   trip_date: string;
   direction: string;
   occupancy_pct: string | null;
@@ -32,19 +32,6 @@ type ShuttleMetric = {
   fuel_variance_pct: string | null;
   actual_distance_km: string | null;
   planned_distance_km: string | null;
-  vehicles: { plate_number: string } | null;
-};
-
-type VehicleFuelGroup = {
-  vehicleId: number;
-  plateNumber: string;
-  records: FuelFlag[];
-};
-
-type VehicleShuttleGroup = {
-  vehicleId: number;
-  plateNumber: string;
-  trips: ShuttleMetric[];
 };
 
 type RouteComparison = {
@@ -144,91 +131,6 @@ function pct(v: string | null | undefined) {
   return v == null ? '—' : `${fmt(v, 1)}%`;
 }
 
-function groupFuelFlagsByVehicle(flags: FuelFlag[]): VehicleFuelGroup[] {
-  const buckets: Record<number, FuelFlag[]> = {};
-  for (const flag of flags) {
-    (buckets[flag.vehicle_id] ??= []).push(flag);
-  }
-
-  return Object.entries(buckets)
-    .map(([vehicleId, records]) => ({
-      vehicleId: Number(vehicleId),
-      plateNumber: records[0]?.vehicles?.plate_number ?? String(vehicleId),
-      records: records.sort(
-        (a, b) => new Date(b.flag_date).getTime() - new Date(a.flag_date).getTime(),
-      ),
-    }))
-    .sort(
-      (a, b) =>
-        new Date(b.records[0].flag_date).getTime() - new Date(a.records[0].flag_date).getTime(),
-    );
-}
-
-function groupShuttleMetricsByVehicle(metrics: ShuttleMetric[]): VehicleShuttleGroup[] {
-  const buckets: Record<number, ShuttleMetric[]> = {};
-  for (const metric of metrics) {
-    const vehicleId = metric.vehicle_id ?? 0;
-    (buckets[vehicleId] ??= []).push(metric);
-  }
-
-  return Object.entries(buckets)
-    .map(([vehicleId, trips]) => ({
-      vehicleId: Number(vehicleId),
-      plateNumber:
-        Number(vehicleId) === 0
-          ? 'Unassigned'
-          : trips[0]?.vehicles?.plate_number ?? String(vehicleId),
-      trips: trips.sort(
-        (a, b) => new Date(b.trip_date).getTime() - new Date(a.trip_date).getTime(),
-      ),
-    }))
-    .sort(
-      (a, b) =>
-        new Date(b.trips[0].trip_date).getTime() - new Date(a.trips[0].trip_date).getTime(),
-    );
-}
-
-function formatShortDate(value: string) {
-  return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function varianceTone(v: string | null | undefined) {
-  const n = v == null ? 0 : parseFloat(v);
-  if (n > 20 || n < -20) return 'text-rose-400';
-  if (n > 15 || n < -15) return 'text-[var(--cort-orange)]';
-  return 'text-[var(--text-primary)]';
-}
-
-const thClass = 'px-5 py-3.5 text-left text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider';
-const thRight = `${thClass} text-right`;
-const tdClass = 'px-5 py-3.5 text-sm text-[var(--text-secondary)]';
-const tdRight = `${tdClass} text-right`;
-
-function ExpandHistoryButton({
-  expanded,
-  count,
-  unit,
-  onClick,
-}: {
-  expanded: boolean;
-  count: number;
-  unit: 'days' | 'trips';
-  onClick: () => void;
-}) {
-  const label = unit === 'days' ? 'day' : 'trip';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)] bg-[var(--surface-subtle)] border border-[var(--border-light)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] transition-colors whitespace-nowrap"
-    >
-      {expanded ? 'Hide history' : `Show all ${count} ${label}${count !== 1 ? 's' : ''}`}
-      <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
-    </button>
-  );
-}
-
 function severityColor(s: string) {
   if (s === 'CRITICAL') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
   if (s === 'HIGH') return 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border-[var(--cort-orange)]/20';
@@ -248,6 +150,7 @@ function insightIcon(type: string) {
 }
 
 function InsightCard({ insight }: { insight: FleetInsight }) {
+  const t = useTranslations('company.fleetAnalytics');
   return (
     <div className={`rounded-xl border p-4 ${severityColor(insight.severity)}`}>
       <div className="flex items-start gap-3">
@@ -265,7 +168,7 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
           <p className="text-xs mt-1 opacity-80">{insight.data.recommendation}</p>
           {insight.estimated_saving_pkr && parseFloat(insight.estimated_saving_pkr) > 0 && (
             <p className="text-xs mt-2 font-semibold">
-              Est. saving: PKR {parseFloat(insight.estimated_saving_pkr).toLocaleString()} / month
+              {t('estSavingMonth', { amount: parseFloat(insight.estimated_saving_pkr).toLocaleString() })}
             </p>
           )}
         </div>
@@ -275,11 +178,12 @@ function InsightCard({ insight }: { insight: FleetInsight }) {
 }
 
 function DisabledSection({ label }: { label: string }) {
+  const t = useTranslations('company.fleetAnalytics');
   return (
     <div className="rounded-[2rem] border border-dashed border-[var(--border-default)] bg-[var(--surface-subtle)]/30 px-6 py-10 text-center">
       <Lock className="h-6 w-6 text-[var(--text-muted)] mx-auto mb-2 opacity-40" />
       <p className="text-sm font-bold text-[var(--text-muted)]">{label}</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60">Contact your administrator to enable this service.</p>
+      <p className="text-xs text-[var(--text-muted)] mt-1 opacity-60">{t('contactAdminEnable')}</p>
     </div>
   );
 }
@@ -287,6 +191,7 @@ function DisabledSection({ label }: { label: string }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FleetEfficiencyPanel() {
+  const t = useTranslations('company.fleetAnalytics');
   const company = useAppSelector(selectCompany);
   const companyId = Number(company?.id);
 
@@ -317,8 +222,6 @@ export function FleetEfficiencyPanel() {
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [routeComparison, setRouteComparison] = useState<RouteComparison | null>(null);
   const [mapLoading, setMapLoading] = useState(false);
-  const [expandedFuelVehicleId, setExpandedFuelVehicleId] = useState<number | null>(null);
-  const [expandedShuttleVehicleId, setExpandedShuttleVehicleId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -363,7 +266,7 @@ export function FleetEfficiencyPanel() {
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setSummary(metricsRes.value.summary);
-        setRecentMetrics(metricsRes.value.metrics);
+        setRecentMetrics(metricsRes.value.metrics.slice(0, 10));
       }
       if (fuelRes.status === 'fulfilled' && fuelRes.value) setFuelFlags(fuelRes.value);
       if (insightsRes.status === 'fulfilled') setInsights(insightsRes.value);
@@ -410,7 +313,7 @@ export function FleetEfficiencyPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-[var(--text-muted)]">
-        <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading fleet metrics…
+        <RefreshCw className="h-6 w-6 animate-spin me-2" /> {t('loadingMetrics')}
       </div>
     );
   }
@@ -419,8 +322,6 @@ export function FleetEfficiencyPanel() {
   const chauffeurInsights = insights.filter(i => CHAUFFEUR_INSIGHT_TYPES.has(i.insight_type));
   const poolInsights = insights.filter(i => POOL_INSIGHT_TYPES.has(i.insight_type));
   const showGenerate = aiEnabled && (shuttleEnabled || chauffeurEnabled || poolEnabled);
-  const fuelVehicleGroups = groupFuelFlagsByVehicle(fuelFlags);
-  const shuttleVehicleGroups = groupShuttleMetricsByVehicle(recentMetrics);
 
   return (
     <div className="space-y-10">
@@ -432,9 +333,9 @@ export function FleetEfficiencyPanel() {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Bus className="h-5 w-5 text-blue-400" />
-            <h2 className="text-base font-bold text-[var(--text-primary)]">Shuttle Analytics</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)]">{t('shuttleAnalytics')}</h2>
             {shuttleEnabled && aiEnabled && (
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">Active</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">{t('active')}</span>
             )}
           </div>
           {showGenerate && (
@@ -444,45 +345,30 @@ export function FleetEfficiencyPanel() {
               className="flex items-center gap-1.5 rounded-lg bg-[var(--cort-orange)] px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--cort-orange-hover)] disabled:opacity-60 transition-colors"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} />
-              {generating ? 'Generating…' : 'Run AI Analysis'}
+              {generating ? t('generating') : t('runAiAnalysis')}
             </button>
           )}
         </div>
 
         {!(shuttleEnabled && aiEnabled) ? (
-          <DisabledSection label="Shuttle service + AI Insights must both be enabled" />
+          <DisabledSection label={t('shuttleAiDisabled')} />
         ) : (
           <div className="space-y-6">
             {summary && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <KpiCard label="Trips analysed" value={summary.count.toString()} icon={<Bus className="h-5 w-5 text-blue-500" />} />
-                <KpiCard
-                  label="Avg occupancy"
-                  value={`${summary.avgOccupancy.toFixed(1)}%`}
-                  icon={summary.avgOccupancy >= 70 ? <TrendingUp className="h-5 w-5 text-green-500" /> : <TrendingDown className="h-5 w-5 text-orange-500" />}
-                  good={summary.avgOccupancy >= 70}
-                />
-                <KpiCard
-                  label="Avg detour ratio"
-                  value={summary.avgDetour ? `${summary.avgDetour.toFixed(2)}×` : '—'}
-                  icon={<Navigation className="h-5 w-5 text-purple-500" />}
-                  good={!summary.avgDetour || summary.avgDetour < 1.1}
-                />
-                <KpiCard
-                  label="Total idle (min)"
-                  value={Math.round(summary.totalIdleMin).toLocaleString()}
-                  icon={<Zap className="h-5 w-5 text-yellow-500" />}
-                  good={summary.totalIdleMin < 300}
-                />
+                <KpiCard label={t('tripsAnalysed')} value={summary.count.toString()} icon={<Bus className="h-5 w-5 text-blue-500" />} />
+                <KpiCard label={t('avgOccupancy')} value={`${summary.avgOccupancy.toFixed(1)}%`} icon={summary.avgOccupancy >= 70 ? <TrendingUp className="h-5 w-5 text-green-500" /> : <TrendingDown className="h-5 w-5 text-orange-500" />} good={summary.avgOccupancy >= 70} />
+                <KpiCard label={t('avgDetourRatio')} value={summary.avgDetour ? `${summary.avgDetour.toFixed(2)}×` : '—'} icon={<Navigation className="h-5 w-5 text-purple-500" />} good={!summary.avgDetour || summary.avgDetour < 1.1} />
+                <KpiCard label={t('totalIdleMin')} value={Math.round(summary.totalIdleMin).toLocaleString()} icon={<Zap className="h-5 w-5 text-yellow-500" />} good={summary.totalIdleMin < 300} />
               </div>
             )}
 
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-4">
-                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> AI Insights — Shuttle
+                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> {t('aiInsightsShuttle')}
               </h3>
               {shuttleInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active shuttle insights. Click Run AI Analysis to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">{t('noShuttleInsights')}</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {shuttleInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -490,195 +376,100 @@ export function FleetEfficiencyPanel() {
               )}
             </section>
 
-            {fuelVehicleGroups.length > 0 && (
-              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl">
+            {fuelFlags.length > 0 && (
+              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                 <div className="p-6 border-b border-[var(--border-light)]">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                      <Fuel className="h-4 w-4 text-rose-400" /> Flagged Fuel Variance
+                      <Fuel className="h-4 w-4 text-rose-400" /> {t('flaggedFuelVariance')}
                     </h3>
-                    <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 text-xs font-bold text-rose-400">
-                      {fuelVehicleGroups.length} vehicle{fuelVehicleGroups.length !== 1 ? 's' : ''}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {fuelFlags.length} flagged day{fuelFlags.length !== 1 ? 's' : ''} total
+                    <span className="inline-flex items-center rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400">
+                      {t('flagged', { count: fuelFlags.length })}
                     </span>
                   </div>
-                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-                    Flagged when variance &gt; 15% for 3+ consecutive days. Use <span className="font-semibold text-[var(--text-secondary)]">Show all</span> to view daily history.
-                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{t('fuelVarianceNote')}</p>
                 </div>
-                <div className="overflow-x-auto rounded-b-2xl">
+                <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/30">
-                        <th className={thClass}>Vehicle</th>
-                        <th className={thClass}>Date</th>
-                        <th className={thRight}>Variance</th>
-                        <th className={thRight}>Actual (L)</th>
-                        <th className={thRight}>Expected (L)</th>
-                        <th className={thRight}>Streak</th>
-                        <th className={thRight}>History</th>
+                      <tr className="border-b border-[var(--border-light)]">
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('vehicle')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('date')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('variance')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('actualL')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('expectedL')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('streak')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-light)]/60">
-                      {fuelVehicleGroups.slice(0, 8).map((group) => {
-                        const latest = group.records[0];
-                        const expanded = expandedFuelVehicleId === group.vehicleId;
-                        const hasMore = group.records.length > 1;
-
-                        return (
-                          <Fragment key={group.vehicleId}>
-                            <tr className={`transition-colors ${expanded ? 'bg-[var(--surface-subtle)]/40' : ''}`}>
-                              <td className="px-5 py-3.5">
-                                <span className="font-bold text-[var(--text-primary)]">{group.plateNumber}</span>
-                              </td>
-                              <td className={tdClass}>{formatShortDate(latest.flag_date)}</td>
-                              <td className={`${tdRight} font-bold ${varianceTone(latest.variance_pct)}`}>{pct(latest.variance_pct)}</td>
-                              <td className={tdRight}>{fmt(latest.actual_litres)}</td>
-                              <td className={tdRight}>{fmt(latest.expected_litres)}</td>
-                              <td className={`${tdRight} text-[var(--text-muted)]`}>{latest.consecutive_days}d</td>
-                              <td className={tdRight}>
-                                {hasMore ? (
-                                  <ExpandHistoryButton
-                                    expanded={expanded}
-                                    count={group.records.length}
-                                    unit="days"
-                                    onClick={() =>
-                                      setExpandedFuelVehicleId(expanded ? null : group.vehicleId)
-                                    }
-                                  />
-                                ) : (
-                                  <span className="text-xs text-[var(--text-muted)]">1 day</span>
-                                )}
-                              </td>
-                            </tr>
-                            {expanded && group.records.slice(1).map((record) => (
-                              <tr key={record.id} className="bg-[var(--surface-subtle)]/25">
-                                <td className="px-5 py-2.5" />
-                                <td className="px-5 py-2.5 text-sm text-[var(--text-muted)]">{formatShortDate(record.flag_date)}</td>
-                                <td className={`${tdRight} font-medium ${varianceTone(record.variance_pct)}`}>{pct(record.variance_pct)}</td>
-                                <td className={tdRight}>{fmt(record.actual_litres)}</td>
-                                <td className={tdRight}>{fmt(record.expected_litres)}</td>
-                                <td className={`${tdRight} text-[var(--text-muted)]`}>{record.consecutive_days}d</td>
-                                <td className={tdRight} />
-                              </tr>
-                            ))}
-                          </Fragment>
-                        );
-                      })}
+                    <tbody className="divide-y divide-[var(--border-light)]/50">
+                      {fuelFlags.slice(0, 8).map((f) => (
+                        <tr key={f.id} className="group transition-colors hover:bg-[var(--surface-subtle)]/80">
+                          <td className="px-6 py-4 font-bold text-[var(--text-primary)]">{f.vehicles?.plate_number ?? f.vehicle_id}</td>
+                          <td className="px-6 py-4 text-[var(--text-muted)]">{new Date(f.flag_date).toLocaleDateString()}</td>
+                          <td className={`px-6 py-4 text-end font-bold ${parseFloat(f.variance_pct) > 20 ? 'text-rose-400' : 'text-[var(--cort-orange)]'}`}>
+                            {pct(f.variance_pct)}
+                          </td>
+                          <td className="px-6 py-4 text-end text-[var(--text-secondary)]">{fmt(f.actual_litres)}</td>
+                          <td className="px-6 py-4 text-end text-[var(--text-secondary)]">{fmt(f.expected_litres)}</td>
+                          <td className="px-6 py-4 text-end text-[var(--text-muted)]">{f.consecutive_days}d</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </section>
             )}
 
-            {shuttleVehicleGroups.length > 0 && (
-              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl">
+            {recentMetrics.length > 0 && (
+              <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                 <div className="p-6 border-b border-[var(--border-light)]">
                   <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <Bus className="h-4 w-4 text-blue-400" /> Recent Shuttle Trips
+                    <Bus className="h-4 w-4 text-blue-400" /> {t('recentShuttleTrips')}
                   </h3>
-                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-                    Grouped by vehicle. Use <span className="font-semibold text-[var(--text-secondary)]">Show all</span> to browse earlier trips.
-                  </p>
                 </div>
-                <div className="overflow-x-auto rounded-b-2xl">
+                <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/30">
-                        <th className={thClass}>Vehicle</th>
-                        <th className={thClass}>Date</th>
-                        <th className={thClass}>Dir</th>
-                        <th className={thRight}>Occupancy</th>
-                        <th className={thRight}>Detour</th>
-                        <th className={thRight}>Idle (min)</th>
-                        <th className={thRight}>Fuel Var.</th>
-                        <th className={thRight}>Route</th>
-                        <th className={thRight}>History</th>
+                      <tr className="border-b border-[var(--border-light)]">
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('date')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-start">{t('dir')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('occupancy')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('detour')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('idleMin')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('fuelVar')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider text-end">{t('route')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-light)]/60">
-                      {shuttleVehicleGroups.slice(0, 10).map((group) => {
-                        const latest = group.trips[0];
-                        const expanded = expandedShuttleVehicleId === group.vehicleId;
-                        const hasMore = group.trips.length > 1;
-
-                        const renderTripRow = (trip: ShuttleMetric, isChild: boolean) => {
-                          const selected = selectedTripForMap === trip.shuttle_trip_id;
-                          const occupancy = trip.occupancy_pct ? parseFloat(trip.occupancy_pct) : null;
-                          const detour = trip.detour_ratio ? parseFloat(trip.detour_ratio) : null;
-                          const fuelVar = trip.fuel_variance_pct ? parseFloat(trip.fuel_variance_pct) : null;
-
-                          return (
-                            <tr
-                              key={trip.id}
-                              className={`transition-colors ${
-                                isChild ? 'bg-[var(--surface-subtle)]/25' : ''
-                              } ${!isChild && expanded ? 'bg-[var(--surface-subtle)]/40' : ''} ${
-                                selected ? 'bg-[var(--cort-orange)]/5' : ''
+                    <tbody className="divide-y divide-[var(--border-light)]/50">
+                      {recentMetrics.map((m) => (
+                        <tr key={m.id} className={`group transition-colors ${selectedTripForMap === m.shuttle_trip_id ? 'bg-[var(--cort-orange)]/5' : 'hover:bg-[var(--surface-subtle)]/80'}`}>
+                          <td className="px-6 py-4 text-[var(--text-secondary)]">{new Date(m.trip_date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-[var(--text-muted)]">{m.direction}</td>
+                          <td className={`px-6 py-4 text-right font-medium ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-[var(--cort-orange)]' : 'text-[var(--text-primary)]'}`}>
+                            {pct(m.occupancy_pct)}
+                          </td>
+                          <td className={`px-6 py-4 text-right font-medium ${m.detour_ratio && parseFloat(m.detour_ratio) > 1.2 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
+                            {m.detour_ratio ? `${fmt(m.detour_ratio, 2)}×` : '—'}
+                          </td>
+                          <td className="px-6 py-4 text-right text-[var(--text-muted)]">{fmt(m.idle_minutes, 0)}</td>
+                          <td className={`px-6 py-4 text-right font-medium ${m.fuel_variance_pct && Math.abs(parseFloat(m.fuel_variance_pct)) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
+                            {pct(m.fuel_variance_pct)}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => loadRouteComparison(m.shuttle_trip_id, m.route_id)}
+                              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
+                                selectedTripForMap === m.shuttle_trip_id
+                                  ? 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border border-[var(--cort-orange)]/20'
+                                  : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-light)]'
                               }`}
                             >
-                              <td className="px-5 py-3.5">
-                                {!isChild && (
-                                  <span className="font-bold text-[var(--text-primary)]">{group.plateNumber}</span>
-                                )}
-                              </td>
-                              <td className={isChild ? 'px-5 py-2.5 text-sm text-[var(--text-muted)]' : tdClass}>
-                                {formatShortDate(trip.trip_date)}
-                              </td>
-                              <td className={`${isChild ? 'px-5 py-2.5' : tdClass} text-[var(--text-muted)]`}>{trip.direction}</td>
-                              <td className={`${tdRight} font-medium ${occupancy != null && occupancy < 50 ? 'text-[var(--cort-orange)]' : 'text-[var(--text-primary)]'}`}>
-                                {pct(trip.occupancy_pct)}
-                              </td>
-                              <td className={`${tdRight} font-medium ${detour != null && detour > 1.2 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
-                                {trip.detour_ratio ? `${fmt(trip.detour_ratio, 2)}×` : '—'}
-                              </td>
-                              <td className={`${tdRight} text-[var(--text-muted)]`}>{fmt(trip.idle_minutes, 0)}</td>
-                              <td className={`${tdRight} font-medium ${fuelVar != null && Math.abs(fuelVar) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
-                                {pct(trip.fuel_variance_pct)}
-                              </td>
-                              <td className={tdRight}>
-                                <button
-                                  type="button"
-                                  onClick={() => void loadRouteComparison(trip.shuttle_trip_id, trip.route_id)}
-                                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
-                                    selected
-                                      ? 'bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] border border-[var(--cort-orange)]/20'
-                                      : 'bg-[var(--surface-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-[var(--border-light)]'
-                                  }`}
-                                >
-                                  <MapIcon className="h-3 w-3" />
-                                  {selected ? 'Close' : 'View'}
-                                </button>
-                              </td>
-                              <td className={tdRight}>
-                                {!isChild && (
-                                  hasMore ? (
-                                    <ExpandHistoryButton
-                                      expanded={expanded}
-                                      count={group.trips.length}
-                                      unit="trips"
-                                      onClick={() =>
-                                        setExpandedShuttleVehicleId(expanded ? null : group.vehicleId)
-                                      }
-                                    />
-                                  ) : (
-                                    <span className="text-xs text-[var(--text-muted)]">1 trip</span>
-                                  )
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        };
-
-                        return (
-                          <Fragment key={group.vehicleId}>
-                            {renderTripRow(latest, false)}
-                            {expanded && group.trips.slice(1).map((trip) => renderTripRow(trip, true))}
-                          </Fragment>
-                        );
-                      })}
+                              <MapIcon className="h-3 w-3" />
+                              {selectedTripForMap === m.shuttle_trip_id ? t('close') : t('view')}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -688,10 +479,10 @@ export function FleetEfficiencyPanel() {
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--surface-subtle)]/50">
                       <div className="flex items-center gap-2">
                         <MapIcon className="h-4 w-4 text-[var(--text-muted)]" />
-                        <span className="text-sm font-bold text-[var(--text-primary)]">Route Map Overlay</span>
+                        <span className="text-sm font-bold text-[var(--text-primary)]">{t('routeMapOverlay')}</span>
                         <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-                          <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-500" /> Planned
-                          <span className="inline-block h-2.5 w-6 rounded-sm bg-[var(--cort-orange)] ml-1" /> Actual
+                          <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-500" /> {t('planned')}
+                          <span className="inline-block h-2.5 w-6 rounded-sm bg-[var(--cort-orange)] ms-1" /> {t('actual')}
                         </span>
                       </div>
                       <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
@@ -700,7 +491,7 @@ export function FleetEfficiencyPanel() {
                     </div>
                     {mapLoading ? (
                       <div className="flex items-center justify-center h-64 text-[var(--text-muted)] text-sm">
-                        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading route data…
+                        <RefreshCw className="h-5 w-5 animate-spin me-2" /> {t('loadingRouteData')}
                       </div>
                     ) : routeComparison ? (
                       <RouteMapOverlay
@@ -709,7 +500,7 @@ export function FleetEfficiencyPanel() {
                       />
                     ) : (
                       <div className="flex items-center justify-center h-32 text-[var(--text-muted)] text-sm">
-                        No route data available for this trip.
+                        {t('noRouteData')}
                       </div>
                     )}
                   </div>
@@ -729,22 +520,22 @@ export function FleetEfficiencyPanel() {
       <div>
         <div className="flex items-center gap-2 mb-5">
           <CarFront className="h-5 w-5 text-teal-400" />
-          <h2 className="text-base font-bold text-[var(--text-primary)]">Chauffeur Analytics</h2>
+          <h2 className="text-base font-bold text-[var(--text-primary)]">{t('chauffeurAnalytics')}</h2>
           {chauffeurEnabled && aiEnabled && (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">Active</span>
+            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400">{t('active')}</span>
           )}
         </div>
 
         {!(chauffeurEnabled && aiEnabled) ? (
-          <DisabledSection label="Chauffeur service + AI Insights must both be enabled" />
+          <DisabledSection label={t('chauffeurAiDisabled')} />
         ) : (
           <div className="space-y-6">
             <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 mb-4">
-                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> AI Insights — Chauffeur
+                <Zap className="h-4 w-4 text-[var(--cort-orange)]" /> {t('aiInsightsChauffeur')}
               </h3>
               {chauffeurInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active chauffeur insights. Click Run AI Analysis to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">{t('noChauffeurInsights')}</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {chauffeurInsights.map(i => <InsightCard key={i.id} insight={i} />)}
@@ -755,34 +546,18 @@ export function FleetEfficiencyPanel() {
             {chauffeurUtil && (
               <>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <KpiCard label="Total bookings" value={chauffeurUtil.summary.total_bookings.toString()} icon={<CarFront className="h-5 w-5 text-teal-500" />} />
-                  <KpiCard
-                    label="Avg utilization"
-                    value={chauffeurUtil.summary.avg_utilization_pct != null ? `${chauffeurUtil.summary.avg_utilization_pct}%` : '—'}
-                    icon={<Clock className="h-5 w-5 text-blue-500" />}
-                    good={chauffeurUtil.summary.avg_utilization_pct != null && chauffeurUtil.summary.avg_utilization_pct >= 70}
-                  />
-                  <KpiCard
-                    label="Underutilized (<70%)"
-                    value={chauffeurUtil.summary.underutilized_count.toString()}
-                    icon={<AlertTriangle className="h-5 w-5 text-orange-500" />}
-                    good={chauffeurUtil.summary.underutilized_count === 0}
-                  />
-                  <KpiCard
-                    label="Est. billing saving"
-                    value={chauffeurUtil.summary.total_estimated_saving_pkr > 0
-                      ? `PKR ${chauffeurUtil.summary.total_estimated_saving_pkr.toLocaleString()}`
-                      : '—'}
-                    icon={<TrendingDown className="h-5 w-5 text-green-500" />}
-                  />
+                  <KpiCard label={t('totalBookings')} value={chauffeurUtil.summary.total_bookings.toString()} icon={<CarFront className="h-5 w-5 text-teal-500" />} />
+                  <KpiCard label={t('avgOccupancy')} value={chauffeurUtil.summary.avg_utilization_pct != null ? `${chauffeurUtil.summary.avg_utilization_pct}%` : '—'} icon={<Clock className="h-5 w-5 text-blue-500" />} good={chauffeurUtil.summary.avg_utilization_pct != null && chauffeurUtil.summary.avg_utilization_pct >= 70} />
+                  <KpiCard label={t('underutilizedBookings')} value={chauffeurUtil.summary.underutilized_count.toString()} icon={<AlertTriangle className="h-5 w-5 text-orange-500" />} good={chauffeurUtil.summary.underutilized_count === 0} />
+                  <KpiCard label={t('estBillingSaving')} value={chauffeurUtil.summary.total_estimated_saving_pkr > 0 ? `PKR ${chauffeurUtil.summary.total_estimated_saving_pkr.toLocaleString()}` : '—'} icon={<TrendingDown className="h-5 w-5 text-green-500" />} />
                 </div>
 
                 {chauffeurUtil.bookings.filter(b => (b.utilization_pct ?? 100) < 70).length > 0 && (
                   <section className="bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.4)]">
                     <div className="px-6 py-4 border-b border-[var(--border-light)] flex items-center gap-2">
                       <Package className="h-4 w-4 text-teal-400" />
-                      <span className="text-sm font-bold text-[var(--text-primary)]">Underutilised Bookings</span>
-                      <span className="text-xs text-[var(--text-muted)]">(used &lt;70% of package — consider a smaller package)</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{t('underutilizedBookings')}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{t('underutilizedHint')}</span>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="min-w-full text-sm">
@@ -848,12 +623,13 @@ function UtilizationBar({ pct }: { pct: number }) {
       <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <span className={`text-xs font-bold w-10 text-right ${pct < 60 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
+      <span className={`text-xs font-bold w-10 text-end ${pct < 60 ? 'text-rose-400' : 'text-[var(--text-secondary)]'}`}>{pct}%</span>
     </div>
   );
 }
 
 function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteComparison; routeInsight: FleetInsight | null }) {
+  const t = useTranslations('company.fleetAnalytics');
   const plannedPolyline: MapPolyline | null = comparison.planned_points.length > 1
     ? { positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]), color: '#2563eb', weight: 4, opacity: 0.85 }
     : null;
@@ -866,8 +642,8 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
   if (comparison.planned_points.length > 0) {
     const first = comparison.planned_points[0];
     const last = comparison.planned_points[comparison.planned_points.length - 1];
-    markers.push({ id: 'start', position: [first.lat, first.lng], label: 'Start', color: '#22c55e', type: 'pickup' });
-    markers.push({ id: 'end', position: [last.lat, last.lng], label: 'End', color: '#ef4444', type: 'dropoff' });
+    markers.push({ id: 'start', position: [first.lat, first.lng], label: t('start'), color: '#22c55e', type: 'pickup' });
+    markers.push({ id: 'end', position: [last.lat, last.lng], label: t('end'), color: '#ef4444', type: 'dropoff' });
   }
 
   const m = comparison.metrics;
@@ -878,14 +654,14 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
     <div className="flex flex-col lg:flex-row">
       <div className="flex-1 min-h-0" style={{ height: 360 }}>
         {polylines.length > 0 || markers.length > 0 ? (
-          <RouteMap markers={markers} polylines={polylines} height="360px" />
+          <Map markers={markers} polylines={polylines} height="360px" />
         ) : (
           <div className="flex items-center justify-center h-full bg-[var(--surface-subtle)] text-sm text-[var(--text-muted)]">
-            No polyline data recorded for this trip.
+            {t('noPolylineData')}
           </div>
         )}
       </div>
-      <div className="w-full lg:w-64 p-5 border-t lg:border-t-0 lg:border-l border-[var(--border-light)] flex flex-col gap-4 bg-[var(--surface-subtle)]/30">
+      <div className="w-full lg:w-64 p-5 border-t lg:border-t-0 lg:border-s border-[var(--border-light)] flex flex-col gap-4 bg-[var(--surface-subtle)]/30">
         {detour !== null && (
           <div className={`rounded-xl px-4 py-3 text-center border ${
             detour > 1.15
@@ -894,20 +670,20 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
               ? 'bg-[var(--cort-orange)]/10 border-[var(--cort-orange)]/20'
               : 'bg-emerald-500/10 border-emerald-500/20'
           }`}>
-            <p className="text-xs text-[var(--text-muted)] mb-0.5">Detour Ratio</p>
+            <p className="text-xs text-[var(--text-muted)] mb-0.5">{t('detourRatio')}</p>
             <p className={`text-2xl font-bold ${
               detour > 1.15 ? 'text-rose-400' : detour > 1.05 ? 'text-[var(--cort-orange)]' : 'text-emerald-400'
             }`}>
               {detour.toFixed(2)}×
             </p>
-            {detourPct && <p className="text-xs text-[var(--text-muted)]">+{detourPct}% extra distance</p>}
+            {detourPct && <p className="text-xs text-[var(--text-muted)]">{t('extraDistance', { percent: detourPct })}</p>}
           </div>
         )}
         <div className="space-y-2 text-sm">
           {m?.planned_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <span className="inline-block h-2 w-4 rounded-sm bg-blue-500" /> Planned
+                <span className="inline-block h-2 w-4 rounded-sm bg-blue-500" /> {t('planned')}
               </span>
               <span className="font-medium text-[var(--text-primary)]">{m.planned_distance_km.toFixed(2)} km</span>
             </div>
@@ -915,20 +691,20 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           {m?.actual_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <span className="inline-block h-2 w-4 rounded-sm bg-[var(--cort-orange)]" /> Actual
+                <span className="inline-block h-2 w-4 rounded-sm bg-[var(--cort-orange)]" /> {t('actual')}
               </span>
               <span className="font-medium text-[var(--text-primary)]">{m.actual_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {comparison.idle_minutes != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)]">Idle time</span>
+              <span className="text-[var(--text-muted)]">{t('idleTime')}</span>
               <span className="font-medium text-[var(--text-primary)]">{comparison.idle_minutes.toFixed(0)} min</span>
             </div>
           )}
           {m?.fuel_variance_pct != null && (
             <div className="flex items-center justify-between">
-              <span className="text-[var(--text-muted)]">Fuel variance</span>
+              <span className="text-[var(--text-muted)]">{t('fuelVariance')}</span>
               <span className={`font-medium ${Math.abs(m.fuel_variance_pct) > 15 ? 'text-rose-400' : 'text-[var(--text-primary)]'}`}>
                 {m.fuel_variance_pct > 0 ? '+' : ''}{m.fuel_variance_pct.toFixed(1)}%
               </span>
@@ -939,7 +715,7 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           <div className="rounded-xl bg-purple-500/10 border border-purple-500/20 p-3">
             <div className="flex items-center gap-1.5 mb-1">
               <Navigation className="h-3.5 w-3.5 text-purple-400" />
-              <span className="text-xs font-bold text-purple-400">AI Note</span>
+              <span className="text-xs font-bold text-purple-400">{t('aiNote')}</span>
             </div>
             <p className="text-xs text-purple-300">{routeInsight.data.recommendation}</p>
           </div>

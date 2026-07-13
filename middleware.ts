@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+function rewriteSaudiCompanyRoute(request: NextRequest, pathname: string) {
+    if (pathname === "/sa" || pathname === "/sa/") {
+        return NextResponse.rewrite(new URL("/company/login", request.url));
+    }
+
+    if (pathname.startsWith("/sa/")) {
+        const rest = pathname.slice(3);
+        const target = rest.startsWith("/company") ? rest : `/company${rest}`;
+        return NextResponse.rewrite(new URL(target, request.url));
+    }
+
+    return null;
+}
+
 export function middleware(request: NextRequest) {
     const hostname = request.headers.get("host");
     const { pathname } = request.nextUrl;
+
+    const saudiRewrite = rewriteSaudiCompanyRoute(request, pathname);
+    if (saudiRewrite) {
+        return saudiRewrite;
+    }
 
     // Define domains
     const ADMIN_DOMAIN = "admin.traflinq.com";
@@ -53,9 +72,18 @@ export function middleware(request: NextRequest) {
             return NextResponse.rewrite(new URL("/company/login", request.url));
         }
 
-        // Similar logic for company portal, but keep /admin routes intact.
+        // Saudi portal entry: portal.traflinq.com/sa
+        if (pathname === "/sa" || pathname === "/sa/") {
+            return NextResponse.rewrite(new URL("/company/login", request.url));
+        }
+
+        // Similar logic for company portal, but keep /admin and /sa routes intact.
         // (ProtectedRoute can redirect admins to "/admin".)
-        if (!pathname.startsWith("/company") && !pathname.startsWith("/admin")) {
+        if (
+            !pathname.startsWith("/company") &&
+            !pathname.startsWith("/admin") &&
+            !pathname.startsWith("/sa")
+        ) {
             return NextResponse.rewrite(new URL(`/company${pathname}`, request.url));
         }
     }

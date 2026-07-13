@@ -1,6 +1,9 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
+import { useCompanyLocale } from '../lib/locale-context';
+import { formatLocaleDate, formatLocaleTime } from '../../lib/i18n/format';
 import {
     CheckCircle,
     AlertCircle,
@@ -22,7 +25,6 @@ import {
     Wallet
 } from 'lucide-react';
 import { DashboardData } from '../types';
-import { useCompanyTheme } from '../lib/theme-context';
 
 // --- Shared Components ---
 
@@ -36,7 +38,7 @@ const formatCurrency = (value: number) => {
 };
 
 export const Card = ({ children, className = "", withLeftBorder = false }: { children: React.ReactNode; className?: string; withLeftBorder?: boolean }) => (
-    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 h-full shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] ${withLeftBorder ? 'border-l-4 border-l-[#fe8503]' : ''} ${className}`}>
+    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 h-full shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] ${withLeftBorder ? 'border-s-4 border-s-[#fe8503]' : ''} ${className}`}>
         {children}
     </div>
 );
@@ -64,6 +66,7 @@ const Sparkline = ({ data = [40, 30, 45, 50, 42, 55, 60], color = "var(--cort-or
 };
 
 const DonutChart = ({ data }: { data: { label: string; value: number; color: string }[] }) => {
+    const t = useTranslations('company.dashboard');
     const total = data.reduce((acc, curr) => acc + (curr.value || 0), 0);
     let currentOffset = 0;
 
@@ -106,7 +109,7 @@ const DonutChart = ({ data }: { data: { label: string; value: number; color: str
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold text-[var(--text-primary)]">{total}</span>
-                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Total Rides</span>
+                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{t('totalRides')}</span>
             </div>
         </div>
     );
@@ -131,34 +134,35 @@ const HeatmapPlaceholder = () => (
 // --- Sections ---
 
 export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] }) => {
+    const t = useTranslations('company.dashboard');
     const isZero = data.unassignedBookings === 0;
 
     return (
         <div className="grid grid-cols-1 gap-4 h-full">
             <Card className="relative overflow-hidden group transition-all">
-                <div className={`absolute top-0 right-0 p-4 transition-opacity opacity-5 text-[#fe8503]`}>
+                <div className={`absolute top-0 end-0 p-4 transition-opacity opacity-5 text-[#fe8503]`}>
                     <AlertCircle size={80} />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">Un-Assigned Bookings</div>
+                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">{t('unassignedBookings')}</div>
                     <div className="text-5xl font-black text-[var(--text-primary)]">{data.unassignedBookings}</div>
                     <div className="mt-2 text-sm text-[var(--text-muted)] flex items-center gap-2">
-                        {isZero ? "All caught up" : <span className="bg-[#fe8503]/15 text-[#fe8503] font-bold px-2 py-0.5 rounded-full text-xs border border-[#fe8503]/30">Requires attention</span>}
+                        {isZero ? t('allCaughtUp') : <span className="bg-[#fe8503]/15 text-[#fe8503] font-bold px-2 py-0.5 rounded-full text-xs border border-[#fe8503]/30">{t('requiresAttention')}</span>}
                     </div>
                 </div>
             </Card>
 
             <Card className="bg-[var(--bg-card)] border-[var(--border-default)] relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 text-[var(--accent-success)] opacity-5 group-hover:opacity-10 transition-opacity">
+                <div className="absolute top-0 end-0 p-4 text-[var(--accent-success)] opacity-5 group-hover:opacity-10 transition-opacity">
                     <CheckCircle size={80} />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">Rides Completed</div>
+                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">{t('ridesCompleted')}</div>
                     <div className="flex items-baseline gap-2">
                         <div className="text-5xl font-black text-[var(--text-primary)]">{data.ridesCompleted}</div>
                         <div className="text-sm font-bold text-[var(--text-primary)] bg-[var(--accent-success)] px-2 py-1 rounded-full">{data.completedTrend}</div>
                     </div>
-                    <div className="mt-2 text-[var(--text-muted)] text-sm">Successfully completed items</div>
+                    <div className="mt-2 text-[var(--text-muted)] text-sm">{t('successfullyCompleted')}</div>
                 </div>
             </Card>
         </div>
@@ -170,12 +174,16 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     outstandingAmount?: number;
     invoices?: any[];
 }) => {
+    const t = useTranslations('company.dashboard');
+    const tCurrency = useTranslations('common.currency');
+    const tStatus = useTranslations('common.status');
+    const { locale } = useCompanyLocale();
     const hasOutstanding = outstandingAmount > 0;
 
     return (
         <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] h-full transition-all duration-300 flex flex-col justify-between`}>
             {/* Background Icon matching Savings card */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+            <div className="pointer-events-none absolute inset-y-0 end-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 {hasOutstanding ? (
                     <Wallet size={120} className="text-[var(--accent-danger)]" />
                 ) : (
@@ -185,11 +193,11 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
             
             <div className="relative z-10 pt-2">
                 <div className="text-[var(--text-muted)] text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-4">
-                    {hasOutstanding ? 'Outstanding Balance' : 'Current Status'}
+                    {hasOutstanding ? t('outstandingBalance') : t('currentStatus')}
                 </div>
                 {hasOutstanding && (
                     <div className="flex items-baseline flex-wrap gap-x-1 -mt-1">
-                        <span className="text-xl sm:text-2xl font-bold text-[var(--text-muted)] leading-none">PKR</span>
+                        <span className="text-xl sm:text-2xl font-bold text-[var(--text-muted)] leading-none">{tCurrency('pkr')}</span>
                         <span className="text-4xl sm:text-5xl lg:text-6xl font-black text-[var(--accent-danger)] tracking-tighter leading-none">
                             {formatCurrency(outstandingAmount)}
                         </span>
@@ -201,28 +209,28 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
                 {hasOutstanding ? (
                     <div className="flex flex-col">
                         <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative z-20">
-                            <span className="font-bold">Total unpaid & overdue</span>
+                            <span className="font-bold">{t('totalUnpaidOverdue')}</span>
                             <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
                             
                             {/* Invoices Tooltip */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal translate-x-[-10px]">
+                                <div className="invisible group-hover/info:visible absolute top-full start-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-start font-normal -translate-x-2">
                                     <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
-                                        Recent Outstanding Invoices
+                                        {t('recentOutstandingInvoices')}
                                     </div>
                                     <div className="divide-y divide-[var(--border-default)] max-h-48 overflow-y-auto">
                                         {invoices.map((inv, idx) => (
                                             <div key={idx} className="px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors">
                                                 <div className="flex justify-between items-center">
                                                     <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold">{inv.invoice_number}</span>
-                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
+                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">{tCurrency('pkr')} {Number(inv.total_amount).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center mt-0.5">
                                                     <span className="text-[10px] text-[var(--text-muted)]">
-                                                        {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        {formatLocaleDate(inv.due_date, locale, { month: 'short', day: 'numeric' })}
                                                     </span>
                                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                                        {inv.status}
+                                                        {inv.status === 'OVERDUE' ? tStatus('overdue') : tStatus('pending')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -235,10 +243,10 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
                 ) : (
                     <div className="flex flex-col">
                         <div className="text-3xl font-black text-[var(--accent-success)] tracking-tight mb-2">
-                            You are all caught up!
+                            {t('youAreAllCaughtUp')}
                         </div>
                         <div className="text-xs text-[var(--text-muted)] mt-1 font-bold uppercase tracking-wider opacity-70">
-                            No pending actions
+                            {t('noPendingActions')}
                         </div>
                     </div>
                 )}
@@ -248,8 +256,8 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
 };
 
 export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = true, hasShuttle = true }: { data: DashboardData['valueDelivered']; benchmarkDelta?: number | null; hasChauffeur?: boolean; hasShuttle?: boolean }) => {
-    const { theme } = useCompanyTheme();
-    const isLight = theme === 'light';
+    const t = useTranslations('company.dashboard');
+    const tCurrency = useTranslations('common.currency');
     const savingsValue = benchmarkDelta != null ? benchmarkDelta : data.estimatedSavings;
     const isBenchmarkSavings = benchmarkDelta != null;
     const isSaving = savingsValue >= 0;
@@ -260,81 +268,55 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full'
             : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full';
 
-    const savingsCardBg = isBenchmarkSavings
-        ? isSaving
-            ? isLight
-                ? 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200'
-                : 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40'
-            : isLight
-                ? 'bg-gradient-to-br from-red-50 to-white border-red-200'
-                : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40'
-        : 'bg-[var(--bg-card)] border-[var(--border-default)]';
-
-    const savingsAccentIcon = isBenchmarkSavings
-        ? isSaving
-            ? isLight ? 'text-emerald-500' : 'text-emerald-400'
-            : isLight ? 'text-red-500' : 'text-red-400'
-        : 'text-[var(--cort-orange)]';
-
-    const savingsBadge = isSaving
-        ? isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-500/20 text-emerald-400'
-        : isLight ? 'bg-red-100 text-red-700' : 'bg-red-500/20 text-red-400';
-
-    const savingsValueText = isBenchmarkSavings
-        ? isSaving
-            ? isLight ? 'text-emerald-700' : 'text-emerald-400'
-            : isLight ? 'text-red-700' : 'text-red-400'
-        : 'text-[var(--text-primary)]';
-
     return (
         <div className={valueGridClass}>
             {/* Total Savings */}
-            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${savingsCardBg}`}>
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
-                    <Zap size={120} className={savingsAccentIcon} />
+            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+                    <Zap size={120} className={isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--cort-orange)]'} />
                 </div>
                 <div className="relative z-10 flex items-center justify-between">
-                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Total Savings</div>
+                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">{t('totalSavings')}</div>
                     {isBenchmarkSavings && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${savingsBadge}`}>
-                            vs vendor
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSaving ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {t('vsVendor')}
                         </span>
                     )}
                 </div>
                 <div className="relative z-10">
-                    <div className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1 ${savingsValueText}`}>
-                        <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
+                    <div className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1 ${isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--text-primary)]'}`}>
+                        <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">{tCurrency('pkr')}</span>
                         {formatCurrency(Math.abs(savingsValue))}
                     </div>
                     <div className="text-xs text-[var(--text-muted)] mt-1">
-                        {isBenchmarkSavings ? (isSaving ? 'Saved this month vs previous month' : 'Over previous month this month') : 'Estimated MTD'}
+                        {isBenchmarkSavings ? (isSaving ? t('savedVsVendor') : t('overVsVendor')) : t('estimatedMtd')}
                     </div>
                 </div>
             </div>
 
         {/* Avg Trip Cost */}
         <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+            <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 <Activity size={120} className="text-[var(--text-primary)]" />
             </div>
             <div className="relative z-10">
-                <div className="text-[var(--text-secondary)] text-xs font-bold uppercase tracking-wide">Avg Trip Cost</div>
+                <div className="text-[var(--text-secondary)] text-xs font-bold uppercase tracking-wide">{t('avgTripCost')}</div>
             </div>
             <div className="relative z-10">
                 <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2 flex items-baseline flex-wrap gap-x-1">
-                    <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">PKR</span>
+                    <span className="text-lg sm:text-xl lg:text-2xl text-[var(--text-muted)] font-normal">{tCurrency('pkr')}</span>
                     {formatCurrency(data.avgTripCost)}
                 </div>
-                <div className="text-xs text-[var(--text-primary)] text-opacity-60 mt-1">Per completed ride</div>
+                <div className="text-xs text-[var(--text-primary)] text-opacity-60 mt-1">{t('perCompletedRide')}</div>
             </div>
         </div>
 
         {hasChauffeur && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Car size={120} className="text-[#fe8503]" />
                 </div>
                 <div className="relative z-10 flex items-start justify-between">
-                    <div className="text-text-muted text-xs font-bold uppercase tracking-wide">Active Chauffeur Rides</div>
+                    <div className="text-text-muted text-xs font-bold uppercase tracking-wide">{t('activeChauffeurRides')}</div>
                     {data.activeRides > 0 ? (
                         <span className="relative flex h-3 w-3">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-success)] opacity-75"></span>
@@ -346,20 +328,20 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
                 </div>
                 <div className="relative z-10 mt-2">
                     <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.activeRides}</div>
-                    <div className="text-xs text-[var(--accent-success)] font-bold mt-1">In progress</div>
+                    <div className="text-xs text-[var(--accent-success)] font-bold mt-1">{t('inProgress')}</div>
                 </div>
             </div>}
 
         {hasShuttle && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Bus size={120} className="text-[#fe8503]" />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">Shuttle Trips</div>
+                    <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">{t('shuttleTrips')}</div>
                 </div>
                 <div className="relative z-10">
                     <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.shuttleTrips}</div>
-                    <div className="text-xs text-[var(--text-muted)] mt-1">Total runs MTD</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">{t('totalRunsMtd')}</div>
                 </div>
             </div>}
         </div>
@@ -367,50 +349,53 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
 };
 
 export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number; invoices?: any[] }) => {
+    const t = useTranslations('company.dashboard');
+    const tCurrency = useTranslations('common.currency');
+    const tStatus = useTranslations('common.status');
+    const { locale } = useCompanyLocale();
+
     return (
         <Card className="group relative overflow-visible z-20 hover:z-[200] p-5">
             <div className="pointer-events-none hidden sm:block absolute inset-0 overflow-hidden rounded-[2rem]">
-                <div className="absolute inset-y-4 right-0 w-40 flex items-center justify-center opacity-10 transform rotate-12">
+                <div className="absolute inset-y-4 end-0 w-40 flex items-center justify-center opacity-10 transform rotate-12">
                     <Wallet size={120} className="text-[var(--text-muted)]" />
                 </div>
             </div>
 
             <div className="relative z-10 flex flex-col lg:flex-row justify-between h-full gap-8">
-                {/* Left: Title & Amount */}
                 <div className="flex flex-col justify-between">
                     <div>
-                        <div className="text-[var(--text-primary)] text-xs sm:text-sm font-black uppercase tracking-widest opacity-80 mb-2">Outstanding Balance</div>
+                        <div className="text-[var(--text-primary)] text-xs sm:text-sm font-black uppercase tracking-widest opacity-80 mb-2">{t('outstandingBalance')}</div>
                         <div className="text-5xl sm:text-6xl lg:text-7xl font-black text-[var(--accent-danger)] tracking-tighter flex items-baseline flex-wrap gap-x-3">
-                            <span className="text-2xl sm:text-3xl text-[var(--text-muted)] font-normal">PKR</span>
+                            <span className="text-2xl sm:text-3xl text-[var(--text-muted)] font-normal">{tCurrency('pkr')}</span>
                             {formatCurrency(amount)}
                         </div>
                     </div>
 
                     <div className="mt-4 lg:mt-6">
                         <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-secondary)] flex items-center gap-2 relative z-20 cursor-default font-medium">
-                            <span className="opacity-80">Total unpaid & overdue invoices</span>
+                            <span className="opacity-80">{t('totalUnpaidInvoices')}</span>
                             <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
 
-                            {/* Hover Tooltip/List */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full left-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-left font-normal">
+                                <div className="invisible group-hover/info:visible absolute top-full start-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-start font-normal">
                                     <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
-                                        Recent Outstanding Invoices
+                                        {t('recentOutstandingInvoices')}
                                     </div>
                                     <div className="divide-y divide-[var(--border-default)] max-h-48 overflow-y-auto">
                                         {invoices.map((inv, idx) => (
                                             <div key={idx} className="px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors">
                                                 <div className="flex justify-between items-center">
                                                     <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold">{inv.invoice_number}</span>
-                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">PKR {Number(inv.total_amount).toLocaleString()}</span>
+                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">{tCurrency('pkr')} {Number(inv.total_amount).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center mt-0.5">
                                                     <span className="text-[10px] text-[var(--text-muted)]">
-                                                        {new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        {formatLocaleDate(inv.due_date, locale, { month: 'short', day: 'numeric' })}
                                                     </span>
                                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
                                                         }`}>
-                                                        {inv.status}
+                                                        {inv.status === 'OVERDUE' ? tStatus('overdue') : tStatus('pending')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -418,7 +403,7 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
                                     </div>
                                     {invoices.length >= 10 && (
                                         <div className="bg-[var(--bg-subtle)] px-4 py-1.5 text-[9px] text-[var(--text-muted)] text-center border-t border-[var(--border-default)]">
-                                            Showing top 10 invoices
+                                            {t('showingTop10')}
                                         </div>
                                     )}
                                 </div>
@@ -427,33 +412,30 @@ export const OutstandingAmountRow = ({ amount, invoices = [] }: { amount: number
                     </div>
                 </div>
 
-                {/* Center: Breakdown Metrics (Hidden on Mobile) */}
                 <div className="hidden lg:flex items-center gap-12 px-12 border-x border-[var(--border-light)] mx-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Overdue</span>
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">{t('overdue')}</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-black text-[var(--accent-danger)]">{invoices.filter(i => i.status === 'OVERDUE').length}</span>
-                            <span className="text-xs text-[var(--text-muted)] font-bold">Invoices</span>
+                            <span className="text-xs text-[var(--text-muted)] font-bold">{t('invoicesLabel')}</span>
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Pending</span>
+                        <span className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">{tStatus('pending')}</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-black text-[var(--text-primary)]">{invoices.filter(i => i.status !== 'OVERDUE').length}</span>
-                            <span className="text-xs text-[var(--text-muted)] font-bold">Invoices</span>
+                            <span className="text-xs text-[var(--text-muted)] font-bold">{t('invoicesLabel')}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Status & Action */}
                 <div className="flex flex-col justify-between items-end">
                     <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-wider bg-[var(--bg-subtle)] px-3 py-1 rounded-full border border-[var(--border-strong)]">
-                        Action Required
+                        {t('actionRequired')}
                     </div>
-                    {/* Floating premium detail */}
-                    <div className="mt-8 text-right">
-                        <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">Last Update</div>
-                        <div className="text-xs font-bold text-[var(--text-primary)]">Today, {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="mt-8 text-end">
+                        <div className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest mb-1">{t('lastUpdate')}</div>
+                        <div className="text-xs font-bold text-[var(--text-primary)]">{t('todayAt', { time: formatLocaleTime(new Date(), locale, { hour: '2-digit', minute: '2-digit' }) })}</div>
                     </div>
                 </div>
             </div>
@@ -469,19 +451,21 @@ export const CostVisibilitySection = ({
     data: DashboardData['cost'];
     onEditBudget?: () => void;
 }) => {
+    const t = useTranslations('company.dashboard');
+    const tCurrency = useTranslations('common.currency');
     const budget = data.budget || 1500000;
     const percentageUsed = Math.min((data.totalSpendMTD / budget) * 100, 100);
 
     return (
         <Card>
             <div className="flex justify-between items-center mb-4">
-                <SectionTitle><CreditCard className="w-5 h-5 text-[var(--cort-orange)]" /> Cost Visibility</SectionTitle>
+                <SectionTitle><CreditCard className="w-5 h-5 text-[var(--cort-orange)]" /> {t('costVisibility')}</SectionTitle>
                 {onEditBudget && (
                     <button
                         onClick={onEditBudget}
                         className="text-xs flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--cort-orange)] font-bold transition-colors bg-[var(--surface-muted)] hover:bg-[#fef3c7] px-2 py-1 rounded-md"
                     >
-                        <Settings className="w-3 h-3" /> Edit Budget
+                        <Settings className="w-3 h-3" /> {t('editBudget')}
                     </button>
                 )}
             </div>
@@ -490,14 +474,14 @@ export const CostVisibilitySection = ({
                 <div className="flex flex-col gap-6">
                     <div>
                         <div className="flex justify-between items-end mb-1">
-                            <div className="text-[var(--text-muted)] text-sm font-medium">Total Spend (MTD)</div>
+                            <div className="text-[var(--text-muted)] text-sm font-medium">{t('totalSpendMtd')}</div>
                             <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${data.spendTrend.startsWith('-') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                 {data.spendTrend}
                             </div>
                         </div>
 
                     <div className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight mb-4">
-                            <span className="text-xl text-[var(--text-muted)] font-medium mr-1">PKR</span>
+                            <span className="text-xl text-[var(--text-muted)] font-medium me-1">{tCurrency('pkr')}</span>
                             {(data.totalSpendMTD / 1000).toLocaleString()}k
                         </div>
                     </div>
@@ -505,26 +489,26 @@ export const CostVisibilitySection = ({
                     {/* Bullet Graph / Progress Bar */}
                     <div className="relative pt-1">
                         <div className="flex mb-2 items-center justify-between">
-                            <div className="text-xs text-[var(--text-muted)] font-semibold uppercase">Budget Usage</div>
-                        <div className="text-right font-bold text-[var(--text-primary)]">{percentageUsed.toFixed(0)}%</div>
+                            <div className="text-xs text-[var(--text-muted)] font-semibold uppercase">{t('budgetUsage')}</div>
+                        <div className="text-end font-bold text-[var(--text-primary)]">{percentageUsed.toFixed(0)}%</div>
                         </div>
                         <div className="overflow-hidden h-3 mb-2 text-xs flex rounded-full bg-[var(--border-light)] border border-[var(--border-dark)]">
                             <div style={{ width: `${percentageUsed}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-[var(--text-primary)] justify-center ${percentageUsed > 90 ? 'bg-[var(--accent-danger)]' : 'bg-[#fe8503]'}`}></div>
                         </div>
                         <div className="text-[10px] text-[var(--text-muted)] flex justify-between uppercase font-medium">
                             <span>0</span>
-                            <span>{(budget / 1000).toLocaleString()}k Goal</span>
+                            <span>{(budget / 1000).toLocaleString()}k {t('goal')}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col h-full border-t md:border-t-0 md:border-l border-[var(--border-light)] md:pl-8 pt-6 md:pt-0">
+                <div className="flex flex-col h-full border-t md:border-t-0 md:border-s border-[var(--border-light)] md:ps-8 pt-6 md:pt-0">
                     <div className="flex flex-col">
                         <div className="flex justify-between items-end mb-1">
-                            <div className="text-[var(--text-muted)] text-sm font-medium">Cost per Traveler</div>
+                            <div className="text-[var(--text-muted)] text-sm font-medium">{t('costPerTraveler')}</div>
                         </div>
-                    <div className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">PKR {data.costPerEmployee.toLocaleString()}</div>
-                        <div className="text-xs text-[var(--text-muted)] mt-2">Average spend across {data.costPerEmployee > 5000 ? 'active' : 'all'} employees</div>
+                    <div className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">{tCurrency('pkr')} {data.costPerEmployee.toLocaleString()}</div>
+                        <div className="text-xs text-[var(--text-muted)] mt-2">{t('avgSpendEmployees', { type: data.costPerEmployee > 5000 ? t('activeEmployees') : t('allEmployees') })}</div>
                     </div>
 
 
@@ -534,8 +518,8 @@ export const CostVisibilitySection = ({
                                 <Activity className="w-4 h-4" />
                             </div>
                             <div>
-                                <div className="text-xs font-bold text-[var(--text-muted)] uppercase">Projection</div>
-                                <div className="text-sm font-semibold text-[var(--text-primary)]">On track to stay within budget</div>
+                                <div className="text-xs font-bold text-[var(--text-muted)] uppercase">{t('projection')}</div>
+                                <div className="text-sm font-semibold text-[var(--text-primary)]">{t('onTrackBudget')}</div>
                             </div>
                         </div>
                     </div>
@@ -546,6 +530,8 @@ export const CostVisibilitySection = ({
 }
 
 export const SmartInsightsSection = ({ insights, seasonality }: { insights: string[], seasonality: DashboardData['seasonality'] }) => {
+    const t = useTranslations('company.dashboard');
+
     return (
         <Card className="bg-[var(--bg-card)] border border-[var(--border-default)]">
 
@@ -554,11 +540,11 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
                     <div
                         key={idx}
                         className="group flex flex-col gap-1 pb-3 border-b border-[var(--border-light)] last:border-0 last:pb-0 cursor-pointer hover:bg-[var(--surface-muted)] p-2 -mx-2 rounded-lg transition-colors"
-                        title="Click to view details"
+                        title={t('clickViewDetails')}
                     >
                         <div className="flex justify-between items-start gap-2">
                             <div className="text-sm text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors">
-                                <span className="text-[#fe8503] font-bold mr-2">•</span>
+                                <span className="text-[#fe8503] font-bold me-2">•</span>
                                 {insight}
                             </div>
                         </div>
@@ -572,11 +558,11 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
 
             <div className="mt-6 pt-4 border-t border-[var(--border-light)] grid grid-cols-2 gap-4">
                 <div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">Peak Day</div>
+                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">{t('peakDay')}</div>
                     <div className="text-white font-bold text-lg">{seasonality.highDemandDay}</div>
                 </div>
                 <div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">Quiet Day</div>
+                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">{t('quietDay')}</div>
                     <div className="text-white font-bold text-lg">{seasonality.lowDemandDay}</div>
                 </div>
             </div>
@@ -585,19 +571,21 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
 }
 
 export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUsage'] }) => {
+    const t = useTranslations('company.dashboard');
+
     return (
         <Card className="bg-[var(--bg-card)] border border-[var(--border-default)]">
-            <SectionTitle><Users className="w-5 h-5 text-[#fe8503]" /> Employee Adoption</SectionTitle>
+            <SectionTitle><Users className="w-5 h-5 text-[#fe8503]" /> {t('employeeAdoption')}</SectionTitle>
 
             <div className="flex flex-wrap items-center gap-4 mb-6">
                 <div className="flex-1 min-w-[120px]">
                     <div className="text-3xl font-bold text-[var(--text-primary)]">{data.activeEmployees}</div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">Active Passengers</div>
+                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">{t('activePassengers')}</div>
                 </div>
                 <div className="hidden sm:block w-px h-10 bg-[var(--bg-subtle)]"></div>
                 <div className="flex-1 min-w-[120px]">
                     <div className="text-3xl font-bold text-[var(--text-primary)]">{data.avgRidesPerEmployee}</div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">Avg Rides/Emp</div>
+                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">{t('avgRidesEmp')}</div>
                 </div>
             </div>
 
@@ -606,17 +594,17 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
                     <Star className="w-5 h-5 fill-[#fe8503]" />
                 </div>
                 <div>
-                    <div className="text-[11px] text-[var(--text-muted)] font-bold uppercase">Top Passenger</div>
+                    <div className="text-[11px] text-[var(--text-muted)] font-bold uppercase">{t('topPassenger')}</div>
                     <div className="font-bold text-[var(--text-primary)] text-sm">
                         {data.topPassenger.name}{' '}
-                        <span className="font-normal text-[var(--text-muted)]">({data.topPassenger.rides} rides)</span>
+                        <span className="font-normal text-[var(--text-muted)]">({t('ridesCount', { count: data.topPassenger.rides })})</span>
                     </div>
                 </div>
             </div>
 
             {/* Department Breakdown: list with bar per department (better for long names) */}
             <div>
-                <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wide mb-3">Department Breakdown</div>
+                <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wide mb-3">{t('departmentBreakdown')}</div>
                 <div className="space-y-2.5">
                     {data.departmentUsage.map((dept, i) => {
                         const colors = ['bg-[#fe8503]', 'bg-white/40', 'bg-[var(--accent-success)]', 'bg-white/20'];
@@ -643,13 +631,16 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
 }
 
 export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHealth'] }) => {
+    const t = useTranslations('company.dashboard');
+    const tStatus = useTranslations('common.status');
+
     return (
         <Card className="h-full bg-[var(--bg-card)] border border-[var(--border-default)]">
-            <SectionTitle><ShieldCheck className="w-5 h-5 text-[var(--accent-success)]" /> System Health</SectionTitle>
+            <SectionTitle><ShieldCheck className="w-5 h-5 text-[var(--accent-success)]" /> {t('systemHealth')}</SectionTitle>
 
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <div className="text-sm text-[var(--text-muted)] font-medium">Active Users</div>
+                    <div className="text-sm text-[var(--text-muted)] font-medium">{t('activeUsers')}</div>
                     <div className="text-sm font-bold text-[var(--accent-success)]">{(data.registeredVsActiveRatio * 100).toFixed(0)}%</div>
                 </div>
                 <div className="w-full bg-[var(--border-light)] h-2 rounded-full overflow-hidden">
@@ -657,7 +648,7 @@ export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHeal
                 </div>
 
                 <div className="flex items-center justify-between mt-2">
-                    <div className="text-sm text-[var(--text-muted)] font-medium">Dept. Adoption</div>
+                    <div className="text-sm text-[var(--text-muted)] font-medium">{t('deptAdoption')}</div>
                     <div className="text-sm font-bold text-[var(--text-primary)]">{data.deptAdoptionRate}%</div>
                 </div>
                 <div className="w-full bg-[var(--border-light)] h-2 rounded-full overflow-hidden">
@@ -665,8 +656,8 @@ export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHeal
                 </div>
 
                 <div className="flex justify-between text-xs text-[var(--text-muted)] pt-2">
-                    <span>System wide health checked today</span>
-                    <span className="text-[var(--accent-success)] font-bold">Good</span>
+                    <span>{t('healthCheckedToday')}</span>
+                    <span className="text-[var(--accent-success)] font-bold">{tStatus('good')}</span>
                 </div>
             </div>
         </Card>
@@ -674,10 +665,11 @@ export const AdoptionHealthSection = ({ data }: { data: DashboardData['adminHeal
 }
 
 export const ServiceUsageSection = ({ data, hasChauffeur = true, hasShuttle = true }: { data: DashboardData['services']; hasChauffeur?: boolean; hasShuttle?: boolean }) => {
+    const t = useTranslations('company.dashboard');
     const allItems = [
-        { label: 'Chauffeur', value: data.chauffeur, color: '#fe8503', dot: 'bg-[#fe8503]', show: hasChauffeur },
-        { label: 'Shuttle', value: data.shuttles, color: 'rgba(255,255,255,0.5)', dot: 'bg-white/50', show: hasShuttle },
-        { label: 'Event Shuttle', value: data.eventShuttle, color: 'rgba(255,255,255,0.15)', dot: 'bg-white/15', show: hasShuttle },
+        { label: t('chauffeur'), value: data.chauffeur, color: '#fe8503', dot: 'bg-[#fe8503]', show: hasChauffeur },
+        { label: t('shuttle'), value: data.shuttles, color: 'rgba(255,255,255,0.5)', dot: 'bg-white/50', show: hasShuttle },
+        { label: t('eventShuttle'), value: data.eventShuttle, color: 'rgba(255,255,255,0.15)', dot: 'bg-white/15', show: hasShuttle },
     ];
 
     const visibleItems = allItems.filter((i) => i.show);
@@ -685,7 +677,7 @@ export const ServiceUsageSection = ({ data, hasChauffeur = true, hasShuttle = tr
 
     return (
         <Card>
-            <SectionTitle><Car className="w-5 h-5 text-[#f47f00]" /> Service Split</SectionTitle>
+            <SectionTitle><Car className="w-5 h-5 text-[#f47f00]" /> {t('serviceSplit')}</SectionTitle>
 
             <div className="flex flex-col items-center justify-center h-full py-2">
                 <DonutChart data={chartData} />
@@ -705,11 +697,13 @@ export const ServiceUsageSection = ({ data, hasChauffeur = true, hasShuttle = tr
 }
 
 export const PremiumTeaser = () => {
+    const t = useTranslations('company.dashboard');
+
     return (
         <div className="mt-8 flex justify-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fe8503]/10 border border-[#fe8503]/20 text-[#fe8503]/80 text-xs font-medium cursor-not-allowed hover:opacity-100 transition-all opacity-90">
                 <Star className="w-3 h-3 fill-[#fe8503]" />
-                Advanced analytics & custom reports available on request
+                {t('premiumTeaser')}
             </div>
         </div>
     )

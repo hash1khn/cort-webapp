@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { apiClient, Invoice } from "../../lib/services/api-client";
 import { useAuth } from "../../lib/contexts/auth-context";
 import { Card } from "../components/DashboardComponents";
 import { PageHeader, TABLE_CARD_CLASS, TABLE_TOP_BAR_CLASS, TABLE_HEADER_CELL_CLASS, TABLE_CELL_CLASS, TABLE_PAGINATION_WRAPPER_CLASS } from "../components/PageLayout";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
 import Pagination from "@/app/components/ui/Pagination";
+import { formatLocaleDate, formatLocaleNumber } from "@/app/lib/i18n/format";
+import type { Locale } from "@/i18n/config";
 
 interface PaginationMeta {
     page: number;
@@ -14,12 +17,19 @@ interface PaginationMeta {
     total: number;
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_SHORT_KEYS = [
+    "jan", "feb", "mar", "apr", "may", "jun",
+    "jul", "aug", "sep", "oct", "nov", "dec",
+] as const;
 
-function formatBillingMonth(value: string): string {
+type InvoiceStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID" | "OVERDUE" | "DRAFT";
+
+function formatBillingMonth(
+    value: string,
+    getMonthShort: (index: number) => string,
+): string {
     if (!value) return "—";
 
-    // Weekly format: "4/2026 W0427-0430"
     const weeklyMatch = value.match(/^(\d+)\/(\d{4})\s+W(\d{2})(\d{2})-(\d{2})(\d{2})$/);
     if (weeklyMatch) {
         const year = weeklyMatch[2];
@@ -28,26 +38,29 @@ function formatBillingMonth(value: string): string {
         const endMonth = parseInt(weeklyMatch[5], 10) - 1;
         const endDay = parseInt(weeklyMatch[6], 10);
 
-        const startStr = `${MONTH_NAMES[startMonth]} ${startDay}`;
+        const startStr = `${getMonthShort(startMonth)} ${startDay}`;
         const endStr = startMonth === endMonth
             ? `${endDay}`
-            : `${MONTH_NAMES[endMonth]} ${endDay}`;
+            : `${getMonthShort(endMonth)} ${endDay}`;
 
         return `${startStr} – ${endStr}, ${year}`;
     }
 
-    // Monthly format: "4/2026"
     const monthlyMatch = value.match(/^(\d+)\/(\d{4})$/);
     if (monthlyMatch) {
         const month = parseInt(monthlyMatch[1], 10) - 1;
         const year = monthlyMatch[2];
-        return `${MONTH_NAMES[month] ?? monthlyMatch[1]} ${year}`;
+        return `${getMonthShort(month) ?? monthlyMatch[1]} ${year}`;
     }
 
     return value;
 }
 
 export default function CompanyInvoicingPage() {
+    const t = useTranslations("company.invoicing");
+    const tSavings = useTranslations("company.savings");
+    const tCommon = useTranslations("common");
+    const locale = useLocale() as Locale;
     const { user } = useAuth();
 
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -57,6 +70,19 @@ export default function CompanyInvoicingPage() {
     const [downloadingId, setDownloadingId] = useState<number | null>(null);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [page, setPage] = useState(1);
+
+    const getMonthShort = useCallback(
+        (index: number) => tSavings(`monthsShort.${MONTH_SHORT_KEYS[index]}`),
+        [tSavings],
+    );
+
+    const formatStatus = useCallback(
+        (status: string | undefined) => {
+            const key = (status || "DRAFT") as InvoiceStatus;
+            return t(`statusLabels.${key}`);
+        },
+        [t],
+    );
 
     const fetchInvoices = useCallback(async (p: number) => {
         if (!user?.company_id) return;
@@ -68,11 +94,11 @@ export default function CompanyInvoicingPage() {
             const meta = raw?.pagination ?? {};
             setPagination({ page: meta.page ?? p, pages: meta.pages ?? 1, total: meta.total ?? 0 });
         } catch (e: any) {
-            setErrorState(e?.message ?? "Failed to load invoices");
+            setErrorState(e?.message ?? tCommon("errors.failedToLoadInvoices"));
         } finally {
             setIsLoading(false);
         }
-    }, [user?.company_id]);
+    }, [user?.company_id, tCommon]);
 
     useEffect(() => {
         fetchInvoices(page);
@@ -85,7 +111,7 @@ export default function CompanyInvoicingPage() {
             await apiClient.downloadInvoicePdf(id, invoiceNumber);
         } catch (e) {
             console.error("Failed to download PDF", e);
-            alert("Failed to download PDF");
+            alert(t("failedToDownloadPdf"));
         } finally {
             setDownloadingId(null);
         }
@@ -98,16 +124,11 @@ export default function CompanyInvoicingPage() {
             await apiClient.viewInvoicePdf(id);
         } catch (e) {
             console.error("Failed to view PDF", e);
-            alert("Failed to view PDF");
+            alert(t("failedToViewPdf"));
         } finally {
             setViewingId(null);
         }
     };
-
-    // Loading skeleton is now handled inside the table to preserve headers
-    /* if (isLoading) {
-        return <TablePageSkeleton />;
-    } */
 
     if (errorState) {
         return <div className="p-12 text-center text-rose-500 bg-rose-50 rounded-2xl m-6 border border-rose-200">{errorState}</div>;
@@ -116,24 +137,24 @@ export default function CompanyInvoicingPage() {
     return (
         <div className="flex flex-col gap-6 max-w-[1600px] mx-auto pb-12">
             <PageHeader
-                label="Financials"
-                title="Data & Billing"
-                description="Track your monthly service usage, view generated invoices, and manage payment settlements."
+                label={t("label")}
+                title={t("title")}
+                description={t("description")}
             />
 
             <Card className={`min-h-[500px] ${TABLE_CARD_CLASS}`}>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full text-left text-sm">
+                    <table className="min-w-full text-start text-sm">
                         <thead className="bg-[var(--surface-subtle)]/50">
                             <tr className="border-b border-[var(--border-light)]">
-                                <th className={TABLE_HEADER_CELL_CLASS}>Invoice #</th>
-                                <th className={TABLE_HEADER_CELL_CLASS}>Billing Month</th>
-                                <th className={TABLE_HEADER_CELL_CLASS}>Generated At</th>
-                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Total Amount</th>
-                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Amount Paid</th>
-                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Amount Payable</th>
-                                <th className={TABLE_HEADER_CELL_CLASS}>Status</th>
-                                <th className={`${TABLE_HEADER_CELL_CLASS} text-right`}>Actions</th>
+                                <th className={TABLE_HEADER_CELL_CLASS}>{t("invoiceNumber")}</th>
+                                <th className={TABLE_HEADER_CELL_CLASS}>{t("billingMonth")}</th>
+                                <th className={TABLE_HEADER_CELL_CLASS}>{t("generatedAt")}</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("totalAmount")}</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("amountPaid")}</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("amountPayable")}</th>
+                                <th className={TABLE_HEADER_CELL_CLASS}>{t("status")}</th>
+                                <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("actions")}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-light)]/50">
@@ -148,7 +169,7 @@ export default function CompanyInvoicingPage() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
                                             </span>
-                                            <span>No invoices found.</span>
+                                            <span>{t("noInvoices")}</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -156,31 +177,33 @@ export default function CompanyInvoicingPage() {
                                 invoices.map((inv) => (
                                     <tr key={inv.id} className="group hover:bg-[var(--surface-subtle)]/80 transition-colors border-b border-transparent">
                                         <td className={`${TABLE_CELL_CLASS} font-bold text-[var(--text-primary)] font-mono`}>#{inv.invoice_number}</td>
-                                        <td className={`${TABLE_CELL_CLASS} font-medium text-[var(--text-primary)]`}>{formatBillingMonth(inv.billing_month)}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-medium text-[var(--text-primary)]`}>
+                                            {formatBillingMonth(inv.billing_month, getMonthShort)}
+                                        </td>
                                         <td className={`${TABLE_CELL_CLASS} text-[var(--text-muted)]`}>
-                                            {new Date(inv.generated_at).toLocaleDateString()}
+                                            {formatLocaleDate(inv.generated_at, locale)}
                                         </td>
-                                        <td className={`${TABLE_CELL_CLASS} text-right font-bold text-[var(--text-primary)] text-base`}>
-                                            <span className="text-[var(--text-muted)] text-xs font-normal mr-1">PKR</span>
-                                            {Number(inv.total_amount).toLocaleString()}
+                                        <td className={`${TABLE_CELL_CLASS} text-end font-bold text-[var(--text-primary)] text-base`}>
+                                            <span className="text-[var(--text-muted)] text-xs font-normal me-1">{tCommon("currency.pkr")}</span>
+                                            {formatLocaleNumber(Number(inv.total_amount), locale)}
                                         </td>
-                                        <td className={`${TABLE_CELL_CLASS} text-right`}>
+                                        <td className={`${TABLE_CELL_CLASS} text-end`}>
                                             {inv.amount_paid != null && Number(inv.amount_paid) > 0 ? (
                                                 <span className="font-semibold text-emerald-600">
-                                                    <span className="text-emerald-400 text-xs font-normal mr-1">PKR</span>
-                                                    {Number(inv.amount_paid).toLocaleString()}
+                                                    <span className="text-emerald-400 text-xs font-normal me-1">{tCommon("currency.pkr")}</span>
+                                                    {formatLocaleNumber(Number(inv.amount_paid), locale)}
                                                 </span>
                                             ) : (
                                                 <span className="text-[var(--text-muted)]">—</span>
                                             )}
                                         </td>
-                                        <td className={`${TABLE_CELL_CLASS} text-right`}>
+                                        <td className={`${TABLE_CELL_CLASS} text-end`}>
                                             {inv.status === 'PAID' ? (
-                                                <span className="text-emerald-600 font-semibold text-xs">Fully Paid</span>
+                                                <span className="text-emerald-600 font-semibold text-xs">{t("fullyPaid")}</span>
                                             ) : (
                                                 <span className="font-semibold text-rose-600">
-                                                    <span className="text-rose-400 text-xs font-normal mr-1">PKR</span>
-                                                    {Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid ?? 0)).toLocaleString()}
+                                                    <span className="text-rose-400 text-xs font-normal me-1">{tCommon("currency.pkr")}</span>
+                                                    {formatLocaleNumber(Math.max(0, Number(inv.total_amount) - Number(inv.amount_paid ?? 0)), locale)}
                                                 </span>
                                             )}
                                         </td>
@@ -191,16 +214,16 @@ export default function CompanyInvoicingPage() {
                                                 inv.status === 'OVERDUE' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                                                     'bg-[var(--surface-subtle)] text-[var(--text-muted)] border-[var(--border-light)]'
                                                 }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${inv.status === 'PAID' ? 'bg-emerald-400' :
+                                                <span className={`w-1.5 h-1.5 rounded-full me-1.5 ${inv.status === 'PAID' ? 'bg-emerald-400' :
                                                     inv.status === 'UNPAID' ? 'bg-rose-400' :
                                                     inv.status === 'PARTIALLY_PAID' ? 'bg-amber-400' :
                                                     inv.status === 'OVERDUE' ? 'bg-orange-400' :
                                                         'bg-[var(--text-muted)]'
                                                     }`}></span>
-                                                {inv.status === 'PARTIALLY_PAID' ? 'PARTIALLY PAID' : (inv.status || 'DRAFT')}
+                                                {formatStatus(inv.status)}
                                             </span>
                                         </td>
-                                        <td className={`${TABLE_CELL_CLASS} text-right`}>
+                                        <td className={`${TABLE_CELL_CLASS} text-end`}>
                                             <div className="flex items-center justify-end gap-4">
                                                 <button
                                                     onClick={() => viewPdf(inv.id)}
@@ -213,9 +236,9 @@ export default function CompanyInvoicingPage() {
                                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                             </svg>
-                                                            Viewing...
+                                                            {t("viewing")}
                                                         </>
-                                                    ) : 'View Invoice'}
+                                                    ) : t("viewInvoice")}
                                                 </button>
                                                 <button
                                                     onClick={() => downloadPdf(inv.id, inv.invoice_number)}
@@ -228,9 +251,9 @@ export default function CompanyInvoicingPage() {
                                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                             </svg>
-                                                            Downloading...
+                                                            {t("downloading")}
                                                         </>
-                                                    ) : 'Download PDF'}
+                                                    ) : t("downloadPdf")}
                                                 </button>
                                             </div>
                                         </td>

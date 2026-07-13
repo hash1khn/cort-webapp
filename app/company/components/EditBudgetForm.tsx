@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAppDispatch } from '../../lib/store/hooks';
 import { fetchDashboardStats } from '../../lib/store/slices/dashboardSlice';
 import { apiClient } from '../../lib/services/api-client';
@@ -12,6 +15,9 @@ interface EditBudgetFormProps {
 }
 
 export default function EditBudgetForm({ companyId, currentBudget, onSuccess, onCancel }: EditBudgetFormProps) {
+    const t = useTranslations('company.dashboard');
+    const tEmployees = useTranslations('company.employees');
+    const tCommon = useTranslations('common');
     const dispatch = useAppDispatch();
     const [budget, setBudget] = useState<string>(currentBudget.toString());
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,18 +30,17 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
         const newBudget = parseInt(budget.replace(/,/g, ''), 10);
 
         if (isNaN(newBudget) || newBudget < 0) {
-            setError("Please enter a valid positive number.");
+            setError(tCommon('validation.validPositiveNumber'));
             return;
         }
 
         setIsSubmitting(true);
         try {
             await apiClient.updateCompany(companyId, { monthly_budget: newBudget });
-            // Refresh dashboard data to reflect the new budget (fire-and-forget — don't unwrap)
             dispatch(fetchDashboardStats(companyId));
             onSuccess();
-        } catch (err: any) {
-            setError(err.message || 'Failed to update company budget.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : tEmployees('failedUpdateBudget'));
         } finally {
             setIsSubmitting(false);
         }
@@ -52,10 +57,10 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
 
             <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                    Monthly Budget (PKR)
+                    {t('monthlyBudgetLabel')}
                 </label>
                 <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--text-muted)]">
+                    <div className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-[var(--text-muted)]">
                         <CreditCard className="w-4 h-4" />
                     </div>
                     <input
@@ -64,16 +69,16 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
                         min="0"
                         value={budget}
                         onChange={(e) => {
-                            // Only allow numbers
                             const val = e.target.value.replace(/[^0-9]/g, '');
                             setBudget(val);
                         }}
-                        className="w-full pl-10 pr-3 py-2 bg-[var(--bg-card)] border border-[var(--border-input)] text-[var(--text-primary)] rounded-xl focus:ring-2 focus:ring-[#fe8503]/20 focus:border-[#fe8503] transition-shadow transition-colors"
-                        placeholder="e.g. 1500000"
+                        className="w-full ps-10 pe-3 py-2 bg-[var(--bg-card)] border border-[var(--border-input)] text-[var(--text-primary)] rounded-xl focus:ring-2 focus:ring-[#fe8503]/20 focus:border-[#fe8503] transition-shadow transition-colors ltr-content"
+                        placeholder={t('budgetPlaceholder')}
+                        dir="ltr"
                     />
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                    Set a monthly limit to track your spending effectively.
+                    {tEmployees('budgetHint')}
                 </p>
             </div>
 
@@ -84,7 +89,7 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
                     disabled={isSubmitting}
                     className="flex-1 px-4 py-2 border border-[var(--border-input)] text-[var(--text-secondary)] rounded-xl hover:bg-[var(--row-hover)] font-medium transition-colors"
                 >
-                    Cancel
+                    {tCommon('actions.cancel')}
                 </button>
                 <button
                     type="submit"
@@ -93,11 +98,11 @@ export default function EditBudgetForm({ companyId, currentBudget, onSuccess, on
                 >
                     {isSubmitting ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                            Saving...
+                            <Loader2 className="w-4 h-4 animate-spin me-2" />
+                            {tEmployees('saving')}
                         </>
                     ) : (
-                        'Save Budget'
+                        tEmployees('saveBudget')
                     )}
                 </button>
             </div>

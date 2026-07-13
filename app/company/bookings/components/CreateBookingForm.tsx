@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees } from "../../../lib/store/slices/employeeSlice";
@@ -12,7 +13,6 @@ import { AutocompleteInput } from "../../../components/AutocompleteInput";
 import { pakistaniCars } from "../../../lib/data/pakistaniCars";
 import { pakistaniCities } from "../../../lib/data/pakistaniCities";
 import { apiClient } from "../../../lib/services/api-client";
-import { useAuth } from "../../../lib/contexts/auth-context";
 import { selectContract } from "../../../lib/store/slices/contractSlice";
 import OutstationEstimatePanel from "./OutstationEstimatePanel";
 import { PoolVehicle, PoolDriver, CompanyVendorLink, VendorVehicle } from "../../../lib/services/types/multi-mode";
@@ -50,7 +50,7 @@ function Field({
         <label className={cx("flex flex-col gap-2", className)}>
             <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] px-1">
                 {label}
-                {required && <span className="text-[#fe8503] ml-0.5"> *</span>}
+                {required && <span className="text-[#fe8503] ms-0.5"> *</span>}
             </span>
             {children}
         </label>
@@ -79,7 +79,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
                     props.className,
                 )}
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] group-focus-within:text-[var(--cort-orange)] transition-colors">
+            <div className="absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] group-focus-within:text-[var(--cort-orange)] transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -95,9 +95,10 @@ interface CreateBookingFormProps {
 }
 
 export default function CreateBookingForm({ onSuccess, onCancel }: CreateBookingFormProps) {
+    const t = useTranslations("company.bookings");
+    const tFulfillment = useTranslations("common.fulfillment");
+    const tCommon = useTranslations("common");
     const dispatch = useAppDispatch();
-    const { user } = useAuth();
-    const isTrialUser = !!user?.is_trial;
     const company = useAppSelector(selectCompany);
     const employees = useAppSelector(selectEmployees);
     const allowedVehicleModels = useAppSelector(selectAllowedVehicleModels);
@@ -109,9 +110,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     // Legacy store for createBooking action (to be refactored or kept if just an action)
 
     // Fulfillment type (multi-mode feature) — declared before useEffects to avoid TDZ errors
-    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">(
-        isTrialUser ? "SELF_MANAGED" : "CORT_MANAGED",
-    );
+    const [fulfillmentType, setFulfillmentType] = useState<"CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED">("CORT_MANAGED");
     const [poolVehicles, setPoolVehicles] = useState<PoolVehicle[]>([]);
     const [poolDrivers, setPoolDrivers] = useState<PoolDriver[]>([]);
     const [poolVehicleId, setPoolVehicleId] = useState<number | null>(null);
@@ -170,21 +169,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
     const availableFulfillmentTypes = useMemo(() => {
         const opts: { value: "CORT_MANAGED" | "EXTERNAL_VENDOR" | "SELF_MANAGED"; label: string }[] = [];
-        if (isTrialUser) {
-            opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
-            return opts;
-        }
         if (features.find((f) => f.feature_key === "chauffeur_cort_managed")?.is_enabled) {
-            opts.push({ value: "CORT_MANAGED", label: "CORT Managed" });
+            opts.push({ value: "CORT_MANAGED", label: tFulfillment("cortManaged") });
         }
         if (features.find((f) => f.feature_key === "chauffeur_external_vendor")?.is_enabled) {
-            opts.push({ value: "EXTERNAL_VENDOR", label: "External Vendor" });
+            opts.push({ value: "EXTERNAL_VENDOR", label: tFulfillment("externalVendor") });
         }
         if (features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled) {
-            opts.push({ value: "SELF_MANAGED", label: "Self-Managed Pool" });
+            opts.push({ value: "SELF_MANAGED", label: tFulfillment("selfManaged") });
         }
         return opts;
-    }, [features, isTrialUser]);
+    }, [features, tFulfillment]);
 
     const showBroadcastOption = useMemo(() => {
         return (
@@ -243,11 +238,6 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     const activeEmployees = useMemo(() => {
         return employees.filter((e) => e.status === "ACTIVE");
     }, [employees]);
-
-    useEffect(() => {
-        if (!isTrialUser || passengerId || activeEmployees.length === 0) return;
-        setPassengerId(activeEmployees[0].id);
-    }, [isTrialUser, passengerId, activeEmployees]);
 
     // Unique vehicle models from vendor vehicles (filtered by selected vendor for EXTERNAL_VENDOR)
     const vendorCarModels = useMemo(() => {
@@ -334,12 +324,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             if (!cortBroadcastCarModels || cortBroadcastCarModels.length === 0) return false;
         }
 
-        if (fulfillmentType === "SELF_MANAGED" && !isEventShuttle) {
-            if (!poolVehicleId || !poolDriverId) return false;
-        }
-
         return true;
-    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays, fulfillmentType, broadcastToAllVendors, vendorsLoading, vendorLinks.length, cortBroadcastCarModels, poolVehicleId, poolDriverId]);
+    }, [passengerId, vehicleModel, customVehicleModel, isEventShuttle, timeType, scheduledDateTime, pickupAddress, pickupLat, pickupLng, tripType, destinationCities, bookingCity, noOfDays, fulfillmentType, broadcastToAllVendors, vendorsLoading, vendorLinks.length, cortBroadcastCarModels]);
 
     const handleAddCity = () => {
         if (cityInput.trim()) {
@@ -362,7 +348,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     if (!company) {
         return (
             <div className="flex items-center justify-center py-12">
-                <div className="text-sm text-[var(--text-muted)]">No company selected</div>
+                <div className="text-sm text-[var(--text-muted)]">{tCommon("errors.noCompanySelected")}</div>
             </div>
         );
     }
@@ -371,9 +357,9 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         return (
             <div className="flex items-center justify-center py-12">
                 <div className="rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] p-6 text-center">
-                    <div className="text-lg font-bold text-[var(--text-primary)]">Chauffeur Service Disabled</div>
+                    <div className="text-lg font-bold text-[var(--text-primary)]">{t("chauffeurDisabled")}</div>
                     <div className="mt-2 text-sm text-[var(--text-muted)]">
-                        Chauffeur service is not enabled for your company. Please contact Cort Super Admin.
+                        {t("chauffeurDisabledHint")}
                     </div>
                 </div>
             </div>
@@ -386,16 +372,16 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
         setIsSubmitting(true);
 
         if (!company) {
-            setError("Company not found");
+            setError(t("companyNotFound"));
             setIsSubmitting(false);
             return;
         }
 
         if (!canSubmit) {
             if (!pickupLat || !pickupLng) {
-                setError("Please select a location on the map to set coordinates");
+                setError(t("selectMapLocation"));
             } else {
-                setError("Please fill in all required fields");
+                setError(tCommon("validation.fillRequiredFields"));
             }
             setIsSubmitting(false);
             return;
@@ -403,7 +389,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
         const passenger = employees.find((e) => e.id === passengerId);
         if (!passenger && !isEventShuttle) {
-            setError("Selected passenger not found");
+            setError(t("passengerNotFound"));
             setIsSubmitting(false);
             return;
         }
@@ -457,7 +443,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
             // Reset form handled by parent unmounting or manual reset if needed, but we close modal on success
             onSuccess();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create booking");
+            setError(err instanceof Error ? err.message : t("createFailed"));
         } finally {
             setIsSubmitting(false);
         }
@@ -493,9 +479,9 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
                         </div>
                     </div>
-                ) : availableFulfillmentTypes.length > 1 && !isTrialUser && (
+                ) : availableFulfillmentTypes.length > 1 && (
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">Fulfillment Type</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">{t("fulfillmentType")}</p>
                         <div className="flex flex-wrap gap-2">
                             {availableFulfillmentTypes.map((opt) => (
                                 <button
@@ -533,23 +519,23 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                         className="mt-1 rounded border-slate-300 text-[var(--cort-orange)] focus:ring-[var(--cort-orange)]"
                                     />
                                     <span className="text-sm text-[var(--cort-navy)] leading-snug">
-                                        <span className="font-bold">Also send to all available vendors</span>
+                                        <span className="font-bold">{t("alsoSendToVendors")}</span>
                                         <span className="block text-xs font-medium text-slate-600 mt-1">
-                                            Cort operations and your vendors are notified in one booking. Whichever assigns a driver first wins; other paths are closed automatically.
+                                            {t("broadcastHint")}
                                         </span>
                                     </span>
                                 </label>
                                 {broadcastToAllVendors && (
                                     <>
                                         {vendorsLoading ? (
-                                            <div className="text-xs text-slate-400 font-medium animate-pulse px-1">Loading vendors…</div>
+                                            <div className="text-xs text-slate-400 font-medium animate-pulse px-1">{t("loadingVendors")}</div>
                                         ) : vendorLinks.length === 0 ? (
                                             <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
-                                                No active chauffeur vendors linked — turn off this option or link vendors first.
+                                                {t("noActiveVendors")}
                                             </p>
                                         ) : (
                                             <>
-                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">Send vendor requests to</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">{t("sendVendorRequestsTo")}</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         type="button"
@@ -561,7 +547,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                                 : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
                                                         )}
                                                     >
-                                                        All vendors ({vendorLinks.length})
+                                                        {t("allVendorsCount", { count: vendorLinks.length })}
                                                     </button>
                                                     {vendorLinks.map((link) => (
                                                         <button
@@ -575,7 +561,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                                     : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
                                                             )}
                                                         >
-                                                            {link.external_vendors?.name ?? `Vendor #${link.id}`}
+                                                            {link.external_vendors?.name ?? t("vendorHash", { id: link.id })}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -588,14 +574,14 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         {fulfillmentType === "EXTERNAL_VENDOR" && (
                             <div className="mt-3 space-y-2">
                                 {vendorsLoading ? (
-                                    <div className="text-xs text-slate-400 font-medium animate-pulse px-1">Loading vendors…</div>
+                                    <div className="text-xs text-slate-400 font-medium animate-pulse px-1">{t("loadingVendors")}</div>
                                 ) : vendorLinks.length === 0 ? (
                                     <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
-                                        No active chauffeur vendors linked to your company.
+                                        {t("noActiveVendorsExternal")}
                                     </p>
                                 ) : (
                                     <>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">Send Request To</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">{t("sendRequestTo")}</p>
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 type="button"
@@ -607,7 +593,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                         : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
                                                 )}
                                             >
-                                                All Vendors ({vendorLinks.length})
+                                                {t("allVendorsCaps", { count: vendorLinks.length })}
                                             </button>
                                             {vendorLinks.map((link) => (
                                                 <button
@@ -621,88 +607,73 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                             : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
                                                     )}
                                                 >
-                                                    {link.external_vendors?.name ?? `Vendor #${link.id}`}
+                                                    {link.external_vendors?.name ?? t("vendorHash", { id: link.id })}
                                                 </button>
                                             ))}
                                         </div>
                                         <p className="text-[10px] text-slate-500 px-1">
                                             {vendorMode === "all"
-                                                ? "Request will be sent to all linked chauffeur vendors."
-                                                : `Request will be sent only to ${vendorLinks.find((l) => l.id === vendorMode)?.external_vendors?.name ?? "selected vendor"}.`}
+                                                ? t("requestAllVendors")
+                                                : t("requestSingleVendor", { name: vendorLinks.find((l) => l.id === vendorMode)?.external_vendors?.name ?? t("selectedVendor") })}
                                         </p>
                                     </>
                                 )}
                             </div>
                         )}
-                    </div>
-                )}
-
-                {fulfillmentType === "SELF_MANAGED" && !featuresLoading && (
-                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">
-                            Pool assignment
-                        </p>
-                        <Field label="Pool Driver" required>
-                            <Select
-                                value={poolDriverId ?? ""}
-                                onChange={(e) => setPoolDriverId(e.target.value || null)}
-                                required
-                                disabled={poolDrivers.length === 0}
-                            >
-                                <option value="">
-                                    {poolDrivers.length === 0
-                                        ? "No pool drivers — add one in Pool Fleet first"
-                                        : "Select driver"}
-                                </option>
-                                {poolDrivers.map((d) => (
-                                    <option key={d.user_id} value={d.user_id}>
-                                        {d.users.full_name}
-                                    </option>
-                                ))}
-                            </Select>
-                        </Field>
-                        {poolDrivers.length === 0 && (
-                            <p className="mt-2 text-xs text-rose-600 font-semibold">
-                                Invite a pool driver under Pool Fleet → Drivers before creating a booking.
-                            </p>
+                        {fulfillmentType === "SELF_MANAGED" && (
+                            <div className="mt-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">{t("poolDriver")}</label>
+                                    <select
+                                        value={poolDriverId ?? ""}
+                                        onChange={(e) => setPoolDriverId(e.target.value || null)}
+                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                    >
+                                        <option value="">{t("selectDriverOption")}</option>
+                                        {poolDrivers.map((d) => (
+                                            <option key={d.user_id} value={d.user_id}>{d.users.full_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
 
                 {/* Service Configuration Section */}
                 <CardSection
-                    title="Service Configuration"
+                    title={t("serviceConfiguration")}
                     icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                 >
-                    <Field label="Service Type" required>
+                    <Field label={t("serviceType")} required>
                         <Select
                             value={serviceCategory}
                             onChange={(e) => setServiceCategory(e.target.value)}
                             required
                         >
-                            <option value="Chauffeur Ride">Chauffeur Ride</option>
-                            <option value="Event Shuttle">Event Shuttle</option>
+                            <option value="Chauffeur Ride">{t("chauffeurRide")}</option>
+                            <option value="Event Shuttle">{t("eventShuttle")}</option>
                         </Select>
                     </Field>
 
-                    <Field label="City" required>
+                    <Field label={t("city")} required>
                         <AutocompleteInput
                             value={bookingCity}
                             onChange={setBookingCity}
                             options={pakistaniCities}
-                            placeholder="e.g. Karachi"
+                            placeholder={t("cityPlaceholder")}
                             required
                         />
                     </Field>
 
-                    <Field label="Passenger" required={!isEventShuttle} className="sm:col-span-2">
+                    <Field label={t("passenger")} required={!isEventShuttle} className="sm:col-span-2">
                         <Select
                             value={passengerId}
                             onChange={(e) => setPassengerId(e.target.value)}
                             required={!isEventShuttle}
                             autoFocus
                         >
-                            <option value="">{isEventShuttle ? "— None (group booking)" : "Select employee"}</option>
+                            <option value="">{isEventShuttle ? t("groupBookingNone") : t("selectEmployee")}</option>
                             {activeEmployees.map((e) => (
                                 <option key={e.id} value={e.id}>
                                     {e.full_name} {e.employee_id ? `(${e.employee_id})` : ''}
@@ -711,7 +682,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         </Select>
                         {isEventShuttle && (
                             <div className="mt-1.5 text-[10px] text-[var(--text-muted)] font-bold px-1 uppercase tracking-tight">
-                                Optional — Leave blank for booking creator.
+                                {t("passengerOptionalHint")}
                             </div>
                         )}
                     </Field>
@@ -719,17 +690,17 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
                 {/* Trip Details Section */}
                 <CardSection
-                    title="Ride Details"
+                    title={t("rideDetails")}
                     icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
                 >
-                    <Field label={isEventShuttle ? "Seater Type" : "Car Type"} required>
+                    <Field label={isEventShuttle ? t("seaterType") : t("carType")} required>
                         {isEventShuttle ? (
                             <Select
                                 value={vehicleModel}
                                 onChange={(e) => setVehicleModel(e.target.value)}
                                 required
                             >
-                                <option value="">Select type</option>
+                                <option value="">{t("selectType")}</option>
                                 {EVENT_SHUTTLE_SEATER_OPTIONS.map((opt) => (
                                     <option key={opt} value={opt}>{opt}</option>
                                 ))}
@@ -742,12 +713,12 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 disabled={vendorsLoading || vendorCarModels.length === 0}
                             >
                                 <option value="">
-                                    {vendorsLoading ? "Loading vendor vehicles…" : vendorCarModels.length === 0 ? "No vendor vehicles available" : "Select vehicle type"}
+                                    {vendorsLoading ? t("loadingVendorVehicles") : vendorCarModels.length === 0 ? t("noVendorVehicles") : t("selectVehicleType")}
                                 </option>
                                 {vendorCarModels.map((model) => (
                                     <option key={model} value={model}>{model}</option>
                                 ))}
-                                <option value="Other">Other (Special Request)</option>
+                                <option value="Other">{t("otherSpecialRequest")}</option>
                             </Select>
                         ) : fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors && cortBroadcastCarModels ? (
                             <Select
@@ -757,12 +728,12 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 disabled={vendorsLoading || cortBroadcastCarModels.length === 0}
                             >
                                 <option value="">
-                                    {vendorsLoading ? "Loading…" : cortBroadcastCarModels.length === 0 ? "No matching vehicle types" : "Select vehicle type (contract + vendor fleet)"}
+                                    {vendorsLoading ? t("loadingShort") : cortBroadcastCarModels.length === 0 ? t("noMatchingVehicleTypes") : t("selectVehicleTypeContractVendor")}
                                 </option>
                                 {cortBroadcastCarModels.map((model) => (
                                     <option key={model} value={model}>{model}</option>
                                 ))}
-                                <option value="Other">Other (Special Request)</option>
+                                <option value="Other">{t("otherSpecialRequest")}</option>
                             </Select>
                         ) : fulfillmentType === "SELF_MANAGED" ? (
                             <Select
@@ -781,7 +752,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 disabled={poolVehicles.length === 0}
                             >
                                 <option value="">
-                                    {poolVehicles.length === 0 ? "No pool vehicles available" : "Select pool vehicle"}
+                                    {poolVehicles.length === 0 ? t("noPoolVehicles") : t("selectPoolVehicle")}
                                 </option>
                                 {poolVehicles.map((v) => (
                                     <option key={v.id} value={v.id}>
@@ -797,73 +768,73 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 disabled={allowedVehicleModels.length === 0}
                             >
                                 <option value="">
-                                    {allowedVehicleModels.length === 0 ? "No vehicles whitelisted" : "Select vehicle"}
+                                    {allowedVehicleModels.length === 0 ? t("noVehiclesWhitelisted") : t("selectVehicle")}
                                 </option>
                                 {allowedVehicleModels.map((model) => (
                                     <option key={model} value={model}>{model}</option>
                                 ))}
-                                <option value="Other">Other (Special Request)</option>
+                                <option value="Other">{t("otherSpecialRequest")}</option>
                             </Select>
                         )}
                         {!isEventShuttle && fulfillmentType === "CORT_MANAGED" && allowedVehicleModels.length === 0 && (
                             <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
-                                No vehicles whitelisted.
+                                {t("noVehiclesWhitelistedWarning")}
                             </div>
                         )}
                         {!isEventShuttle && fulfillmentType === "EXTERNAL_VENDOR" && !vendorsLoading && vendorCarModels.length === 0 && (
                             <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
-                                No vendor vehicles found.
+                                {t("noVendorVehiclesFound")}
                             </div>
                         )}
                         {!isEventShuttle && fulfillmentType === "CORT_MANAGED" && broadcastToAllVendors && !vendorsLoading && cortBroadcastCarModels && cortBroadcastCarModels.length === 0 && (
                             <div className="mt-1 text-[10px] text-rose-500 font-black uppercase">
-                                No overlap between your contract vehicle list and vendor fleets. Add models or disable &quot;Also send to vendors&quot;.
+                                {t("noOverlapVehicles")}
                             </div>
                         )}
                     </Field>
 
                     {!isEventShuttle && fulfillmentType !== "SELF_MANAGED" && vehicleModel === "Other" && (
-                        <Field label="Specify Vehicle" required>
+                        <Field label={t("specifyVehicle")} required>
                             <AutocompleteInput
                                 value={customVehicleModel}
                                 onChange={setCustomVehicleModel}
                                 options={pakistaniCars}
-                                placeholder="e.g. Honda Civic"
+                                placeholder={t("vehiclePlaceholder")}
                                 required
                             />
                         </Field>
                     )}
 
-                    <Field label="Usage Package" required>
+                    <Field label={t("usagePackage")} required>
                         <Select
                             value={packageType}
                             onChange={(e) => setPackageType(e.target.value as any)}
                             required
                         >
-                            <optgroup label="Spot">
-                                <option value="5hr">5 Hours</option>
-                                <option value="10hr">10 Hours</option>
-                                <option value="24hr">24 Hours</option>
+                            <optgroup label={t("spot")}>
+                                <option value="5hr">{t("hours5")}</option>
+                                <option value="10hr">{t("hours10")}</option>
+                                <option value="24hr">{t("hours24")}</option>
                             </optgroup>
-                            <optgroup label="Monthly">
-                                <option value="monthly_10hr">Monthly (10h/day)</option>
-                                <option value="monthly_24hr">Monthly (24h/day)</option>
+                            <optgroup label={t("monthly")}>
+                                <option value="monthly_10hr">{t("monthly10hr")}</option>
+                                <option value="monthly_24hr">{t("monthly24hr")}</option>
                             </optgroup>
                         </Select>
                     </Field>
 
-                    <Field label="Trip Type" required>
+                    <Field label={t("tripType")} required>
                         <Select
                             value={tripType}
                             onChange={(e) => setTripType(e.target.value as any)}
                             required
                         >
-                            <option value="in_city">In-City</option>
-                            <option value="out_station">Out-Station</option>
+                            <option value="in_city">{t("inCity")}</option>
+                            <option value="out_station">{t("outStation")}</option>
                         </Select>
                     </Field>
 
-                    <Field label="Number of Days" required>
+                    <Field label={t("numberOfDays")} required>
                         <TextInput
                             type="number"
                             min={1}
@@ -875,13 +846,13 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
                     {tripType === "out_station" && (
                         <div className="sm:col-span-2">
-                            <Field label="Destination Cities" required>
+                            <Field label={t("destinationCities")} required>
                                 <div className="flex gap-2">
                                     <AutocompleteInput
                                         value={cityInput}
                                         onChange={(val) => setCityInput(val)}
                                         options={pakistaniCities}
-                                        placeholder="Search & add city..."
+                                        placeholder={t("searchAddCity")}
                                         className="flex-1"
                                     />
                                     <button
@@ -890,7 +861,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                         disabled={!cityInput.trim()}
                                         className="h-12 px-6 rounded-xl bg-[var(--cort-orange)]/10 text-[var(--cort-orange)] text-xs font-black uppercase hover:bg-[var(--cort-orange)]/20 transition-all active:scale-95 disabled:opacity-50"
                                     >
-                                        Add
+                                        {tCommon("actions.add")}
                                     </button>
                                 </div>
                                 {destinationCities.length > 0 && (
@@ -930,22 +901,22 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
 
                 {/* Logistics Section */}
                 <CardSection
-                    title="Logistics & Schedule"
+                    title={t("logisticsSchedule")}
                     icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
                 >
-                    <Field label="Pickup Time" required>
+                    <Field label={t("pickupTime")} required>
                         <Select
                             value={timeType}
                             onChange={(e) => setTimeType(e.target.value as any)}
                             required
                         >
-                            <option value="now">Now (Quick Dispatch)</option>
-                            <option value="scheduled">Scheduled Later</option>
+                            <option value="now">{t("nowQuickDispatch")}</option>
+                            <option value="scheduled">{t("scheduledLater")}</option>
                         </Select>
                     </Field>
 
                     {timeType === "scheduled" && (
-                        <Field label="Scheduled At" required>
+                        <Field label={t("scheduledAt")} required>
                             <TextInput
                                 type="datetime-local"
                                 value={scheduledDateTime}
@@ -955,11 +926,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         </Field>
                     )}
 
-                    <Field label="Exact Address" required className="sm:col-span-2">
+                    <Field label={t("exactAddress")} required className="sm:col-span-2">
                         <TextInput
                             value={pickupAddress}
                             onChange={(e) => setPickupAddress(e.target.value)}
-                            placeholder="House #, Street, Landmark..."
+                            placeholder={t("addressPlaceholder")}
                             required
                         />
                     </Field>
@@ -967,7 +938,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     <div className="sm:col-span-2 space-y-4">
                         <div className="bg-[var(--bg-subtle)] rounded-2xl border border-[var(--border-default)] p-5 mt-2">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider">Interactive Pin</div>
+                                <div className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider">{t("interactivePin")}</div>
                                 {pickupLat && pickupLng && (
                                     <div className="text-[9px] font-mono text-[var(--cort-orange)] font-bold bg-[var(--cort-orange)]/5 px-2 py-1 rounded-lg">
                                         {pickupLat.toFixed(4)}, {pickupLng.toFixed(4)}
@@ -979,21 +950,21 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             <div className="relative mb-4 z-[50]">
                                 <TextInput
                                     onChange={(e) => search(e.target.value)}
-                                    placeholder="Search location on map..."
-                                    className="w-full pl-11 bg-[var(--bg-card)]"
+                                    placeholder={t("searchMapPlaceholder")}
+                                    className="w-full ps-11 bg-[var(--bg-card)]"
                                 />
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                                <div className="absolute start-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                 </div>
                                 {isLoadingSuggestions && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <div className="absolute end-3 top-1/2 -translate-y-1/2">
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--cort-orange)] border-t-transparent"></div>
                                     </div>
                                 )}
 
                                 {/* Suggestions Dropdown */}
                                 {suggestions.length > 0 && (
-                                    <div className="absolute top-full left-0 mt-2 w-full rounded-2xl border border-[var(--border-input)] bg-[var(--bg-card)] shadow-2xl max-h-60 overflow-auto z-[60] py-2">
+                                    <div className="absolute top-full start-0 mt-2 w-full rounded-2xl border border-[var(--border-input)] bg-[var(--bg-card)] shadow-2xl max-h-60 overflow-auto z-[60] py-2">
                                         {suggestions.map((suggestion) => (
                                             <button
                                                 key={suggestion.place_id}
@@ -1005,7 +976,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                     clearSuggestions();
                                                     refreshToken();
                                                 }}
-                                                className="w-full px-5 py-3 text-left hover:bg-[var(--bg-subtle)] transition-colors group"
+                                                className="w-full px-5 py-3 text-start hover:bg-[var(--bg-subtle)] transition-colors group"
                                             >
                                                 <div className="text-xs font-black text-[var(--text-primary)] group-hover:text-[#fe8503] transition-colors">{suggestion.name}</div>
                                                 <div className="text-[10px] text-[var(--text-muted)] mt-1 truncate font-medium">{suggestion.display_name}</div>
@@ -1019,13 +990,13 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 <Map
                                     height="280px"
                                     center={pickupLat && pickupLng ? [pickupLat, pickupLng] : undefined}
-                                    markers={pickupLat && pickupLng ? [{ id: "pickup", position: [pickupLat, pickupLng] as any, label: "Pickup", color: "#FF6B00" }] : []}
+                                    markers={pickupLat && pickupLng ? [{ id: "pickup", position: [pickupLat, pickupLng] as any, label: t("pickupLabel"), color: "#FF6B00" }] : []}
                                     onMapClick={(lat, lng) => { setPickupLat(lat); setPickupLng(lng); }}
                                 />
                             </div>
                             <div className="mt-3 flex items-center gap-2 text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-tight">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--cort-orange)] animate-pulse"></span>
-                                Pin exact location for seamless dispatch
+                                {t("pinLocationHint")}
                             </div>
                         </div>
                     </div>
@@ -1045,7 +1016,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     onClick={onCancel}
                     className="h-12 px-8 rounded-xl border border-[var(--border-input)] text-xs font-black uppercase text-[var(--text-muted)] hover:bg-[var(--bg-subtle)] transition-all active:scale-95"
                 >
-                    Discard
+                    {t("discard")}
                 </button>
                 <button
                     type="submit"
@@ -1055,7 +1026,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                     {isSubmitting ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
                     ) : (
-                        "Confirm Booking"
+                        t("confirmBooking")
                     )}
                 </button>
             </div>
