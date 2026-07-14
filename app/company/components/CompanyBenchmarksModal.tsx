@@ -47,8 +47,15 @@ type FormState = {
   notes: string;
 };
 
-const VEHICLE_CATEGORIES = ["SEDAN", "HATCHBACK", "SUV", "DOUBLE_CABIN", "HIACE", "VAN", "COASTER", "BUS"];
+const VEHICLE_CATEGORIES = ["SEDAN", "HATCHBACK", "SUV", "DOUBLE_CABIN", "VAN", "COASTER", "BUS"];
 const COASTER_SEATER_OPTIONS = ["7 Seater", "14 Seater", "24 Seater", "32 Seater", "48 Seater", "62 Seater"];
+const VAN_SEATER_OPTIONS = ["7 Seater", "14 Seater"];
+
+function seaterOptionsFor(category: string) {
+  if (category === "COASTER") return COASTER_SEATER_OPTIONS;
+  if (category === "VAN") return VAN_SEATER_OPTIONS;
+  return [];
+}
 
 const EMPTY_FORM: FormState = {
   service_type: "SHUTTLE",
@@ -77,7 +84,10 @@ function formToPayload(form: FormState) {
   return {
     service_type: form.service_type,
     vehicle_category: form.vehicle_category || null,
-    coaster_seater_size: form.vehicle_category === "COASTER" ? form.coaster_seater_size || null : null,
+    coaster_seater_size:
+      form.vehicle_category === "COASTER" || form.vehicle_category === "VAN"
+        ? form.coaster_seater_size || null
+        : null,
     cost_type: form.cost_type,
     monthly_cost: parseFloat(form.monthly_cost),
     quantity: parseInt(form.quantity, 10) || 1,
@@ -126,7 +136,9 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
         <label className={labelClass}>Vehicle category *</label>
         <select
           value={form.vehicle_category}
-          onChange={(e) => setForm({ ...form, vehicle_category: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, vehicle_category: e.target.value, coaster_seater_size: "" })
+          }
           className={fieldClass}
         >
           <option value="">— Select category —</option>
@@ -136,16 +148,19 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
         </select>
       </div>
 
-      {form.vehicle_category === "COASTER" && (
+      {(form.vehicle_category === "COASTER" || form.vehicle_category === "VAN") && (
         <div>
-          <label className={labelClass}>Coaster seater size</label>
+          <label className={labelClass}>
+            {form.vehicle_category === "VAN" ? "Van seater size *" : "Coaster seater size *"}
+          </label>
           <select
             value={form.coaster_seater_size}
             onChange={(e) => setForm({ ...form, coaster_seater_size: e.target.value })}
+            required
             className={fieldClass}
           >
             <option value="">— Select size —</option>
-            {COASTER_SEATER_OPTIONS.map((s) => (
+            {seaterOptionsFor(form.vehicle_category).map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -209,7 +224,7 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
           className={fieldClass}
         >
           <option value="LITRES">Litres — claimed litres/month</option>
-          <option value="AVERAGE">Average — claimed distance + km/L</option>
+          <option value="AVERAGE">Average — claimed daily distance + km/L</option>
         </select>
       </div>
 
@@ -229,16 +244,19 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
       ) : (
         <>
           <div>
-            <label className={labelClass}>Claimed avg distance (km/vehicle/month) *</label>
+            <label className={labelClass}>Claimed avg distance (km/vehicle/day) *</label>
             <input
               type="number"
               min="0"
               step="0.01"
-              placeholder="e.g. 1650"
+              placeholder="e.g. 75"
               value={form.claimed_avg_distance_km}
               onChange={(e) => setForm({ ...form, claimed_avg_distance_km: e.target.value })}
               className={fieldClass}
             />
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Daily km — multiplied by analysed operating days when computing savings.
+            </p>
           </div>
           <div>
             <label className={labelClass}>Fuel avg (km/L) *</label>
@@ -443,8 +461,9 @@ export function CompanyBenchmarksModal({ isOpen, onClose, onChanged }: CompanyBe
                             </span>
                             {b.vehicle_category && (
                               <span className="text-xs text-[var(--text-secondary)] font-medium">
-                                {b.vehicle_category === "COASTER" && b.coaster_seater_size
-                                  ? `Coaster (${b.coaster_seater_size})`
+                                {(b.vehicle_category === "COASTER" || b.vehicle_category === "VAN") &&
+                                b.coaster_seater_size
+                                  ? `${b.vehicle_category === "COASTER" ? "Coaster" : "Van"} (${b.coaster_seater_size})`
                                   : b.vehicle_category}
                               </span>
                             )}

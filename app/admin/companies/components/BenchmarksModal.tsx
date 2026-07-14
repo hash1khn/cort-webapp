@@ -39,9 +39,16 @@ type NewBenchmarkForm = {
   notes: string;
 };
 
-const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'DOUBLE_CABIN', 'HIACE', 'VAN', 'COASTER', 'BUS'];
+const VEHICLE_CATEGORIES = ['SEDAN', 'HATCHBACK', 'SUV', 'DOUBLE_CABIN', 'VAN', 'COASTER', 'BUS'];
 
 const COASTER_SEATER_OPTIONS = ['7 Seater', '14 Seater', '24 Seater', '32 Seater', '48 Seater', '62 Seater'];
+const VAN_SEATER_OPTIONS = ['7 Seater', '14 Seater'];
+
+function seaterOptionsFor(category: string) {
+  if (category === 'COASTER') return COASTER_SEATER_OPTIONS;
+  if (category === 'VAN') return VAN_SEATER_OPTIONS;
+  return [];
+}
 
 const EMPTY_FORM: NewBenchmarkForm = {
   service_type: 'SHUTTLE',
@@ -106,6 +113,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!form.monthly_cost || !form.vehicle_category) return;
+    if ((form.vehicle_category === 'COASTER' || form.vehicle_category === 'VAN') && !form.coaster_seater_size) return;
     if (form.fuel_mode === 'LITRES' && !form.fuel_litres) return;
     if (form.fuel_mode === 'AVERAGE' && (!form.claimed_avg_distance_km || !form.fuel_avg_kmpl)) return;
     setSaving(true);
@@ -116,7 +124,9 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
         body: JSON.stringify({
           service_type: form.service_type,
           vehicle_category: form.vehicle_category || null,
-          coaster_seater_size: form.vehicle_category === 'COASTER' ? (form.coaster_seater_size || null) : null,
+          coaster_seater_size: form.vehicle_category === 'COASTER' || form.vehicle_category === 'VAN'
+            ? (form.coaster_seater_size || null)
+            : null,
           cost_type: form.cost_type,
           monthly_cost: parseFloat(form.monthly_cost),
           quantity: parseInt(form.quantity, 10) || 1,
@@ -207,13 +217,13 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-purple-100 text-purple-700'
                         }`}>{b.service_type}</span>
-                        {b.vehicle_category && (
-                          <span className="text-xs text-gray-500 font-medium">
-                            {b.vehicle_category === 'COASTER' && b.coaster_seater_size
-                              ? `Coaster (${b.coaster_seater_size})`
-                              : b.vehicle_category}
-                          </span>
-                        )}
+                            {b.vehicle_category && (
+                              <span className="text-xs text-gray-500 font-medium">
+                                {(b.vehicle_category === 'COASTER' || b.vehicle_category === 'VAN') && b.coaster_seater_size
+                                  ? `${b.vehicle_category === 'COASTER' ? 'Coaster' : 'Van'} (${b.coaster_seater_size})`
+                                  : b.vehicle_category}
+                              </span>
+                            )}
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
                           b.cost_type === 'FIXED' ? 'bg-orange-100 text-orange-700' : 'bg-sky-100 text-sky-700'
                         }`}>
@@ -237,7 +247,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                           <span className="text-gray-400"> · {b.fuel_litres} L/vehicle/month claimed</span>
                         )}
                         {b.fuel_mode === 'AVERAGE' && b.claimed_avg_distance_km != null && b.fuel_avg_kmpl != null && (
-                          <span className="text-gray-400"> · {b.claimed_avg_distance_km} km/vehicle/month @ {b.fuel_avg_kmpl} km/L claimed</span>
+                          <span className="text-gray-400"> · {b.claimed_avg_distance_km} km/vehicle/day @ {b.fuel_avg_kmpl} km/L claimed</span>
                         )}
                       </p>
                       {b.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{b.notes}</p>}
@@ -309,7 +319,13 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   <label className="text-xs text-gray-600 mb-1 block font-medium">Vehicle category *</label>
                   <select
                     value={form.vehicle_category}
-                    onChange={(e) => setForm((f) => ({ ...f, vehicle_category: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        vehicle_category: e.target.value,
+                        coaster_seater_size: '',
+                      }))
+                    }
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
                     <option value="">— Select category —</option>
@@ -319,17 +335,20 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   </select>
                 </div>
 
-                {/* Coaster seater size — shown only when COASTER is selected */}
-                {form.vehicle_category === 'COASTER' && (
+                {/* Seater size — COASTER and VAN */}
+                {(form.vehicle_category === 'COASTER' || form.vehicle_category === 'VAN') && (
                   <div>
-                    <label className="text-xs text-gray-600 mb-1 block font-medium">Coaster seater size</label>
+                    <label className="text-xs text-gray-600 mb-1 block font-medium">
+                      {form.vehicle_category === 'VAN' ? 'Van seater size *' : 'Coaster seater size *'}
+                    </label>
                     <select
                       value={form.coaster_seater_size}
                       onChange={(e) => setForm((f) => ({ ...f, coaster_seater_size: e.target.value }))}
+                      required
                       className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                     >
                       <option value="">— Select size —</option>
-                      {COASTER_SEATER_OPTIONS.map((s) => (
+                      {seaterOptionsFor(form.vehicle_category).map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -412,7 +431,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
                     <option value="LITRES">Litres — company entered claimed litres/month</option>
-                    <option value="AVERAGE">Average — company entered claimed distance + their own km/L</option>
+                    <option value="AVERAGE">Average — claimed daily distance + their own km/L</option>
                   </select>
                 </div>
 
@@ -433,16 +452,17 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                 ) : (
                   <>
                     <div>
-                      <label className="text-xs text-gray-600 mb-1 block font-medium">Claimed avg distance (km/vehicle/month) *</label>
+                      <label className="text-xs text-gray-600 mb-1 block font-medium">Claimed avg distance (km/vehicle/day) *</label>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
-                        placeholder="e.g. 1650"
+                        placeholder="e.g. 75"
                         value={form.claimed_avg_distance_km}
                         onChange={(e) => setForm((f) => ({ ...f, claimed_avg_distance_km: e.target.value }))}
                         className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                       />
+                      <p className="text-xs text-gray-400 mt-1">Daily km — multiplied by analysed operating days when computing savings.</p>
                     </div>
                     <div>
                       <label className="text-xs text-gray-600 mb-1 block font-medium">Company's claimed fuel avg (km/L) *</label>

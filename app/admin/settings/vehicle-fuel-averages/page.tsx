@@ -12,7 +12,7 @@ type FuelAverageRow = {
   updated_at: string;
 };
 
-const VEHICLE_CATEGORIES = ["SEDAN", "HATCHBACK", "SUV", "DOUBLE_CABIN", "HIACE", "VAN", "COASTER", "BUS"];
+const VEHICLE_CATEGORIES = ["SEDAN", "HATCHBACK", "SUV", "DOUBLE_CABIN", "VAN", "COASTER", "BUS"];
 
 export default function VehicleFuelAveragesPage() {
   return (
