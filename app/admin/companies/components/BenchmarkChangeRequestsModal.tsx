@@ -4,13 +4,25 @@ import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '@/app/lib/services/api-client';
 import { Check, X, Clock } from 'lucide-react';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+type BenchmarkSnapshot = {
+  service_type?: string | null;
+  vehicle_category?: string | null;
+  coaster_seater_size?: string | null;
+  cost_type?: string | null;
+  monthly_cost?: number | null;
+  quantity?: number | null;
+  fuel_mode?: string | null;
+  fuel_litres?: number | null;
+  claimed_avg_distance_km?: number | null;
+  fuel_avg_kmpl?: number | null;
+};
 
 type ChangeRequest = {
   id: number;
-  benchmark_id: number | null;
+  company_id?: number;
   action: 'CREATE' | 'UPDATE' | 'DELETE';
-  proposed_payload: Record<string, unknown>;
+  previous: BenchmarkSnapshot | null;
+  proposed: BenchmarkSnapshot | Record<string, unknown>;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   created_at: string;
 };
@@ -22,7 +34,35 @@ interface BenchmarkChangeRequestsModalProps {
   onClose: () => void;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function pkr(n: number | null | undefined) {
+  if (n == null || Number.isNaN(Number(n))) return '—';
+  return `PKR ${Number(n).toLocaleString('en-PK')}`;
+}
+
+function summarize(s: BenchmarkSnapshot | Record<string, unknown> | null | undefined): string {
+  if (!s || Object.keys(s).length === 0) return '—';
+  const snap = s as BenchmarkSnapshot;
+  const parts: string[] = [];
+  if (snap.cost_type) parts.push(String(snap.cost_type));
+  if (snap.vehicle_category) {
+    parts.push(
+      snap.coaster_seater_size
+        ? `${snap.vehicle_category} (${snap.coaster_seater_size})`
+        : String(snap.vehicle_category),
+    );
+  }
+  if (snap.monthly_cost != null) {
+    if (snap.cost_type === 'FIXED') parts.push(`lump ${pkr(snap.monthly_cost)}`);
+    else parts.push(`${snap.quantity ?? 1} × ${pkr(snap.monthly_cost)}`);
+  }
+  if (snap.fuel_mode === 'LITRES' && snap.fuel_litres != null) parts.push(`${snap.fuel_litres} L/mo`);
+  if (snap.fuel_mode === 'AVERAGE') {
+    const dist = snap.claimed_avg_distance_km != null ? `${snap.claimed_avg_distance_km} km/day` : null;
+    const avg = snap.fuel_avg_kmpl != null ? `${snap.fuel_avg_kmpl} km/L` : null;
+    if (dist || avg) parts.push([dist, avg].filter(Boolean).join(' @ '));
+  }
+  return parts.length ? parts.join(' · ') : '—';
+}
 
 export function BenchmarkChangeRequestsModal({ companyId, companyName, isOpen, onClose }: BenchmarkChangeRequestsModalProps) {
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
@@ -37,8 +77,8 @@ export function BenchmarkChangeRequestsModal({ companyId, companyName, isOpen, o
     try {
       const data = await apiClient.request<ChangeRequest[]>(`/admin/companies/${companyId}/benchmark-change-requests`);
       setRequests(Array.isArray(data) ? data : []);
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to load change requests');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load change requests');
     } finally {
       setLoading(false);
     }
@@ -56,8 +96,8 @@ export function BenchmarkChangeRequestsModal({ companyId, companyName, isOpen, o
         body: JSON.stringify({ notes: notesById[id] || undefined }),
       });
       await fetchRequests();
-    } catch (e: any) {
-      setError(e?.message ?? `Failed to ${decision} request`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : `Failed to ${decision} request`);
     } finally {
       setActingId(null);
     }
@@ -91,7 +131,7 @@ export function BenchmarkChangeRequestsModal({ companyId, companyName, isOpen, o
             <div className="space-y-3">
               {requests.map((r) => (
                 <div key={r.id} className="rounded-xl border border-gray-200 p-4">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
                       <Clock className="h-3 w-3" /> {r.status}
                     </span>
@@ -100,9 +140,18 @@ export function BenchmarkChangeRequestsModal({ companyId, companyName, isOpen, o
                     </span>
                     <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
                   </div>
-                  <pre className="text-xs bg-slate-50 border border-slate-100 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
-                    {JSON.stringify(r.proposed_payload, null, 2)}
-                  </pre>
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs space-y-1.5">
+                    <div>
+                      <span className="font-semibold text-slate-600">Old: </span>
+                      <span className="text-slate-800">{summarize(r.previous)}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-600">New: </span>
+                      <span className="text-slate-800">
+                        {r.action === 'DELETE' ? 'Delete benchmark' : summarize(r.proposed)}
+                      </span>
+                    </div>
+                  </div>
                   {r.status === 'PENDING' && (
                     <>
                       <input

@@ -36,6 +36,7 @@ import {
 import { useAuth } from "../../lib/contexts/auth-context";
 import { PermissionKey } from "../../lib/types/auth-types";
 import { BookingNotificationProvider } from "../components/BookingNotificationProvider";
+import { BenchmarkChangeRequestAlertProvider } from "../components/BenchmarkChangeRequestAlertProvider";
 import { cx } from "../components/ui/cx";
 import { useAdminTheme } from "../lib/theme-context";
 
@@ -293,6 +294,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <BookingNotificationProvider />
+          <BenchmarkChangeRequestAlertProvider />
           <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-6 bg-[var(--bg-page)]">
             {children}
           </main>

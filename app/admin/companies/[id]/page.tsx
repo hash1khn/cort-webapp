@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AdminProtectedPage } from "../../components/AdminProtectedPage";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import { Modal } from "../../components/ui/Modal";
@@ -26,8 +26,15 @@ export default function CompanyDetailsPage({ params }: { params: Promise<{ id: s
 function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const d = useCompanyDetail(id);
   const [isChangeRequestsModalOpen, setIsChangeRequestsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("benchmarkRequests") === "1") {
+      setIsChangeRequestsModalOpen(true);
+    }
+  }, [searchParams]);
 
   if (d.isLoading) {
     return (
