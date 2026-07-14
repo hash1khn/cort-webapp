@@ -9,7 +9,6 @@ import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { apiClient } from "../../../lib/services/api-client";
 import { PoolDriver, PoolVehicle } from "../../../lib/services/types/multi-mode";
-import { useAuth } from "../../../lib/contexts/auth-context";
 import StopAddressSearch from "@/app/admin/ui/StopAddressSearch";
 import type { MapMarker, MapPolyline } from "@/app/admin/ui/Map";
 
@@ -31,7 +30,6 @@ const saveBtnCls = "rounded-lg bg-[#0c225e] px-4 py-2 text-sm font-semibold text
 
 export default function CompanyCreateRoutePage() {
     const router = useRouter();
-    const { user } = useAuth();
     const company = useAppSelector(selectCompany);
     const companyId = Number(company?.id);
 
@@ -177,10 +175,10 @@ export default function CompanyCreateRoutePage() {
             ? [{ positions: stops.map((s) => [s.lat, s.lng] as [number, number]), color: "#2563eb" }]
             : [];
 
-    if (!user?.is_trial && user?.role !== "SUPER_ADMIN") {
+    if (!company?.services_enabled?.shuttle_enabled) {
         return (
             <div className="p-6 text-center text-sm text-gray-500">
-                Route creation from the company portal is available during your trial.
+                Shuttle service is not enabled for your company.
             </div>
         );
     }

@@ -28,6 +28,7 @@ import {
   Sunrise,
   User,
   UserPlus,
+  Plus,
   X,
   Phone,
   Mail,
@@ -795,13 +796,24 @@ export default function RoutesPage() {
         title={t("title")}
         description={t("pageDescription")}
         action={
-          <Button
-            onClick={() => setShowAddEmployee(true)}
-            className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
-          >
-            <UserPlus className="w-4 h-4" />
-            {t("addEmployee")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/company/routes/create">
+              <Button
+                variant="outline"
+                className="gap-2 rounded-xl"
+              >
+                <Plus className="w-4 h-4" />
+                {t("createRoute")}
+              </Button>
+            </Link>
+            <Button
+              onClick={() => setShowAddEmployee(true)}
+              className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
+            >
+              <UserPlus className="w-4 h-4" />
+              {t("addEmployee")}
+            </Button>
+          </div>
         }
       />
 
@@ -820,7 +832,13 @@ export default function RoutesPage() {
         <Card className="py-16 text-center">
           <Bus className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
           <div className="text-sm text-[var(--text-muted)]">{t("noRoutesAssigned")}</div>
-          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("contactAdminRoutes")}</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("createRouteHint")}</div>
+          <Link href="/company/routes/create" className="inline-block mt-4">
+            <Button className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl">
+              <Plus className="w-4 h-4" />
+              {t("createRoute")}
+            </Button>
+          </Link>
         </Card>
       ) : (
         <div>

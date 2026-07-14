@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus } from "../../../lib/store/slices/employeeSlice";
-import { useAuth } from "../../../lib/contexts/auth-context";
 import { apiClient } from "../../../lib/services/api-client";
 import { toast } from "sonner";
 import { Card } from "../../components/DashboardComponents";
@@ -151,8 +150,6 @@ export default function RouteDetailPage() {
   const t = useTranslations("company.routes");
   const tCommon = useTranslations("common");
   const dispatch = useAppDispatch();
-  const { user } = useAuth();
-  const isTrialUser = !!user?.is_trial;
   const company = useAppSelector(selectCompany);
   const allEmployees = useAppSelector(selectEmployees);
   const employeeStatus = useAppSelector(selectEmployeesStatus);
@@ -283,26 +280,22 @@ export default function RouteDetailPage() {
               </h1>
             </div>
             <div className="flex flex-wrap gap-2">
-              {isTrialUser && (
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  disabled={generatingTrips}
-                  onClick={handleGenerateTrips}
-                >
-                  {generatingTrips ? t("generatingTrips") : t("generateTrips")}
-                </Button>
-              )}
-              {isTrialUser && (
-                <Button
-                  variant="default"
-                  className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
-                  onClick={() => setShowAssignModal(true)}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  {t("assignEmployee")}
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={generatingTrips}
+                onClick={handleGenerateTrips}
+              >
+                {generatingTrips ? t("generatingTrips") : t("generateTrips")}
+              </Button>
+              <Button
+                variant="default"
+                className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
+                onClick={() => setShowAssignModal(true)}
+              >
+                <UserPlus className="w-4 h-4" />
+                {t("assignEmployee")}
+              </Button>
               <Link href={`/company/routes/${routeId}/track`}>
                 <Button variant="outline" className="gap-2">
                   <Activity className="w-4 h-4" />
@@ -385,20 +378,14 @@ export default function RouteDetailPage() {
                   <div className="py-16 text-center">
                     <Users className="w-8 h-8 mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
                     <div className="text-sm text-[var(--text-muted)]">{t("noEmployeesAssigned")}</div>
-                    {isTrialUser ? (
-                      <Button
-                        variant="outline"
-                        className="mt-4 gap-2"
-                        onClick={() => setShowAssignModal(true)}
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        {t("assignAnEmployee")}
-                      </Button>
-                    ) : (
-                      <div className="text-xs text-[var(--text-muted)] mt-1 opacity-70">
-                        {t("contactOperations")}
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      className="mt-4 gap-2"
+                      onClick={() => setShowAssignModal(true)}
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      {t("assignAnEmployee")}
+                    </Button>
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-light)]">
