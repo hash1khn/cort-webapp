@@ -683,18 +683,17 @@ export default function CompanyFleetPage() {
                     ) : (
                         <form onSubmit={handleInviteDriver} className="space-y-4">
                             <SaveCredentialsNote accountTypeKey="driver" />
-                            {isTrialUser && trialHasPool(trialModules) && trialHasShuttle(trialModules) && (
-                                <Field label={t("driverTypeLabel")}>
-                                    <select
-                                        value={driverForm.driver_type}
-                                        onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
-                                        className={inputCls}
-                                    >
-                                        <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>{t("driverTypeChauffeur")}</option>
-                                        <option value="SHUTTLE" disabled={atShuttleDriverLimit}>{t("driverTypeShuttle")}</option>
-                                    </select>
-                                </Field>
-                            )}
+                            <Field label={t("driverTypeLabel")}>
+                                <select
+                                    required
+                                    value={driverForm.driver_type}
+                                    onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
+                                    className={inputCls}
+                                >
+                                    <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>{t("driverTypeChauffeur")}</option>
+                                    <option value="SHUTTLE" disabled={atShuttleDriverLimit}>{t("driverTypeShuttle")}</option>
+                                </select>
+                            </Field>
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label={t("fullNameRequired")}><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
                                 <Field label={t("phone")}><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>
