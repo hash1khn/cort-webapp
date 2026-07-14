@@ -185,7 +185,7 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
           onChange={(e) => setForm({ ...form, cost_type: e.target.value as FormState["cost_type"] })}
           className={fieldClass}
         >
-          <option value="VARIABLE">Variable (monthly rental × quantity)</option>
+          <option value="VARIABLE">Variable (monthly rental + fuel)</option>
           <option value="FIXED">Fixed (lump sum)</option>
         </select>
       </div>

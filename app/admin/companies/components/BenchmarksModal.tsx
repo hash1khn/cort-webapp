@@ -375,7 +375,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                     onChange={(e) => setForm((f) => ({ ...f, cost_type: e.target.value as 'FIXED' | 'VARIABLE' }))}
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
-                    <option value="VARIABLE">Variable (monthly rental × quantity)</option>
+                    <option value="VARIABLE">Variable (monthly rental + fuel)</option>
                     <option value="FIXED">Fixed (lump sum)</option>
                   </select>
                 </div>
