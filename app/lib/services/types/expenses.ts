@@ -13,9 +13,6 @@ export enum ExpenseCategory {
     PARKING = 'PARKING',
 }
 
-/** Categories that can optionally be tagged to a booking, feeding that booking's invoice + Chauffeur COGS. */
-export const BOOKING_TAGGABLE_CATEGORIES = [ExpenseCategory.TOLL, ExpenseCategory.PARKING];
-
 export interface Expense {
     id: number;
     category: ExpenseCategory;
@@ -34,8 +31,11 @@ export interface CreateExpenseRequest {
     amount: number;
     date: string;
     description?: string;
-    booking_id?: number;
+    /** Optional booking tag — any category. Counts toward Chauffeur COGS only. */
+    booking_id?: number | null;
 }
+
+export type UpdateExpenseRequest = Partial<CreateExpenseRequest>;
 
 export interface ExpenseFilterParams {
     startDate?: string;

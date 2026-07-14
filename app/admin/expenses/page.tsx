@@ -7,8 +7,8 @@ import {
     Expense,
     ExpenseCategory,
     CreateExpenseRequest,
+    UpdateExpenseRequest,
 } from "../../lib/services/api-client";
-import { BOOKING_TAGGABLE_CATEGORIES } from "../../lib/services/types/expenses";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
@@ -78,6 +78,8 @@ function ExpensesPageContent() {
     const [error, setError] = useState<string | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [filterMonth, setFilterMonth] = useState(initialMonth);
     const [filterStartDate, setFilterStartDate] = useState(initialRange.startDate);
     const [filterEndDate, setFilterEndDate] = useState(initialRange.endDate);
@@ -123,9 +125,34 @@ function ExpensesPageContent() {
         fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    const openCreateModal = () => {
+        setModalMode("create");
+        setEditingExpense(null);
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (expense: Expense) => {
+        setModalMode("edit");
+        setEditingExpense(expense);
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingExpense(null);
+        setModalMode("create");
+    };
+
     const handleCreate = async (data: CreateExpenseRequest) => {
         await ExpensesApi.create(data);
-        setIsModalOpen(false);
+        closeModal();
+        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
+    };
+
+    const handleUpdate = async (data: UpdateExpenseRequest) => {
+        if (!editingExpense) return;
+        await ExpensesApi.update(editingExpense.id, data);
+        closeModal();
         fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
@@ -159,7 +186,7 @@ function ExpensesPageContent() {
                 <h1 className="text-2xl font-bold">General Expenses</h1>
                 <button
                     type="button"
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openCreateModal}
                     disabled={!canCreate}
                     className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90 disabled:opacity-50 disabled:pointer-events-none"
                 >
@@ -329,12 +356,20 @@ function ExpensesPageContent() {
                                     {Number(expense.amount).toLocaleString()}
                                 </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                    <button
+                                        type="button"
+                                        onClick={() => openEditModal(expense)}
+                                        disabled={!canUpdate}
+                                        className="text-navy hover:text-navy/80 font-semibold disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                                    >
+                                        Edit
+                                    </button>
                                     {expense.payment_status !== "PAID" && (
                                         <button
                                             type="button"
                                             onClick={() => handleMarkAsPaid(expense.id)}
                                             disabled={!canUpdate}
-                                            className="text-navy hover:text-navy/80 font-semibold disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                                            className="text-navy hover:text-navy/80 font-semibold ml-4 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                                         >
                                             Mark as Paid
                                         </button>
@@ -409,45 +444,52 @@ function ExpensesPageContent() {
             </div>
 
             {isModalOpen && (
-                <AddExpenseModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    onSubmit={handleCreate}
-                    submitDisabled={!canCreate}
+                <ExpenseFormModal
+                    mode={modalMode}
+                    expense={editingExpense}
+                    onClose={closeModal}
+                    onCreate={handleCreate}
+                    onUpdate={handleUpdate}
+                    submitDisabled={modalMode === "create" ? !canCreate : !canUpdate}
                 />
             )}
         </div>
     );
 }
 
-function AddExpenseModal({
-    isOpen,
+function ExpenseFormModal({
+    mode,
+    expense,
     onClose,
-    onSubmit,
+    onCreate,
+    onUpdate,
     submitDisabled = false,
 }: {
-    isOpen: boolean;
+    mode: "create" | "edit";
+    expense: Expense | null;
     onClose: () => void;
-    onSubmit: (data: CreateExpenseRequest) => Promise<void>;
+    onCreate: (data: CreateExpenseRequest) => Promise<void>;
+    onUpdate: (data: UpdateExpenseRequest) => Promise<void>;
     submitDisabled?: boolean;
 }) {
-    const [amount, setAmount] = useState("");
-    const [category, setCategory] = useState<ExpenseCategory | "">("");
-    const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-    const [description, setDescription] = useState("");
-    const [taggedBooking, setTaggedBooking] = useState<TaggedBooking | null>(null);
+    const [amount, setAmount] = useState(
+        expense ? String(expense.amount) : "",
+    );
+    const [category, setCategory] = useState<ExpenseCategory | "">(
+        expense?.category ?? "",
+    );
+    const [date, setDate] = useState(
+        expense
+            ? new Date(expense.date).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+    );
+    const [description, setDescription] = useState(expense?.description ?? "");
+    const [taggedBooking, setTaggedBooking] = useState<TaggedBooking | null>(
+        expense?.booking_id
+            ? { id: expense.booking_id, label: `Booking #${expense.booking_id}` }
+            : null,
+    );
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    if (!isOpen) return null;
-
-    const isTaggable = category !== "" && BOOKING_TAGGABLE_CATEGORIES.includes(category);
-
-    const handleCategoryChange = (next: ExpenseCategory | "") => {
-        setCategory(next);
-        if (next === "" || !BOOKING_TAGGABLE_CATEGORIES.includes(next)) {
-            setTaggedBooking(null);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -455,15 +497,20 @@ function AddExpenseModal({
 
         setIsSubmitting(true);
         try {
-            await onSubmit({
+            const payload = {
                 amount: Number(amount),
                 category: category as ExpenseCategory,
                 date: new Date(date).toISOString(),
                 description,
-                booking_id: isTaggable ? taggedBooking?.id : undefined,
-            });
+                booking_id: taggedBooking?.id ?? null,
+            };
+            if (mode === "edit") {
+                await onUpdate(payload);
+            } else {
+                await onCreate(payload);
+            }
         } catch (err: any) {
-            alert("Failed to create expense: " + (err.message || "Unknown error"));
+            alert(`Failed to ${mode === "edit" ? "update" : "create"} expense: ` + (err.message || "Unknown error"));
         } finally {
             setIsSubmitting(false);
         }
@@ -472,7 +519,9 @@ function AddExpenseModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <h2 className="mb-4 text-xl font-bold">Add New Expense</h2>
+                <h2 className="mb-4 text-xl font-bold">
+                    {mode === "edit" ? "Edit Expense" : "Add New Expense"}
+                </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
@@ -481,7 +530,7 @@ function AddExpenseModal({
                         <select
                             required
                             value={category}
-                            onChange={(e) => handleCategoryChange(e.target.value as ExpenseCategory)}
+                            onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-navy focus:outline-none focus:ring-1 focus:ring-navy"
                         >
                             <option value="">Select Category</option>
@@ -493,21 +542,19 @@ function AddExpenseModal({
                         </select>
                     </div>
 
-                    {isTaggable && (
-                        <div>
-                            <label
-                                className="mb-1 block text-sm font-medium text-gray-700"
-                                title={`If this ${category.toLowerCase()} was for a specific ride, tag it here — the actual cost counts toward that booking's Chauffeur COGS. Customer billing is unchanged. Leave blank for a general expense.`}
-                            >
-                                Tag to a booking (optional)
-                            </label>
-                            <BookingTagPicker value={taggedBooking} onChange={setTaggedBooking} />
-                        </div>
-                    )}
+                    <div>
+                        <label
+                            className="mb-1 block text-sm font-medium text-gray-700"
+                            title="If this expense was for a specific ride, tag it here — the actual cost counts toward that booking's Chauffeur COGS. Customer billing is unchanged. Leave blank for a general expense."
+                        >
+                            Tag to a booking (optional)
+                        </label>
+                        <BookingTagPicker value={taggedBooking} onChange={setTaggedBooking} />
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
-                            Amount (SR) <span className="text-red-500">*</span>
+                            Amount (PKR) <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="number"
@@ -558,7 +605,11 @@ function AddExpenseModal({
                             disabled={isSubmitting || submitDisabled}
                             className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90 disabled:opacity-50"
                         >
-                            {isSubmitting ? "Saving..." : "Save Expense"}
+                            {isSubmitting
+                                ? "Saving..."
+                                : mode === "edit"
+                                    ? "Save Changes"
+                                    : "Save Expense"}
                         </button>
                     </div>
                 </form>

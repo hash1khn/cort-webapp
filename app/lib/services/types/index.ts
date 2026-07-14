@@ -165,6 +165,7 @@ export {
 export type {
     Expense,
     CreateExpenseRequest,
+    UpdateExpenseRequest,
     ExpenseFilterParams,
     ExpensesListResult,
 } from './expenses';

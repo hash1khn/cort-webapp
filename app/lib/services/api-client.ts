@@ -52,7 +52,7 @@ import {
     // Invoices
     QueryInvoiceParams, Invoice,
     // Expenses
-    Expense, CreateExpenseRequest, ExpenseFilterParams, ExpensesListResult,
+    Expense, CreateExpenseRequest, UpdateExpenseRequest, ExpenseFilterParams, ExpensesListResult,
 } from './types';
 
 // Re-export all types for backward compatibility
@@ -2017,6 +2017,13 @@ export const ExpensesApi = {
     create: async (data: CreateExpenseRequest) => {
         return apiClient.request<Expense>('/expenses', {
             method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    update: async (id: number, data: UpdateExpenseRequest) => {
+        return apiClient.request<Expense>(`/expenses/${id}`, {
+            method: 'PATCH',
             body: JSON.stringify(data),
         });
     },
