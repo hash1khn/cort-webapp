@@ -281,47 +281,47 @@ export default function SavingsPage() {
     <div className="flex flex-col gap-6 pb-12 max-w-[1400px] mx-auto">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">
-            {t('title')}
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            {t('description')}
-          </p>
-        </div>
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  <div>
+    <h1 className="text-2xl sm:text-3xl font-black text-[var(--text-primary)] tracking-tight">
+      {t('title')}
+    </h1>
+    <p className="text-sm text-[var(--text-muted)] mt-1">
+      {t('description')}
+    </p>
+  </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsBenchmarksModalOpen(true)}
-            className="flex items-center gap-2 text-sm font-bold text-white bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] rounded-2xl px-4 py-2.5 shadow-sm transition-colors"
-          >
-            <Settings2 className="h-4 w-4" />
-            {t('manageVendorCost')}
-          </button>
+  <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+    <button
+      type="button"
+      onClick={() => setIsBenchmarksModalOpen(true)}
+      className="flex items-center gap-2 text-sm font-bold text-white bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] rounded-2xl px-3 sm:px-4 py-2.5 shadow-sm transition-colors whitespace-nowrap"
+    >
+      <Settings2 className="h-4 w-4 flex-shrink-0" />
+      <span className="hidden sm:inline">{t('manageVendorCost')}</span>
+    </button>
 
-          {/* Period picker */}
-          <div className="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl px-4 py-2.5 shadow-sm">
-            <button
-              onClick={prevMonth}
-              className="p-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="text-sm font-bold text-[var(--text-primary)] min-w-[130px] text-center">
-              {selectedMonthName} {selectedYear}
-            </span>
-            <button
-              onClick={nextMonth}
-              disabled={isCurrentMonth}
-              className="p-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
+    {/* Period picker */}
+    <div className="flex items-center gap-2 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-2xl px-3 sm:px-4 py-2.5 shadow-sm whitespace-nowrap">
+      <button
+        onClick={prevMonth}
+        className="p-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <span className="text-sm font-bold text-[var(--text-primary)] min-w-[100px] sm:min-w-[130px] text-center">
+        {selectedMonthName} {selectedYear}
+      </span>
+      <button
+        onClick={nextMonth}
+        disabled={isCurrentMonth}
+        className="p-1 rounded-lg hover:bg-white/10 transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  </div>
+</div>
 
       {/* Loading */}
       {loading && (
