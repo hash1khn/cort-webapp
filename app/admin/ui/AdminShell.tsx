@@ -30,6 +30,7 @@ import {
   FileSpreadsheet,
   Shield,
   UserPlus,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "../../lib/contexts/auth-context";
@@ -54,6 +55,7 @@ const nav: NavItem[] = [
   { href: "/admin/vehicles", label: "Vehicles", icon: Car, permission: "vehicles" },
   { href: "/admin/vehicles/fueling", label: "Fuel Records", icon: Fuel, permission: "fuel_records" },
   { href: "/admin/vehicles/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance" },
+  { href: "/admin/settings/vehicle-fuel-averages", label: "Fuel Averages", icon: Gauge, permission: "ops_shuttle" },
   { href: "/admin/vendors", label: "Vendors", icon: Store, permission: "vendors" },
   { href: "/admin/vendors/logs", label: "Trip Logs", icon: ClipboardList, permission: "vendor_logs" },
   { href: "/admin/external-vendors", label: "External Vendors", icon: Truck, permission: "external_vendors" },

@@ -52,10 +52,10 @@ export default function CompanyDashboardPage() {
     try {
       const now = new Date();
       const { from, to } = getCalendarMonthRange(now.getFullYear(), now.getMonth());
-      const data = await apiClient.request<{ delta_pkr: number; has_benchmarks: boolean }>(
+      const data = await apiClient.request<{ total_fuel_saving_pkr: number; has_benchmarks: boolean }>(
         `/company/savings-realisation?from=${from}&to=${to}`,
       );
-      if (data.has_benchmarks) setBenchmarkDelta(data.delta_pkr);
+      if (data.has_benchmarks) setBenchmarkDelta(data.total_fuel_saving_pkr);
     } catch {
       // Silently ignore — card falls back to booking-level savings
     }

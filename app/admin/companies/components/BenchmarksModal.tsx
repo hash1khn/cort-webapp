@@ -6,6 +6,8 @@ import { Plus, Trash2, X } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type FuelMode = 'LITRES' | 'AVERAGE';
+
 type BenchmarkRow = {
   id: number;
   service_type: 'SHUTTLE' | 'CHAUFFEUR';
@@ -15,8 +17,10 @@ type BenchmarkRow = {
   monthly_cost: number;
   quantity: number;
   vendor_name: string | null;
-  effective_from: string;
-  effective_to: string | null;
+  fuel_mode: FuelMode | null;
+  fuel_litres: number | null;
+  claimed_avg_distance_km: number | null;
+  fuel_avg_kmpl: number | null;
   notes: string | null;
 };
 
@@ -28,8 +32,10 @@ type NewBenchmarkForm = {
   monthly_cost: string;
   quantity: string;
   vendor_name: string;
-  effective_from: string;
-  effective_to: string;
+  fuel_mode: FuelMode;
+  fuel_litres: string;
+  claimed_avg_distance_km: string;
+  fuel_avg_kmpl: string;
   notes: string;
 };
 
@@ -45,8 +51,10 @@ const EMPTY_FORM: NewBenchmarkForm = {
   monthly_cost: '',
   quantity: '1',
   vendor_name: '',
-  effective_from: '',
-  effective_to: '',
+  fuel_mode: 'LITRES',
+  fuel_litres: '',
+  claimed_avg_distance_km: '',
+  fuel_avg_kmpl: '',
   notes: '',
 };
 
@@ -97,7 +105,9 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.monthly_cost || !form.effective_from) return;
+    if (!form.monthly_cost || !form.vehicle_category) return;
+    if (form.fuel_mode === 'LITRES' && !form.fuel_litres) return;
+    if (form.fuel_mode === 'AVERAGE' && (!form.claimed_avg_distance_km || !form.fuel_avg_kmpl)) return;
     setSaving(true);
     setError(null);
     try {
@@ -109,10 +119,12 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
           coaster_seater_size: form.vehicle_category === 'COASTER' ? (form.coaster_seater_size || null) : null,
           cost_type: form.cost_type,
           monthly_cost: parseFloat(form.monthly_cost),
-          quantity: form.cost_type === 'FIXED' ? 1 : (parseInt(form.quantity, 10) || 1),
+          quantity: parseInt(form.quantity, 10) || 1,
           vendor_name: form.vendor_name || null,
-          effective_from: form.effective_from,
-          effective_to: form.effective_to || null,
+          fuel_mode: form.fuel_mode,
+          fuel_litres: form.fuel_mode === 'LITRES' ? parseFloat(form.fuel_litres) : null,
+          claimed_avg_distance_km: form.fuel_mode === 'AVERAGE' ? parseFloat(form.claimed_avg_distance_km) : null,
+          fuel_avg_kmpl: form.fuel_mode === 'AVERAGE' ? parseFloat(form.fuel_avg_kmpl) : null,
           notes: form.notes || null,
         }),
       });
@@ -147,7 +159,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-base font-bold text-[#0c225e]">Pre-Trafliq Benchmarks</h3>
+            <h3 className="text-base font-bold text-[#0c225e]">Pre-Traflinq Benchmarks</h3>
             <p className="text-xs text-slate-500 mt-0.5">{companyName} — what they paid before Traflinq</p>
           </div>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
@@ -159,9 +171,9 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
 
           {/* Info callout */}
           <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-600 leading-relaxed">
-            Enter each vendor / service line the company had before switching to CORT. Include the
-            monthly cost, number of vehicles, and the date range it was active. The AI savings
-            analysis on the company dashboard uses these figures to compute the exact PKR delta.
+            Enter each vendor / service line the company had before switching to CORT, including their claimed
+            fuel consumption. The system compares this against actual GPS-measured utilisation to compute a
+            verified fuel-cost saving each month.
           </div>
 
           {error && (
@@ -207,17 +219,26 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                         }`}>
                           {b.cost_type === 'FIXED' ? 'Fixed' : 'Variable'}
                         </span>
+                        {b.fuel_mode && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                            Fuel: {b.fuel_mode === 'LITRES' ? 'Litres' : 'Average'}
+                          </span>
+                        )}
                         {b.vendor_name && (
                           <span className="text-xs text-gray-400 truncate">— {b.vendor_name}</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {b.cost_type === 'FIXED'
-                          ? <>{pkr(b.monthly_cost)}<span className="text-gray-400">/month (lump sum)</span></>
-                          : <>{pkr(b.monthly_cost * b.quantity)}<span className="text-gray-400">/month ({b.quantity} × {pkr(b.monthly_cost)})</span></>
+                          ? <>{pkr(b.monthly_cost)}<span className="text-gray-400">/month (lump sum · {b.quantity} vehicle{b.quantity === 1 ? '' : 's'})</span></>
+                          : <>{pkr(b.monthly_cost * b.quantity)}<span className="text-gray-400">/month ({b.quantity} × {pkr(b.monthly_cost)} rental)</span></>
                         }
-                        {' · '}from {b.effective_from}
-                        {b.effective_to ? ` to ${b.effective_to}` : ' (ongoing)'}
+                        {b.fuel_mode === 'LITRES' && b.fuel_litres != null && (
+                          <span className="text-gray-400"> · {b.fuel_litres} L/vehicle/month claimed</span>
+                        )}
+                        {b.fuel_mode === 'AVERAGE' && b.claimed_avg_distance_km != null && b.fuel_avg_kmpl != null && (
+                          <span className="text-gray-400"> · {b.claimed_avg_distance_km} km/vehicle/month @ {b.fuel_avg_kmpl} km/L claimed</span>
+                        )}
                       </p>
                       {b.notes && <p className="text-xs text-gray-400 mt-0.5 italic">{b.notes}</p>}
                     </div>
@@ -231,18 +252,6 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   </div>
                 ))}
               </div>
-              {/* Grand total footer */}
-              {benchmarks.length > 0 && (() => {
-                const grandTotal = benchmarks.reduce((sum, b) =>
-                  sum + (b.cost_type === 'FIXED' ? b.monthly_cost : b.monthly_cost * b.quantity), 0
-                );
-                return (
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#0c225e] rounded-b-xl">
-                    <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">Total monthly benchmark</span>
-                    <span className="text-sm font-bold text-white">{pkr(grandTotal)}<span className="text-white/60 font-normal text-xs">/month</span></span>
-                  </div>
-                );
-              })()}
             </div>
           ) : !showForm ? (
             <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-emerald-50 px-6 py-10 text-center">
@@ -251,8 +260,8 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
               </div>
               <p className="text-sm font-semibold text-emerald-800 mb-1">No benchmarks yet</p>
               <p className="text-xs text-emerald-600 max-w-sm mx-auto mb-4">
-                Add what this company paid before Traflinq — vendor name, monthly cost, and vehicle
-                count. The AI will compute exact savings against actual CORT invoices.
+                Add what this company paid before Traflinq — vendor name, monthly cost, vehicle count, and
+                claimed fuel consumption. Savings are calculated from actual GPS utilisation.
               </p>
               <button
                 onClick={() => setShowForm(true)}
@@ -297,13 +306,13 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
 
                 {/* Vehicle category */}
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">Vehicle category</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Vehicle category *</label>
                   <select
                     value={form.vehicle_category}
                     onChange={(e) => setForm((f) => ({ ...f, vehicle_category: e.target.value }))}
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
-                    <option value="">Mixed / any</option>
+                    <option value="">— Select category —</option>
                     {VEHICLE_CATEGORIES.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -329,7 +338,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
 
                 {/* Vendor name */}
                 <div>
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">Previous vendor</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Current vendor</label>
                   <input
                     type="text"
                     placeholder="e.g. Careem for Business"
@@ -347,7 +356,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                     onChange={(e) => setForm((f) => ({ ...f, cost_type: e.target.value as 'FIXED' | 'VARIABLE' }))}
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   >
-                    <option value="VARIABLE">Variable (per vehicle × quantity)</option>
+                    <option value="VARIABLE">Variable (monthly rental × quantity)</option>
                     <option value="FIXED">Fixed (lump sum)</option>
                   </select>
                 </div>
@@ -355,7 +364,7 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                 {/* Monthly cost */}
                 <div>
                   <label className="text-xs text-gray-600 mb-1 block font-medium">
-                    {form.cost_type === 'FIXED' ? 'Monthly lump sum (PKR) *' : 'Monthly cost per vehicle (PKR) *'}
+                    {form.cost_type === 'FIXED' ? 'Monthly lump sum (PKR) *' : 'Monthly rental per vehicle (PKR) *'}
                   </label>
                   <input
                     type="number"
@@ -368,19 +377,18 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                   />
                 </div>
 
-                {/* Quantity — only for VARIABLE */}
-                {form.cost_type === 'VARIABLE' && (
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block font-medium">Number of vehicles / units</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.quantity}
-                      onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                    />
-                  </div>
-                )}
+                {/* Quantity — used for fuel savings on both FIXED and VARIABLE */}
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Number of vehicles / units *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={form.quantity}
+                    onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                </div>
 
                 {/* Live cost preview */}
                 {form.monthly_cost && (
@@ -391,34 +399,65 @@ export function BenchmarksModal({ companyId, companyName, isOpen, onClose }: Ben
                         : (parseFloat(form.monthly_cost) || 0) * (parseInt(form.quantity, 10) || 1)
                     )}/month
                     {form.cost_type === 'VARIABLE' && ` (${parseInt(form.quantity, 10) || 1} × ${pkr(parseFloat(form.monthly_cost) || 0)})`}
+                    {form.cost_type === 'FIXED' && ` · ${parseInt(form.quantity, 10) || 1} vehicle${(parseInt(form.quantity, 10) || 1) === 1 ? '' : 's'}`}
                   </div>
                 )}
 
-                {/* Effective from */}
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">Effective from *</label>
-                  <input
-                    type="date"
-                    required
-                    value={form.effective_from}
-                    onChange={(e) => setForm((f) => ({ ...f, effective_from: e.target.value }))}
+                {/* Fuel mode */}
+                <div className="col-span-2 border-t border-emerald-100 pt-3 mt-1">
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Fuel benchmark mode *</label>
+                  <select
+                    value={form.fuel_mode}
+                    onChange={(e) => setForm((f) => ({ ...f, fuel_mode: e.target.value as FuelMode }))}
                     className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  />
+                  >
+                    <option value="LITRES">Litres — company entered claimed litres/month</option>
+                    <option value="AVERAGE">Average — company entered claimed distance + their own km/L</option>
+                  </select>
                 </div>
 
-                {/* Effective to */}
-                <div className="col-span-2">
-                  <label className="text-xs text-gray-600 mb-1 block font-medium">
-                    Effective to{' '}
-                    <span className="text-gray-400 font-normal">(leave blank = ongoing baseline)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={form.effective_to}
-                    onChange={(e) => setForm((f) => ({ ...f, effective_to: e.target.value }))}
-                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  />
-                </div>
+                {form.fuel_mode === 'LITRES' ? (
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-600 mb-1 block font-medium">Claimed litres per vehicle / month *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="e.g. 350"
+                      value={form.fuel_litres}
+                      onChange={(e) => setForm((f) => ({ ...f, fuel_litres: e.target.value }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Compared against the admin-set km/L average for this vehicle category.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block font-medium">Claimed avg distance (km/vehicle/month) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 1650"
+                        value={form.claimed_avg_distance_km}
+                        onChange={(e) => setForm((f) => ({ ...f, claimed_avg_distance_km: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block font-medium">Company's claimed fuel avg (km/L) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g. 5"
+                        value={form.fuel_avg_kmpl}
+                        onChange={(e) => setForm((f) => ({ ...f, fuel_avg_kmpl: e.target.value }))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Notes */}
                 <div className="col-span-2">

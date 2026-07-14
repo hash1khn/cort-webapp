@@ -223,17 +223,16 @@ export default function EmployeesPage() {
                 </div>
               </div>
             </div>
-            {isTrialUser && (
-              <button
-                type="button"
-                onClick={() => setShowAddEmployee(true)}
-                disabled={atEmployeeLimit}
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-[var(--text-primary)] shadow-sm hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                {t("addEmployee")}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowAddEmployee(true)}
+              disabled={atEmployeeLimit}
+              title={atEmployeeLimit ? t("trialBanner", { used: employees.length, max: maxEmployees }) : undefined}
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--cort-orange)] px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-[var(--cort-orange-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              {t("addEmployee")}
+            </button>
           </div>
         </div>
 

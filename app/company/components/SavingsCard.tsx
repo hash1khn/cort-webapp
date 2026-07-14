@@ -2,25 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiClient } from '@/app/lib/services/api-client';
-import { TrendingDown, TrendingUp, Sparkles } from 'lucide-react';
+import { TrendingDown, TrendingUp, Sparkles, Clock } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+const ANALYSIS_MIN_DAYS = 20;
+
 type SavingsResult = {
   period: { from: string; to: string; days: number };
-  benchmark_total_pkr: number;
-  monthly_benchmark_total_pkr: number;
-  actual_total_pkr: number;
-  delta_pkr: number;
-  savings_pct: number | null;
+  analysed_days: number;
+  analysis_ready: boolean;
+  fuel_price_pkr: number | null;
+  total_fuel_saving_pkr: number;
   has_benchmarks: boolean;
   narrative: string;
-  breakdown: Array<{
-    service_type: string;
-    benchmark_pkr: number;
-    actual_pkr: number;
-    delta_pkr: number;
-  }>;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,7 +64,7 @@ export default function SavingsCard() {
     return null;
   }
 
-  const isSaving = result.delta_pkr >= 0;
+  const isSaving = result.total_fuel_saving_pkr >= 0;
 
   return (
     <div
@@ -97,79 +92,44 @@ export default function SavingsCard() {
             )}
           </div>
           <div>
-            <p className="text-sm font-bold text-[#0c225e]">Your Savings with Traflinq</p>
+            <p className="text-sm font-bold text-[#0c225e]">Fuel Cost Savings</p>
             <p className="text-xs text-gray-400 mt-0.5">
               {result.period.from} → {result.period.to}
             </p>
           </div>
         </div>
-        <span
-          className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-            isSaving ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-          }`}
-        >
-          {isSaving
-            ? `−${result.savings_pct?.toFixed(1) ?? '—'}%`
-            : `+${result.savings_pct !== null ? Math.abs(result.savings_pct).toFixed(1) : '—'}%`}
-        </span>
+        {!result.analysis_ready && (
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+            <Clock className="h-3 w-3" /> {result.analysed_days}/{ANALYSIS_MIN_DAYS} days
+          </span>
+        )}
       </div>
 
       {/* Numbers */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
-          <p className="text-xs text-gray-400 mb-1">Before Traflinq</p>
-          <p className="text-sm font-bold text-gray-700">{pkr(result.benchmark_total_pkr)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">prorated</p>
-          {result.monthly_benchmark_total_pkr > 0 && (
-            <p className="text-xs text-gray-400 mt-0.5">
-              {pkr(result.monthly_benchmark_total_pkr)}<span className="text-gray-300">/mo baseline</span>
-            </p>
-          )}
-        </div>
-        <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
-          <p className="text-xs text-gray-400 mb-1">With Traflinq</p>
-          <p className="text-sm font-bold text-gray-700">{pkr(result.actual_total_pkr)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">invoiced</p>
+          <p className="text-xs text-gray-400 mb-1">Fuel price used</p>
+          <p className="text-sm font-bold text-gray-700">
+            {result.fuel_price_pkr != null ? pkr(result.fuel_price_pkr) : '—'}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">per litre</p>
         </div>
         <div
           className={`rounded-xl px-4 py-3 border ${
-            isSaving
-              ? 'bg-emerald-50 border-emerald-200'
-              : 'bg-red-50 border-red-200'
+            isSaving ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
           }`}
         >
           <p className={`text-xs mb-1 ${isSaving ? 'text-emerald-600' : 'text-red-600'}`}>
-            {isSaving ? 'You saved' : 'Difference'}
+            {isSaving ? 'Fuel saved' : 'Fuel overspend'}
           </p>
           <p className={`text-sm font-extrabold ${isSaving ? 'text-emerald-700' : 'text-red-700'}`}>
-            {isSaving ? '−' : '+'}{pkr(result.delta_pkr)}
+            {isSaving ? '−' : '+'}{pkr(result.total_fuel_saving_pkr)}
           </p>
           <p className={`text-xs mt-0.5 ${isSaving ? 'text-emerald-500' : 'text-red-500'}`}>
-            this period
+            vs claimed baseline
           </p>
         </div>
       </div>
-
-      {/* Per-service breakdown (when both services are active) */}
-      {result.breakdown.length > 1 && (
-        <div className="flex gap-2 mb-5 flex-wrap">
-          {result.breakdown.map((b) => (
-            <div
-              key={b.service_type}
-              className="flex items-center gap-2 rounded-full bg-white/80 border border-gray-100 px-3 py-1.5"
-            >
-              <span className="text-xs font-medium text-gray-600">{b.service_type}</span>
-              <span
-                className={`text-xs font-bold ${
-                  b.delta_pkr >= 0 ? 'text-emerald-600' : 'text-red-500'
-                }`}
-              >
-                {b.delta_pkr >= 0 ? '−' : '+'}{pkr(b.delta_pkr)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* AI Narrative */}
       {result.narrative && (
