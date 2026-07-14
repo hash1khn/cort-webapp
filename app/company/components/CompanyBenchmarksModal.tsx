@@ -153,7 +153,7 @@ function BenchmarkFields({ form, setForm }: { form: FormState; setForm: (f: Form
       )}
 
       <div>
-        <label className={labelClass}>Previous vendor</label>
+        <label className={labelClass}>Current vendor</label>
         <input
           type="text"
           placeholder="e.g. Careem for Business"
