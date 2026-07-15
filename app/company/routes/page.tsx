@@ -36,6 +36,7 @@ import {
   Home,
   CheckCheck,
 } from "lucide-react";
+import { useGooglePlacesAutocomplete } from "../../hooks/useGooglePlacesAutocomplete";
 import {
   getPhoneValidationError,
   PHONE_MAX_LENGTH,
@@ -128,14 +129,61 @@ function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNI
 
 function AiRouteOptimizer({ companyId }: { companyId: number }) {
   const t = useTranslations("company.routes");
-  const tCommon = useTranslations("common");
+  const googleMapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const [address, setAddress] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiRecommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const addressContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    suggestions,
+    isLoading: isLoadingSuggestions,
+    search,
+    clearSuggestions,
+    refreshToken,
+  } = useGooglePlacesAutocomplete({
+    apiKey: googleMapsKey,
+    country: "pk",
+  });
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (addressContainerRef.current && !addressContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function handleAddressChange(value: string) {
+    setAddress(value);
+    setResult(null);
+    setError(null);
+    if (googleMapsKey && value.trim().length >= 3) {
+      search(value);
+      setShowSuggestions(true);
+    } else {
+      clearSuggestions();
+      setShowSuggestions(false);
+    }
+  }
+
+  function handleSelectSuggestion(suggestion: { place_id: string; display_name: string }) {
+    setAddress(suggestion.display_name);
+    clearSuggestions();
+    refreshToken();
+    setShowSuggestions(false);
+    setResult(null);
+    setError(null);
+  }
 
   async function handleAnalyze() {
     if (!address.trim()) return;
+    setShowSuggestions(false);
+    clearSuggestions();
     setLoading(true);
     setResult(null);
     setError(null);
@@ -171,16 +219,54 @@ function AiRouteOptimizer({ companyId }: { companyId: number }) {
       </div>
 
       <div className="flex gap-3">
-        <div className="relative flex-1">
-          <MapPin className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+        <div ref={addressContainerRef} className="relative flex-1">
+          <MapPin className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none z-10" />
           <input
             type="text"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
+            onChange={(e) => handleAddressChange(e.target.value)}
+            onFocus={() => {
+              if (suggestions.length > 0) setShowSuggestions(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAnalyze();
+              }
+            }}
             placeholder={t("addressPlaceholder")}
-            className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] ps-9 pe-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all"
+            autoComplete="off"
+            className="w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-input)] ps-9 pe-10 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--cort-orange)]/40 focus:border-[var(--cort-orange)] transition-all"
           />
+          {isLoadingSuggestions && (
+            <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] animate-spin" />
+          )}
+
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="absolute z-50 top-full mt-2 w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] shadow-2xl max-h-60 overflow-y-auto py-1">
+              {suggestions.map((suggestion) => (
+                <li key={suggestion.place_id}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleSelectSuggestion(suggestion);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-[var(--bg-subtle)] flex items-start gap-3 border-b border-[var(--border-light)] last:border-b-0 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-[var(--text-muted)] shrink-0 mt-0.5" />
+                    <span className="text-sm text-[var(--text-primary)] leading-snug">{suggestion.display_name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showSuggestions && !isLoadingSuggestions && address.trim().length >= 3 && suggestions.length === 0 && (
+            <div className="absolute z-50 top-full mt-2 w-full rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] shadow-lg px-4 py-3 text-sm text-[var(--text-muted)]">
+              {t("addressNoResults")}
+            </div>
+          )}
         </div>
         <Button
           onClick={handleAnalyze}

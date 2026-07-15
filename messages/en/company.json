@@ -409,6 +409,7 @@
       "aiOptimizerTitle": "AI Route Optimizer",
       "aiOptimizerDescription": "Enter a new employee's address and AI instantly recommends which vehicle/route to assign them to — minimizing cost leakage and maximizing vehicle utilization.",
       "addressPlaceholder": "e.g. DHA Phase 6, Lahore or Block 4 Gulshan-e-Iqbal, Karachi",
+      "addressNoResults": "No matching addresses found",
       "analyzing": "Analyzing…",
       "analyze": "Analyze",
       "failedAiRecommendation": "Failed to get AI recommendation",

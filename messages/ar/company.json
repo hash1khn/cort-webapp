@@ -409,6 +409,7 @@
       "aiOptimizerTitle": "محسّن المسارات بالذكاء الاصطناعي",
       "aiOptimizerDescription": "أدخل عنوان موظف جديد وسيوصي الذكاء الاصطناعي فوراً بالمركبة/المسار المناسب — لتقليل تسرب التكاليف وزيادة استخدام المركبات.",
       "addressPlaceholder": "مثال: DHA Phase 6, Lahore أو Block 4 Gulshan-e-Iqbal, Karachi",
+      "addressNoResults": "لم يتم العثور على عناوين مطابقة",
       "analyzing": "جاري التحليل…",
       "analyze": "تحليل",
       "failedAiRecommendation": "فشل الحصول على توصية الذكاء الاصطناعي",
