@@ -378,7 +378,7 @@ export default function SavingsPage() {
       {!loading && result && result.has_benchmarks && (
         <>
           {!result.analysis_ready && (
-            <p className="text-xs text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 -mt-2">
+            <p className="text-xs alert-banner-warning -mt-2">
               {t('analysisInProgressBanner', { month: selectedMonthName, year: selectedYear })}
             </p>
           )}

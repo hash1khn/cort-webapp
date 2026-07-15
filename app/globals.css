@@ -138,6 +138,27 @@
     --text-muted: rgba(15,23,42,0.45);
 }
 
+/* Theme-aware tinted alert banners (readable in light + dark mode) */
+.alert-banner-warning {
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--accent-warning) 25%, transparent);
+    background: color-mix(in srgb, var(--accent-warning) 10%, transparent);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.375;
+    color: var(--text-primary);
+}
+
+.alert-banner-brand {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--cort-orange) 25%, transparent);
+    background: color-mix(in srgb, var(--cort-orange) 10%, transparent);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.375;
+    color: var(--text-primary);
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);

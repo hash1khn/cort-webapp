@@ -426,12 +426,12 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             className="mx-auto w-full max-w-full flex-1 px-4 py-4 md:px-8 bg-[var(--bg-page)] min-h-screen"
           >
             {trialInfo && (
-              <div className="mb-4 rounded-2xl border border-[#f47f00]/25 bg-[#f47f00]/10 px-4 py-3 text-sm text-white/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="mb-4 alert-banner-brand flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex flex-col">
                   <div className="font-semibold">{t("trial.banner.title")}</div>
-                  <div className="text-xs text-white/60">
+                  <div className="text-xs text-[var(--text-secondary)]">
                     {t.rich("trial.banner.expires", {
-                      hours: () => <span className="text-white font-semibold">{trialInfo.remainingHours}h</span>,
+                      hours: () => <span className="text-[var(--cort-orange)] font-semibold">{trialInfo.remainingHours}h</span>,
                     })}
                   </div>
                   {!user?.trial_onboarding_completed && (
