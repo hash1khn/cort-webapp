@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "../lib/store/hooks";
 import { fetchDashboardStats, setDateRange } from "../lib/store/slices/superAdminDashboardSlice";
 import { MetricCard } from "./ui/dashboard/MetricCard";
@@ -25,6 +26,7 @@ export default function AdminDashboardPage() {
 }
 
 function AdminDashboardContent() {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const { stats, loading, error, dateRange } = useAppSelector((state: RootState) => state.superAdminDashboard);
 
@@ -195,7 +197,10 @@ function AdminDashboardContent() {
               <p className="text-[var(--text-muted)] text-sm font-medium">There are {stats.totalUnassignedBookings} bookings that require immediate driver allocation.</p>
             </div>
           </div>
-          <button className="px-6 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:shadow-rose-300 transition-all hover:scale-[1.02]">
+          <button
+            onClick={() => router.push('/admin/bookings/pending')}
+            className="px-6 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:shadow-rose-300 transition-all hover:scale-[1.02]"
+          >
             Take Action Now
           </button>
         </div>
