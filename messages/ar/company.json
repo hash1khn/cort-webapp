@@ -908,7 +908,15 @@
       "shuttleUtilization": "استخدام النقل الجماعي",
       "collectingData": "جاري جمع البيانات…",
       "passenger": "راكب",
-      "routeLabel": "المسار {id}"
+      "routeLabel": "المسار {id}",
+      "demoData": "بيانات تجريبية",
+      "demoVehiclesOnMap": "{count} مركبة تجريبية على الخريطة",
+      "onboardPassengers": "الركاب على متن المركبة",
+      "sampleFleetData": "بيانات أسطول تجريبية",
+      "boardedAt": "صعد الساعة {time}",
+      "notYetBoarded": "لم يصعد بعد",
+      "absent": "غائب",
+      "startedAt": "بدأت الساعة {time}"
     },
     "costLeakage": {
       "title": "كاشف تسرب التكاليف",

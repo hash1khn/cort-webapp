@@ -908,7 +908,15 @@
       "shuttleUtilization": "Shuttle Utilization",
       "collectingData": "Collecting data…",
       "passenger": "Passenger",
-      "routeLabel": "Route {id}"
+      "routeLabel": "Route {id}",
+      "demoData": "Demo Data",
+      "demoVehiclesOnMap": "{count} demo vehicle(s) on map",
+      "onboardPassengers": "Onboard Passengers",
+      "sampleFleetData": "Sample fleet data",
+      "boardedAt": "Boarded {time}",
+      "notYetBoarded": "Not yet boarded",
+      "absent": "Absent",
+      "startedAt": "Started at {time}"
     },
     "costLeakage": {
       "title": "Cost Leakage Detector",
