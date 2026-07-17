@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useAppDispatch, useAppSelector } from "../../lib/store/hooks";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
@@ -12,6 +13,8 @@ import {
   updateSystemFuelPrice,
   fetchSystemDieselPrice,
   updateSystemDieselPrice,
+  fetchFuelPriceHistory,
+  fetchDieselPriceHistory,
   fetchCompanyContractDetails,
   fetchShuttleContract,
   previewRateAdjustments,
@@ -36,7 +39,7 @@ import {
   updateShuttleRouteRow,
   removeShuttleRouteRow,
 } from "../../lib/store/slices/adminPricingSlice";
-import { ChauffeurContractRate } from "../../lib/services/api-client";
+import { ChauffeurContractRate, FuelPriceHistoryEntry } from "../../lib/services/api-client";
 
 const Input = ({
   label,
@@ -62,6 +65,60 @@ const Input = ({
     {helperText && <span className="text-xs text-[var(--text-muted)]">{helperText}</span>}
   </label>
 );
+
+const FuelPriceHistoryChart = ({
+  data,
+  color,
+  gradientId,
+}: {
+  data: FuelPriceHistoryEntry[];
+  color: string;
+  gradientId: string;
+}) => {
+  const chartData = data.map((entry) => ({
+    date: new Date(entry.effective_from).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+    fullDate: new Date(entry.effective_from).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    price: Number(entry.price),
+  }));
+
+  if (chartData.length < 2) {
+    return (
+      <div className="h-40 flex items-center justify-center text-xs text-[var(--text-muted)]">
+        Not enough history yet — make another price update to see the trend.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-40 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-default)" />
+          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "var(--text-muted)", fontSize: 11 }} dy={8} />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+            width={44}
+            domain={["dataMin - 5", "dataMax + 5"]}
+          />
+          <Tooltip
+            contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)", fontSize: "12px" }}
+            formatter={(value: any) => [`PKR ${value}`, "Price"]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.fullDate ?? ""}
+          />
+          <Area type="stepAfter" dataKey="price" stroke={color} strokeWidth={2.5} fillOpacity={1} fill={`url(#${gradientId})`} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 export default function PricingPage() {
   return (
@@ -92,6 +149,8 @@ function PricingPageContent() {
     rateRows,
     systemFuelPrice,
     systemDieselPrice,
+    fuelPriceHistory,
+    dieselPriceHistory,
     showPreview,
     previewData,
     isLoadingPreview,
@@ -115,6 +174,8 @@ function PricingPageContent() {
     dispatch(fetchPricingCompanies());
     dispatch(fetchSystemFuelPrice());
     dispatch(fetchSystemDieselPrice());
+    dispatch(fetchFuelPriceHistory());
+    dispatch(fetchDieselPriceHistory());
   }, [dispatch]);
 
   // Deep-link from company detail: /admin/pricing?companyId=123
@@ -145,12 +206,14 @@ function PricingPageContent() {
   }, [actionStatus, error, dispatch]);
 
 
-  const handleUpdateGlobalFuel = () => {
-    dispatch(updateSystemFuelPrice(systemFuelPrice));
+  const handleUpdateGlobalFuel = async () => {
+    await dispatch(updateSystemFuelPrice(systemFuelPrice));
+    dispatch(fetchFuelPriceHistory());
   };
 
-  const handleUpdateGlobalDiesel = () => {
-    dispatch(updateSystemDieselPrice(systemDieselPrice));
+  const handleUpdateGlobalDiesel = async () => {
+    await dispatch(updateSystemDieselPrice(systemDieselPrice));
+    dispatch(fetchDieselPriceHistory());
   };
 
   const handlePreviewAdjustments = () => {
@@ -250,6 +313,10 @@ function PricingPageContent() {
             {isLoadingPreview ? "Loading..." : "Preview Adjustments"}
           </button>
         </div>
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Price History</span>
+          <FuelPriceHistoryChart data={fuelPriceHistory} color="#f47f00" gradientId="colorFuelHistory" />
+        </div>
       </div>
 
       {/* Global Diesel Rate (Shuttle Only) */}
@@ -276,6 +343,10 @@ function PricingPageContent() {
           >
             Update
           </button>
+        </div>
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Price History</span>
+          <FuelPriceHistoryChart data={dieselPriceHistory} color="#d97706" gradientId="colorDieselHistory" />
         </div>
       </div>
 

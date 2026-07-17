@@ -183,6 +183,19 @@ export interface SystemSettingResponse {
     message: string;
 }
 
+export interface FuelPriceHistoryEntry {
+    id: number;
+    fuel_type: 'PETROL' | 'DIESEL';
+    price: string;
+    effective_from: string;
+}
+
+export interface FuelPriceHistoryResponse {
+    data: FuelPriceHistoryEntry[];
+    statusCode: number;
+    message: string;
+}
+
 export interface ShuttleContractRoute {
     id: number;
     contract_id: number;

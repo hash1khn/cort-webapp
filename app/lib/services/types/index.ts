@@ -114,6 +114,8 @@ export type {
     SingleChauffeurContractResponse,
     SystemSetting,
     SystemSettingResponse,
+    FuelPriceHistoryEntry,
+    FuelPriceHistoryResponse,
     ShuttleContractRoute,
     ShuttleContract,
     CreateShuttleContractRequest,

@@ -31,6 +31,7 @@ import {
     // Pricing / Contracts
     ChauffeurContractResponse, CreateChauffeurContractRequest, SingleChauffeurContractResponse, UpdateChauffeurContractRequest,
     SystemSettingResponse,
+    FuelPriceHistoryResponse,
     ShuttleContract,
     ShuttleContractRoute,
     CreateShuttleContractRequest,
@@ -974,6 +975,10 @@ class ApiClient {
             method: 'PUT',
             body: JSON.stringify({ value }),
         });
+    }
+
+    async getFuelPriceHistory(fuelType: 'PETROL' | 'DIESEL'): Promise<FuelPriceHistoryResponse> {
+        return this.request<FuelPriceHistoryResponse>(`/system-settings/fuel-price-history/${fuelType}`);
     }
 
     // ===== CHAUFFEUR BOOKINGS =====

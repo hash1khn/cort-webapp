@@ -11,6 +11,7 @@ import {
     FixedTermContract,
     CreateFixedTermContractRequest,
     UpdateFixedTermContractRequest,
+    FuelPriceHistoryEntry,
 } from '../../services/api-client';
 import { RootState } from '../store';
 
@@ -46,6 +47,8 @@ interface AdminPricingState {
     shuttleRouteRows: ShuttleRouteRow[];
     systemFuelPrice: string;
     systemDieselPrice: string;
+    fuelPriceHistory: FuelPriceHistoryEntry[];
+    dieselPriceHistory: FuelPriceHistoryEntry[];
 
     // Preview
     showPreview: boolean;
@@ -86,6 +89,8 @@ const initialState: AdminPricingState = {
     shuttleRouteRows: [],
     systemFuelPrice: "0",
     systemDieselPrice: "0",
+    fuelPriceHistory: [],
+    dieselPriceHistory: [],
 
     showPreview: false,
     previewData: null,
@@ -164,6 +169,30 @@ export const updateSystemDieselPrice = createAsyncThunk(
             return value;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to update diesel price');
+        }
+    }
+);
+
+export const fetchFuelPriceHistory = createAsyncThunk(
+    'adminPricing/fetchFuelPriceHistory',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getFuelPriceHistory('PETROL');
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch fuel price history');
+        }
+    }
+);
+
+export const fetchDieselPriceHistory = createAsyncThunk(
+    'adminPricing/fetchDieselPriceHistory',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.getFuelPriceHistory('DIESEL');
+            return response.data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Failed to fetch diesel price history');
         }
     }
 );
@@ -532,6 +561,14 @@ const adminPricingSlice = createSlice({
             // Fetch Diesel Price
             .addCase(fetchSystemDieselPrice.fulfilled, (state, action) => {
                 state.systemDieselPrice = action.payload;
+            })
+            // Fetch Fuel Price History
+            .addCase(fetchFuelPriceHistory.fulfilled, (state, action) => {
+                state.fuelPriceHistory = action.payload;
+            })
+            // Fetch Diesel Price History
+            .addCase(fetchDieselPriceHistory.fulfilled, (state, action) => {
+                state.dieselPriceHistory = action.payload;
             })
             // Update Fuel Price
             .addCase(updateSystemFuelPrice.pending, (state) => { state.actionStatus = 'loading'; })
