@@ -12,6 +12,7 @@
   - Text hierarchy defined
   - Legacy variables preserved
 
+
 - [x] Color palette finalized
   - Navy: #0c225e (primary)
   - Orange: #f47f00 (accent)
