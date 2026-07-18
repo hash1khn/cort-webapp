@@ -12,6 +12,8 @@ Location: `app/admin/ui/Map.tsx`
 
 A reusable map component that uses **OpenStreetMap** (free, no API key needed).
 
+
+
 ### Features:
 - ✅ No API key required
 - ✅ Free and open source
