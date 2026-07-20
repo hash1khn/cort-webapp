@@ -517,6 +517,9 @@
       "confirmRemoveEmployee": "إزالة هذا الموظف من المسار؟",
       "employeeRemovedSuccess": "تمت إزالة الموظف من المسار",
       "failedRemoveEmployee": "فشل إزالة الموظف",
+      "routeMap": "خريطة المسار",
+      "routeMapDescription": "مسار يتبع الطرق مع محطات مرقمة.",
+      "noStopsForDirection": "لا توجد محطات مُعدّة لهذا الاتجاه.",
       "tracking": {
         "liveRouteStatus": "حالة المسار المباشرة",
         "description": "راقب مواقع الحافلات والمحطات والبيانات التشغيلية في الوقت الفعلي.",

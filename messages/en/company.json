@@ -517,6 +517,9 @@
       "confirmRemoveEmployee": "Remove this employee from the route?",
       "employeeRemovedSuccess": "Employee removed from route",
       "failedRemoveEmployee": "Failed to remove employee",
+      "routeMap": "Route Map",
+      "routeMapDescription": "Road-following route polyline with numbered stops.",
+      "noStopsForDirection": "No stops configured for this direction.",
       "tracking": {
         "liveRouteStatus": "Live Route Status",
         "description": "Monitor real-time shuttle positions, stops, and precision telemetry.",

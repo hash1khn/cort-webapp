@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { RouteDetailsEditor } from "../components/RouteDetailsEditor";
 import { RouteStopsEditor } from "../components/RouteStopsEditor";
+import { RouteOverviewMap } from "../components/RouteOverviewMap";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -179,6 +180,7 @@ export default function RouteDetailPage() {
   const [generatingTrips, setGeneratingTrips] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<"overview" | "stops">("overview");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigning, setAssigning] = useState(false);
@@ -198,6 +200,7 @@ export default function RouteDetailPage() {
     try {
       const data = await apiClient.request<RouteDetail>(`/routes/${routeId}`);
       setRoute(data);
+      setMapRefreshKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : tCommon("errors.failedToLoadRoute"));
     } finally {
@@ -439,6 +442,8 @@ export default function RouteDetailPage() {
               </Card>
             ))}
           </div>
+
+          <RouteOverviewMap routeId={route.id} stops={stops} refreshKey={mapRefreshKey} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Employees */}
