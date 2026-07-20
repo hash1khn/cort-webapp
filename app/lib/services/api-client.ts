@@ -1844,6 +1844,69 @@ class ApiClient {
         });
     }
 
+    async updateCompanyRoute(routeId: number, dto: {
+        name?: string;
+        assigned_vehicle_id?: number | null;
+        assigned_driver_id?: string | null;
+    }) {
+        return this.request<unknown>(`/routes/${routeId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async addCompanyRouteStop(routeId: number, dto: {
+        name: string;
+        lat: number;
+        lng: number;
+        sequence_order: number;
+        direction?: 'MORNING' | 'EVENING' | 'BOTH';
+        morning_eta?: string | null;
+        evening_eta?: string | null;
+        morning_sequence?: number;
+        evening_sequence?: number;
+    }) {
+        return this.request<unknown>(`/routes/${routeId}/stops`, {
+            method: 'POST',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async updateCompanyRouteStop(stopId: number, dto: {
+        name?: string;
+        lat?: number;
+        lng?: number;
+        sequence_order?: number;
+        direction?: 'MORNING' | 'EVENING' | 'BOTH';
+        morning_eta?: string | null;
+        evening_eta?: string | null;
+        morning_sequence?: number;
+        evening_sequence?: number;
+    }) {
+        return this.request<unknown>(`/routes/stops/${stopId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(dto),
+        });
+    }
+
+    async deleteCompanyRouteStop(stopId: number) {
+        return this.request<unknown>(`/routes/stops/${stopId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async optimizeCompanyRoute(routeId: number) {
+        return this.request<unknown>(`/routes/${routeId}/optimize`, {
+            method: 'POST',
+        });
+    }
+
+    async removeEmployeeFromRoute(userId: string) {
+        return this.request<unknown>(`/employee-route-assignments/remove/${userId}`, {
+            method: 'DELETE',
+        });
+    }
+
     async generateShuttleTripsForRoute(routeId: number, dates: string[]) {
         return this.request<unknown>('/shuttle-trips/generate-for-route', {
             method: 'POST',

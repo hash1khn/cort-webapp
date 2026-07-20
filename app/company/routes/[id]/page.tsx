@@ -27,7 +27,12 @@ import {
   RefreshCw,
   UserPlus,
   X,
+  Sparkles,
+  ListOrdered,
+  UserMinus,
 } from "lucide-react";
+import { RouteDetailsEditor } from "../components/RouteDetailsEditor";
+import { RouteStopsEditor } from "../components/RouteStopsEditor";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,8 +69,10 @@ type RouteDetail = {
   id: number;
   name: string;
   company_id: number | null;
-  vehicles?: { plate_number: string; model: string | null; capacity?: number | null } | null;
-  users?: { full_name: string; phone: string } | null; // driver
+  assigned_vehicle_id?: number | null;
+  assigned_driver_id?: string | null;
+  vehicles?: { id?: number; plate_number: string; model: string | null; capacity?: number | null; seat_capacity?: number | null } | null;
+  users?: { id: string; full_name: string; phone: string } | null;
   route_stops: RouteStop[];
   employee_route_assignments?: EmployeeAssignment[];
 };
@@ -170,6 +177,9 @@ export default function RouteDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingTrips, setGeneratingTrips] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "stops">("overview");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
@@ -216,6 +226,34 @@ export default function RouteDetailPage() {
     }
   }
 
+  async function handleOptimizeRoute() {
+    if (!routeId) return;
+    setOptimizing(true);
+    try {
+      await apiClient.optimizeCompanyRoute(routeId);
+      toast.success(t("routeOptimizedSuccess"));
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("failedOptimizeRoute"));
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
+  async function handleRemoveEmployee(userId: string) {
+    if (!confirm(t("confirmRemoveEmployee"))) return;
+    setRemovingUserId(userId);
+    try {
+      await apiClient.removeEmployeeFromRoute(userId);
+      toast.success(t("employeeRemovedSuccess"));
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("failedRemoveEmployee"));
+    } finally {
+      setRemovingUserId(null);
+    }
+  }
+
   async function handleAssignEmployee() {
     if (!routeId || !selectedUserId) return;
     setAssigning(true);
@@ -243,7 +281,7 @@ export default function RouteDetailPage() {
   const driver = route?.users ?? null;
 
   // utilization
-  const capacity = vehicle?.capacity ?? null;
+  const capacity = vehicle?.capacity ?? vehicle?.seat_capacity ?? null;
   const utilizationPct = capacity ? Math.min(100, Math.round((employees.length / capacity) * 100)) : null;
 
   if (!company) {
@@ -302,6 +340,15 @@ export default function RouteDetailPage() {
                     {generatingTrips ? t("generatingTrips") : t("generateTrips")}
                   </Button>
                   <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={optimizing}
+                    onClick={handleOptimizeRoute}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {optimizing ? t("optimizingRoute") : t("optimizeRoute")}
+                  </Button>
+                  <Button
                     variant="default"
                     className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
                     onClick={() => setShowAssignModal(true)}
@@ -320,6 +367,40 @@ export default function RouteDetailPage() {
             </div>
           </div>
 
+          {canManageShuttle && (
+            <div className="flex gap-2 border-b border-[var(--border-light)]">
+              <button
+                type="button"
+                onClick={() => setActiveTab("overview")}
+                className={cx(
+                  "px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors",
+                  activeTab === "overview"
+                    ? "border-[var(--cort-orange)] text-[var(--cort-orange)]"
+                    : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                {t("overviewTab")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("stops")}
+                className={cx(
+                  "px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5",
+                  activeTab === "stops"
+                    ? "border-[var(--cort-orange)] text-[var(--cort-orange)]"
+                    : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                )}
+              >
+                <ListOrdered className="w-4 h-4" />
+                {t("manageStops")}
+              </button>
+            </div>
+          )}
+
+          {activeTab === "stops" && canManageShuttle ? (
+            <RouteStopsEditor routeId={route.id} stops={stops} onUpdated={load} />
+          ) : (
+          <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               {
@@ -450,6 +531,19 @@ export default function RouteDetailPage() {
                               <span className="font-medium">{pickupStop.name}</span>
                             </div>
                           )}
+
+                          {canManageShuttle && emp?.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 h-8 text-red-500 border-red-200 hover:bg-red-50"
+                              disabled={removingUserId === emp.id}
+                              onClick={() => handleRemoveEmployee(emp.id)}
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                              {removingUserId === emp.id ? t("removingEmployee") : t("removeEmployee")}
+                            </Button>
+                          )}
                         </div>
                       );
                     })}
@@ -458,41 +552,64 @@ export default function RouteDetailPage() {
               </Card>
             </div>
 
-            {/* Right: Route stops */}
+            {/* Right: Route info */}
             <div className="flex flex-col gap-4">
-              {/* Vehicle & Driver info */}
-              <Card className="!p-5">
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
-                  {t("vehicleAndDriver")}
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-[var(--bg-subtle)] text-blue-400">
-                      <Car className="w-4 h-4" />
+              {canManageShuttle && company?.id ? (
+                <RouteDetailsEditor
+                  routeId={route.id}
+                  companyId={Number(company.id)}
+                  name={route.name}
+                  vehicle={vehicle}
+                  driver={driver}
+                  assignedVehicleId={route.assigned_vehicle_id}
+                  assignedDriverId={route.assigned_driver_id}
+                  onUpdated={load}
+                />
+              ) : (
+                <Card className="!p-5">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+                    {t("vehicleAndDriver")}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-[var(--bg-subtle)] text-blue-400">
+                        <Car className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-[var(--text-muted)]">{t("vehicle")}</div>
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          {vehicle ? `${vehicle.plate_number}${vehicle.model ? ` · ${vehicle.model}` : ""}` : t("notAssigned")}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs text-[var(--text-muted)]">{t("vehicle")}</div>
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {vehicle ? `${vehicle.plate_number}${vehicle.model ? ` · ${vehicle.model}` : ""}` : t("notAssigned")}
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-[var(--bg-subtle)] text-purple-400">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-[var(--text-muted)]">{t("driver")}</div>
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          {driver?.full_name ?? t("notAssigned")}
+                        </div>
+                        {driver?.phone && (
+                          <div className="text-xs text-[var(--text-muted)]">{driver.phone}</div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-[var(--bg-subtle)] text-purple-400">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-xs text-[var(--text-muted)]">{t("driver")}</div>
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">
-                        {driver?.full_name ?? t("notAssigned")}
-                      </div>
-                      {driver?.phone && (
-                        <div className="text-xs text-[var(--text-muted)]">{driver.phone}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              )}
+
+              {canManageShuttle && (
+                <Button
+                  variant="outline"
+                  className="gap-2 w-full"
+                  onClick={() => setActiveTab("stops")}
+                >
+                  <ListOrdered className="w-4 h-4" />
+                  {t("manageStops")}
+                </Button>
+              )}
 
               {/* Morning stops */}
               <Card className="!p-5">
@@ -523,6 +640,8 @@ export default function RouteDetailPage() {
               </Card>
             </div>
           </div>
+          </>
+          )}
         </>
       )}
 
