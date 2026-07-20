@@ -143,7 +143,8 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       if (servicesEnabled.chauffeur_enabled) {
         groups[1].items.push({ href: withSaudiBase("/company/reports/chauffeur", basePath), labelKey: "nav.chauffeurReports", icon: FileSpreadsheet });
       }
-      if (servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed")) {
+      if ((servicesEnabled.chauffeur_enabled && hasFeature("chauffeur_self_managed"))
+        || (servicesEnabled.shuttle_enabled && hasFeature("shuttle_self_managed"))) {
         groups[1].items.push({ href: withSaudiBase("/company/fleet", basePath), labelKey: "nav.poolFleet", icon: Car });
       }
       if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {

@@ -232,11 +232,29 @@ export function CompanyServicesTab({ detail: d }: Props) {
                                                             d.canUpdate ? "text-[#f47f00] hover:underline" : "text-slate-300 cursor-not-allowed"
                                                         )}
                                                     >
-                                                        + Add Vendor
-                                                    </button>
+                                                + Add Vendor
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    
                                                 </div>
+                                    );
+                                })()}
+                                {/* Own Fleet (Self-Managed) */}
+                                {(() => {
+                                    const smEnabled = d.features.find(f => f.feature_key === 'shuttle_self_managed')?.is_enabled ?? false;
+                                    return (
+                                        <div className="flex items-center justify-between px-5 py-4">
+                                            <div>
+                                                <div className="text-sm font-semibold text-slate-700">Own Fleet (Self-Managed)</div>
+                                                <div className="text-xs text-slate-500">Company runs its own shuttle vehicles, drivers, routes, stops, and employee assignments</div>
                                             </div>
-                                            
+                                            <ToggleSwitch
+                                                checked={smEnabled}
+                                                onChange={() => d.toggleFeature('shuttle_self_managed', !smEnabled)}
+                                                disabled={!d.canUpdate}
+                                                loading={d.isTogglePending('feature:shuttle_self_managed')}
+                                            />
                                         </div>
                                     );
                                 })()}
@@ -412,7 +430,8 @@ export function CompanyServicesTab({ detail: d }: Props) {
                     {(() => {
                         const cvEnabled = d.features.find(f => f.feature_key === 'chauffeur_external_vendor')?.is_enabled ?? false;
                         const svEnabled = d.features.find(f => f.feature_key === 'shuttle_external_vendor')?.is_enabled ?? false;
-                        const smEnabled = d.features.find(f => f.feature_key === 'chauffeur_self_managed')?.is_enabled ?? false;
+                        const smChauffeurEnabled = d.features.find(f => f.feature_key === 'chauffeur_self_managed')?.is_enabled ?? false;
+                        const smShuttleEnabled = d.features.find(f => f.feature_key === 'shuttle_self_managed')?.is_enabled ?? false;
                         const cmChauffeur = d.features.find(f => f.feature_key === 'chauffeur_cort_managed')?.is_enabled ?? false;
                         const cmShuttle = d.features.find(f => f.feature_key === 'shuttle_cort_managed')?.is_enabled ?? false;
                         const tEnabled = d.features.find(f => f.feature_key === 'tracker_api_integration')?.is_enabled ?? false;
@@ -424,11 +443,12 @@ export function CompanyServicesTab({ detail: d }: Props) {
                         if (d.company.is_chauffeur_enabled) {
                             if (cmChauffeur) items.push({ label: "Chauffeur — CORT Managed", color: "blue" });
                             if (cvEnabled) items.push({ label: `Chauffeur — External Vendor (${cvCount} active)`, color: "purple" });
-                            if (smEnabled) items.push({ label: "Chauffeur — Own Pool", color: "green" });
+                            if (smChauffeurEnabled) items.push({ label: "Chauffeur — Own Pool", color: "green" });
                         }
                         if (d.company.is_shuttle_enabled) {
                             if (cmShuttle) items.push({ label: "Shuttle — CORT Managed", color: "blue" });
                             if (svEnabled) items.push({ label: `Shuttle — External Vendor (${svCount} active)`, color: "purple" });
+                            if (smShuttleEnabled) items.push({ label: "Shuttle — Own Fleet", color: "green" });
                         }
                         if (tEnabled) items.push({ label: "Tracking — Third-Party API", color: "orange" });
                         if (appEnabled) items.push({ label: "Tracking — CORT App GPS", color: "orange" });

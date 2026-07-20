@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAppSelector } from "../../lib/store/hooks";
-import { selectCompany } from "../../lib/store/slices/companySlice";
+import { useAppSelector, useAppDispatch } from "../../lib/store/hooks";
+import { selectCompany, fetchCompanyFeatures, selectCompanyFeatures } from "../../lib/store/slices/companySlice";
 import { apiClient } from "../../lib/services/api-client";
+import { useAuth } from "../../lib/contexts/auth-context";
 import { Card } from "../components/DashboardComponents";
 import { AccountCredentialsReveal, SaveCredentialsNote } from "../components/AccountCredentialsReveal";
 import { PageHeader } from "../components/PageLayout";
@@ -835,10 +836,21 @@ export default function RoutesPage() {
   const t = useTranslations("company.routes");
   const tCommon = useTranslations("common");
   const company = useAppSelector(selectCompany);
+  const features = useAppSelector(selectCompanyFeatures);
+  const dispatch = useAppDispatch();
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
   const [routes, setRoutes] = useState<CompanyRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
+
+  const canManageShuttle = isTrialUser
+    || (features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false);
+
+  useEffect(() => {
+    if (company?.id) dispatch(fetchCompanyFeatures(Number(company.id)));
+  }, [company?.id, dispatch]);
 
   function loadRoutes() {
     if (!company?.id) { setLoading(false); return; }
@@ -882,24 +894,26 @@ export default function RoutesPage() {
         title={t("title")}
         description={t("pageDescription")}
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/company/routes/create">
+          canManageShuttle ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/company/routes/create">
+                <Button
+                  variant="outline"
+                  className="gap-2 rounded-xl"
+                >
+                  <Plus className="w-4 h-4" />
+                  {t("createRoute")}
+                </Button>
+              </Link>
               <Button
-                variant="outline"
-                className="gap-2 rounded-xl"
+                onClick={() => setShowAddEmployee(true)}
+                className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
               >
-                <Plus className="w-4 h-4" />
-                {t("createRoute")}
+                <UserPlus className="w-4 h-4" />
+                {t("addEmployee")}
               </Button>
-            </Link>
-            <Button
-              onClick={() => setShowAddEmployee(true)}
-              className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl"
-            >
-              <UserPlus className="w-4 h-4" />
-              {t("addEmployee")}
-            </Button>
-          </div>
+            </div>
+          ) : undefined
         }
       />
 
@@ -918,13 +932,17 @@ export default function RoutesPage() {
         <Card className="py-16 text-center">
           <Bus className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
           <div className="text-sm text-[var(--text-muted)]">{t("noRoutesAssigned")}</div>
-          <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("createRouteHint")}</div>
-          <Link href="/company/routes/create" className="inline-block mt-4">
-            <Button className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl">
-              <Plus className="w-4 h-4" />
-              {t("createRoute")}
-            </Button>
-          </Link>
+          {canManageShuttle && (
+            <>
+              <div className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("createRouteHint")}</div>
+              <Link href="/company/routes/create" className="inline-block mt-4">
+                <Button className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange)]/90 text-white border-0 rounded-xl">
+                  <Plus className="w-4 h-4" />
+                  {t("createRoute")}
+                </Button>
+              </Link>
+            </>
+          )}
         </Card>
       ) : (
         <div>

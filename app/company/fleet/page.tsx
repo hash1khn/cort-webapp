@@ -148,10 +148,19 @@ export default function CompanyFleetPage() {
     const atChauffeurDriverLimit = isTrialUser && trialHasPool(trialModules) && chauffeurDriverCount >= 1;
     const atShuttleDriverLimit = isTrialUser && trialHasShuttle(trialModules) && shuttleDriverCount >= 1;
 
+    const isChauffeurFleetEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
+    const isShuttleFleetEnabled = features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false;
+    const showFleet = isChauffeurFleetEnabled || isShuttleFleetEnabled || isTrialUser;
+    const showShuttleSeatCapacity = isShuttleFleetEnabled || (isTrialUser && trialHasShuttle(trialModules));
+
     const defaultDriverType = (): "CHAUFFEUR" | "SHUTTLE" => {
+        if (isShuttleFleetEnabled && !isChauffeurFleetEnabled) return "SHUTTLE";
         if (trialHasShuttle(trialModules) && !trialHasPool(trialModules)) return "SHUTTLE";
         return "CHAUFFEUR";
     };
+
+    const canAddChauffeurDriver = isTrialUser ? trialHasPool(trialModules) : isChauffeurFleetEnabled;
+    const canAddShuttleDriver = isTrialUser ? trialHasShuttle(trialModules) : isShuttleFleetEnabled;
 
     useEffect(() => {
         if (isTrialUser && activeTab === "analytics") setActiveTab("vehicles");
@@ -173,9 +182,6 @@ export default function CompanyFleetPage() {
         }
         setShowAddDriver(true);
     };
-
-    const isChauffeurFleetEnabled = features.find((f) => f.feature_key === "chauffeur_self_managed")?.is_enabled ?? false;
-    const showFleet = isChauffeurFleetEnabled || isTrialUser;
 
     const fetchVehicles = useCallback(async () => {
         if (!companyId) return;
@@ -249,7 +255,7 @@ export default function CompanyFleetPage() {
                 category: vehicleForm.category,
                 fuel_avg_city: vehicleForm.fuel_avg_city,
                 fuel_avg_highway: vehicleForm.fuel_avg_highway,
-                ...(trialHasShuttle(trialModules) ? { seat_capacity: vehicleForm.seat_capacity } : {}),
+                ...(showShuttleSeatCapacity ? { seat_capacity: vehicleForm.seat_capacity } : {}),
             });
             toast.success(isTrialUser ? t("vehicleAddedFleet") : t("vehicleAdded"));
             setShowAddVehicle(false);
@@ -645,7 +651,7 @@ export default function CompanyFleetPage() {
                             <Field label={t("color")}><input value={vehicleForm.color} onChange={(e) => setVehicleForm((f) => ({ ...f, color: e.target.value }))} className={inputCls} /></Field>
                             <Field label={t("fuelAvgCity")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_city} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_city: Number(e.target.value) }))} className={inputCls} /></Field>
                             <Field label={t("fuelAvgHighway")}><input type="number" step="0.1" value={vehicleForm.fuel_avg_highway} onChange={(e) => setVehicleForm((f) => ({ ...f, fuel_avg_highway: Number(e.target.value) }))} className={inputCls} /></Field>
-                            {trialHasShuttle(trialModules) && (
+                            {showShuttleSeatCapacity && (
                                 <Field label={t("seatCapacity")}>
                                     <input type="number" min={1} value={vehicleForm.seat_capacity} onChange={(e) => setVehicleForm((f) => ({ ...f, seat_capacity: Number(e.target.value) }))} className={inputCls} />
                                 </Field>
@@ -683,17 +689,19 @@ export default function CompanyFleetPage() {
                     ) : (
                         <form onSubmit={handleInviteDriver} className="space-y-4">
                             <SaveCredentialsNote accountTypeKey="driver" />
-                            <Field label={t("driverTypeLabel")}>
-                                <select
-                                    required
-                                    value={driverForm.driver_type}
-                                    onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
-                                    className={inputCls}
-                                >
-                                    <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>{t("driverTypeChauffeur")}</option>
-                                    <option value="SHUTTLE" disabled={atShuttleDriverLimit}>{t("driverTypeShuttle")}</option>
-                                </select>
-                            </Field>
+                            {(canAddChauffeurDriver && canAddShuttleDriver) ? (
+                                <Field label={t("driverTypeLabel")}>
+                                    <select
+                                        required
+                                        value={driverForm.driver_type}
+                                        onChange={(e) => setDriverForm((f) => ({ ...f, driver_type: e.target.value as "CHAUFFEUR" | "SHUTTLE" }))}
+                                        className={inputCls}
+                                    >
+                                        <option value="CHAUFFEUR" disabled={atChauffeurDriverLimit}>{t("driverTypeChauffeur")}</option>
+                                        <option value="SHUTTLE" disabled={atShuttleDriverLimit}>{t("driverTypeShuttle")}</option>
+                                    </select>
+                                </Field>
+                            ) : null}
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label={t("fullNameRequired")}><input required value={driverForm.full_name} onChange={(e) => setDriverForm((f) => ({ ...f, full_name: e.target.value }))} className={inputCls} /></Field>
                                 <Field label={t("phone")}><input type="tel" inputMode="numeric" maxLength={PHONE_MAX_LENGTH} value={driverForm.phone} onChange={(e) => setDriverForm((f) => ({ ...f, phone: sanitizePhoneInput(e.target.value) }))} placeholder={PHONE_PLACEHOLDER} className={inputCls} /></Field>

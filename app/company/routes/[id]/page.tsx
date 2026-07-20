@@ -5,8 +5,9 @@ import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
-import { selectCompany } from "../../../lib/store/slices/companySlice";
+import { selectCompany, fetchCompanyFeatures, selectCompanyFeatures } from "../../../lib/store/slices/companySlice";
 import { fetchEmployees, selectEmployees, selectEmployeesStatus } from "../../../lib/store/slices/employeeSlice";
+import { useAuth } from "../../../lib/contexts/auth-context";
 import { apiClient } from "../../../lib/services/api-client";
 import { toast } from "sonner";
 import { Card } from "../../components/DashboardComponents";
@@ -151,9 +152,19 @@ export default function RouteDetailPage() {
   const tCommon = useTranslations("common");
   const dispatch = useAppDispatch();
   const company = useAppSelector(selectCompany);
+  const features = useAppSelector(selectCompanyFeatures);
   const allEmployees = useAppSelector(selectEmployees);
   const employeeStatus = useAppSelector(selectEmployeesStatus);
+  const { user } = useAuth();
+  const isTrialUser = !!user?.is_trial;
   const routeId = params.id ? +params.id : null;
+
+  const canManageShuttle = isTrialUser
+    || (features.find((f) => f.feature_key === "shuttle_self_managed")?.is_enabled ?? false);
+
+  useEffect(() => {
+    if (company?.id) dispatch(fetchCompanyFeatures(Number(company.id)));
+  }, [company?.id, dispatch]);
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -280,22 +291,26 @@ export default function RouteDetailPage() {
               </h1>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={generatingTrips}
-                onClick={handleGenerateTrips}
-              >
-                {generatingTrips ? t("generatingTrips") : t("generateTrips")}
-              </Button>
-              <Button
-                variant="default"
-                className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
-                onClick={() => setShowAssignModal(true)}
-              >
-                <UserPlus className="w-4 h-4" />
-                {t("assignEmployee")}
-              </Button>
+              {canManageShuttle && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={generatingTrips}
+                    onClick={handleGenerateTrips}
+                  >
+                    {generatingTrips ? t("generatingTrips") : t("generateTrips")}
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="gap-2 bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
+                    onClick={() => setShowAssignModal(true)}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    {t("assignEmployee")}
+                  </Button>
+                </>
+              )}
               <Link href={`/company/routes/${routeId}/track`}>
                 <Button variant="outline" className="gap-2">
                   <Activity className="w-4 h-4" />
@@ -378,14 +393,16 @@ export default function RouteDetailPage() {
                   <div className="py-16 text-center">
                     <Users className="w-8 h-8 mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
                     <div className="text-sm text-[var(--text-muted)]">{t("noEmployeesAssigned")}</div>
-                    <Button
-                      variant="outline"
-                      className="mt-4 gap-2"
-                      onClick={() => setShowAssignModal(true)}
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      {t("assignAnEmployee")}
-                    </Button>
+                    {canManageShuttle && (
+                      <Button
+                        variant="outline"
+                        className="mt-4 gap-2"
+                        onClick={() => setShowAssignModal(true)}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        {t("assignAnEmployee")}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-light)]">
