@@ -470,7 +470,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-8">
             <div className="flex flex-col gap-6">
-                {/* Fulfillment Type Selector */}
+                {/* Fulfillment Type Selector — always show when SELF_MANAGED (pool driver picker);
+                    hide type buttons when only one fulfillment mode is enabled. */}
                 {featuresLoading ? (
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 animate-pulse">
                         <div className="h-2.5 w-28 bg-orange-200 rounded mb-4"></div>
@@ -479,8 +480,10 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
                         </div>
                     </div>
-                ) : availableFulfillmentTypes.length > 1 && (
+                ) : availableFulfillmentTypes.length > 0 && (
                     <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                        {availableFulfillmentTypes.length > 1 && (
+                            <>
                         <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">{t("fulfillmentType")}</p>
                         <div className="flex flex-wrap gap-2">
                             {availableFulfillmentTypes.map((opt) => (
@@ -491,6 +494,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                         setFulfillmentType(opt.value);
                                         setVehicleModel("");
                                         setPoolVehicleId(null);
+                                        setPoolDriverId(null);
                                         if (opt.value !== "CORT_MANAGED") setBroadcastToAllVendors(false);
                                     }}
                                     className={cx(
@@ -504,6 +508,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 </button>
                             ))}
                         </div>
+                            </>
+                        )}
                         {fulfillmentType === "CORT_MANAGED" && showBroadcastOption && (
                             <div className="mt-4 space-y-3 border-t border-orange-100/80 pt-4">
                                 <label className="flex items-start gap-3 cursor-pointer group">
@@ -621,16 +627,19 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             </div>
                         )}
                         {fulfillmentType === "SELF_MANAGED" && (
-                            <div className="mt-3">
+                            <div className={availableFulfillmentTypes.length > 1 ? "mt-3" : ""}>
                                 <div>
                                     <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">{t("poolDriver")}</label>
                                     <select
                                         value={poolDriverId ?? ""}
                                         onChange={(e) => setPoolDriverId(e.target.value || null)}
                                         className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                        required
                                     >
                                         <option value="">{t("selectDriverOption")}</option>
-                                        {poolDrivers.map((d) => (
+                                        {poolDrivers
+                                            .filter((d) => d.driver_type === "CHAUFFEUR" && d.users.status === "ACTIVE")
+                                            .map((d) => (
                                             <option key={d.user_id} value={d.user_id}>{d.users.full_name}</option>
                                         ))}
                                     </select>
