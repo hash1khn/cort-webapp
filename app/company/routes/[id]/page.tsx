@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -51,7 +52,9 @@ type RouteStop = {
 };
 
 type EmployeeAssignment = {
-  id: number;
+  user_id: string;
+  route_id?: number | null;
+  pickup_stop_id?: number | null;
   users?: {
     id: string;
     full_name: string;
@@ -497,7 +500,7 @@ export default function RouteDetailPage() {
                       const pickupStop = assignment.route_stops;
                       return (
                         <div
-                          key={assignment.id}
+                          key={assignment.user_id}
                           className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--bg-subtle)] transition-colors"
                         >
                           {/* Avatar */}
@@ -650,76 +653,82 @@ export default function RouteDetailPage() {
         </>
       )}
 
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md !p-0 shadow-2xl border-[var(--border-light)] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-subtle)]">
-              <h3 className="font-bold text-[var(--text-primary)]">{t("assignEmployeeTitle")}</h3>
-              <button
-                type="button"
-                onClick={() => setShowAssignModal(false)}
-                className="p-1 rounded-lg hover:bg-[var(--border-light)] text-[var(--text-muted)] transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
-                  {t("selectEmployee")}
-                </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+      {showAssignModal && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowAssignModal(false)}
+        >
+          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <Card className="!p-0 shadow-2xl border-[var(--border-light)] overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-light)] bg-[var(--bg-subtle)]">
+                <h3 className="font-bold text-[var(--text-primary)]">{t("assignEmployeeTitle")}</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  className="p-1 rounded-lg hover:bg-[var(--border-light)] text-[var(--text-muted)] transition-colors"
                 >
-                  <option value="">{t("chooseEmployee")}</option>
-                  {allEmployees
-                    .filter((emp) => !employees.some((assigned) => assigned.users?.id === emp.id))
-                    .map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.full_name}{emp.department ? ` (${emp.department})` : ""}
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
+                    {t("selectEmployee")}
+                  </label>
+                  <select
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+                  >
+                    <option value="">{t("chooseEmployee")}</option>
+                    {allEmployees
+                      .filter((emp) => !employees.some((assigned) => assigned.users?.id === emp.id))
+                      .map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.full_name}{emp.department ? ` (${emp.department})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                  {allEmployees.length === 0 && employeeStatus !== "loading" && (
+                    <p className="text-xs text-amber-500 mt-1">{t("noCompanyEmployees")}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
+                    {t("pickupStop")}{" "}
+                    <span className="text-[var(--text-muted)] font-normal">{t("pickupStopOptional")}</span>
+                  </label>
+                  <select
+                    value={selectedStopId}
+                    onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+                  >
+                    <option value="">{t("noneAutomatic")}</option>
+                    {stops.map((stop) => (
+                      <option key={stop.id} value={stop.id}>
+                        {stop.name}
                       </option>
                     ))}
-                </select>
-                {allEmployees.length === 0 && employeeStatus !== "loading" && (
-                  <p className="text-xs text-amber-500 mt-1">{t("noCompanyEmployees")}</p>
-                )}
+                  </select>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
-                  {t("pickupStop")}{" "}
-                  <span className="text-[var(--text-muted)] font-normal">{t("pickupStopOptional")}</span>
-                </label>
-                <select
-                  value={selectedStopId}
-                  onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+              <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setShowAssignModal(false)}>
+                  {tCommon("actions.cancel")}
+                </Button>
+                <Button
+                  disabled={!selectedUserId || assigning}
+                  onClick={handleAssignEmployee}
+                  className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
                 >
-                  <option value="">{t("noneAutomatic")}</option>
-                  {stops.map((stop) => (
-                    <option key={stop.id} value={stop.id}>
-                      {stop.name}
-                    </option>
-                  ))}
-                </select>
+                  {assigning ? t("assigningEmployee") : t("confirmAssignment")}
+                </Button>
               </div>
-            </div>
-            <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowAssignModal(false)}>
-                {tCommon("actions.cancel")}
-              </Button>
-              <Button
-                disabled={!selectedUserId || assigning}
-                onClick={handleAssignEmployee}
-                className="bg-[var(--cort-orange)] hover:bg-[var(--cort-orange-hover)] text-white"
-              >
-                {assigning ? t("assigningEmployee") : t("confirmAssignment")}
-              </Button>
-            </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
