@@ -2010,6 +2010,49 @@ class ApiClient {
         }>(`/admin/reports/dashboard${query}`);
     }
 
+    async generateSuperAdminAiInsights(
+        startDate?: string,
+        endDate?: string,
+        mode: 'finance' | 'general' = 'finance',
+    ) {
+        const params = new URLSearchParams();
+        if (startDate) params.append('startDate', startDate);
+        if (endDate) params.append('endDate', endDate);
+        if (mode) params.append('mode', mode);
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return this.request<{
+            financialBrief: {
+                health: 'healthy' | 'watch' | 'critical';
+                plNarrative: string;
+                cashRisks: string;
+                unitEconomics: string;
+                actions: {
+                    priority: number;
+                    title: string;
+                    detail: string;
+                    category: string;
+                }[];
+            };
+            briefing: {
+                id: string;
+                severity: 'high' | 'medium' | 'low';
+                category: string;
+                title: string;
+                summary: string;
+                recommendation: string;
+                relatedMetric?: string;
+            }[];
+            companies: {
+                companyId: number;
+                companyName: string;
+                severity: 'high' | 'medium' | 'low';
+                reason: string;
+                suggestedAction: string;
+                href: string;
+            }[];
+        }>(`/admin/reports/ai-insights${query}`, { method: 'POST' });
+    }
+
     /** Traflinq landing page leads (superadmin UI; requires same auth as dashboard). */
     async getLandingLeads() {
         return this.request<{

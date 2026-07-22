@@ -7,6 +7,7 @@ import { fetchDashboardStats, setDateRange } from "../lib/store/slices/superAdmi
 import { MetricCard } from "./ui/dashboard/MetricCard";
 import { DashboardCharts } from "./ui/dashboard/DashboardCharts";
 import { DashboardTables } from "./ui/dashboard/DashboardTables";
+import { SuperAdminAiBriefing } from "./ui/dashboard/SuperAdminAiBriefing";
 import { FuelPriceAlert } from "./components/FuelPriceAlert";
 import { RootState } from "../lib/store/store";
 import { PermissionGate } from "./components/PermissionGate";
@@ -336,6 +337,8 @@ function AdminDashboardContent() {
           </section>
         </div>
       )}
+
+      <SuperAdminAiBriefing startDate={startDate} endDate={endDate} />
     </div>
   );
 }
