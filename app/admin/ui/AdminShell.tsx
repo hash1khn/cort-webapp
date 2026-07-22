@@ -134,11 +134,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           )}
         >
           <img
-            src={logoSrc}
+            src={collapsed && !isMobile ? "/app_icon.png" : logoSrc}
             alt="TrafLinq"
             className={cx(
-              "w-auto object-contain transition-all duration-300",
-              collapsed && !isMobile ? "h-8" : "h-14",
+              "object-contain transition-all duration-300",
+              collapsed && !isMobile ? "h-9 w-9 rounded-lg" : "h-14 w-auto",
             )}
           />
         </div>

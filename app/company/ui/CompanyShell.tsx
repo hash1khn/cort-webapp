@@ -231,9 +231,18 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         <div className={cx("flex flex-col gap-6 transition-all duration-300", (collapsed && !isMobile) ? "items-center py-8 px-2" : "items-center px-6 py-10")}>
           <div className="relative h-14 w-full flex items-center justify-center transition-all duration-300">
             <img
-              src={theme === "light" ? "/traflinq_light_no_tagline-Photoroom.png" : "/traflinq_dark_no_tagline-Photoroom.png"}
+              src={
+                collapsed && !isMobile
+                  ? "/app_icon.png"
+                  : theme === "light"
+                    ? "/traflinq_light_no_tagline-Photoroom.png"
+                    : "/traflinq_dark_no_tagline-Photoroom.png"
+              }
               alt="TrafLinq"
-              className={cx("h-14 w-auto object-contain transition-all duration-300", (collapsed && !isMobile) ? "scale-75" : "scale-100")}
+              className={cx(
+                "object-contain transition-all duration-300",
+                collapsed && !isMobile ? "h-9 w-9 rounded-lg" : "h-14 w-auto",
+              )}
             />
           </div>
         </div>
