@@ -473,18 +473,18 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                 {/* Fulfillment Type Selector — always show when SELF_MANAGED (pool driver picker);
                     hide type buttons when only one fulfillment mode is enabled. */}
                 {featuresLoading ? (
-                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 animate-pulse">
-                        <div className="h-2.5 w-28 bg-orange-200 rounded mb-4"></div>
+                    <div className="bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-2xl p-5 animate-pulse">
+                        <div className="h-2.5 w-28 bg-[var(--cort-orange)]/30 rounded mb-4"></div>
                         <div className="flex gap-2">
-                            <div className="h-9 w-28 bg-orange-200 rounded-xl"></div>
-                            <div className="h-9 w-28 bg-orange-200 rounded-xl opacity-60"></div>
+                            <div className="h-9 w-28 bg-[var(--cort-orange)]/30 rounded-xl"></div>
+                            <div className="h-9 w-28 bg-[var(--cort-orange)]/30 rounded-xl opacity-60"></div>
                         </div>
                     </div>
                 ) : availableFulfillmentTypes.length > 0 && (
-                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                    <div className="bg-[var(--cort-orange)]/10 border border-[var(--cort-orange)]/20 rounded-2xl p-5">
                         {availableFulfillmentTypes.length > 1 && (
                             <>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--cort-navy)] mb-3">{t("fulfillmentType")}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("fulfillmentType")}</p>
                         <div className="flex flex-wrap gap-2">
                             {availableFulfillmentTypes.map((opt) => (
                                 <button
@@ -501,7 +501,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                         "px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all",
                                         fulfillmentType === opt.value
                                             ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
-                                            : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-orange)]/50"
+                                            : "bg-[var(--bg-card)] border-[var(--border-input)] text-[var(--text-primary)] hover:border-[var(--cort-orange)]/50"
                                     )}
                                 >
                                     {opt.label}
@@ -511,7 +511,7 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                             </>
                         )}
                         {fulfillmentType === "CORT_MANAGED" && showBroadcastOption && (
-                            <div className="mt-4 space-y-3 border-t border-orange-100/80 pt-4">
+                            <div className="mt-4 space-y-3 border-t border-[var(--cort-orange)]/20 pt-4">
                                 <label className="flex items-start gap-3 cursor-pointer group">
                                     <input
                                         type="checkbox"
@@ -522,11 +522,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                             setVehicleModel("");
                                             if (on) setVendorMode("all");
                                         }}
-                                        className="mt-1 rounded border-slate-300 text-[var(--cort-orange)] focus:ring-[var(--cort-orange)]"
+                                        className="mt-1 rounded border-[var(--border-input)] text-[var(--cort-orange)] focus:ring-[var(--cort-orange)]"
                                     />
-                                    <span className="text-sm text-[var(--cort-navy)] leading-snug">
+                                    <span className="text-sm text-[var(--text-primary)] leading-snug">
                                         <span className="font-bold">{t("alsoSendToVendors")}</span>
-                                        <span className="block text-xs font-medium text-slate-600 mt-1">
+                                        <span className="block text-xs font-medium text-[var(--text-secondary)] mt-1">
                                             {t("broadcastHint")}
                                         </span>
                                     </span>
@@ -534,14 +534,14 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                 {broadcastToAllVendors && (
                                     <>
                                         {vendorsLoading ? (
-                                            <div className="text-xs text-slate-400 font-medium animate-pulse px-1">{t("loadingVendors")}</div>
+                                            <div className="text-xs text-[var(--text-muted)] font-medium animate-pulse px-1">{t("loadingVendors")}</div>
                                         ) : vendorLinks.length === 0 ? (
-                                            <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
+                                            <p className="text-xs text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2 font-semibold">
                                                 {t("noActiveVendors")}
                                             </p>
                                         ) : (
                                             <>
-                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">{t("sendVendorRequestsTo")}</p>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-1">{t("sendVendorRequestsTo")}</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         type="button"
@@ -549,8 +549,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                         className={cx(
                                                             "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
                                                             vendorMode === "all"
-                                                                ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
-                                                                : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                                ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                                                : "bg-[var(--bg-card)] border-[var(--border-input)] text-[var(--text-primary)] hover:border-[var(--cort-orange)]/40"
                                                         )}
                                                     >
                                                         {t("allVendorsCount", { count: vendorLinks.length })}
@@ -563,8 +563,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                             className={cx(
                                                                 "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
                                                                 vendorMode === link.id
-                                                                    ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
-                                                                    : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                                    ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                                                    : "bg-[var(--bg-card)] border-[var(--border-input)] text-[var(--text-primary)] hover:border-[var(--cort-orange)]/40"
                                                             )}
                                                         >
                                                             {link.external_vendors?.name ?? t("vendorHash", { id: link.id })}
@@ -580,14 +580,14 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         {fulfillmentType === "EXTERNAL_VENDOR" && (
                             <div className="mt-3 space-y-2">
                                 {vendorsLoading ? (
-                                    <div className="text-xs text-slate-400 font-medium animate-pulse px-1">{t("loadingVendors")}</div>
+                                    <div className="text-xs text-[var(--text-muted)] font-medium animate-pulse px-1">{t("loadingVendors")}</div>
                                 ) : vendorLinks.length === 0 ? (
-                                    <p className="text-xs text-rose-600 bg-rose-50 rounded-lg px-3 py-2 font-semibold">
+                                    <p className="text-xs text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2 font-semibold">
                                         {t("noActiveVendorsExternal")}
                                     </p>
                                 ) : (
                                     <>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cort-navy)] px-1">{t("sendRequestTo")}</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-1">{t("sendRequestTo")}</p>
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 type="button"
@@ -595,8 +595,8 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                 className={cx(
                                                     "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
                                                     vendorMode === "all"
-                                                        ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
-                                                        : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                        ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                                        : "bg-[var(--bg-card)] border-[var(--border-input)] text-[var(--text-primary)] hover:border-[var(--cort-orange)]/40"
                                                 )}
                                             >
                                                 {t("allVendorsCaps", { count: vendorLinks.length })}
@@ -609,15 +609,15 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                                                     className={cx(
                                                         "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
                                                         vendorMode === link.id
-                                                            ? "bg-[var(--cort-navy)] border-[var(--cort-navy)] text-white"
-                                                            : "bg-white border-slate-200 text-[var(--cort-navy)] hover:border-[var(--cort-navy)]/40"
+                                                            ? "bg-[var(--cort-orange)] border-[var(--cort-orange)] text-white"
+                                                            : "bg-[var(--bg-card)] border-[var(--border-input)] text-[var(--text-primary)] hover:border-[var(--cort-orange)]/40"
                                                     )}
                                                 >
                                                     {link.external_vendors?.name ?? t("vendorHash", { id: link.id })}
                                                 </button>
                                             ))}
                                         </div>
-                                        <p className="text-[10px] text-slate-500 px-1">
+                                        <p className="text-[10px] text-[var(--text-muted)] px-1">
                                             {vendorMode === "all"
                                                 ? t("requestAllVendors")
                                                 : t("requestSingleVendor", { name: vendorLinks.find((l) => l.id === vendorMode)?.external_vendors?.name ?? t("selectedVendor") })}
@@ -629,11 +629,11 @@ export default function CreateBookingForm({ onSuccess, onCancel }: CreateBooking
                         {fulfillmentType === "SELF_MANAGED" && (
                             <div className={availableFulfillmentTypes.length > 1 ? "mt-3" : ""}>
                                 <div>
-                                    <label className="block text-xs font-semibold text-[var(--cort-navy)] mb-1">{t("poolDriver")}</label>
+                                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t("poolDriver")}</label>
                                     <select
                                         value={poolDriverId ?? ""}
                                         onChange={(e) => setPoolDriverId(e.target.value || null)}
-                                        className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                                        className="w-full h-10 rounded-xl border border-[var(--border-input)] bg-[var(--bg-card)] px-3 text-sm text-[var(--text-primary)]"
                                         required
                                     >
                                         <option value="">{t("selectDriverOption")}</option>
