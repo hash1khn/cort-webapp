@@ -982,7 +982,10 @@ class ApiClient {
     }
 
     async getExternalFuelPricesLatest(): Promise<{ petrolPrice: string; dieselPrice: string; asOf?: string }> {
-        return this.request<{ petrolPrice: string; dieselPrice: string; asOf?: string }>(`/system-settings/external-fuel-prices/latest`);
+        const res = await this.request<{ data: { petrolPrice: string; dieselPrice: string; asOf?: string } }>(
+            `/system-settings/external-fuel-prices/latest`,
+        );
+        return res.data;
     }
 
     // ===== CHAUFFEUR BOOKINGS =====

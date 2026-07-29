@@ -268,6 +268,20 @@ function PricingPageContent() {
     dispatch(saveShuttleChanges());
   };
 
+  const formatExternalAsOf = (asOf?: string) => {
+    if (!asOf) return "";
+    const d = new Date(asOf);
+    if (Number.isNaN(d.getTime())) return asOf;
+    return d.toLocaleString("en-GB", {
+      timeZone: "Asia/Karachi",
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const getSavings = (contractVal: string | number | undefined, marketVal: string | number | undefined) => {
     const c = Number(contractVal || 0);
     const m = Number(marketVal || 0);
@@ -335,7 +349,7 @@ function PricingPageContent() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-bold text-[var(--text-primary)]">Suggested global fuel prices</div>
               <div className="text-xs text-[var(--text-muted)]">
-                {externalFuelSuggestion.asOf ? `As of ${externalFuelSuggestion.asOf}` : "Latest snapshot"}
+                {externalFuelSuggestion.asOf ? `As of ${formatExternalAsOf(externalFuelSuggestion.asOf)}` : "Latest snapshot"}
               </div>
             </div>
             <div className="text-sm text-[var(--text-secondary)]">
