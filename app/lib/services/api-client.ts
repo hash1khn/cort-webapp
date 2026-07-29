@@ -981,6 +981,10 @@ class ApiClient {
         return this.request<FuelPriceHistoryResponse>(`/system-settings/fuel-price-history/${fuelType}`);
     }
 
+    async getExternalFuelPricesLatest(): Promise<{ petrolPrice: string; dieselPrice: string; asOf?: string }> {
+        return this.request<{ petrolPrice: string; dieselPrice: string; asOf?: string }>(`/system-settings/external-fuel-prices/latest`);
+    }
+
     // ===== CHAUFFEUR BOOKINGS =====
 
     async getBookingStats(params?: QueryBookingStatsParams): Promise<{ data: { total: number; pending: number; assigned: number; arrived: number; in_progress: number; ended: number; completed: number; cancelled: number } }> {

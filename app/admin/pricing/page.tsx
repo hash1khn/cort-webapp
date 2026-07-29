@@ -39,7 +39,7 @@ import {
   updateShuttleRouteRow,
   removeShuttleRouteRow,
 } from "../../lib/store/slices/adminPricingSlice";
-import { ChauffeurContractRate, FuelPriceHistoryEntry } from "../../lib/services/api-client";
+import { ChauffeurContractRate, FuelPriceHistoryEntry, apiClient } from "../../lib/services/api-client";
 
 const Input = ({
   label,
@@ -168,6 +168,13 @@ function PricingPageContent() {
   const canAddRows = canCreate || canUpdate;
 
   const [showMarketRates, setShowMarketRates] = useState(false);
+  const [externalFuelLoading, setExternalFuelLoading] = useState(false);
+  const [externalFuelError, setExternalFuelError] = useState<string | null>(null);
+  const [externalFuelSuggestion, setExternalFuelSuggestion] = useState<{
+    petrolPrice: string;
+    dieselPrice: string;
+    asOf?: string;
+  } | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -214,6 +221,26 @@ function PricingPageContent() {
   const handleUpdateGlobalDiesel = async () => {
     await dispatch(updateSystemDieselPrice(systemDieselPrice));
     dispatch(fetchDieselPriceHistory());
+  };
+
+  const handleFetchExternalFuelPrices = async () => {
+    setExternalFuelLoading(true);
+    setExternalFuelError(null);
+    try {
+      const result = await apiClient.getExternalFuelPricesLatest();
+      setExternalFuelSuggestion(result);
+    } catch (e) {
+      setExternalFuelSuggestion(null);
+      setExternalFuelError(e instanceof Error ? e.message : "Failed to fetch external fuel prices");
+    } finally {
+      setExternalFuelLoading(false);
+    }
+  };
+
+  const handleApplyExternalFuelPrices = () => {
+    if (!externalFuelSuggestion) return;
+    dispatch(setSystemFuelPriceLocal(externalFuelSuggestion.petrolPrice));
+    dispatch(setSystemDieselPriceLocal(externalFuelSuggestion.dieselPrice));
   };
 
   const handlePreviewAdjustments = () => {
@@ -287,6 +314,50 @@ function PricingPageContent() {
           <h3 className="text-base font-bold text-[var(--text-primary)]">Global Fuel Configuration</h3>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Set the current fuel price. Rates are calculated dynamically during invoice generation.</p>
         </div>
+
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={handleFetchExternalFuelPrices}
+            disabled={externalFuelLoading}
+            className="h-10 px-4 rounded-lg border border-blue-200 bg-white/10 text-[var(--text-primary)] text-sm font-bold hover:bg-white/15 transition-colors disabled:opacity-70"
+          >
+            {externalFuelLoading ? "Checking..." : "Fetch latest prices"}
+          </button>
+
+          {externalFuelError && (
+            <div className="text-sm text-rose-500 font-semibold">{externalFuelError}</div>
+          )}
+        </div>
+
+        {externalFuelSuggestion && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm font-bold text-[var(--text-primary)]">Suggested global fuel prices</div>
+              <div className="text-xs text-[var(--text-muted)]">
+                {externalFuelSuggestion.asOf ? `As of ${externalFuelSuggestion.asOf}` : "Latest snapshot"}
+              </div>
+            </div>
+            <div className="text-sm text-[var(--text-secondary)]">
+              Petrol: <span className="font-bold text-[var(--text-primary)]">PKR {Number(externalFuelSuggestion.petrolPrice).toFixed(2)}</span>
+              <span className="mx-2">|</span>
+              Diesel: <span className="font-bold text-[var(--text-primary)]">PKR {Number(externalFuelSuggestion.dieselPrice).toFixed(2)}</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleApplyExternalFuelPrices}
+                disabled={!canUpdate}
+                className="h-9 px-4 rounded-lg bg-[#0c225e] text-white text-sm font-bold hover:bg-[#0a1a4a] transition-colors disabled:opacity-70"
+              >
+                Apply to fields
+              </button>
+              <div className="text-xs text-[var(--text-muted)] self-center">
+                Values won&apos;t change globally until you click each <span className="font-semibold">Update</span> button.
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-end gap-3 flex-wrap">
           <label className="flex-1 min-w-[200px]">
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1 block">Current Fuel Price (PKR)</span>
