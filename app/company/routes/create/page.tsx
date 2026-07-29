@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { GripVertical, Trash2 } from "lucide-react";
+import { Building2, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany, fetchCompanyFeatures, selectCompanyFeatures, selectCompanyFeaturesStatus } from "../../../lib/store/slices/companySlice";
@@ -14,6 +14,8 @@ import StopAddressSearch from "@/app/admin/ui/StopAddressSearch";
 import type { MapMarker, MapPolyline } from "@/app/admin/ui/Map";
 
 const Map = dynamic(() => import("@/app/admin/ui/Map"), { ssr: false });
+
+type PinMode = "pickup" | "office";
 
 interface Stop {
     id: string;
@@ -28,6 +30,16 @@ const inputCls = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm";
 const labelCls = "block text-xs font-semibold text-gray-500 mb-1";
 const cancelBtnCls = "rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50";
 const saveBtnCls = "rounded-lg bg-[#0c225e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0c225e]/90 disabled:opacity-60";
+
+function makeStop(
+    name: string,
+    lat: number,
+    lng: number,
+    morningEta: string,
+    eveningEta: string,
+): Stop {
+    return { id: crypto.randomUUID(), name, lat, lng, morningEta, eveningEta };
+}
 
 export default function CompanyCreateRoutePage() {
     const router = useRouter();
@@ -54,13 +66,20 @@ export default function CompanyCreateRoutePage() {
     const [name, setName] = useState("");
     const [assignedVehicleId, setAssignedVehicleId] = useState("");
     const [assignedDriverId, setAssignedDriverId] = useState("");
-    const [stops, setStops] = useState<Stop[]>([]);
+    const [officeStop, setOfficeStop] = useState<Stop | null>(null);
+    const [pickupStops, setPickupStops] = useState<Stop[]>([]);
+    const [pinMode, setPinMode] = useState<PinMode>("office");
     const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
     const [saving, setSaving] = useState(false);
     const [vehicles, setVehicles] = useState<PoolVehicle[]>([]);
     const [drivers, setDrivers] = useState<PoolDriver[]>([]);
 
     const polylineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const orderedStops = useMemo(
+        () => (officeStop ? [...pickupStops, officeStop] : [...pickupStops]),
+        [pickupStops, officeStop],
+    );
 
     useEffect(() => {
         if (!companyId) return;
@@ -69,6 +88,11 @@ export default function CompanyCreateRoutePage() {
             setDrivers(r.data.filter((d) => d.driver_type === "SHUTTLE"));
         }).catch(() => {});
     }, [companyId]);
+
+    useEffect(() => {
+        if (officeStop) setPinMode("pickup");
+        else setPinMode("office");
+    }, [officeStop]);
 
     const fetchPreviewPolyline = useCallback(async (currentStops: Stop[]) => {
         if (currentStops.length < 2) {
@@ -93,51 +117,57 @@ export default function CompanyCreateRoutePage() {
         [fetchPreviewPolyline],
     );
 
+    const applyOffice = useCallback((stop: Stop) => {
+        setOfficeStop(stop);
+        setPickupStops((prev) => {
+            schedulePolylineUpdate([...prev, stop]);
+            return prev;
+        });
+        toast.success("Company office set");
+    }, [schedulePolylineUpdate]);
+
+    const applyPickup = useCallback((stop: Stop) => {
+        setPickupStops((prev) => {
+            const updated = [...prev, stop];
+            schedulePolylineUpdate(officeStop ? [...updated, officeStop] : updated);
+            return updated;
+        });
+        toast.success(`Pickup "${stop.name}" added`);
+    }, [officeStop, schedulePolylineUpdate]);
+
     const handleAddressSelect = useCallback(
         ({ name: stopName, lat, lng }: { name: string; lat: number; lng: number }) => {
-            const newStop: Stop = {
-                id: crypto.randomUUID(),
-                name: stopName,
-                lat,
-                lng,
-                morningEta: "08:00",
-                eveningEta: "18:00",
-            };
-            setStops((prev) => {
-                const updated = [...prev, newStop];
-                schedulePolylineUpdate(updated);
-                return updated;
-            });
-            toast.success(`Stop "${stopName}" added`);
+            if (pinMode === "office") {
+                applyOffice(makeStop(stopName, lat, lng, "09:00", "18:00"));
+            } else {
+                applyPickup(makeStop(stopName, lat, lng, "08:00", "18:30"));
+            }
         },
-        [schedulePolylineUpdate],
+        [pinMode, applyOffice, applyPickup],
     );
 
     const handleMapClick = useCallback(
         (lat: number, lng: number) => {
-            const newStop: Stop = {
-                id: crypto.randomUUID(),
-                name: `Stop ${stops.length + 1}`,
-                lat,
-                lng,
-                morningEta: "08:00",
-                eveningEta: "18:00",
-            };
-            setStops((prev) => {
-                const updated = [...prev, newStop];
-                schedulePolylineUpdate(updated);
-                return updated;
-            });
+            if (pinMode === "office") {
+                applyOffice(makeStop("Company Office", lat, lng, "09:00", "18:00"));
+            } else {
+                applyPickup(makeStop(`Pickup ${pickupStops.length + 1}`, lat, lng, "08:00", "18:30"));
+            }
         },
-        [stops.length, schedulePolylineUpdate],
+        [pinMode, pickupStops.length, applyOffice, applyPickup],
     );
 
-    const handleRemoveStop = (id: string) => {
-        setStops((prev) => {
+    const handleRemovePickup = (id: string) => {
+        setPickupStops((prev) => {
             const updated = prev.filter((s) => s.id !== id);
-            schedulePolylineUpdate(updated);
+            schedulePolylineUpdate(officeStop ? [...updated, officeStop] : updated);
             return updated;
         });
+    };
+
+    const handleClearOffice = () => {
+        setOfficeStop(null);
+        schedulePolylineUpdate(pickupStops);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -150,8 +180,12 @@ export default function CompanyCreateRoutePage() {
             toast.error("Route name is required");
             return;
         }
-        if (stops.length < 2) {
-            toast.error("A route must have at least 2 stops");
+        if (!officeStop) {
+            toast.error("Set your company office — it is required");
+            return;
+        }
+        if (pickupStops.length < 1) {
+            toast.error("Add at least one employee pickup stop");
             return;
         }
         setSaving(true);
@@ -161,7 +195,7 @@ export default function CompanyCreateRoutePage() {
                 company_id: companyId,
                 assigned_vehicle_id: assignedVehicleId ? Number(assignedVehicleId) : undefined,
                 assigned_driver_id: assignedDriverId || undefined,
-                stops: stops.map((stop, index) => ({
+                stops: orderedStops.map((stop, index) => ({
                     name: stop.name,
                     lat: stop.lat,
                     lng: stop.lng,
@@ -179,19 +213,35 @@ export default function CompanyCreateRoutePage() {
         }
     };
 
-    const mapMarkers: MapMarker[] = stops.map((s, index) => ({
-        id: s.id,
-        position: [s.lat, s.lng],
-        label: `${index + 1}. ${s.name}`,
-        color: index === 0 ? "#22c55e" : index === stops.length - 1 ? "#ef4444" : "#6366f1",
-    }));
+    const mapMarkers: MapMarker[] = [
+        ...pickupStops.map((s, index) => ({
+            id: s.id,
+            position: [s.lat, s.lng] as [number, number],
+            label: `${index + 1}. ${s.name}`,
+            color: "#6366f1",
+        })),
+        ...(officeStop
+            ? [{
+                id: officeStop.id,
+                position: [officeStop.lat, officeStop.lng] as [number, number],
+                label: `Office · ${officeStop.name}`,
+                color: "#ef4444",
+            }]
+            : []),
+    ];
 
     const mapPolylines: MapPolyline[] =
         routePolyline.length >= 2
             ? [{ positions: routePolyline, color: "#0C225E" }]
-            : stops.length > 1
-            ? [{ positions: stops.map((s) => [s.lat, s.lng] as [number, number]), color: "#2563eb" }]
+            : orderedStops.length > 1
+            ? [{ positions: orderedStops.map((s) => [s.lat, s.lng] as [number, number]), color: "#2563eb" }]
             : [];
+
+    const mapCenter: [number, number] | undefined = officeStop
+        ? [officeStop.lat, officeStop.lng]
+        : pickupStops[0]
+        ? [pickupStops[0].lat, pickupStops[0].lng]
+        : undefined;
 
     if (!company?.services_enabled?.shuttle_enabled) {
         return (
@@ -221,7 +271,9 @@ export default function CompanyCreateRoutePage() {
             <div className="flex justify-between items-center shrink-0">
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">Create Shuttle Route</h1>
-                    <p className="text-sm text-[var(--text-muted)] mt-1">Add at least two stops and assign your shuttle vehicle and driver.</p>
+                    <p className="text-sm text-[var(--text-muted)] mt-1">
+                        Office is always morning&apos;s last stop and evening&apos;s first stop.
+                    </p>
                 </div>
                 <div className="flex gap-2">
                     <button type="button" onClick={() => router.back()} className={cancelBtnCls}>Cancel</button>
@@ -235,7 +287,7 @@ export default function CompanyCreateRoutePage() {
                 <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-default)] p-4 flex flex-col gap-4 overflow-y-auto">
                     <div>
                         <label className={labelCls}>Route name *</label>
-                        <input required value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Office — Gulshan" />
+                        <input required value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="e.g. Gulshan — Office" />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -257,28 +309,272 @@ export default function CompanyCreateRoutePage() {
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label className={labelCls}>Add stop by address</label>
-                        <StopAddressSearch onSelect={handleAddressSelect} />
+
+                    {/* Pin mode */}
+                    <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                        <button
+                            type="button"
+                            onClick={() => setPinMode("office")}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-colors ${
+                                pinMode === "office"
+                                    ? "bg-red-500 text-white shadow-sm"
+                                    : "text-gray-600 hover:bg-white"
+                            }`}
+                        >
+                            <Building2 className="w-3.5 h-3.5" />
+                            Set office
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setPinMode("pickup")}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-colors ${
+                                pinMode === "pickup"
+                                    ? "bg-indigo-600 text-white shadow-sm"
+                                    : "text-gray-600 hover:bg-white"
+                            }`}
+                        >
+                            <MapPin className="w-3.5 h-3.5" />
+                            Add pickup
+                        </button>
                     </div>
-                    <div className="space-y-2">
-                        {stops.map((stop, index) => (
-                            <div key={stop.id} className="flex items-start gap-2 rounded-lg border border-[var(--border-light)] p-2">
-                                <GripVertical className="w-4 h-4 mt-2 text-gray-400 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium truncate">{index + 1}. {stop.name}</div>
-                                    <div className="grid grid-cols-2 gap-1 mt-1">
-                                        <input className={inputCls} value={stop.morningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, morningEta: e.target.value } : s))} />
-                                        <input className={inputCls} value={stop.eveningEta} onChange={(e) => setStops((prev) => prev.map((s) => s.id === stop.id ? { ...s, eveningEta: e.target.value } : s))} />
+
+                    <div>
+                        <label className={labelCls}>
+                            {pinMode === "office" ? "Search company office address" : "Search employee pickup"}
+                        </label>
+                        <StopAddressSearch
+                            onSelect={handleAddressSelect}
+                            placeholder={
+                                pinMode === "office"
+                                    ? "Search office / HQ address…"
+                                    : "Search pickup location…"
+                            }
+                            clearOnSelect
+                        />
+                        <p className="text-xs text-gray-400 mt-1.5">
+                            Or click the map to pin the {pinMode === "office" ? "office" : "pickup"}.
+                        </p>
+                    </div>
+
+                    {/* Office — prominent */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Building2 className="w-4 h-4 text-red-500" />
+                            <h3 className="font-semibold text-sm text-red-700">Company Office</h3>
+                            <span className="text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                                Required
+                            </span>
+                        </div>
+
+                        {!officeStop ? (
+                            <div className="rounded-xl border-2 border-dashed border-red-200 bg-red-50/50 p-4 text-center">
+                                <Building2 className="w-8 h-8 text-red-300 mx-auto mb-2" />
+                                <p className="text-sm font-medium text-red-800">No office set yet</p>
+                                <p className="text-xs text-red-600/80 mt-1">
+                                    Switch to <strong>Set office</strong>, then search or click the map.
+                                </p>
+                                <p className="text-[11px] text-red-500 mt-2">
+                                    Morning: last stop · Evening: first stop
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border-2 border-red-300 bg-red-50 p-3 shadow-sm">
+                                <div className="flex items-start gap-2 mb-2">
+                                    <span className="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0">
+                                        <Building2 className="w-3.5 h-3.5" />
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <input
+                                            className={`${inputCls} font-semibold`}
+                                            value={officeStop.name}
+                                            onChange={(e) =>
+                                                setOfficeStop((prev) =>
+                                                    prev ? { ...prev, name: e.target.value } : prev,
+                                                )
+                                            }
+                                        />
+                                        <div className="flex flex-wrap gap-1.5 mt-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                                                AM last stop
+                                            </span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded">
+                                                PM first stop
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleClearOffice}
+                                        className="p-1 text-red-500"
+                                        title="Clear office"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mt-1 pl-9">
+                                    <div>
+                                        <label className="text-[10px] text-red-700/70">AM arrival</label>
+                                        <input
+                                            type="time"
+                                            className={inputCls}
+                                            value={officeStop.morningEta}
+                                            onChange={(e) =>
+                                                setOfficeStop((prev) =>
+                                                    prev ? { ...prev, morningEta: e.target.value } : prev,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-red-700/70">PM departure</label>
+                                        <input
+                                            type="time"
+                                            className={inputCls}
+                                            value={officeStop.eveningEta}
+                                            onChange={(e) =>
+                                                setOfficeStop((prev) =>
+                                                    prev ? { ...prev, eveningEta: e.target.value } : prev,
+                                                )
+                                            }
+                                        />
                                     </div>
                                 </div>
-                                <button type="button" onClick={() => handleRemoveStop(stop.id)} className="p-1 text-red-500"><Trash2 className="w-4 h-4" /></button>
                             </div>
-                        ))}
-                    </div>
+                        )}
+                    </section>
+
+                    {/* Pickups */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-4 h-4 text-indigo-500" />
+                            <h3 className="font-semibold text-sm">
+                                Employee pickups
+                                <span className="ml-1.5 text-xs text-gray-400 font-normal">
+                                    ({pickupStops.length})
+                                </span>
+                            </h3>
+                        </div>
+
+                        {pickupStops.length === 0 ? (
+                            <p className="text-sm text-gray-400 italic text-center py-4 border border-dashed border-gray-200 rounded-lg">
+                                No pickups yet — use <strong>Add pickup</strong> or the map.
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {pickupStops.map((stop, index) => (
+                                    <div
+                                        key={stop.id}
+                                        className="flex items-start gap-2 rounded-lg border border-[var(--border-light)] p-2 bg-gray-50"
+                                    >
+                                        <span className="w-6 h-6 mt-1 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 bg-indigo-500">
+                                            {index + 1}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <input
+                                                className={inputCls}
+                                                value={stop.name}
+                                                onChange={(e) =>
+                                                    setPickupStops((prev) =>
+                                                        prev.map((s) =>
+                                                            s.id === stop.id
+                                                                ? { ...s, name: e.target.value }
+                                                                : s,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                            <div className="grid grid-cols-2 gap-1 mt-1">
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500">AM pickup</label>
+                                                    <input
+                                                        type="time"
+                                                        className={inputCls}
+                                                        value={stop.morningEta}
+                                                        onChange={(e) =>
+                                                            setPickupStops((prev) =>
+                                                                prev.map((s) =>
+                                                                    s.id === stop.id
+                                                                        ? { ...s, morningEta: e.target.value }
+                                                                        : s,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[10px] text-gray-500">PM dropoff</label>
+                                                    <input
+                                                        type="time"
+                                                        className={inputCls}
+                                                        value={stop.eveningEta}
+                                                        onChange={(e) =>
+                                                            setPickupStops((prev) =>
+                                                                prev.map((s) =>
+                                                                    s.id === stop.id
+                                                                        ? { ...s, eveningEta: e.target.value }
+                                                                        : s,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemovePickup(stop.id)}
+                                            className="p-1 text-red-500"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+
+                    {officeStop && pickupStops.length > 0 && (
+                        <section className="rounded-lg border border-gray-200 bg-white p-3 text-xs space-y-2">
+                            <p className="font-semibold text-gray-700">Route order on save</p>
+                            <div>
+                                <span className="font-bold text-amber-700">Morning → </span>
+                                <span className="text-gray-600">
+                                    {pickupStops.map((s) => s.name).join(" → ")}
+                                    {" → "}
+                                    <span className="font-semibold text-red-600">{officeStop.name}</span>
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-bold text-violet-700">Evening → </span>
+                                <span className="text-gray-600">
+                                    <span className="font-semibold text-red-600">{officeStop.name}</span>
+                                    {" → "}
+                                    {[...pickupStops].reverse().map((s) => s.name).join(" → ")}
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-gray-400">
+                                Pickup order is auto-optimized on save; evening is the reverse of morning.
+                            </p>
+                        </section>
+                    )}
                 </div>
-                <div className="lg:col-span-2 rounded-xl border border-[var(--border-default)] overflow-hidden min-h-[400px]">
-                    <Map markers={mapMarkers} polylines={mapPolylines} onMapClick={handleMapClick} />
+
+                <div className="lg:col-span-2 rounded-xl border border-[var(--border-default)] overflow-hidden min-h-[400px] relative">
+                    <div className="absolute top-3 left-3 z-[500] flex gap-2 pointer-events-none">
+                        <span className="bg-white/95 border border-red-200 text-red-700 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-red-500" /> Office
+                        </span>
+                        <span className="bg-white/95 border border-indigo-200 text-indigo-700 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" /> Pickups
+                        </span>
+                    </div>
+                    <Map
+                        markers={mapMarkers}
+                        polylines={mapPolylines}
+                        onMapClick={handleMapClick}
+                        center={mapCenter}
+                        height="100%"
+                    />
                 </div>
             </div>
         </div>

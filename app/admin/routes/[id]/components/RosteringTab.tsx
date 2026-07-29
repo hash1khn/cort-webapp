@@ -72,6 +72,16 @@ export default function RosteringTab({ route }: RosteringTabProps) {
         }
     };
 
+    // Office = highest morning_sequence (last AM stop). Not assignable as a pickup.
+    const officeStopId = (() => {
+        const stops = route.route_stops ?? [];
+        const withMorning = stops.filter((s) => s.morning_sequence != null);
+        if (withMorning.length === 0) return null;
+        const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
+        return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
+    })();
+    const pickupStops = (route.route_stops ?? []).filter((s) => s.id !== officeStopId);
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -106,12 +116,15 @@ export default function RosteringTab({ route }: RosteringTabProps) {
                                 onChange={(e) => setSelectedStopId(Number(e.target.value))}
                             >
                                 <option value="">Select Stop</option>
-                                {route.route_stops?.map(stop => (
+                                {pickupStops.map(stop => (
                                     <option key={stop.id} value={stop.id}>
                                         {stop.name} ({stop.morning_eta || 'No ETA'})
                                     </option>
                                 ))}
                             </select>
+                            <p className="text-[11px] text-gray-400 mt-1">
+                                Office stop is excluded — employees board at pickups only.
+                            </p>
                         </div>
                         <Button onClick={handleAssign} disabled={assignmentStatus === 'loading'}>
                             {assignmentStatus === 'loading' ? 'Assigning...' : 'Assign'}

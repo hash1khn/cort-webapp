@@ -93,6 +93,15 @@ type AiRecommendation = {
 
 function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNING" | "EVENING" }) {
   const t = useTranslations("company.routes");
+  const withMorning = stops.filter((s) => s.morning_sequence != null);
+  const maxMorning = withMorning.length
+    ? Math.max(...withMorning.map((s) => s.morning_sequence!))
+    : null;
+  const officeStopId =
+    maxMorning != null
+      ? withMorning.find((s) => s.morning_sequence === maxMorning)?.id ?? null
+      : null;
+
   const sorted = [...stops]
     .filter((s) => direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null)
     .sort((a, b) =>
@@ -103,22 +112,19 @@ function StopPills({ stops, direction }: { stops: RouteStop[]; direction: "MORNI
   if (sorted.length === 0) return <span className="text-xs text-[var(--text-muted)] italic">{t("noStops")}</span>;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {sorted.map((stop, idx) => {
-        const isFirst = idx === 0;
-        const isLast = idx === sorted.length - 1;
+      {sorted.map((stop) => {
+        const isOffice = stop.id === officeStopId;
         return (
           <span
             key={stop.id}
             className={cx(
               "rounded-full px-2.5 py-0.5 text-[10px] font-semibold border",
-              isFirst
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                : isLast
-                  ? "border-[var(--cort-orange)]/30 bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]"
-                  : "border-[var(--border-light)] bg-[var(--bg-subtle)] text-[var(--text-secondary)]"
+              isOffice
+                ? "border-red-500/30 bg-red-500/10 text-red-500"
+                : "border-[var(--border-light)] bg-[var(--bg-subtle)] text-[var(--text-secondary)]"
             )}
           >
-            {stop.name}
+            {isOffice ? `Office · ${stop.name}` : stop.name}
           </span>
         );
       })}

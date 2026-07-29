@@ -16,6 +16,7 @@ import { Button } from "@/app/admin/ui/Button";
 import {
   Activity,
   ArrowLeft,
+  Building2,
   Bus,
   User,
   MapPin,
@@ -99,8 +100,18 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+function identifyOfficeStopId(
+  stops: Array<{ id: number; morning_sequence?: number | null }>,
+): number | null {
+  const withMorning = stops.filter((s) => s.morning_sequence != null);
+  if (withMorning.length === 0) return null;
+  const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
+  return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
+}
+
 function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MORNING" | "EVENING" }) {
   const t = useTranslations("company.routes");
+  const officeStopId = identifyOfficeStopId(stops);
   const sorted = [...stops]
     .filter((s) =>
       direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null
@@ -122,29 +133,46 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
         {sorted.map((stop, idx) => {
           const eta =
             direction === "MORNING" ? formatTime(stop.morning_eta) : formatTime(stop.evening_eta);
-          const isFirst = idx === 0;
-          const isLast = idx === sorted.length - 1;
+          const isOffice = stop.id === officeStopId;
 
           return (
             <div key={stop.id} className="flex items-start gap-3">
               <div
                 className={cx(
                   "relative z-10 mt-0.5 w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 text-xs font-bold",
-                  isFirst
-                    ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                    : isLast
-                      ? "border-[var(--cort-orange)] bg-[var(--cort-orange)]/10 text-[var(--cort-orange)]"
-                      : "border-[var(--border-default)] bg-[var(--bg-card)] text-[var(--text-muted)]"
+                  isOffice
+                    ? "border-red-500 bg-red-500 text-white"
+                    : "border-[var(--border-default)] bg-[var(--bg-card)] text-[var(--text-muted)]"
                 )}
               >
-                {(direction === "MORNING" ? stop.morning_sequence : stop.evening_sequence) ?? idx + 1}
+                {isOffice
+                  ? <Building2 className="w-3.5 h-3.5" />
+                  : ((direction === "MORNING" ? stop.morning_sequence : stop.evening_sequence) ?? idx + 1)}
               </div>
               <div className="flex-1 min-w-0 pb-1">
-                <div className="text-sm font-semibold text-[var(--text-primary)]">{stop.name}</div>
+                <div className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5 flex-wrap">
+                  {stop.name}
+                  {isOffice && (
+                    <>
+                      <span className="text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                        Office
+                      </span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                        {direction === "MORNING" ? "AM last" : "PM first"}
+                      </span>
+                    </>
+                  )}
+                </div>
                 {eta && (
                   <div className="text-xs text-[var(--text-muted)]">
-                    {direction === "MORNING" ? t("pickup") : t("dropoff")}: {eta}
+                    {isOffice
+                      ? (direction === "MORNING" ? "Arrival" : "Departure")
+                      : (direction === "MORNING" ? t("pickup") : t("dropoff"))}
+                    : {eta}
                   </div>
+                )}
+                {isOffice && (
+                  <div className="text-[10px] text-red-600/80 mt-0.5">Employees cannot be assigned here</div>
                 )}
               </div>
             </div>
@@ -283,6 +311,14 @@ export default function RouteDetailPage() {
 
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
+  // Office = highest morning_sequence (last AM / first PM). Not assignable as pickup.
+  const officeStopId = (() => {
+    const withMorning = stops.filter((s) => s.morning_sequence != null);
+    if (withMorning.length === 0) return null;
+    const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
+    return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
+  })();
+  const pickupStops = stops.filter((s) => s.id !== officeStopId);
   const vehicle = route?.vehicles ?? null;
   const driver = route?.users ?? null;
 
@@ -705,12 +741,15 @@ export default function RouteDetailPage() {
                     className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
                   >
                     <option value="">{t("noneAutomatic")}</option>
-                    {stops.map((stop) => (
+                    {pickupStops.map((stop) => (
                       <option key={stop.id} value={stop.id}>
                         {stop.name}
                       </option>
                     ))}
                   </select>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                    Office stop is excluded — employees board at pickups only.
+                  </p>
                 </div>
               </div>
               <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">

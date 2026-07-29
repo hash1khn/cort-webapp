@@ -25,7 +25,7 @@ import { Label } from '@/app/admin/ui/Label';
 import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import RosteringTab from './components/RosteringTab';
 import ManageStopsTab from './components/ManageStopsTab';
-import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered, Sparkles } from 'lucide-react';
+import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered, Sparkles, Building2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
@@ -35,6 +35,15 @@ import { useAuth } from '@/app/lib/contexts/auth-context';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
+
+function identifyOfficeStopId(
+    stops: Array<{ id: number; morning_sequence: number | null }>,
+): number | null {
+    const withMorning = stops.filter((s) => s.morning_sequence != null);
+    if (withMorning.length === 0) return null;
+    const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
+    return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
+}
 
 /** Helper to format ISO time strings or Date objects to HH:mm */
 function formatTime(timeStr: string | null | undefined): string {
@@ -58,6 +67,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const router = useRouter();
     const dispatch = useAppDispatch();
     const route = useAppSelector(selectCurrentRoute);
+    const officeStopId = identifyOfficeStopId(route?.route_stops ?? []);
     const status = useAppSelector(selectAdminRoutesStatus);
     const drivers = useAppSelector(selectAdminDrivers);
     const vehicles = useAppSelector(selectAdminVehicles);
@@ -275,6 +285,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     const handleStopDelete = async (stopId: number) => {
         if (!canEditRoutes) return;
+        if (stopId === officeStopId) {
+            toast.error('Cannot delete the company office stop. Edit its location instead.');
+            return;
+        }
         if (!confirm('Delete this stop?')) return;
         if (!route) return;
         try {
@@ -350,19 +364,22 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
             )
             .map((s) => {
+                const isOffice = s.id === officeStopId;
                 if (editingStopId === s.id && stopForm.lat && stopForm.lng) {
                     return {
                         id: s.id.toString(),
                         position: [parseFloat(stopForm.lat), parseFloat(stopForm.lng)] as [number, number],
-                        label: stopForm.name || s.name,
+                        label: isOffice ? `Office · ${stopForm.name || s.name}` : (stopForm.name || s.name),
                         color: '#f59e0b',
                     };
                 }
                 return {
                     id: s.id.toString(),
                     position: [s.lat, s.lng] as [number, number],
-                    label: `${mapDirection === 'MORNING' ? (s.morning_sequence ?? s.sequence_order) : (s.evening_sequence ?? s.sequence_order)}. ${s.name}`,
-                    color: '#6366f1',
+                    label: isOffice
+                        ? `Office · ${s.name}`
+                        : `${mapDirection === 'MORNING' ? (s.morning_sequence ?? s.sequence_order) : (s.evening_sequence ?? s.sequence_order)}. ${s.name}`,
+                    color: isOffice ? '#ef4444' : '#6366f1',
                 };
             });
 
@@ -731,22 +748,43 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             ? (a.morning_sequence ?? 0) - (b.morning_sequence ?? 0)
                                             : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
                                     )
-                                    .map((stop) => (
+                                    .map((stop) => {
+                                    const isOffice = stop.id === officeStopId;
+                                    return (
                                     <div
                                         key={stop.id}
-                                        className="relative pl-6 border-l-2 border-gray-200 pb-3 last:pb-0 group"
+                                        className={`relative pl-6 border-l-2 pb-3 last:pb-0 group ${
+                                            isOffice ? 'border-red-300' : 'border-gray-200'
+                                        }`}
                                     >
-                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#6366f1] border-2 border-white flex items-center justify-center text-[8px] text-white font-bold">
-                                            {mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order)}
+                                        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold ${
+                                            isOffice ? 'bg-red-500' : 'bg-[#6366f1]'
+                                        }`}>
+                                            {isOffice
+                                                ? <Building2 className="w-2.5 h-2.5" />
+                                                : (mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order))}
                                         </div>
                                         <div className="flex justify-between items-start">
                                             <div
                                                 className="cursor-pointer hover:text-blue-600"
                                                 onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
                                             >
-                                                <div className="text-sm font-medium">{stop.name}</div>
+                                                <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                                                    {stop.name}
+                                                    {isOffice && (
+                                                        <>
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
+                                                                Office
+                                                            </span>
+                                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                                                                {mapDirection === 'MORNING' ? 'AM last' : 'PM first'}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-gray-400">
                                                     AM: {formatTime(stop.morning_eta) || '—'} · PM: {formatTime(stop.evening_eta) || '—'}
+                                                    {isOffice && ' · No employee assignment'}
                                                 </div>
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -758,16 +796,18 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                                     <Edit className="w-3 h-3" />
                                                 </button>
                                                 <button
-                                                    onClick={canEditRoutes ? () => handleStopDelete(stop.id) : undefined}
-                                                    disabled={!canEditRoutes}
+                                                    onClick={canEditRoutes && !isOffice ? () => handleStopDelete(stop.id) : undefined}
+                                                    disabled={!canEditRoutes || isOffice}
                                                     className="p-1 hover:bg-gray-100 rounded text-red-500 disabled:opacity-40"
+                                                    title={isOffice ? 'Office cannot be deleted' : 'Delete stop'}
                                                 >
                                                     <Trash className="w-3 h-3" />
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             {savedPolyline.length >= 2 && (
