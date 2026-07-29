@@ -14,9 +14,10 @@
  *  - RIDE_ENDED               → shuttle trip completed; auto-removes from tracking
  *
  * Room strategy:
- *  - Joins ride_<tripId> per tripId via `join:ride`
+ *  - Joins ride_<tripId> per tripId via `join:ride` with the correct tripType
  *  - Replays all joins on every `connect` event (server drops rooms on disconnect)
  *  - Prunes stale rooms when tripIds list shrinks
+ *  - Seeds shuttle markers from Redis last-location (same as admin ops map)
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -39,15 +40,42 @@ export interface LiveVehicleCoord {
     ended?: boolean;
 }
 
+type TripType = 'shuttle' | 'chauffeur';
+
+/**
+ * Seed last-known shuttle GPS from Redis (mirrors useShuttleTracking).
+ * Best-effort — silently ignored on failure / missing data.
+ */
+async function seedShuttleLastLocation(
+    tripId: string,
+    token: string,
+    apply: (lat: number, lng: number) => void,
+) {
+    try {
+        const res = await fetch(`${API_URL}/shuttle-trips/${tripId}/last-location`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data: { lat: number; lng: number } | null = await res.json();
+        if (data?.lat != null && data?.lng != null) {
+            apply(data.lat, data.lng);
+        }
+    } catch {
+        /* best-effort */
+    }
+}
+
 /**
  * @param tripIds  Array of trip IDs to track. Pass [] when nothing to track.
  *                 Each entry is { id: number | string, type: 'shuttle' | 'chauffeur' }
  */
 export function useLiveMobilityTracking(
-    tripIds: { id: number | string; type: 'shuttle' | 'chauffeur' }[],
+    tripIds: { id: number | string; type: TripType }[],
 ) {
     const socketRef = useRef<Socket | null>(null);
     const joinedRoomsRef = useRef<Set<string>>(new Set());
+    /** Persists tripId → type so reconnect joins include the correct tripType */
+    const tripTypeMapRef = useRef<Record<string, TripType>>({});
 
     const [vehicleCoords, setVehicleCoords] = useState<Record<string, LiveVehicleCoord>>({});
     const [isConnected, setIsConnected] = useState(false);
@@ -77,7 +105,12 @@ export function useLiveMobilityTracking(
             setIsConnected(true);
             // ✅ Replay all room joins after reconnect — server drops them on disconnect
             joinedRoomsRef.current.forEach((tripId) => {
-                socket.emit('join:ride', { tripId, userId: '', role: 'employee' });
+                socket.emit('join:ride', {
+                    tripId,
+                    userId: '',
+                    role: 'employee',
+                    tripType: tripTypeMapRef.current[tripId] ?? 'shuttle',
+                });
             });
         });
 
@@ -86,17 +119,18 @@ export function useLiveMobilityTracking(
         // ── Real-time GPS coordinates ─────────────────────────────────────
         socket.on(
             'driver:location',
-            (payload: { tripId: string; lat: number; lng: number; heading?: number; speed?: number }) => {
+            (payload: { tripId: string | number; lat: number; lng: number; heading?: number; speed?: number }) => {
+                const tripId = String(payload.tripId);
                 setVehicleCoords((prev) => ({
                     ...prev,
-                    [payload.tripId]: {
-                        ...(prev[payload.tripId] ?? {}),
-                        tripId: payload.tripId,
+                    [tripId]: {
+                        ...(prev[tripId] ?? {}),
+                        tripId,
                         lat: payload.lat,
                         lng: payload.lng,
                         heading: payload.heading,
                         speed: payload.speed,
-                        type: prev[payload.tripId]?.type ?? 'shuttle',
+                        type: prev[tripId]?.type ?? tripTypeMapRef.current[tripId] ?? 'shuttle',
                         updatedAt: Date.now(),
                     },
                 }));
@@ -106,13 +140,14 @@ export function useLiveMobilityTracking(
         // ── Cumulative trip distance ──────────────────────────────────────
         socket.on(
             'trip:distance_update',
-            (payload: { tripId: string; distanceKm: number }) => {
+            (payload: { tripId: string | number; distanceKm: number }) => {
+                const tripId = String(payload.tripId);
                 setVehicleCoords((prev) => {
-                    const existing = prev[payload.tripId];
+                    const existing = prev[tripId];
                     if (!existing) return prev;
                     return {
                         ...prev,
-                        [payload.tripId]: { ...existing, distanceKm: payload.distanceKm },
+                        [tripId]: { ...existing, distanceKm: payload.distanceKm },
                     };
                 });
             },
@@ -160,6 +195,7 @@ export function useLiveMobilityTracking(
             socket.disconnect();
             socketRef.current = null;
             joinedRoomsRef.current.clear();
+            tripTypeMapRef.current = {};
             setIsConnected(false);
             setVehicleCoords({});
         };
@@ -171,14 +207,27 @@ export function useLiveMobilityTracking(
         const socket = socketRef.current;
         if (!socket) return;
 
+        const token =
+            typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+
         const desired = new Set(tripIds.map((t) => String(t.id)));
-        const typeMap = Object.fromEntries(tripIds.map((t) => [String(t.id), t.type]));
+        const typeMap = Object.fromEntries(
+            tripIds.map((t) => [String(t.id), t.type]),
+        ) as Record<string, TripType>;
+        tripTypeMapRef.current = { ...tripTypeMapRef.current, ...typeMap };
 
         // Join new rooms
         desired.forEach((tripId) => {
             if (!joinedRoomsRef.current.has(tripId)) {
+                const tripType = typeMap[tripId] ?? 'shuttle';
+
                 if (socket.connected) {
-                    socket.emit('join:ride', { tripId, userId: '', role: 'employee' });
+                    socket.emit('join:ride', {
+                        tripId,
+                        userId: '',
+                        role: 'employee',
+                        tripType,
+                    });
                 }
                 joinedRoomsRef.current.add(tripId);
 
@@ -193,11 +242,36 @@ export function useLiveMobilityTracking(
                             tripId,
                             lat: 0,
                             lng: 0,
-                            type: typeMap[tripId] ?? 'shuttle',
+                            type: tripType,
                             updatedAt: 0,
                         },
                     };
                 });
+
+                // Seed Redis last-known GPS for shuttles (same source as admin ops map).
+                // Only applies if a live socket update hasn't already arrived.
+                if (tripType === 'shuttle' && token) {
+                    seedShuttleLastLocation(tripId, token, (lat, lng) => {
+                        setVehicleCoords((prev) => {
+                            const existing = prev[tripId];
+                            // Don't overwrite a fresher live socket position
+                            if (existing && existing.updatedAt > 0 && existing.lat !== 0) {
+                                return prev;
+                            }
+                            return {
+                                ...prev,
+                                [tripId]: {
+                                    ...(existing ?? {}),
+                                    tripId,
+                                    lat,
+                                    lng,
+                                    type: 'shuttle',
+                                    updatedAt: Date.now(),
+                                },
+                            };
+                        });
+                    });
+                }
             }
         });
 
@@ -205,6 +279,7 @@ export function useLiveMobilityTracking(
         joinedRoomsRef.current.forEach((tripId) => {
             if (!desired.has(tripId)) {
                 joinedRoomsRef.current.delete(tripId);
+                delete tripTypeMapRef.current[tripId];
                 setVehicleCoords((prev) => {
                     const next = { ...prev };
                     delete next[tripId];

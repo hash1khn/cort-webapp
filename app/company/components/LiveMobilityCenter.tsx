@@ -264,9 +264,12 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     }, [fetchActiveTrips]);
 
     // ── Live socket tracking ───────────────────────────────────────────────────
-    // Stable reference: only re-create when the set of ids/types changes
+    // Stable reference: only re-create when the set of ids/types changes.
+    // Demo trips (negative IDs) are excluded — no Redis seed / socket rooms for mocks.
     const trackingInput = useMemo(
-        () => trips.map((t) => ({ id: t.id, type: t.type })),
+        () => trips
+            .filter((t) => !isDemoTripId(t.id))
+            .map((t) => ({ id: t.id, type: t.type })),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [trips.map((t) => `${t.type}:${t.id}`).join(',')],
     );
