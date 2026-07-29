@@ -86,6 +86,7 @@ function ShuttleTripsSchedulingContent() {
     const [generateDate, setGenerateDate] = useState(utcTodayYmd);
     const [generateBusy, setGenerateBusy] = useState(false);
     const [dailyAllBusy, setDailyAllBusy] = useState(false);
+    const [regenerateBusy, setRegenerateBusy] = useState(false);
     const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
     const loadGenerationRoutes = useCallback(async (companyId?: number) => {
@@ -182,6 +183,25 @@ function ShuttleTripsSchedulingContent() {
         }
     };
 
+    const handleRegenerateToday = async () => {
+        if (!canMutate) return;
+        if (!window.confirm('This will delete all SCHEDULED trips for today and regenerate them. Continue?')) return;
+        setRegenerateBusy(true);
+        setBanner(null);
+        try {
+            const result = await apiClient.request<{ message: string; deletedCount: number; createdCount: number }>(
+                '/shuttle-trips/regenerate-daily',
+                { method: 'POST' },
+            );
+            setBanner({ type: 'ok', text: result.message });
+            await loadTrips();
+        } catch (e) {
+            setBanner({ type: 'err', text: e instanceof Error ? e.message : 'Failed to regenerate trips' });
+        } finally {
+            setRegenerateBusy(false);
+        }
+    };
+
     const handleDelete = async (trip: ScheduledTripRow) => {
         if (!canMutate || trip.status !== 'SCHEDULED') return;
         if (!window.confirm(`Delete ${trip.direction} trip #${trip.id} on ${formatTripDate(trip.trip_date)}?`)) return;
@@ -229,10 +249,16 @@ function ShuttleTripsSchedulingContent() {
                 <p className="text-sm text-gray-500">
                     Generate morning and evening trips for <strong>today (UTC)</strong> on every eligible route (driver + vehicle + shuttle-enabled company).
                 </p>
-                <Button variant="outline" onClick={handleDailyAllRoutes} disabled={!canMutate || dailyAllBusy}>
-                    {dailyAllBusy ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Bus className="mr-2 h-4 w-4" />}
-                    Generate today&apos;s trips (all routes)
-                </Button>
+                <div className="flex flex-wrap gap-3">
+                    <Button variant="outline" onClick={handleDailyAllRoutes} disabled={!canMutate || dailyAllBusy}>
+                        {dailyAllBusy ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Bus className="mr-2 h-4 w-4" />}
+                        Generate today&apos;s trips (all routes)
+                    </Button>
+                    <Button variant="outline" onClick={handleRegenerateToday} disabled={!canMutate || regenerateBusy}>
+                        {regenerateBusy ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Regenerate today&apos;s trips
+                    </Button>
+                </div>
             </Card>
 
             <Card className="p-6 space-y-4">
