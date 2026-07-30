@@ -112,13 +112,59 @@ export function useCompanyDetail(id: string) {
                 return;
             }
 
+            // Quote-aware CSV split so commas inside "addresses, like this" stay in one cell.
+            const parseCsvLine = (line: string): string[] => {
+                const cells: string[] = [];
+                let current = "";
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const ch = line[i];
+                    if (ch === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i += 1;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                        continue;
+                    }
+                    if (ch === "," && !inQuotes) {
+                        cells.push(current.trim());
+                        current = "";
+                        continue;
+                    }
+                    current += ch;
+                }
+                cells.push(current.trim());
+                return cells;
+            };
+
+            // Common spreadsheet aliases → employee fields we accept.
+            const headerAliases: Record<string, string> = {
+                full_name: "full_name",
+                name: "full_name",
+                email: "email",
+                phone: "phone",
+                "official number": "phone",
+                "official_number": "phone",
+                mobile: "phone",
+                employee_id: "employee_id",
+                department: "department",
+                home_address: "home_address",
+                address: "home_address",
+                password: "password",
+            };
+
             const lines = text.split(/\r?\n/);
-            const headers = (lines[0] || "")
-                .split(",")
-                .map((h) => h.trim().toLowerCase())
+            // Keep empty header slots so column indexes stay aligned with data rows.
+            const rawHeaders = parseCsvLine(lines[0] || "").map((h) => h.trim().toLowerCase());
+            const headers = rawHeaders
+                .map((h) => headerAliases[h] || h)
                 .filter(Boolean);
 
-            const missingHeaders = csvRequiredHeaders.filter((h) => !headers.includes(h));
+            const missingHeaders = csvRequiredHeaders.filter(
+                (h) => !rawHeaders.some((rh) => (headerAliases[rh] || rh) === h),
+            );
 
             const previewRows: any[] = [];
             const skipped: Array<{ row: number; missing: string[] }> = [];
@@ -127,12 +173,14 @@ export function useCompanyDetail(id: string) {
                 const line = lines[i].trim();
                 if (!line) continue;
 
-                const values = line.split(",");
+                const values = parseCsvLine(line);
                 const emp: any = { company_id: company.id };
 
-                headers.forEach((h, index) => {
+                rawHeaders.forEach((rawHeader, index) => {
+                    const field = headerAliases[rawHeader];
+                    if (!field) return;
                     const val = values[index]?.trim();
-                    if (val) emp[h] = val;
+                    if (val) emp[field] = val;
                 });
 
                 const missingRequired = csvRequiredHeaders.filter(
