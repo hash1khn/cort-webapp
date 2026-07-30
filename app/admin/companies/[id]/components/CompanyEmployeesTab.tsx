@@ -65,6 +65,7 @@ export function CompanyEmployeesTab({ detail: d }: Props) {
                                 </div>
                                 <div className="mt-3 text-xs text-slate-500">
                                     Tip: headers are case-insensitive. Extra columns are allowed but ignored.
+                                    After a successful upload, a credentials CSV (email, password, etc.) downloads automatically for auto-generated passwords.
                                 </div>
                             </div>
 

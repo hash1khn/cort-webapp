@@ -546,8 +546,18 @@ class ApiClient {
         });
     }
 
-    async bulkCreateEmployees(employees: CreateEmployeeRequest[]): Promise<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }> {
-        return this.request<{ data: { successful: EmployeeResponse[]; failed: { email: string; reason: string }[] } }>('/employees/bulk-create', {
+    async bulkCreateEmployees(employees: CreateEmployeeRequest[]): Promise<{
+        data: {
+            successful: Array<Employee & { password?: string }>;
+            failed: { email: string; reason: string }[];
+        };
+    }> {
+        return this.request<{
+            data: {
+                successful: Array<Employee & { password?: string }>;
+                failed: { email: string; reason: string }[];
+            };
+        }>('/employees/bulk-create', {
             method: 'POST',
             body: JSON.stringify({ employees }),
         });

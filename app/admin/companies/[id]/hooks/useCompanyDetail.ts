@@ -438,6 +438,63 @@ export function useCompanyDetail(id: string) {
             const result = await apiClient.bulkCreateEmployees(rowsToUpload);
             const { successful, failed } = result.data;
 
+            const passwordsByEmail = new Map<string, string>();
+            for (const row of rowsToUpload) {
+                if (row.email && row.password) {
+                    passwordsByEmail.set(String(row.email).toLowerCase(), String(row.password));
+                }
+            }
+
+            const credentialRows = successful.flatMap((emp) => {
+                const email = emp.email ? String(emp.email) : "";
+                const password =
+                    emp.password ||
+                    (email ? passwordsByEmail.get(email.toLowerCase()) : undefined);
+                if (!email || !password) return [];
+                return [
+                    {
+                        email,
+                        full_name: emp.full_name ?? "",
+                        password: String(password),
+                        employee_id: emp.employee_id ?? "",
+                        phone: emp.phone ?? "",
+                        department: emp.department ?? "",
+                    },
+                ];
+            });
+
+            if (credentialRows.length > 0 && company) {
+                const escapeCsv = (value: string) => {
+                    const s = String(value ?? "");
+                    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+                    return s;
+                };
+                const lines = [
+                    "email,full_name,password,employee_id,phone,department",
+                    ...credentialRows.map((r) =>
+                        [
+                            escapeCsv(r.email),
+                            escapeCsv(r.full_name),
+                            escapeCsv(r.password),
+                            escapeCsv(r.employee_id),
+                            escapeCsv(r.phone),
+                            escapeCsv(r.department),
+                        ].join(","),
+                    ),
+                ];
+                const blob = new Blob([lines.join("\n")], {
+                    type: "text/csv;charset=utf-8",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `cort-${company.name}-credentials-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
             let message =
                 `CSV upload finished.\n` +
                 `Rows previewed: ${csvPreviewRows.length}\n` +
@@ -445,6 +502,10 @@ export function useCompanyDetail(id: string) {
                 `Successful: ${successful.length}\n` +
                 `Failed (API): ${failed.length}\n` +
                 `Skipped (missing required): ${csvSkippedRows.length}`;
+
+            if (credentialRows.length > 0) {
+                message += `\nCredentials CSV downloaded (${credentialRows.length} accounts).`;
+            }
 
             if (failed.length > 0) {
                 message += `\n\nFailures:\n` + failed.map((f) => `${f.email}: ${f.reason}`).join("\n");
@@ -489,20 +550,28 @@ export function useCompanyDetail(id: string) {
 
     const handleExportCredentials = () => {
         if (!company) return;
-        // This only exports currently loaded employees, basic info.
-        // Backend generated passwords are NOT stored in plain text, so we can't export them unless we captured them at creation.
-        // Credentials export usually implies recent batch creation. For now, we export what we have.
+        // Roster export only — plaintext passwords are not stored. Use the
+        // credentials CSV downloaded automatically after a successful bulk upload.
+        const escapeCsv = (value: string) => {
+            const s = String(value ?? "");
+            if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+            return s;
+        };
         const lines = [
-            `Company: ${company.name}`,
-            `Generated: ${new Date().toLocaleString()}`,
-            "",
             "employee_id,full_name,email,phone,department,status",
-            ...employees.map(e =>
-                [e.employee_id, e.full_name, e.email, e.phone, e.department || "", e.status].join(",")
-            )
+            ...employees.map((e) =>
+                [
+                    escapeCsv(e.employee_id || ""),
+                    escapeCsv(e.full_name),
+                    escapeCsv(e.email),
+                    escapeCsv(e.phone || ""),
+                    escapeCsv(e.department || ""),
+                    escapeCsv(e.status),
+                ].join(","),
+            ),
         ];
 
-        const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
