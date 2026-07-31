@@ -36,8 +36,8 @@ export interface Route {
         id?: number;
         name: string;
     };
-    assigned_vehicle_id?: number;
-    assigned_driver_id?: string;
+    assigned_vehicle_id?: number | null;
+    assigned_driver_id?: string | null;
     company_vendor_link_id?: number | null;
     company_vendor_links?: {
         id: number;
@@ -58,8 +58,8 @@ export interface Route {
 export interface CreateRouteRequest {
     name: string;
     company_id: number;
-    assigned_vehicle_id?: number;
-    assigned_driver_id?: string;
+    assigned_vehicle_id?: number | null;
+    assigned_driver_id?: string | null;
     stops: {
         name: string;
         lat: number;
@@ -70,6 +70,8 @@ export interface CreateRouteRequest {
         direction?: 'MORNING' | 'EVENING' | 'BOTH';
     }[];
 }
+
+export type UpdateRouteRequest = Partial<Pick<CreateRouteRequest, 'name' | 'company_id' | 'assigned_vehicle_id' | 'assigned_driver_id'>>;
 
 // Employee Assignment Interface
 export interface EmployeeAssignment {
@@ -183,7 +185,7 @@ export const createAdminRoute = createAsyncThunk(
 
 export const updateAdminRoute = createAsyncThunk(
     'adminRoutes/updateRoute',
-    async ({ id, data }: { id: number; data: Partial<CreateRouteRequest> }, { rejectWithValue }) => {
+    async ({ id, data }: { id: number; data: UpdateRouteRequest }, { rejectWithValue }) => {
         try {
             return await apiClient.request<Route>(`/routes/${id}`, {
                 method: 'PATCH',
@@ -326,6 +328,7 @@ export const adminRoutesSlice = createSlice({
         },
         clearCurrentRoute: (state) => {
             state.currentRoute = null;
+            state.assignments = [];
         },
         invalidateRoutesCache: (state) => {
             state.lastFetched = null;
@@ -348,8 +351,11 @@ export const adminRoutesSlice = createSlice({
                 state.error = action.payload as string;
             })
             // Fetch Single Route
-            .addCase(fetchAdminRoute.pending, (state) => {
-                state.status = 'loading';
+            .addCase(fetchAdminRoute.pending, (state, action) => {
+                // Avoid blanking the detail page when we already have this route loaded
+                if (!state.currentRoute || state.currentRoute.id !== action.meta.arg) {
+                    state.status = 'loading';
+                }
             })
             .addCase(fetchAdminRoute.fulfilled, (state, action) => {
                 state.status = 'succeeded';
@@ -379,14 +385,38 @@ export const adminRoutesSlice = createSlice({
             })
             .addCase(updateAdminRoute.fulfilled, (state, action) => {
                 state.actionStatus = 'succeeded';
-                // Update in list
-                const index = state.routes.findIndex(r => r.id === action.payload.id);
+                state.lastFetched = null; // force list refresh on next visit
+                const updated = action.payload;
+                const index = state.routes.findIndex(r => r.id === updated.id);
                 if (index !== -1) {
-                    state.routes[index] = action.payload;
+                    state.routes[index] = {
+                        ...state.routes[index],
+                        ...updated,
+                        vehicles: updated.assigned_vehicle_id
+                            ? (updated.vehicles ?? state.routes[index].vehicles)
+                            : undefined,
+                        users: updated.assigned_driver_id
+                            ? (updated.users ?? state.routes[index].users)
+                            : undefined,
+                    };
                 }
-                // Update currentRoute if it matches
-                if (state.currentRoute && state.currentRoute.id === action.payload.id) {
-                    state.currentRoute = { ...state.currentRoute, ...action.payload };
+                // Merge carefully: bare PATCH responses omit relations/stops;
+                // full findOne responses include them. Always clear nested vehicle/driver
+                // when the FK is null so UI doesn't keep stale assignment labels.
+                if (state.currentRoute && state.currentRoute.id === updated.id) {
+                    state.currentRoute = {
+                        ...state.currentRoute,
+                        ...updated,
+                        route_stops: updated.route_stops ?? state.currentRoute.route_stops,
+                        companies: updated.companies ?? state.currentRoute.companies,
+                        company: updated.company ?? state.currentRoute.company,
+                        vehicles: updated.assigned_vehicle_id
+                            ? (updated.vehicles ?? state.currentRoute.vehicles)
+                            : undefined,
+                        users: updated.assigned_driver_id
+                            ? (updated.users ?? state.currentRoute.users)
+                            : undefined,
+                    };
                 }
             })
             .addCase(updateAdminRoute.rejected, (state, action) => {
@@ -425,6 +455,9 @@ export const adminRoutesSlice = createSlice({
                 state.actionError = action.payload as string;
             })
             // Assignments
+            .addCase(fetchRouteAssignments.pending, (state) => {
+                state.assignments = []; // clear so previous route's roster doesn't flash
+            })
             .addCase(fetchRouteAssignments.fulfilled, (state, action) => {
                 state.assignments = action.payload;
             })
@@ -433,8 +466,12 @@ export const adminRoutesSlice = createSlice({
             })
             .addCase(assignEmployeeToRoute.fulfilled, (state, action) => {
                 state.assignmentStatus = 'succeeded';
-                // Optimistically add to list if it belongs to current route
-                state.assignments.push(action.payload);
+                const idx = state.assignments.findIndex(a => a.user_id === action.payload.user_id);
+                if (idx !== -1) {
+                    state.assignments[idx] = action.payload;
+                } else {
+                    state.assignments.push(action.payload);
+                }
             })
             .addCase(assignEmployeeToRoute.rejected, (state, action) => {
                 state.assignmentStatus = 'failed';

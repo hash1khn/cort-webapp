@@ -33,10 +33,8 @@ function RoutesPageContent() {
     const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
 
     useEffect(() => {
-        if (status === 'idle') {
-            dispatch(fetchAdminRoutes({}));
-        }
-    }, [dispatch, status]);
+        dispatch(fetchAdminRoutes({}));
+    }, [dispatch]);
 
     const companiesWithRoutes = useMemo(() => {
         const companyMap = new Map<number, { id: number; name: string; routeCount: number }>();

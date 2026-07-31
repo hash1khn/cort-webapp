@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/app/admin/ui/Button';
 import { Card } from '@/app/admin/ui/Card';
@@ -140,7 +140,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         evening_sequence: '',
     });
 
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         setFormData({
             name: '',
             lat: '',
@@ -154,7 +154,12 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         setEditingStopId(null);
         setIsAdding(false);
         setOriginalDirection(null);
-    };
+    }, []);
+
+    // Reset local edit state when navigating to a different route
+    useEffect(() => {
+        resetForm();
+    }, [route.id, resetForm]);
 
     const handleEditClick = (stop: RouteStop) => {
         const dir = deriveDirection(stop);

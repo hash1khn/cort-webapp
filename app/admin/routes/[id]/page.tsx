@@ -111,6 +111,15 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         return () => { dispatch(clearCurrentRoute()); };
     }, [dispatch, id]);
 
+    // Reset overview stop editor when route changes
+    useEffect(() => {
+        setEditingStopId(null);
+        setIsAddingStop(false);
+        setIsEditing(false);
+        setStopForm({ name: '', lat: '', lng: '', morning_eta: '', evening_eta: '', sequence_order: '', direction: 'BOTH' });
+        setActiveTab('overview');
+    }, [id]);
+
     // Load drivers and vehicles for assignment editing
     useEffect(() => {
         // Only show shuttle drivers for shuttle routes
@@ -129,7 +138,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             fetchSavedPolyline();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [route?.id]);
+    }, [route?.id, route?.assigned_vehicle_id, route?.assigned_driver_id, route?.name]);
 
     // If the currently-assigned vehicle is excluded from the "available vehicles" list,
     // we still want it to remain selectable/visible in the edit dropdown.
@@ -160,6 +169,39 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         const exists = vehicles.some((v: any) => v?.id === currentId);
         return exists ? vehicles : [...vehicles, currentAssignedVehicle];
     }, [vehicles, currentAssignedVehicle]);
+
+    // Keep currently-assigned driver visible even if filtered out of the shuttle list
+    const driversForSelect = useMemo(() => {
+        const assignedId = route?.assigned_driver_id;
+        if (!assignedId) return drivers;
+        const exists = drivers.some((d) => d.id === assignedId);
+        if (exists) return drivers;
+        if (route?.users) {
+            return [
+                ...drivers,
+                {
+                    id: assignedId,
+                    full_name: route.users.full_name,
+                    phone: route.users.phone,
+                } as (typeof drivers)[number],
+            ];
+        }
+        return drivers;
+    }, [drivers, route?.assigned_driver_id, route?.users]);
+
+    const hydrateEditFormFromRoute = useCallback(() => {
+        if (!route) return;
+        setEditForm({
+            name: route.name,
+            assigned_vehicle_id: route.assigned_vehicle_id?.toString() || '',
+            assigned_driver_id: route.assigned_driver_id?.toString() || '',
+        });
+    }, [route]);
+
+    const handleCancelEdit = () => {
+        hydrateEditFormFromRoute();
+        setIsEditing(false);
+    };
 
     const fetchSavedPolyline = useCallback(async () => {
         if (!id) return;
@@ -335,8 +377,11 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 id: route.id,
                 data: {
                     name: editForm.name,
-                    assigned_vehicle_id: editForm.assigned_vehicle_id ? parseInt(editForm.assigned_vehicle_id) : undefined,
-                    assigned_driver_id: editForm.assigned_driver_id || undefined,
+                    // null clears the FK; undefined would omit the key and leave the old assignment
+                    assigned_vehicle_id: editForm.assigned_vehicle_id
+                        ? parseInt(editForm.assigned_vehicle_id, 10)
+                        : null,
+                    assigned_driver_id: editForm.assigned_driver_id || null,
                 },
             })).unwrap();
 
@@ -435,7 +480,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         <h1 className="text-2xl font-bold flex items-center gap-2">
                             {route.name}
                             <button
-                                onClick={canEditRoutes ? () => setIsEditing(true) : undefined}
+                                onClick={canEditRoutes ? () => { hydrateEditFormFromRoute(); setIsEditing(true); } : undefined}
                                 disabled={!canEditRoutes}
                                 className="text-gray-400 hover:text-blue-600 disabled:opacity-40"
                             >
@@ -450,7 +495,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 <div className="flex gap-2">
                     {isEditing ? (
                         <>
-                            <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                            <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
                             <Button onClick={handleSaveDetails} disabled={!canEditRoutes}>Save Changes</Button>
                         </>
                     ) : (
@@ -556,7 +601,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             }
                                         >
                                             <option value="">None</option>
-                                            {drivers.map((d) => (
+                                            {driversForSelect.map((d) => (
                                                 <option key={d.id} value={d.id}>
                                                     {d.full_name}
                                                 </option>

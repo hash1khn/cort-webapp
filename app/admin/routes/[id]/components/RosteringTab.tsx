@@ -34,6 +34,9 @@ export default function RosteringTab({ route }: RosteringTabProps) {
 
     useEffect(() => {
         if (route.id && route.company_id) {
+            setSelectedEmployeeId('');
+            setSelectedStopId('');
+            setIsAdding(false);
             dispatch(fetchRouteAssignments(route.id));
             dispatch(fetchEmployees(route.company_id.toString()));
         }
@@ -81,6 +84,8 @@ export default function RosteringTab({ route }: RosteringTabProps) {
         return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
     })();
     const pickupStops = (route.route_stops ?? []).filter((s) => s.id !== officeStopId);
+    const assignedUserIds = new Set(assignments.map((a) => a.user_id));
+    const availableEmployees = employees.filter((emp) => !assignedUserIds.has(emp.id));
 
     return (
         <div className="space-y-6">
@@ -103,7 +108,7 @@ export default function RosteringTab({ route }: RosteringTabProps) {
                                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                             >
                                 <option value="">Select Employee</option>
-                                {employees.map(emp => (
+                                {availableEmployees.map(emp => (
                                     <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                                 ))}
                             </select>
