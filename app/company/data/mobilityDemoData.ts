@@ -18,6 +18,8 @@ export interface DemoTripEmployee {
     route_stops?: { name: string };
     /** Demo-only pre-formatted boarding time, e.g. "07:42" */
     boardedAt?: string;
+    /** Demo-only pre-formatted drop-off time (evening trips), e.g. "18:12" */
+    droppedOffAt?: string;
 }
 
 export interface DemoTripEntry {
@@ -58,9 +60,9 @@ const DHA_EMPLOYEES: DemoTripEmployee[] = [
 ];
 
 const GULSHAN_EMPLOYEES: DemoTripEmployee[] = [
-    { id: 7, users: { full_name: 'Zainab Ali', department: 'Sales' }, route_stops: { name: 'Gulshan Block 4' }, boardedAt: '17:52' },
+    { id: 7, users: { full_name: 'Zainab Ali', department: 'Sales' }, route_stops: { name: 'Gulshan Block 4' }, boardedAt: '17:52', droppedOffAt: '18:12' },
     { id: 8, users: { full_name: 'Usman Tariq', department: 'IT' }, route_stops: { name: 'NIPA Chowrangi' }, boardedAt: '18:03' },
-    { id: 9, users: { full_name: 'Mariam Noor', department: 'Legal' }, route_stops: { name: 'Gulshan Block 4' }, boardedAt: '17:54' },
+    { id: 9, users: { full_name: 'Mariam Noor', department: 'Legal' }, route_stops: { name: 'Gulshan Block 4' }, boardedAt: '17:54', droppedOffAt: '18:14' },
     { id: 10, users: { full_name: 'Imran Qureshi', department: 'Finance' }, route_stops: { name: 'NIPA Chowrangi' } },
     { id: 11, users: { full_name: 'Hira Siddiqui', department: 'HR' }, route_stops: { name: 'Gulshan Block 4' }, boardedAt: '17:55' },
 ];

@@ -966,6 +966,7 @@
       "onboardPassengers": "Onboard Passengers",
       "sampleFleetData": "Sample fleet data",
       "boardedAt": "Boarded {time}",
+      "droppedOffAt": "Dropped off {time}",
       "notYetBoarded": "Not yet boarded",
       "absent": "Absent",
       "startedAt": "Started at {time}"

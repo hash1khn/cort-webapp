@@ -588,21 +588,35 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                                             )}
                                                         </div>
                                                         <div className="mt-0.5">
-                                                            {emp.boarding?.status === 'ABSENT' ? (
-                                                                <span className="text-[9px] text-red-400 font-bold">{t('absent')}</span>
-                                                            ) : emp.boarding?.scanned_at ? (
-                                                                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-0.5">
-                                                                    <Clock size={8} />
-                                                                    {t('boardedAt', { time: new Date(emp.boarding.scanned_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) })}
-                                                                </span>
-                                                            ) : emp.boardedAt ? (
-                                                                <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-0.5">
-                                                                    <Clock size={8} />
-                                                                    {t('boardedAt', { time: emp.boardedAt })}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-[9px] text-[var(--text-muted)] font-medium">{t('notYetBoarded')}</span>
-                                                            )}
+                                                            {(() => {
+                                                                const dropOffAt = emp.boarding?.drop_off_at
+                                                                    ? new Date(emp.boarding.drop_off_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                                                                    : emp.droppedOffAt;
+                                                                const boardedAt = emp.boarding?.scanned_at
+                                                                    ? new Date(emp.boarding.scanned_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                                                                    : emp.boardedAt;
+
+                                                                if (emp.boarding?.status === 'ABSENT') {
+                                                                    return <span className="text-[9px] text-red-400 font-bold">{t('absent')}</span>;
+                                                                }
+                                                                if (dropOffAt) {
+                                                                    return (
+                                                                        <span className="text-[9px] text-sky-500 font-bold flex items-center gap-0.5">
+                                                                            <MapPin size={8} />
+                                                                            {t('droppedOffAt', { time: dropOffAt })}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                if (boardedAt) {
+                                                                    return (
+                                                                        <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-0.5">
+                                                                            <Clock size={8} />
+                                                                            {t('boardedAt', { time: boardedAt })}
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                                return <span className="text-[9px] text-[var(--text-muted)] font-medium">{t('notYetBoarded')}</span>;
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 </div>

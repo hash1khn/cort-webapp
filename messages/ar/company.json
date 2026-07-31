@@ -966,6 +966,7 @@
       "onboardPassengers": "الركاب على متن المركبة",
       "sampleFleetData": "بيانات أسطول تجريبية",
       "boardedAt": "صعد الساعة {time}",
+      "droppedOffAt": "نزل الساعة {time}",
       "notYetBoarded": "لم يصعد بعد",
       "absent": "غائب",
       "startedAt": "بدأت الساعة {time}"
