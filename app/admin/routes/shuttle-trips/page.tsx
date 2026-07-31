@@ -84,6 +84,7 @@ function ShuttleTripsSchedulingContent() {
 
     const [selectedRouteId, setSelectedRouteId] = useState<number | ''>('');
     const [generateDate, setGenerateDate] = useState(utcTodayYmd);
+    const [generateDirection, setGenerateDirection] = useState<'BOTH' | 'MORNING' | 'EVENING'>('BOTH');
     const [generateBusy, setGenerateBusy] = useState(false);
     const [dailyAllBusy, setDailyAllBusy] = useState(false);
     const [regenerateBusy, setRegenerateBusy] = useState(false);
@@ -149,11 +150,13 @@ function ShuttleTripsSchedulingContent() {
         setGenerateBusy(true);
         setBanner(null);
         try {
+            const directions =
+                generateDirection === 'BOTH' ? ['MORNING', 'EVENING'] : [generateDirection];
             const result = await apiClient.request<{ message: string; createdCount: number }>(
                 '/shuttle-trips/generate-for-route',
                 {
                     method: 'POST',
-                    body: JSON.stringify({ route_id: selectedRouteId, dates: [generateDate] }),
+                    body: JSON.stringify({ route_id: selectedRouteId, dates: [generateDate], directions }),
                 },
             );
             setBanner({ type: 'ok', text: result.message });
@@ -264,9 +267,9 @@ function ShuttleTripsSchedulingContent() {
             <Card className="p-6 space-y-4">
                 <h2 className="text-lg font-semibold text-gray-900">Generate by route and date</h2>
                 <p className="text-sm text-gray-500">
-                    Creates MORNING and EVENING SCHEDULED trips for that single calendar day (UTC). Any direction that already exists for that day is skipped.
+                    Creates SCHEDULED trips for that single calendar day (UTC) for the selected direction(s). Any direction that already exists for that day is skipped.
                 </p>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <label className="flex flex-col gap-1 text-sm">
                         <span className="font-medium text-gray-700">Route</span>
                         <select
@@ -291,6 +294,18 @@ function ShuttleTripsSchedulingContent() {
                             value={generateDate}
                             onChange={(e) => setGenerateDate(e.target.value)}
                         />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                        <span className="font-medium text-gray-700">Direction</span>
+                        <select
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30"
+                            value={generateDirection}
+                            onChange={(e) => setGenerateDirection(e.target.value as 'BOTH' | 'MORNING' | 'EVENING')}
+                        >
+                            <option value="BOTH">Both</option>
+                            <option value="MORNING">Morning</option>
+                            <option value="EVENING">Evening</option>
+                        </select>
                     </label>
                     <div className="flex items-end">
                         <Button onClick={handleGenerateForDate} disabled={!canMutate || generateBusy || selectedRouteId === ''}>
