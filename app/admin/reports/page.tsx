@@ -312,17 +312,18 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                             <th className="px-4 py-3 text-right">Boarded</th>
                             <th className="px-4 py-3 text-right">Absent</th>
                             <th className="px-4 py-3 text-right">Assigned</th>
+                            <th className="px-4 py-3">Started At</th>
                             <th className="px-4 py-3">Completed At</th>
                             <th className="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                         {loading ? (
-                            <tr><td colSpan={12} className="px-4 py-8 text-center text-muted">Loading shuttle logs...</td></tr>
+                            <tr><td colSpan={13} className="px-4 py-8 text-center text-muted">Loading shuttle logs...</td></tr>
                         ) : error ? (
-                            <tr><td colSpan={12} className="px-4 py-8 text-center text-red-500">{error}</td></tr>
+                            <tr><td colSpan={13} className="px-4 py-8 text-center text-red-500">{error}</td></tr>
                         ) : filtered.length === 0 ? (
-                            <tr><td colSpan={12} className="px-4 py-8 text-center text-muted">No shuttle logs found for the selected filters.</td></tr>
+                            <tr><td colSpan={13} className="px-4 py-8 text-center text-muted">No shuttle logs found for the selected filters.</td></tr>
                         ) : (
                             filtered.map((log) => (
                                 <React.Fragment key={log.id}>
@@ -331,7 +332,7 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                     >
                                         <td className="px-4 py-3 whitespace-nowrap font-medium text-navy">
                                             {log.trip_date
-                                                ? new Date(log.trip_date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+                                                ? new Date(log.trip_date).toLocaleDateString('en-PK', { timeZone: 'Asia/Karachi', day: 'numeric', month: 'short', year: 'numeric' })
                                                 : "—"}
                                         </td>
                                         <td className="px-4 py-3"><DirectionBadge direction={log.direction} /></td>
@@ -356,8 +357,13 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                         <td className="px-4 py-3 text-right text-red-500">{log.passengers.absent}</td>
                                         <td className="px-4 py-3 text-right text-muted">{log.passengers.total}</td>
                                         <td className="px-4 py-3 whitespace-nowrap text-muted text-xs">
+                                            {log.started_at
+                                                ? new Date(log.started_at).toLocaleString('en-PK', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                : "—"}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-muted text-xs">
                                             {log.completed_at
-                                                ? new Date(log.completed_at).toLocaleString('en-PK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                ? new Date(log.completed_at).toLocaleString('en-PK', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
                                                 : "—"}
                                         </td>
                                         <td className="px-4 py-3">
@@ -375,7 +381,7 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                     {/* Expanded detail row */}
                                     {expandedId === log.id && (
                                         <tr key={`${log.id}-detail`} className="bg-zinc-50">
-                                            <td colSpan={12} className="px-6 py-4">
+                                            <td colSpan={13} className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-8">
                                                     {/* Passenger manifest */}
                                                     {log.passengers.details?.length > 0 && (
@@ -400,7 +406,7 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                                             </span>
                                                                             <span className="text-muted">
                                                                                 {attendanceTime
-                                                                                    ? new Date(attendanceTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                                    ? new Date(attendanceTime).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
                                                                                     : "—"}
                                                                             </span>
                                                                         </div>
@@ -424,7 +430,7 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                                             <div className="font-medium text-navy">{s.stop_name || `Stop ${s.stop_id}`}</div>
                                                                             <div className="text-muted text-right">
                                                                                 {s.arrived_at
-                                                                                    ? new Date(s.arrived_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                                    ? new Date(s.arrived_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
                                                                                     : "—"}
                                                                             </div>
                                                                         </div>
