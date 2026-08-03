@@ -97,11 +97,32 @@ export function BookingNotificationProvider() {
       }
     });
 
+    socket.on("shuttle:lifecycle", (event: {
+      type?: string;
+      title?: string;
+      body?: string;
+      url?: string;
+      tripId?: number;
+    }) => {
+      window.dispatchEvent(new CustomEvent("shuttle:lifecycle", { detail: event }));
+
+      toast.info(event.title ?? "Shuttle update", {
+        description: event.body,
+        duration: 8000,
+        action: event.url
+          ? {
+              label: "View",
+              onClick: () => router.push(event.url!),
+            }
+          : undefined,
+      });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [router]);
 
   const dismiss = (id: number) =>
     setImmediateAlerts((prev) => prev.filter((a) => a.id !== id));

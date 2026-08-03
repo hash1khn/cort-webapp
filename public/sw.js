@@ -8,14 +8,20 @@ self.addEventListener('push', (event) => {
     payload = { title: 'New Notification', body: event.data.text() };
   }
 
-  const { title = 'CORT', body = '', url = '/admin/bookings/pending' } = payload;
+  const { title = 'CORT', body = '', url = '/admin/bookings/pending', data } = payload;
+  const tag =
+    typeof data?.type === 'string'
+      ? `cort-${String(data.type).toLowerCase()}`
+      : url?.includes('/ops/shuttle')
+        ? 'cort-shuttle'
+        : 'cort-booking';
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon: '/favicon.ico',
       badge: '/favicon.ico',
-      tag: 'cort-booking',
+      tag,
       renotify: true,
       data: { url },
     })
