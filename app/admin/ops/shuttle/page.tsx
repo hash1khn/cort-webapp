@@ -4,10 +4,11 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
-import { Bus, MapPin, Navigation, RefreshCw, Radio } from 'lucide-react';
+import { Bus, MapPin, Navigation, RefreshCw, Radio, Square } from 'lucide-react';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
 import { apiClient } from '@/app/lib/services/api-client';
+import { useAuth } from '@/app/lib/contexts/auth-context';
 import { useShuttleTracking } from '@/app/lib/hooks/useShuttleTracking';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
@@ -74,8 +75,14 @@ export default function OpsShuttlePage() {
   );
 }
 
+function isActiveShuttleStatus(status: string) {
+  return status === 'STARTED' || status === 'IN_PROGRESS';
+}
+
 function OpsShuttleContent() {
   const dispatch = useAppDispatch();
+  const { hasCrud } = useAuth();
+  const canMutate = hasCrud('ops_shuttle', 'update');
   const companies = useAppSelector(selectAdminCompanies);
   const companiesStatus = useAppSelector(selectAdminCompaniesStatus);
 
@@ -86,6 +93,8 @@ function OpsShuttleContent() {
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [polyline, setPolyline] = useState<PolylineResponse | null>(null);
   const [polylineLoading, setPolylineLoading] = useState(false);
+  const [endingTripId, setEndingTripId] = useState<number | null>(null);
+  const [actionBanner, setActionBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const { driverCoord, isConnected } = useShuttleTracking({ tripId: selectedTripId });
 
@@ -151,6 +160,28 @@ function OpsShuttleContent() {
       loadPolyline(selectedTripId);
     }
   }, [selectedTripId, loadPolyline]);
+
+  const handleForceEndTrip = async (trip: ShuttleTrip) => {
+    if (!canMutate || !isActiveShuttleStatus(trip.status)) return;
+    const label = `${trip.direction} · ${trip.routes?.name ?? `Trip #${trip.id}`}`;
+    if (!window.confirm(`Force end this ${label} trip? Use this when the driver forgot to end the ride.`)) {
+      return;
+    }
+    try {
+      setEndingTripId(trip.id);
+      setActionBanner(null);
+      await apiClient.completeShuttleTrip(trip.id);
+      setActionBanner({ type: 'ok', text: `${label} marked as completed.` });
+      await loadTrips();
+    } catch (err) {
+      setActionBanner({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Failed to end trip',
+      });
+    } finally {
+      setEndingTripId(null);
+    }
+  };
 
   // ---- Map data -------------------------------------------------------
 
@@ -252,6 +283,18 @@ function OpsShuttleContent() {
         </div>
       )}
 
+      {actionBanner && (
+        <div
+          className={`rounded-lg border p-4 text-sm ${
+            actionBanner.type === 'ok'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {actionBanner.text}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Trip list */}
         <div className="lg:col-span-1 flex flex-col gap-3 overflow-y-auto max-h-[50vh] lg:max-h-none">
@@ -267,11 +310,18 @@ function OpsShuttleContent() {
             </Card>
           )}
           {trips.map((trip) => (
-            <button
+            <div
               key={trip.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedTripId(trip.id)}
-              className={`w-full text-left rounded-xl border p-4 transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedTripId(trip.id);
+                }
+              }}
+              className={`w-full text-left rounded-xl border p-4 transition-all cursor-pointer ${
                 selectedTripId === trip.id
                   ? 'border-[#0C225E] bg-[#0C225E]/5 ring-1 ring-[#0C225E]'
                   : 'border-gray-200 bg-white hover:border-gray-300'
@@ -307,20 +357,42 @@ function OpsShuttleContent() {
                 )}
               </div>
 
-              {selectedTripId === trip.id && (trip.status === 'STARTED' || trip.status === 'IN_PROGRESS') && (
+              {selectedTripId === trip.id && isActiveShuttleStatus(trip.status) && (
                 <div className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${isConnected ? 'text-green-600' : 'text-gray-400'}`}>
                   <Radio className="w-3 h-3" />
                   {isConnected ? 'Live tracking active' : 'Connecting...'}
                 </div>
               )}
-            </button>
+
+              {canMutate && isActiveShuttleStatus(trip.status) && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full bg-rose-600 text-white hover:bg-rose-700"
+                    disabled={endingTripId === trip.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleForceEndTrip(trip);
+                    }}
+                  >
+                    {endingTripId === trip.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Square className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    {endingTripId === trip.id ? 'Ending…' : 'Force End Trip'}
+                  </Button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 
         {/* Map */}
         <div className="lg:col-span-2 flex flex-col gap-3">
           {selectedTrip && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <p className="font-semibold text-gray-900">{selectedTrip.routes?.name}</p>
                 <p className="text-xs text-gray-400">
@@ -330,11 +402,29 @@ function OpsShuttleContent() {
                     : 'Waiting for driver location...'}
                 </p>
               </div>
-              {polylineLoading && (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" /> Loading route...
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {polylineLoading && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Loading route...
+                  </span>
+                )}
+                {canMutate && isActiveShuttleStatus(selectedTrip.status) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-rose-600 text-white hover:bg-rose-700"
+                    disabled={endingTripId === selectedTrip.id}
+                    onClick={() => handleForceEndTrip(selectedTrip)}
+                  >
+                    {endingTripId === selectedTrip.id ? (
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Square className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    {endingTripId === selectedTrip.id ? 'Ending…' : 'Force End Trip'}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

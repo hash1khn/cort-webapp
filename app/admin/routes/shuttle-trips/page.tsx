@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bus, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bus, RefreshCw, Square, Trash2 } from 'lucide-react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Card } from '@/app/admin/ui/Card';
@@ -88,6 +88,7 @@ function ShuttleTripsSchedulingContent() {
     const [generateBusy, setGenerateBusy] = useState(false);
     const [dailyAllBusy, setDailyAllBusy] = useState(false);
     const [regenerateBusy, setRegenerateBusy] = useState(false);
+    const [endingTripId, setEndingTripId] = useState<number | null>(null);
     const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
     const loadGenerationRoutes = useCallback(async (companyId?: number) => {
@@ -214,6 +215,27 @@ function ShuttleTripsSchedulingContent() {
             await loadTrips();
         } catch (e) {
             setBanner({ type: 'err', text: e instanceof Error ? e.message : 'Delete failed' });
+        }
+    };
+
+    const handleForceEnd = async (trip: ScheduledTripRow) => {
+        if (!canMutate || (trip.status !== 'STARTED' && trip.status !== 'IN_PROGRESS')) return;
+        if (
+            !window.confirm(
+                `Force end ${trip.direction} trip #${trip.id} (${trip.routes?.name ?? 'route'})? Use this when the driver forgot to end the ride.`,
+            )
+        ) {
+            return;
+        }
+        try {
+            setEndingTripId(trip.id);
+            await apiClient.completeShuttleTrip(trip.id);
+            setBanner({ type: 'ok', text: `${trip.direction} trip #${trip.id} marked as completed.` });
+            await loadTrips();
+        } catch (e) {
+            setBanner({ type: 'err', text: e instanceof Error ? e.message : 'Failed to end trip' });
+        } finally {
+            setEndingTripId(null);
         }
     };
 
@@ -436,6 +458,20 @@ function ShuttleTripsSchedulingContent() {
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                     Delete
+                                                </button>
+                                            ) : (trip.status === 'STARTED' || trip.status === 'IN_PROGRESS') && canMutate ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={endingTripId === trip.id}
+                                                    onClick={() => handleForceEnd(trip)}
+                                                    className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                                >
+                                                    {endingTripId === trip.id ? (
+                                                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Square className="h-3.5 w-3.5" />
+                                                    )}
+                                                    {endingTripId === trip.id ? 'Ending…' : 'Force End'}
                                                 </button>
                                             ) : (
                                                 <span className="text-xs text-gray-400">—</span>

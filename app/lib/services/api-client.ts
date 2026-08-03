@@ -1158,6 +1158,20 @@ class ApiClient {
         return this.request<any>(`/shuttle-trips/today?company_id=${companyId}`);
     }
 
+    /** Admin/driver: mark a shuttle trip COMPLETED (force-end when driver forgot). */
+    async completeShuttleTrip(
+        tripId: number,
+        data: { total_distance?: number; end_time?: string } = {},
+    ): Promise<any> {
+        return this.request<any>(`/shuttle-trips/${tripId}/complete`, {
+            method: 'POST',
+            body: JSON.stringify({
+                total_distance: data.total_distance ?? 0,
+                ...(data.end_time ? { end_time: data.end_time } : {}),
+            }),
+        });
+    }
+
     async getActiveBookingLocations(): Promise<any> {
         return this.request<any>(`/admin/bookings/active-locations`);
     }
