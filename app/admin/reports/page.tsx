@@ -382,21 +382,31 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                         <div className="flex-1 min-w-[280px]">
                                                             <div className="text-xs font-semibold text-muted uppercase mb-2">Passenger Manifest</div>
                                                             <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-                                                                {log.passengers.details.map((p, idx) => (
+                                                                {log.passengers.details.map((p, idx) => {
+                                                                    const attendanceTime = p.scanned_at || p.drop_off_at;
+                                                                    return (
                                                                     <div key={idx} className="flex items-center justify-between px-3 py-2 bg-white text-xs">
                                                                         <div>
                                                                             <div className="font-medium text-navy">{p.employee?.full_name || "Unknown"}</div>
                                                                             <div className="text-muted">{p.employee?.department || p.employee?.email || "-"}</div>
                                                                         </div>
-                                                                        <span className={`rounded-full px-2 py-0.5 font-semibold ${
-                                                                            p.status === "BOARDED" ? "bg-emerald-100 text-emerald-700"
-                                                                            : p.status === "ABSENT" ? "bg-red-100 text-red-600"
-                                                                            : "bg-zinc-100 text-zinc-600"
-                                                                        }`}>
-                                                                            {p.status}
-                                                                        </span>
+                                                                        <div className="flex flex-col items-end gap-1">
+                                                                            <span className={`rounded-full px-2 py-0.5 font-semibold ${
+                                                                                p.status === "BOARDED" ? "bg-emerald-100 text-emerald-700"
+                                                                                : p.status === "ABSENT" ? "bg-red-100 text-red-600"
+                                                                                : "bg-zinc-100 text-zinc-600"
+                                                                            }`}>
+                                                                                {p.status}
+                                                                            </span>
+                                                                            <span className="text-muted">
+                                                                                {attendanceTime
+                                                                                    ? new Date(attendanceTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                                    : "—"}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
-                                                                ))}
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </div>
                                                     )}
