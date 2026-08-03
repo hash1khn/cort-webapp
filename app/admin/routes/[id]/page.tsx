@@ -82,7 +82,12 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'stops' | 'rostering'>('overview');
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ name: '', assigned_vehicle_id: '', assigned_driver_id: '' });
+    const [editForm, setEditForm] = useState({
+        name: '',
+        assigned_vehicle_id: '',
+        assigned_driver_id: '',
+        evening_lock_time: '',
+    });
     const [currentAssignedVehicle, setCurrentAssignedVehicle] = useState<any>(null);
 
     // Direction toggle for the overview map
@@ -133,12 +138,13 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 name: route.name,
                 assigned_vehicle_id: route.assigned_vehicle_id?.toString() || '',
                 assigned_driver_id: route.assigned_driver_id?.toString() || '',
+                evening_lock_time: formatTime(route.evening_lock_time) || '',
             });
             // Load the road-following polyline for the saved stops
             fetchSavedPolyline();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [route?.id, route?.assigned_vehicle_id, route?.assigned_driver_id, route?.name]);
+    }, [route?.id, route?.assigned_vehicle_id, route?.assigned_driver_id, route?.name, route?.evening_lock_time]);
 
     // If the currently-assigned vehicle is excluded from the "available vehicles" list,
     // we still want it to remain selectable/visible in the edit dropdown.
@@ -195,6 +201,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             name: route.name,
             assigned_vehicle_id: route.assigned_vehicle_id?.toString() || '',
             assigned_driver_id: route.assigned_driver_id?.toString() || '',
+            evening_lock_time: formatTime(route.evening_lock_time) || '',
         });
     }, [route]);
 
@@ -382,6 +389,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         ? parseInt(editForm.assigned_vehicle_id, 10)
                         : null,
                     assigned_driver_id: editForm.assigned_driver_id || null,
+                    evening_lock_time: editForm.evening_lock_time.trim() || null,
                 },
             })).unwrap();
 
@@ -569,6 +577,15 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             {route.users?.full_name ?? 'Unassigned'}
                                         </span>
                                     </div>
+                                    <div>
+                                        <span className="text-gray-500">Evening lock time (PKT):</span>{' '}
+                                        <span className="font-medium">
+                                            {formatTime(route.evening_lock_time) || 'Not set'}
+                                        </span>
+                                        <div className="text-xs text-gray-400 mt-0.5">
+                                            Drivers cannot start the evening return before this time
+                                        </div>
+                                    </div>
                                 </>
                             )}
                             {isEditing && (
@@ -607,6 +624,33 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 text-xs">Evening lock time (PKT)</span>
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                type="time"
+                                                value={editForm.evening_lock_time}
+                                                onChange={(e) =>
+                                                    setEditForm({ ...editForm, evening_lock_time: e.target.value })
+                                                }
+                                                className="h-10 flex-1"
+                                            />
+                                            {editForm.evening_lock_time && (
+                                                <button
+                                                    type="button"
+                                                    className="text-xs text-gray-500 hover:text-red-600 underline"
+                                                    onClick={() =>
+                                                        setEditForm({ ...editForm, evening_lock_time: '' })
+                                                    }
+                                                >
+                                                    Clear
+                                                </button>
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-gray-400">
+                                            Drivers cannot start evening trips before this time.
+                                        </span>
                                     </div>
                                 </>
                             )}

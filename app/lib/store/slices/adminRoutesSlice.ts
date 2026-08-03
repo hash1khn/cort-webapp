@@ -26,6 +26,8 @@ export interface Route {
     status: 'ACTIVE' | 'INACTIVE';
     created_at: string;
     updated_at: string;
+    /** PKT HH:MM — evening return trips cannot start before this time */
+    evening_lock_time?: string | null;
     route_stops?: RouteStop[];
     company?: {
         id: number;
@@ -71,7 +73,11 @@ export interface CreateRouteRequest {
     }[];
 }
 
-export type UpdateRouteRequest = Partial<Pick<CreateRouteRequest, 'name' | 'company_id' | 'assigned_vehicle_id' | 'assigned_driver_id'>>;
+export type UpdateRouteRequest = Partial<
+    Pick<CreateRouteRequest, 'name' | 'company_id' | 'assigned_vehicle_id' | 'assigned_driver_id'>
+> & {
+    evening_lock_time?: string | null;
+};
 
 // Employee Assignment Interface
 export interface EmployeeAssignment {
