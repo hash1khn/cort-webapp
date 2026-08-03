@@ -779,6 +779,7 @@
       "absent": "Absent",
       "totalAssigned": "Total Assigned",
       "assigned": "Assigned",
+      "startedAt": "Started At",
       "completedAt": "Completed At",
       "noReports": "No reports found for this period",
       "noShuttleReports": "No shuttle reports found for the selected period.",

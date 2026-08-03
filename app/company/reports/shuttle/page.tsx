@@ -40,8 +40,19 @@ interface PaginationMeta {
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "—";
   return new Date(value).toLocaleString("en-PK", {
+    timeZone: "Asia/Karachi",
     month: "short",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function formatTimeOnly(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleTimeString("en-PK", {
+    timeZone: "Asia/Karachi",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -60,11 +71,24 @@ function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDa
   const headers = [
     "Trip Date", "Direction", "Trip ID", "Route",
     "Vehicle", "Plate Number", "Driver",
-    "Boarded", "Absent", "Total Assigned", "Completed At"
+    "Boarded", "Absent", "Total Assigned", "Started At", "Completed At"
   ];
 
+  const fmtCsvDateTime = (value: string | null | undefined) =>
+    value
+      ? new Date(value).toLocaleString("en-PK", {
+          timeZone: "Asia/Karachi",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : "";
+
   const rows = reports.map((r) => [
-    r.trip_date ? new Date(r.trip_date).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" }) : "",
+    r.trip_date ? new Date(r.trip_date).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi", year: "numeric", month: "short", day: "numeric" }) : "",
     r.direction || "",
     r.id,
     r.route?.name || "",
@@ -74,7 +98,8 @@ function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDa
     r.passengers?.boarded ?? 0,
     r.passengers?.absent ?? 0,
     r.passengers?.total ?? 0,
-    r.completed_at ? new Date(r.completed_at).toLocaleString("en-PK", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) : "",
+    fmtCsvDateTime(r.started_at),
+    fmtCsvDateTime(r.completed_at),
   ]);
 
   const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
@@ -244,15 +269,16 @@ export default function ShuttleReportsPage() {
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("boarded")}</th>
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("absent")}</th>
                 <th className={`${TABLE_HEADER_CELL_CLASS} text-end`}>{t("assigned")}</th>
+                <th className={TABLE_HEADER_CELL_CLASS}>{t("startedAt")}</th>
                 <th className={TABLE_HEADER_CELL_CLASS}>{t("completedAt")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-light)]/50">
               {isLoading && reports.length === 0 ? (
-                <TableSkeleton columns={10} rows={8} />
+                <TableSkeleton columns={11} rows={8} />
               ) : reports.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-12 text-center">
+                  <td colSpan={11} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-[var(--text-muted)]">
                       <span className="bg-[var(--surface-subtle)] p-4 rounded-full mb-3">
                         <svg
@@ -327,6 +353,9 @@ export default function ShuttleReportsPage() {
                     </td>
                     <td className={`${TABLE_CELL_CLASS} text-end font-mono text-[var(--text-primary)]`}>
                       {report.passengers.total}
+                    </td>
+                    <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
+                      {formatDateTime(report.started_at)}
                     </td>
                     <td className={`${TABLE_CELL_CLASS} whitespace-nowrap text-xs text-[var(--text-muted)] font-mono`}>
                       {formatDateTime(report.completed_at)}
@@ -413,6 +442,18 @@ export default function ShuttleReportsPage() {
                   </div>
                 </div>
               )}
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("startedAt")}</div>
+                <div className="font-semibold text-[var(--text-primary)] font-mono text-sm">
+                  {formatDateTime(selectedReport.started_at)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-1">{t("completedAt")}</div>
+                <div className="font-semibold text-[var(--text-primary)] font-mono text-sm">
+                  {formatDateTime(selectedReport.completed_at)}
+                </div>
+              </div>
             </div>
 
             {/* Boarding Summary */}
@@ -451,9 +492,9 @@ export default function ShuttleReportsPage() {
                   {selectedReport.passengers.details.map((log, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between px-4 py-2.5"
+                      className="flex items-center justify-between gap-3 px-4 py-2.5"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium text-sm text-[var(--text-primary)]">
                           {log.employee?.full_name || tCommon("status.unknown")}
                         </div>
@@ -463,9 +504,19 @@ export default function ShuttleReportsPage() {
                             ? `· ID: ${log.employee.employee_id}`
                             : ""}
                         </div>
+                        {log.status === "BOARDED" && (
+                          <div className="text-xs text-emerald-600/80 mt-0.5 font-mono">
+                            {t("boardedAt")} {formatTimeOnly(log.scanned_at)}
+                          </div>
+                        )}
+                        {log.status === "BOARDED" && log.drop_off_at && (
+                          <div className="text-xs text-[var(--text-muted)] mt-0.5 font-mono">
+                            {t("dropoffTime")} {formatTimeOnly(log.drop_off_at)}
+                          </div>
+                        )}
                       </div>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
                           log.status === "BOARDED"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-rose-100 text-rose-600"

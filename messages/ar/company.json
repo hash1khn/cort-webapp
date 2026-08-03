@@ -778,6 +778,7 @@
       "boarded": "صعد",
       "absent": "غائب",
       "totalAssigned": "إجمالي المعينين",
+      "startedAt": "وقت البدء",
       "completedAt": "اكتمل في",
       "noReports": "لم يتم العثور على تقارير لهذه الفترة",
       "tripDetails": "تفاصيل الرحلة",
