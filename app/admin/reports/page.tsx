@@ -389,27 +389,32 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                             <div className="text-xs font-semibold text-muted uppercase mb-2">Passenger Manifest</div>
                                                             <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                                                                 {log.passengers.details.map((p, idx) => {
-                                                                    const attendanceTime = p.scanned_at || p.drop_off_at;
+                                                                    const boardedAt = p.scanned_at
+                                                                        ? new Date(p.scanned_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                        : null;
+                                                                    const dropOffAt = p.drop_off_at
+                                                                        ? new Date(p.drop_off_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                        : null;
                                                                     return (
-                                                                    <div key={idx} className="flex items-center justify-between px-3 py-2 bg-white text-xs">
-                                                                        <div>
+                                                                    <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2 bg-white text-xs">
+                                                                        <div className="min-w-0">
                                                                             <div className="font-medium text-navy">{p.employee?.full_name || "Unknown"}</div>
                                                                             <div className="text-muted">{p.employee?.department || p.employee?.email || "-"}</div>
+                                                                            {boardedAt && (
+                                                                                <div className="mt-0.5 font-mono text-emerald-600/80">Boarded {boardedAt}</div>
+                                                                            )}
+                                                                            {dropOffAt && (
+                                                                                <div className="mt-0.5 font-mono text-sky-600">Dropoff {dropOffAt}</div>
+                                                                            )}
                                                                         </div>
-                                                                        <div className="flex flex-col items-end gap-1">
-                                                                            <span className={`rounded-full px-2 py-0.5 font-semibold ${
-                                                                                p.status === "BOARDED" ? "bg-emerald-100 text-emerald-700"
-                                                                                : p.status === "ABSENT" ? "bg-red-100 text-red-600"
-                                                                                : "bg-zinc-100 text-zinc-600"
-                                                                            }`}>
-                                                                                {p.status}
-                                                                            </span>
-                                                                            <span className="text-muted">
-                                                                                {attendanceTime
-                                                                                    ? new Date(attendanceTime).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
-                                                                                    : "—"}
-                                                                            </span>
-                                                                        </div>
+                                                                        <span className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${
+                                                                            p.status === "BOARDED" ? "bg-emerald-100 text-emerald-700"
+                                                                            : p.status === "DROPPED_OFF" ? "bg-sky-100 text-sky-700"
+                                                                            : p.status === "ABSENT" ? "bg-red-100 text-red-600"
+                                                                            : "bg-zinc-100 text-zinc-600"
+                                                                        }`}>
+                                                                            {p.status}
+                                                                        </span>
                                                                     </div>
                                                                     );
                                                                 })}
@@ -424,17 +429,67 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                             <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                                                                 {log.stop_logs
                                                                     .slice()
-                                                                    .sort((a, b) => (a.morning_sequence ?? a.evening_sequence ?? 0) - (b.morning_sequence ?? b.evening_sequence ?? 0))
-                                                                    .map((s, idx) => (
-                                                                        <div key={idx} className="flex items-center justify-between gap-4 px-3 py-2 bg-white text-xs">
-                                                                            <div className="font-medium text-navy">{s.stop_name || `Stop ${s.stop_id}`}</div>
-                                                                            <div className="text-muted text-right">
-                                                                                {s.arrived_at
-                                                                                    ? new Date(s.arrived_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
-                                                                                    : "—"}
+                                                                    .sort((a, b) => {
+                                                                        const aSeq = log.direction === 'EVENING'
+                                                                            ? (a.evening_sequence ?? a.morning_sequence ?? 0)
+                                                                            : (a.morning_sequence ?? a.evening_sequence ?? 0);
+                                                                        const bSeq = log.direction === 'EVENING'
+                                                                            ? (b.evening_sequence ?? b.morning_sequence ?? 0)
+                                                                            : (b.morning_sequence ?? b.evening_sequence ?? 0);
+                                                                        return aSeq - bSeq;
+                                                                    })
+                                                                    .map((s, idx) => {
+                                                                        const isEvening = log.direction === 'EVENING';
+                                                                        const arrivedAt = s.arrived_at
+                                                                            ? new Date(s.arrived_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                            : null;
+                                                                        const boardedAt = s.boarded_at
+                                                                            ? new Date(s.boarded_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                            : null;
+                                                                        const dropOffAt = s.drop_off_at
+                                                                            ? new Date(s.drop_off_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                            : null;
+                                                                        return (
+                                                                        <div key={idx} className="flex items-start justify-between gap-4 px-3 py-2 bg-white text-xs">
+                                                                            <div>
+                                                                                <div className="font-medium text-navy">{s.stop_name || `Stop ${s.stop_id}`}</div>
+                                                                                <div className="text-muted">
+                                                                                    {isEvening ? 'Evening dropoff stop' : 'Morning pickup stop'}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="text-right space-y-1 font-mono text-navy">
+                                                                                {isEvening ? (
+                                                                                    idx === 0 ? (
+                                                                                        <div>
+                                                                                            <div className="text-[10px] text-muted font-sans">Trip started</div>
+                                                                                            <div>
+                                                                                                {log.started_at
+                                                                                                    ? new Date(log.started_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                                                    : '—'}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div>
+                                                                                            <div className="text-[10px] text-muted font-sans">Dropoff time</div>
+                                                                                            <div>{dropOffAt || '—'}</div>
+                                                                                        </div>
+                                                                                    )
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <div>
+                                                                                            <div className="text-[10px] text-muted font-sans">Arrived</div>
+                                                                                            <div>{arrivedAt || '—'}</div>
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <div className="text-[10px] text-muted font-sans">Boarded</div>
+                                                                                            <div>{boardedAt || '—'}</div>
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </div>
-                                                                    ))}
+                                                                        );
+                                                                    })}
                                                             </div>
                                                         </div>
                                                     )}

@@ -504,13 +504,13 @@ export default function ShuttleReportsPage() {
                             ? `· ID: ${log.employee.employee_id}`
                             : ""}
                         </div>
-                        {log.status === "BOARDED" && (
+                        {(log.status === "BOARDED" || log.status === "DROPPED_OFF") && log.scanned_at && (
                           <div className="text-xs text-emerald-600/80 mt-0.5 font-mono">
                             {t("boardedAt")} {formatTimeOnly(log.scanned_at)}
                           </div>
                         )}
-                        {log.status === "BOARDED" && log.drop_off_at && (
-                          <div className="text-xs text-[var(--text-muted)] mt-0.5 font-mono">
+                        {log.drop_off_at && (
+                          <div className="text-xs text-sky-600/90 mt-0.5 font-mono">
                             {t("dropoffTime")} {formatTimeOnly(log.drop_off_at)}
                           </div>
                         )}
@@ -519,7 +519,9 @@ export default function ShuttleReportsPage() {
                         className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
                           log.status === "BOARDED"
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-600"
+                            : log.status === "DROPPED_OFF"
+                              ? "bg-sky-100 text-sky-700"
+                              : "bg-rose-100 text-rose-600"
                         }`}
                       >
                         {log.status}
