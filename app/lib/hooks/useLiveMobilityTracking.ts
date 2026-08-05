@@ -17,7 +17,9 @@
  *  - Joins ride_<tripId> per tripId via `join:ride` with the correct tripType
  *  - Replays all joins on every `connect` event (server drops rooms on disconnect)
  *  - Prunes stale rooms when tripIds list shrinks
- *  - Seeds shuttle markers from Redis last-location (same as admin ops map)
+ *  - Seeds shuttle markers from last_lat/last_lng already embedded in the trip list the
+ *    caller fetched (backend sources this from Redis shuttle:last_coord) — no per-trip
+ *    GET .../last-location request needed.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -43,34 +45,14 @@ export interface LiveVehicleCoord {
 type TripType = 'shuttle' | 'chauffeur';
 
 /**
- * Seed last-known shuttle GPS from Redis (mirrors useShuttleTracking).
- * Best-effort — silently ignored on failure / missing data.
- */
-async function seedShuttleLastLocation(
-    tripId: string,
-    token: string,
-    apply: (lat: number, lng: number) => void,
-) {
-    try {
-        const res = await fetch(`${API_URL}/shuttle-trips/${tripId}/last-location`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data: { lat: number; lng: number } | null = await res.json();
-        if (data?.lat != null && data?.lng != null) {
-            apply(data.lat, data.lng);
-        }
-    } catch {
-        /* best-effort */
-    }
-}
-
-/**
- * @param tripIds  Array of trip IDs to track. Pass [] when nothing to track.
- *                 Each entry is { id: number | string, type: 'shuttle' | 'chauffeur' }
+ * @param tripIds  Array of trips to track. Pass [] when nothing to track.
+ *                 Each entry is { id, type, lastLat?, lastLng? } — lastLat/lastLng are the
+ *                 last-known GPS position already embedded in the trip data the caller
+ *                 fetched (e.g. shuttle trip's `last_lat`/`last_lng`), used to seed the map
+ *                 marker before the first live socket update arrives.
  */
 export function useLiveMobilityTracking(
-    tripIds: { id: number | string; type: TripType }[],
+    tripIds: { id: number | string; type: TripType; lastLat?: number | null; lastLng?: number | null }[],
 ) {
     const socketRef = useRef<Socket | null>(null);
     const joinedRoomsRef = useRef<Set<string>>(new Set());
@@ -207,14 +189,16 @@ export function useLiveMobilityTracking(
         const socket = socketRef.current;
         if (!socket) return;
 
-        const token =
-            typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-
         const desired = new Set(tripIds.map((t) => String(t.id)));
         const typeMap = Object.fromEntries(
             tripIds.map((t) => [String(t.id), t.type]),
         ) as Record<string, TripType>;
         tripTypeMapRef.current = { ...tripTypeMapRef.current, ...typeMap };
+        const lastCoordMap = Object.fromEntries(
+            tripIds
+                .filter((t) => t.lastLat != null && t.lastLng != null)
+                .map((t) => [String(t.id), { lat: t.lastLat as number, lng: t.lastLng as number }]),
+        );
 
         // Join new rooms
         desired.forEach((tripId) => {
@@ -231,47 +215,24 @@ export function useLiveMobilityTracking(
                 }
                 joinedRoomsRef.current.add(tripId);
 
-                // Pre-seed type metadata only (no lat/lng) so we know shuttle vs chauffeur
-                // before the first GPS ping arrives. updatedAt:0 signals "no real position yet"
-                // and is filtered out of the returned coords below.
+                // Pre-seed marker position from the trip's already-fetched last-known GPS
+                // (last_lat/last_lng) when available, so we don't briefly render at (0, 0)
+                // before the first live GPS ping arrives. updatedAt:0 signals "no real
+                // position yet" and is filtered out of the returned coords below.
+                const seed = lastCoordMap[tripId];
                 setVehicleCoords((prev) => {
                     if (prev[tripId]) return prev;
                     return {
                         ...prev,
                         [tripId]: {
                             tripId,
-                            lat: 0,
-                            lng: 0,
+                            lat: seed?.lat ?? 0,
+                            lng: seed?.lng ?? 0,
                             type: tripType,
-                            updatedAt: 0,
+                            updatedAt: seed ? Date.now() : 0,
                         },
                     };
                 });
-
-                // Seed Redis last-known GPS for shuttles (same source as admin ops map).
-                // Only applies if a live socket update hasn't already arrived.
-                if (tripType === 'shuttle' && token) {
-                    seedShuttleLastLocation(tripId, token, (lat, lng) => {
-                        setVehicleCoords((prev) => {
-                            const existing = prev[tripId];
-                            // Don't overwrite a fresher live socket position
-                            if (existing && existing.updatedAt > 0 && existing.lat !== 0) {
-                                return prev;
-                            }
-                            return {
-                                ...prev,
-                                [tripId]: {
-                                    ...(existing ?? {}),
-                                    tripId,
-                                    lat,
-                                    lng,
-                                    type: 'shuttle',
-                                    updatedAt: Date.now(),
-                                },
-                            };
-                        });
-                    });
-                }
             }
         });
 

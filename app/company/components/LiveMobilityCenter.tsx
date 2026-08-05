@@ -149,17 +149,23 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                     const occupancy = trip.routes?._count?.employee_route_assignments ?? null;
                     const occupancyStr = occupancy !== null ? ` · ${occupancy} emp` : '';
 
+                    // Prefer the driver's real last-known GPS position (embedded by the backend
+                    // from Redis shuttle:last_coord) over a stop's coordinates — a stop location
+                    // is only a rough placeholder, whereas last_lat/last_lng is where the driver
+                    // actually was as of their last ping.
                     const stops: any[] = trip.route_stops_with_coords ?? trip.routes?.route_stops ?? [];
-                    let restLat: number | null = null;
-                    let restLng: number | null = null;
+                    let restLat: number | null = trip.last_lat ?? null;
+                    let restLng: number | null = trip.last_lng ?? null;
 
-                    const current = stops.find((s: any) => s.id === trip.current_stop_id);
-                    if (current?.lat && current?.lng) {
-                        restLat = current.lat;
-                        restLng = current.lng;
-                    } else {
-                        const first = stops.find((s: any) => s.lat && s.lng);
-                        if (first) { restLat = first.lat; restLng = first.lng; }
+                    if (restLat == null || restLng == null) {
+                        const current = stops.find((s: any) => s.id === trip.current_stop_id);
+                        if (current?.lat && current?.lng) {
+                            restLat = current.lat;
+                            restLng = current.lng;
+                        } else {
+                            const first = stops.find((s: any) => s.lat && s.lng);
+                            if (first) { restLat = first.lat; restLng = first.lng; }
+                        }
                     }
 
                     if (collected.length === 0 && restLat !== null && restLng !== null) {
@@ -269,9 +275,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const trackingInput = useMemo(
         () => trips
             .filter((t) => !isDemoTripId(t.id))
-            .map((t) => ({ id: t.id, type: t.type })),
+            .map((t) => ({ id: t.id, type: t.type, lastLat: t.restLat, lastLng: t.restLng })),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [trips.map((t) => `${t.type}:${t.id}`).join(',')],
+        [trips.map((t) => `${t.type}:${t.id}:${t.restLat ?? ''}:${t.restLng ?? ''}`).join(',')],
     );
     const { vehicleCoords, isConnected } = useLiveMobilityTracking(trackingInput);
 

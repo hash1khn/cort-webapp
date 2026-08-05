@@ -41,6 +41,11 @@ type ShuttleTrip = {
   completed_at: string | null;
   current_stop_id: number | null;
   current_stop_status?: string | null;
+  /** Last-known driver GPS position (Redis shuttle:last_coord), embedded by the backend
+   * for STARTED/IN_PROGRESS trips — avoids a separate .../last-location request. */
+  last_lat?: number | null;
+  last_lng?: number | null;
+  last_location_ts?: number | null;
   routes?: {
     id: number;
     name: string;
@@ -130,9 +135,16 @@ function OpsShuttleContent() {
     }
   }, []);
 
+  const selectedTrip = useMemo(
+    () => trips.find((t) => t.id === selectedTripId) ?? null,
+    [trips, selectedTripId],
+  );
+
   const { driverCoord, isConnected, currentStopName: liveStopName, nextStopName: liveNextStopName } =
     useShuttleTracking({
       tripId: selectedTripId,
+      initialLat: selectedTrip?.last_lat ?? null,
+      initialLng: selectedTrip?.last_lng ?? null,
       onStopArrived: (data) => {
         patchSelectedTrip({
           current_stop_id: data.stopId,
@@ -150,11 +162,6 @@ function OpsShuttleContent() {
         if (selectedTripId) loadEmployees(selectedTripId);
       },
     });
-
-  const selectedTrip = useMemo(
-    () => trips.find((t) => t.id === selectedTripId) ?? null,
-    [trips, selectedTripId],
-  );
 
   const selectedOccupancy = useMemo(() => occupancyCounts(employees), [employees]);
 

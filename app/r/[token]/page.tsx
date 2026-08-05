@@ -127,6 +127,10 @@ export default function RideShareShortPage() {
         isConnected: shuttleIsConnected,
     } = useShuttleTracking({
         tripId: readyForLive && tripType === 'shuttle' ? tripId : null,
+        // The share-snapshot fetch above already sourced this from Redis shuttle:last_coord —
+        // reuse it instead of the hook making its own .../last-location request.
+        initialLat: snapshot?.lat ?? null,
+        initialLng: snapshot?.lng ?? null,
         onRideEnded: () => setEndedKind('COMPLETED'),
     });
 

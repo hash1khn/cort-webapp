@@ -38,6 +38,14 @@ export interface RideEndedPayload {
 
 export interface UseShuttleTrackingOptions {
     tripId: number | null;
+    /**
+     * Last-known driver GPS position, already embedded in the trip data the caller
+     * fetched (backend returns last_lat/last_lng — sourced from Redis shuttle:last_coord —
+     * on /shuttle-trips/today, /shuttle-trips/active and /rides/share-snapshot). Pass this
+     * through instead of leaving the hook to make its own GET .../last-location round trip.
+     */
+    initialLat?: number | null;
+    initialLng?: number | null;
     userId?: string;
     role?: 'driver' | 'employee';
     onStopArrived?: (data: StopArrivedPayload) => void;
@@ -49,6 +57,8 @@ export interface UseShuttleTrackingOptions {
 
 export function useShuttleTracking({
     tripId,
+    initialLat = null,
+    initialLng = null,
     userId = '',
     role = 'employee',
     onStopArrived,
@@ -61,12 +71,15 @@ export function useShuttleTracking({
     const tripIdRef = useRef<string | null>(null);
 
     const [liveDriverCoord, setLiveDriverCoord] = useState<DriverCoord | null>(null);
-    const [fallbackDriverCoord, setFallbackDriverCoord] = useState<DriverCoord | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [distanceKm, setDistanceKm] = useState<number | null>(null);
     const [currentStopName, setCurrentStopName] = useState<string | null>(null);
     const [nextStopName, setNextStopName] = useState<string | null>(null);
 
+    // Derived (not stateful) — sourced straight from the caller's props, so a live socket
+    // coord always takes priority without needing an effect to clear a separate fallback state.
+    const fallbackDriverCoord: DriverCoord | null =
+        initialLat != null && initialLng != null ? { lat: initialLat, lng: initialLng } : null;
     const driverCoord = liveDriverCoord ?? fallbackDriverCoord;
 
     // Keep callback refs stable so we don't remount the socket on every render
@@ -80,25 +93,6 @@ export function useShuttleTracking({
     onAttendanceMarkedRef.current = onAttendanceMarked;
     onRideEndedRef.current = onRideEnded;
     onDistanceUpdateRef.current = onDistanceUpdate;
-
-    useEffect(() => {
-        if (!tripId) return;
-
-        // ── Seed initial driver position from Redis (survives page reloads) ──
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-        if (token) {
-            fetch(`${API_URL}/shuttle-trips/${tripId}/last-location`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.ok ? r.json() : null)
-                .then((data: { lat: number; lng: number } | null) => {
-                    if (data?.lat != null && data?.lng != null) {
-                        setFallbackDriverCoord({ lat: data.lat, lng: data.lng });
-                    }
-                })
-                .catch(() => { /* best-effort — silently ignore */ });
-        }
-    }, [tripId]);
 
     useEffect(() => {
         if (!tripId) return;
@@ -147,8 +141,6 @@ export function useShuttleTracking({
                     heading: payload.heading,
                     speed: payload.speed,
                 });
-                // Once live data starts flowing, fallback seed should not influence UI.
-                setFallbackDriverCoord(null);
             },
         );
 
@@ -189,7 +181,6 @@ export function useShuttleTracking({
             tripIdRef.current = null;
             setIsConnected(false);
             setLiveDriverCoord(null);
-            setFallbackDriverCoord(null);
             setDistanceKm(null);
             setCurrentStopName(null);
             setNextStopName(null);

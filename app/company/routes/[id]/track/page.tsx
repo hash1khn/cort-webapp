@@ -33,6 +33,10 @@ type ShuttleTrip = {
     started_at: string | null;
     completed_at: string | null;
     current_stop_id: number | null;
+    /** Last-known driver GPS position (Redis shuttle:last_coord), embedded by the backend
+     * for STARTED/IN_PROGRESS trips — avoids a separate .../last-location request. */
+    last_lat?: number | null;
+    last_lng?: number | null;
     routes?: {
         id: number;
         name: string;
@@ -65,12 +69,16 @@ export default function CompanyRouteTrackingPage() {
     const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
     const [polyline, setPolyline] = useState<PolylineResponse | null>(null);
 
-    const { driverCoord, isConnected } = useShuttleTracking({ tripId: selectedTripId });
-
     const selectedTrip = useMemo(
         () => trips.find((t) => t.id === selectedTripId) ?? null,
         [trips, selectedTripId],
     );
+
+    const { driverCoord, isConnected } = useShuttleTracking({
+        tripId: selectedTripId,
+        initialLat: selectedTrip?.last_lat ?? null,
+        initialLng: selectedTrip?.last_lng ?? null,
+    });
 
     // ---- Data fetching -------------------------------------------------------
 
