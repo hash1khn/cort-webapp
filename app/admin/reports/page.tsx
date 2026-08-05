@@ -389,7 +389,9 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                             <div className="text-xs font-semibold text-muted uppercase mb-2">Passenger Manifest</div>
                                                             <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                                                                 {log.passengers.details.map((p, idx) => {
-                                                                    const boardedAt = p.scanned_at
+                                                                    // scanned_at is set on ABSENT logs too (it doubles as "marked at"), so
+                                                                    // only treat it as a boarding time for passengers who actually boarded.
+                                                                    const boardedAt = (p.status === "BOARDED" || p.status === "DROPPED_OFF") && p.scanned_at
                                                                         ? new Date(p.scanned_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
                                                                         : null;
                                                                     const dropOffAt = p.drop_off_at
