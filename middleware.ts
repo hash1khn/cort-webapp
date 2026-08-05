@@ -29,9 +29,9 @@ export function middleware(request: NextRequest) {
     const PORTAL_DOMAIN = "portal.traflinq.com";
     const VENDOR_DOMAIN = "vendor.traflinq.com";
 
-    // Public ride-share tracking link — must be reachable with no auth on every
-    // domain, so it's never rewritten under /admin, /company, or /vendor.
-    if (pathname.startsWith("/ride-share")) {
+    // Public ride-share tracking links — reachable with no auth on every domain.
+    // Short form: /r/<token>  ·  legacy: /ride-share?...
+    if (pathname.startsWith("/ride-share") || pathname.startsWith("/r/") || pathname === "/r") {
         return NextResponse.next();
     }
 
