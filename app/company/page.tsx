@@ -226,7 +226,7 @@ export default function CompanyDashboardPage() {
   const isDualService = hasChauffeur && hasShuttle;
 
   const analyticsGridClass =
-    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[minmax(220px,auto)] grid-flow-dense";
+    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 auto-rows-[minmax(180px,auto)] sm:auto-rows-[minmax(220px,auto)] grid-flow-dense min-w-0";
 
   const smartInsightsClass = hasShuttle && !hasChauffeur
     ? "lg:col-span-1 xl:col-span-2 dashboard-section dashboard-section-delay-5"
@@ -241,12 +241,12 @@ export default function CompanyDashboardPage() {
     : "xl:col-span-1 dashboard-section dashboard-section-delay-3";
 
   return (
-    <div className="flex flex-col gap-6 pb-12 relative max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-4 sm:gap-6 pb-12 relative max-w-[1600px] mx-auto w-full min-w-0">
 
       {/* Welcome Header */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 dashboard-section dashboard-section-delay-1 relative z-10 has-[.invoice-tooltip-trigger:hover]:z-[200]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 dashboard-section dashboard-section-delay-1 relative z-10 has-[.invoice-tooltip-trigger:hover]:z-[200]">
         {/* Welcome Banner - Premium Background Image (Dark Theme - No Fade) */}
-        <div className="lg:col-span-2 relative rounded-[2rem] bg-[#0c1a3d] p-6 sm:p-8 shadow-[0_1px_4px_rgba(0,0,0,0.18)] border border-[var(--border-default)] overflow-hidden flex flex-col justify-center min-h-[200px] sm:min-h-[220px] hover:shadow-[0_2px_10px_rgba(0,0,0,0.24)] transition-all duration-200 group">
+        <div className="lg:col-span-2 relative rounded-[1.5rem] sm:rounded-[2rem] bg-[#0c1a3d] p-5 sm:p-6 md:p-8 shadow-[0_1px_4px_rgba(0,0,0,0.18)] border border-[var(--border-default)] overflow-hidden flex flex-col justify-center min-h-[180px] sm:min-h-[200px] md:min-h-[220px] hover:shadow-[0_2px_10px_rgba(0,0,0,0.24)] transition-all duration-200 group">
 
           {/* Background Image Layer */}
           <div
@@ -265,13 +265,13 @@ export default function CompanyDashboardPage() {
                   {formatLocaleDate(today, locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
                 {t('welcomeBack')}{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
                   {user?.full_name?.split(' ')[0] || tCommon('misc.admin')}
                 </span>
               </h1>
-              <p className="text-white text-opacity-80 max-w-xl text-base sm:text-lg">
+              <p className="text-white text-opacity-80 max-w-xl text-sm sm:text-base md:text-lg">
                 {hasChauffeur
                   ? t('upcomingBookings', { count: todayBookingsCount })
                   : t('servicesActive')

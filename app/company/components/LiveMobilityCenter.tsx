@@ -364,29 +364,29 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
 
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <Card className="p-0 overflow-hidden border-none shadow-2xl bg-[var(--bg-page)] min-h-[600px] flex flex-col rounded-4xl">
+        <Card className="p-0 overflow-hidden border-none shadow-2xl bg-[var(--bg-page)] min-h-0 sm:min-h-[520px] lg:min-h-[600px] flex flex-col rounded-3xl sm:rounded-4xl">
             {/* Header Area */}
-            <div className="m-4 mb-0 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-4xl border border-[var(--border-default)]">
-                <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md p-4 px-6 rounded-3xl border border-[var(--border-input)]">
-                    <div className="relative">
+            <div className="m-2 sm:m-4 mb-0 p-3 sm:p-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 bg-[var(--bg-card)] text-[var(--text-primary)] rounded-3xl sm:rounded-4xl border border-[var(--border-default)]">
+                <div className="flex items-center gap-3 sm:gap-4 bg-white/5 backdrop-blur-md p-3 sm:p-4 px-4 sm:px-6 rounded-2xl sm:rounded-3xl border border-[var(--border-input)] min-w-0">
+                    <div className="relative shrink-0">
                         <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-25"></div>
                         <div className="relative w-3 h-3 bg-red-500 rounded-full border border-white/20"></div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-black tracking-tight uppercase text-[var(--text-primary)]">{t('commandCenter')}</h2>
-                        <p className="text-[var(--text-secondary)] text-[10px] font-bold tracking-widest uppercase mb-0">{t('operationalOverview')}</p>
+                    <div className="min-w-0">
+                        <h2 className="text-base sm:text-xl font-black tracking-tight uppercase text-[var(--text-primary)] truncate">{t('commandCenter')}</h2>
+                        <p className="text-[var(--text-secondary)] text-[9px] sm:text-[10px] font-bold tracking-widest uppercase mb-0 truncate">{t('operationalOverview')}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-4">
                     {/* Socket live / demo indicator */}
                     {isDemoMode ? (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border-amber-500/30 text-amber-400">
-                            <Radio size={11} className="text-amber-400" />
+                        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border-amber-500/30 text-amber-400">
+                            <Radio size={11} className="text-amber-400 shrink-0" />
                             {t('demoData')}
                         </div>
                     ) : (
-                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors
+                        <div className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-colors
                             ${isConnected
                                 ? 'bg-green-500/10 border-green-500/30 text-green-400'
                                 : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
@@ -395,42 +395,44 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         </div>
                     )}
 
-                    <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">{t('opsTime')}</span>
-                        <div className="font-mono text-lg font-bold text-orange">
-                            {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] sm:text-[10px] font-black opacity-50 uppercase tracking-widest">{t('opsTime')}</span>
+                            <div className="font-mono text-sm sm:text-lg font-bold text-orange">
+                                {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
                         </div>
+                        <button
+                            onClick={fetchActiveTrips}
+                            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+                            title={t('refreshTrips')}
+                        >
+                            <RefreshCw size={16} className={`text-[var(--text-primary)] ${tripsLoading ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
-                    <button
-                        onClick={fetchActiveTrips}
-                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-                        title={t('refreshTrips')}
-                    >
-                        <RefreshCw size={16} className={`text-[var(--text-primary)] ${tripsLoading ? 'animate-spin' : ''}`} />
-                    </button>
                 </div>
             </div>
 
             {/* Counters Strip */}
-            <div className="m-4 mt-5 px-6 py-4 bg-white/5 border border-[var(--border-input)] rounded-4xl flex flex-wrap md:flex-nowrap justify-between gap-4 shadow-sm">
+            <div className="m-2 sm:m-4 mt-3 sm:mt-5 px-3 sm:px-6 py-3 sm:py-4 bg-white/5 border border-[var(--border-input)] rounded-3xl sm:rounded-4xl grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 shadow-sm">
                 {stats.map((stat, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center">
-                        <div className="flex items-center gap-2 text-[var(--text-primary)] mb-1 justify-center">
-                            <span className="p-1 px-1.5 rounded-md bg-white/20 text-orange">{stat.icon}</span>
-                            <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">{stat.label}</span>
+                    <div key={idx} className="flex flex-col items-center min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-[var(--text-primary)] mb-1 justify-center max-w-full">
+                            <span className="p-1 px-1.5 rounded-md bg-white/20 text-orange shrink-0">{stat.icon}</span>
+                            <span className="text-[9px] sm:text-[10px] font-black text-text-muted uppercase tracking-wider truncate">{stat.label}</span>
                         </div>
-                        <div className="text-3xl font-black text-[var(--text-primary)]">{stat.value}</div>
+                        <div className="text-2xl sm:text-3xl font-black text-[var(--text-primary)]">{stat.value}</div>
                     </div>
                 ))}
             </div>
 
             {/* Live Map & Sidebar */}
-            <div className="flex-1 flex flex-col lg:flex-row min-h-[400px]">
-                {/* Map Area */}
-                <div className="flex-1 relative order-2 lg:order-1">
-                    <div className="absolute inset-0 p-4">
+            <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+                {/* Map Area — explicit height on mobile so absolute map fill works */}
+                <div className="relative order-2 lg:order-1 h-[280px] sm:h-[360px] lg:h-auto lg:min-h-[420px] lg:flex-1">
+                    <div className="absolute inset-0 p-2 sm:p-4">
                         {/* Outer wrapper — clips map to rounded corners */}
-                        <div className="w-full h-full rounded-4xl overflow-hidden border border-[var(--border-input)] shadow-inner relative">
+                        <div className="w-full h-full rounded-3xl sm:rounded-4xl overflow-hidden border border-[var(--border-input)] shadow-inner relative">
                             <Map
                                 height="100%"
                                 markers={markers}
@@ -442,8 +444,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                         </div>
 
                         {/* Status chip — outside overflow-hidden so it isn't clipped */}
-                        <div className="absolute top-8 start-8 z-[500] flex flex-col gap-2 pointer-events-none">
-                            <div className={`backdrop-blur-md border p-2 px-4 rounded-xl flex items-center gap-3 shadow-lg
+                        <div className="absolute top-4 start-4 sm:top-8 sm:start-8 z-[500] flex flex-col gap-1.5 sm:gap-2 pointer-events-none max-w-[calc(100%-2rem)] sm:max-w-[min(280px,calc(100%-4rem))]">
+                            <div className={`backdrop-blur-md border p-1.5 px-2.5 sm:p-2 sm:px-4 rounded-xl flex items-center gap-2 sm:gap-3 shadow-lg
                                 ${liveCount > 0
                                     ? 'bg-green-900/80 border-green-500/40'
                                     : trips.length > 0
@@ -453,7 +455,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                     ${liveCount > 0 ? 'bg-green-400 animate-pulse'
                                         : trips.length > 0 ? 'bg-orange animate-pulse'
                                             : 'bg-white/30'}`} />
-                                <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                                <span className="text-[9px] sm:text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider truncate">
                                     {tripsLoading
                                         ? t('syncing')
                                         : isDemoMode
@@ -466,7 +468,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 </span>
                             </div>
                             {lastRefreshed && (
-                                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-input)] p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm">
+                                <div className="bg-[var(--bg-card)]/80 backdrop-blur-md border border-[var(--border-input)] p-1.5 px-3 rounded-xl flex items-center gap-2 shadow-sm w-fit">
                                     <Clock size={10} className="text-[var(--text-muted)]" />
                                     <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
                                         {t('synced', { time: lastRefreshed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) })}
@@ -475,9 +477,9 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             )}
                         </div>
 
-                        {/* Shuttle detail panel — slides in when a shuttle marker is clicked */}
+                        {/* Shuttle detail panel — bottom sheet on mobile, side panel on md+ */}
                         {selectedShuttleTrip && (
-                            <div className="absolute top-4 end-4 bottom-4 w-72 z-[600] flex flex-col bg-[var(--bg-card)] border border-[var(--border-default)] rounded-4xl shadow-2xl overflow-hidden">
+                            <div className="absolute inset-x-2 bottom-2 top-auto max-h-[75%] sm:inset-x-auto sm:top-4 sm:end-4 sm:bottom-4 sm:w-72 z-[600] flex flex-col bg-[var(--bg-card)] border border-[var(--border-default)] rounded-3xl sm:rounded-4xl shadow-2xl overflow-hidden">
                                 {/* Header */}
                                 <div className="p-4 border-b border-[var(--border-default)]">
                                     <div className="flex items-start justify-between gap-2">
@@ -633,21 +635,21 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                             </div>
                         )}
 
-                        {/* Legend — outside overflow-hidden so it isn't clipped */}
-                        <div className="absolute bottom-8 end-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-2xl flex flex-col gap-2 pointer-events-none">
-                            <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 font-mono">{t('liveLegend')}</span>
+                        {/* Legend — outside overflow-hidden; hide when detail panel open on small screens */}
+                        <div className={`absolute bottom-4 end-4 sm:bottom-8 sm:end-8 z-[500] bg-[var(--bg-card)] backdrop-blur-md border border-white/30 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl shadow-2xl flex flex-col gap-1.5 sm:gap-2 pointer-events-none ${selectedShuttleTrip ? 'hidden sm:flex' : ''}`}>
+                            <span className="text-[9px] sm:text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-0.5 sm:mb-1 font-mono">{t('liveLegend')}</span>
                             {showShuttle && (
-                                <div className="flex items-center gap-3">
-                                    <img src="/bus_birdeye.png" alt="shuttle" className="w-6 h-6 object-contain" />
-                                    <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <img src="/bus_birdeye.png" alt="shuttle" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
+                                    <span className="text-[10px] sm:text-xs text-[var(--text-primary)] font-black tracking-tight">
                                         {t('shuttle')}{shuttleCount > 0 ? ` (${shuttleCount})` : ''}
                                     </span>
                                 </div>
                             )}
                             {showChauffeur && (
-                                <div className="flex items-center gap-3">
-                                    <img src="/car_birdeye.png" alt="chauffeur" className="w-5 h-5 object-contain" />
-                                    <span className="text-xs text-[var(--text-primary)] font-black tracking-tight">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <img src="/car_birdeye.png" alt="chauffeur" className="w-4 h-4 sm:w-5 sm:h-5 object-contain" />
+                                    <span className="text-[10px] sm:text-xs text-[var(--text-primary)] font-black tracking-tight">
                                         {t('chauffeur')}{chauffeurCount > 0 ? ` (${chauffeurCount})` : ''}
                                     </span>
                                 </div>
@@ -669,7 +671,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 </div>
 
                 {/* Sidebar */}
-                <div className="w-full lg:w-80 m-4 lg:ms-0 p-6 flex flex-col gap-4 bg-orange rounded-4xl shadow-2xl order-1 lg:order-2 text-[var(--text-primary)]">
+                <div className="w-full lg:w-80 lg:max-w-xs m-2 sm:m-4 lg:ms-0 p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 bg-orange rounded-3xl sm:rounded-4xl shadow-2xl order-1 lg:order-2 text-[var(--text-primary)] shrink-0">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">{t('activeAlerts')}</h3>
                         {hasChauffeur && (dashboardStats?.chauffeur.unassignedBookings ?? 0) > 0 && (

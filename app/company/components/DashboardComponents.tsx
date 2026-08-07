@@ -38,14 +38,14 @@ const formatCurrency = (value: number) => {
 };
 
 export const Card = ({ children, className = "", withLeftBorder = false }: { children: React.ReactNode; className?: string; withLeftBorder?: boolean }) => (
-    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[2rem] p-6 h-full shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] ${withLeftBorder ? 'border-s-4 border-s-[#fe8503]' : ''} ${className}`}>
+    <div className={`bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 h-full min-w-0 shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-all duration-200 hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] ${withLeftBorder ? 'border-s-4 border-s-[#fe8503]' : ''} ${className}`}>
         {children}
     </div>
 );
 
 export const SectionTitle = ({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) => (
-    <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-        {icon && <span className="text-[#fe8503]">{icon}</span>}
+    <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] mb-3 sm:mb-4 flex items-center gap-2 min-w-0 flex-wrap">
+        {icon && <span className="text-[#fe8503] shrink-0">{icon}</span>}
         {children}
     </h3>
 );
@@ -71,7 +71,7 @@ const DonutChart = ({ data }: { data: { label: string; value: number; color: str
     let currentOffset = 0;
 
     return (
-        <div className="relative w-40 h-40 flex items-center justify-center -mt-2">
+        <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex items-center justify-center -mt-2">
             <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
                 {total === 0 ? (
                     <circle
@@ -144,9 +144,9 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
                     <AlertCircle size={80} />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">{t('unassignedBookings')}</div>
-                    <div className="text-5xl font-black text-[var(--text-primary)]">{data.unassignedBookings}</div>
-                    <div className="mt-2 text-sm text-[var(--text-muted)] flex items-center gap-2">
+                    <div className="text-[var(--text-muted)] font-medium text-xs sm:text-sm mb-1 uppercase tracking-wider">{t('unassignedBookings')}</div>
+                    <div className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{data.unassignedBookings}</div>
+                    <div className="mt-2 text-sm text-[var(--text-muted)] flex items-center gap-2 flex-wrap">
                         {isZero ? t('allCaughtUp') : <span className="bg-[#fe8503]/15 text-[#fe8503] font-bold px-2 py-0.5 rounded-full text-xs border border-[#fe8503]/30">{t('requiresAttention')}</span>}
                     </div>
                 </div>
@@ -157,9 +157,9 @@ export const TakingCareSection = ({ data }: { data: DashboardData['takingCare'] 
                     <CheckCircle size={80} />
                 </div>
                 <div className="relative z-10">
-                    <div className="text-[var(--text-muted)] font-medium text-sm mb-1 uppercase tracking-wider">{t('ridesCompleted')}</div>
-                    <div className="flex items-baseline gap-2">
-                        <div className="text-5xl font-black text-[var(--text-primary)]">{data.ridesCompleted}</div>
+                    <div className="text-[var(--text-muted)] font-medium text-xs sm:text-sm mb-1 uppercase tracking-wider">{t('ridesCompleted')}</div>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                        <div className="text-4xl sm:text-5xl font-black text-[var(--text-primary)]">{data.ridesCompleted}</div>
                         <div className="text-sm font-bold text-[var(--text-primary)] bg-[var(--accent-success)] px-2 py-1 rounded-full">{data.completedTrend}</div>
                     </div>
                     <div className="mt-2 text-[var(--text-muted)] text-sm">{t('successfullyCompleted')}</div>
@@ -181,9 +181,9 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
     const hasOutstanding = outstandingAmount > 0;
 
     return (
-        <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] h-full transition-all duration-300 flex flex-col justify-between`}>
+        <Card className={`group relative overflow-visible bg-[var(--bg-card)] p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-[var(--border-default)] h-full transition-all duration-300 flex flex-col justify-between min-w-0`}>
             {/* Background Icon matching Savings card */}
-            <div className="pointer-events-none absolute inset-y-0 end-0 w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+            <div className="pointer-events-none absolute inset-y-0 end-0 w-24 sm:w-32 overflow-hidden flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 {hasOutstanding ? (
                     <Wallet size={120} className="text-[var(--accent-danger)]" />
                 ) : (
@@ -208,28 +208,28 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
             <div className="relative z-10">
                 {hasOutstanding ? (
                     <div className="flex flex-col">
-                        <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative z-20">
+                        <div className="group/info invoice-tooltip-trigger text-xs text-[var(--text-muted)] mt-2 flex items-center gap-2 cursor-default relative z-20" tabIndex={0}>
                             <span className="font-bold">{t('totalUnpaidOverdue')}</span>
                             <span className="w-2 h-2 rounded-full bg-[var(--accent-danger)] inline-block animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]"></span>
                             
-                            {/* Invoices Tooltip */}
+                            {/* Invoices Tooltip — hover on desktop, focus-within for touch */}
                             {invoices.length > 0 && (
-                                <div className="invisible group-hover/info:visible absolute top-full start-0 mt-3 w-64 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 text-start font-normal -translate-x-2">
+                                <div className="invisible group-hover/info:visible group-focus-within/info:visible absolute top-full start-0 mt-3 w-[min(16rem,calc(100vw-3rem))] bg-[var(--bg-card)] border border-[var(--border-input)] rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl z-[300] overflow-hidden transform transition-all duration-200 opacity-0 group-hover/info:opacity-100 group-focus-within/info:opacity-100 -translate-y-2 group-hover/info:translate-y-0 group-focus-within/info:translate-y-0 text-start font-normal -translate-x-2">
                                     <div className="bg-[var(--bg-subtle)] px-4 py-2 border-b border-[var(--border-default)] text-[var(--text-primary)] font-bold text-[10px] uppercase">
                                         {t('recentOutstandingInvoices')}
                                     </div>
                                     <div className="divide-y divide-[var(--border-default)] max-h-48 overflow-y-auto">
                                         {invoices.map((inv, idx) => (
                                             <div key={idx} className="px-4 py-2 hover:bg-[var(--bg-subtle)] transition-colors">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold">{inv.invoice_number}</span>
-                                                    <span className="text-[var(--accent-danger)] font-bold text-xs">{tCurrency('pkr')} {Number(inv.total_amount).toLocaleString()}</span>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <span className="font-mono text-[10px] text-[var(--text-primary)] font-bold truncate">{inv.invoice_number}</span>
+                                                    <span className="text-[var(--accent-danger)] font-bold text-xs shrink-0">{tCurrency('pkr')} {Number(inv.total_amount).toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex justify-between items-center mt-0.5">
+                                                <div className="flex justify-between items-center mt-0.5 gap-2">
                                                     <span className="text-[10px] text-[var(--text-muted)]">
                                                         {formatLocaleDate(inv.due_date, locale, { month: 'short', day: 'numeric' })}
                                                     </span>
-                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${inv.status === 'OVERDUE' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${inv.status === 'OVERDUE' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                         {inv.status === 'OVERDUE' ? tStatus('overdue') : tStatus('pending')}
                                                     </span>
                                                 </div>
@@ -242,7 +242,7 @@ export const NothingToDoSection = ({ data, outstandingAmount = 0, invoices = [] 
                     </div>
                 ) : (
                     <div className="flex flex-col">
-                        <div className="text-3xl font-black text-[var(--accent-success)] tracking-tight mb-2">
+                        <div className="text-2xl sm:text-3xl font-black text-[var(--accent-success)] tracking-tight mb-2">
                             {t('youAreAllCaughtUp')}
                         </div>
                         <div className="text-xs text-[var(--text-muted)] mt-1 font-bold uppercase tracking-wider opacity-70">
@@ -271,8 +271,8 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
     return (
         <div className={valueGridClass}>
             {/* Total Savings */}
-            <div className={`p-5 rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
-                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+            <div className={`p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group min-w-0 ${isBenchmarkSavings ? (isSaving ? 'bg-gradient-to-br from-emerald-950/60 to-[var(--bg-card)] border-emerald-700/40' : 'bg-gradient-to-br from-red-950/60 to-[var(--bg-card)] border-red-700/40') : 'bg-[var(--bg-card)] border-[var(--border-default)]'}`}>
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-24 sm:w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Zap size={120} className={isBenchmarkSavings ? (isSaving ? 'text-emerald-400' : 'text-red-400') : 'text-[var(--cort-orange)]'} />
                 </div>
                 <div className="relative z-10 flex items-center justify-between">
@@ -295,8 +295,8 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
             </div>
 
         {/* Avg Trip Cost */}
-        <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-            <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+        <div className="bg-gradient-to-br from-white/[0.04] via-white/[0.03] to-white/[0.02] p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between text-[var(--text-primary)] hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group min-w-0">
+            <div className="pointer-events-none absolute inset-y-0 end-0 w-24 sm:w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                 <Activity size={120} className="text-[var(--text-primary)]" />
             </div>
             <div className="relative z-10">
@@ -311,8 +311,8 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
             </div>
         </div>
 
-        {hasChauffeur && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+        {hasChauffeur && <div className="bg-[var(--bg-card)] p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group min-w-0">
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-24 sm:w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Car size={120} className="text-[#fe8503]" />
                 </div>
                 <div className="relative z-10 flex items-start justify-between">
@@ -327,20 +327,20 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
                     )}
                 </div>
                 <div className="relative z-10 mt-2">
-                    <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.activeRides}</div>
+                    <div className="text-4xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.activeRides}</div>
                     <div className="text-xs text-[var(--accent-success)] font-bold mt-1">{t('inProgress')}</div>
                 </div>
             </div>}
 
-        {hasShuttle && <div className="bg-[var(--bg-card)] p-5 rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group">
-                <div className="pointer-events-none absolute inset-y-0 end-0 w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
+        {hasShuttle && <div className="bg-[var(--bg-card)] p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] border border-[var(--border-default)] shadow-[0_1px_4px_rgba(0,0,0,0.12)] flex flex-col justify-between hover:shadow-[0_2px_10px_rgba(0,0,0,0.18)] transition-all relative overflow-hidden group min-w-0">
+                <div className="pointer-events-none absolute inset-y-0 end-0 w-24 sm:w-32 flex items-center justify-center opacity-10 group-hover:opacity-15 transition-opacity">
                     <Bus size={120} className="text-[#fe8503]" />
                 </div>
                 <div className="relative z-10">
                     <div className="text-[var(--text-muted)] text-xs font-bold uppercase tracking-wide">{t('shuttleTrips')}</div>
                 </div>
                 <div className="relative z-10">
-                    <div className="text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.shuttleTrips}</div>
+                    <div className="text-4xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.shuttleTrips}</div>
                     <div className="text-xs text-[var(--text-muted)] mt-1">{t('totalRunsMtd')}</div>
                 </div>
             </div>}
@@ -458,30 +458,30 @@ export const CostVisibilitySection = ({
 
     return (
         <Card>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
                 <SectionTitle><CreditCard className="w-5 h-5 text-[var(--cort-orange)]" /> {t('costVisibility')}</SectionTitle>
                 {onEditBudget && (
                     <button
                         onClick={onEditBudget}
-                        className="text-xs flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--cort-orange)] font-bold transition-colors bg-[var(--surface-muted)] hover:bg-[#fef3c7] px-2 py-1 rounded-md"
+                        className="text-xs flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--cort-orange)] font-bold transition-colors bg-[var(--surface-muted)] hover:bg-[#fef3c7] px-2 py-1 rounded-md shrink-0"
                     >
                         <Settings className="w-3 h-3" /> {t('editBudget')}
                     </button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
-                <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 h-full">
+                <div className="flex flex-col gap-6 min-w-0">
                     <div>
-                        <div className="flex justify-between items-end mb-1">
+                        <div className="flex justify-between items-end mb-1 gap-2">
                             <div className="text-[var(--text-muted)] text-sm font-medium">{t('totalSpendMtd')}</div>
-                            <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${data.spendTrend.startsWith('-') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            <div className={`px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${data.spendTrend.startsWith('-') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                 {data.spendTrend}
                             </div>
                         </div>
 
-                    <div className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight mb-4">
-                            <span className="text-xl text-[var(--text-muted)] font-medium me-1">{tCurrency('pkr')}</span>
+                    <div className="text-3xl sm:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight mb-4 break-words">
+                            <span className="text-lg sm:text-xl text-[var(--text-muted)] font-medium me-1">{tCurrency('pkr')}</span>
                             {(data.totalSpendMTD / 1000).toLocaleString()}k
                         </div>
                     </div>
@@ -502,12 +502,12 @@ export const CostVisibilitySection = ({
                     </div>
                 </div>
 
-                <div className="flex flex-col h-full border-t md:border-t-0 md:border-s border-[var(--border-light)] md:ps-8 pt-6 md:pt-0">
+                <div className="flex flex-col h-full border-t md:border-t-0 md:border-s border-[var(--border-light)] md:ps-8 pt-6 md:pt-0 min-w-0">
                     <div className="flex flex-col">
                         <div className="flex justify-between items-end mb-1">
                             <div className="text-[var(--text-muted)] text-sm font-medium">{t('costPerTraveler')}</div>
                         </div>
-                    <div className="text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">{tCurrency('pkr')} {data.costPerEmployee.toLocaleString()}</div>
+                    <div className="text-3xl sm:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight break-words">{tCurrency('pkr')} {data.costPerEmployee.toLocaleString()}</div>
                         <div className="text-xs text-[var(--text-muted)] mt-2">{t('avgSpendEmployees', { type: data.costPerEmployee > 5000 ? t('activeEmployees') : t('allEmployees') })}</div>
                     </div>
 
@@ -556,14 +556,14 @@ export const SmartInsightsSection = ({ insights, seasonality }: { insights: stri
                 ))}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[var(--border-light)] grid grid-cols-2 gap-4">
-                <div>
+            <div className="mt-6 pt-4 border-t border-[var(--border-light)] grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="min-w-0">
                     <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">{t('peakDay')}</div>
-                    <div className="text-white font-bold text-lg">{seasonality.highDemandDay}</div>
+                    <div className="text-white font-bold text-base sm:text-lg truncate">{seasonality.highDemandDay}</div>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide font-bold">{t('quietDay')}</div>
-                    <div className="text-white font-bold text-lg">{seasonality.lowDemandDay}</div>
+                    <div className="text-white font-bold text-base sm:text-lg truncate">{seasonality.lowDemandDay}</div>
                 </div>
             </div>
         </Card>
@@ -577,25 +577,25 @@ export const EmployeeUsageSection = ({ data }: { data: DashboardData['employeeUs
         <Card className="bg-[var(--bg-card)] border border-[var(--border-default)]">
             <SectionTitle><Users className="w-5 h-5 text-[#fe8503]" /> {t('employeeAdoption')}</SectionTitle>
 
-            <div className="flex flex-wrap items-center gap-4 mb-6">
-                <div className="flex-1 min-w-[120px]">
-                    <div className="text-3xl font-bold text-[var(--text-primary)]">{data.activeEmployees}</div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">{t('activePassengers')}</div>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-6">
+                <div className="flex-1 min-w-[100px]">
+                    <div className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">{data.activeEmployees}</div>
+                    <div className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase font-bold">{t('activePassengers')}</div>
                 </div>
                 <div className="hidden sm:block w-px h-10 bg-[var(--bg-subtle)]"></div>
-                <div className="flex-1 min-w-[120px]">
-                    <div className="text-3xl font-bold text-[var(--text-primary)]">{data.avgRidesPerEmployee}</div>
-                    <div className="text-xs text-[var(--text-muted)] uppercase font-bold">{t('avgRidesEmp')}</div>
+                <div className="flex-1 min-w-[100px]">
+                    <div className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">{data.avgRidesPerEmployee}</div>
+                    <div className="text-[10px] sm:text-xs text-[var(--text-muted)] uppercase font-bold">{t('avgRidesEmp')}</div>
                 </div>
             </div>
 
-            <div className="bg-[var(--bg-subtle)] p-4 rounded-2xl mb-6 border border-[var(--border-strong)] flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#fe8503]/20 rounded-full flex items-center justify-center text-[#fe8503] shrink-0">
-                    <Star className="w-5 h-5 fill-[#fe8503]" />
+            <div className="bg-[var(--bg-subtle)] p-3 sm:p-4 rounded-2xl mb-6 border border-[var(--border-strong)] flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#fe8503]/20 rounded-full flex items-center justify-center text-[#fe8503] shrink-0">
+                    <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-[#fe8503]" />
                 </div>
-                <div>
+                <div className="min-w-0">
                     <div className="text-[11px] text-[var(--text-muted)] font-bold uppercase">{t('topPassenger')}</div>
-                    <div className="font-bold text-[var(--text-primary)] text-sm">
+                    <div className="font-bold text-[var(--text-primary)] text-sm truncate">
                         {data.topPassenger.name}{' '}
                         <span className="font-normal text-[var(--text-muted)]">({t('ridesCount', { count: data.topPassenger.rides })})</span>
                     </div>
@@ -682,12 +682,12 @@ export const ServiceUsageSection = ({ data, hasChauffeur = true, hasShuttle = tr
             <div className="flex flex-col items-center justify-center h-full py-2">
                 <DonutChart data={chartData} />
 
-                <div className="flex justify-center gap-4 mt-6 w-full">
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-6 w-full">
                     {visibleItems.map((item) => (
-                        <div key={item.label} className="flex flex-col items-center">
+                        <div key={item.label} className="flex flex-col items-center min-w-[4.5rem]">
                             <div className={`w-3 h-3 rounded-full ${item.dot} mb-1`}></div>
-                            <div className="text-lg font-bold text-[var(--text-primary)]">{item.value}%</div>
-                            <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">{item.label}</div>
+                            <div className="text-base sm:text-lg font-bold text-[var(--text-primary)]">{item.value}%</div>
+                            <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold text-center">{item.label}</div>
                         </div>
                     ))}
                 </div>
@@ -700,10 +700,10 @@ export const PremiumTeaser = () => {
     const t = useTranslations('company.dashboard');
 
     return (
-        <div className="mt-8 flex justify-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fe8503]/10 border border-[#fe8503]/20 text-[#fe8503]/80 text-xs font-medium cursor-not-allowed hover:opacity-100 transition-all opacity-90">
-                <Star className="w-3 h-3 fill-[#fe8503]" />
-                {t('premiumTeaser')}
+        <div className="mt-6 sm:mt-8 flex justify-center px-2">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-[#fe8503]/10 border border-[#fe8503]/20 text-[#fe8503]/80 text-[10px] sm:text-xs font-medium cursor-not-allowed hover:opacity-100 transition-all opacity-90 text-center max-w-full">
+                <Star className="w-3 h-3 fill-[#fe8503] shrink-0" />
+                <span className="leading-snug">{t('premiumTeaser')}</span>
             </div>
         </div>
     )
