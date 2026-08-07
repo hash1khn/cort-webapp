@@ -28,6 +28,8 @@ type MapProps = {
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (id: string) => void;
   className?: string;
+  /** When true, keep panning to `center` even after the user drags (e.g. ride tracking). Default false. */
+  followCenter?: boolean;
 };
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
@@ -86,6 +88,7 @@ export default function Map({
   onMapClick,
   onMarkerClick,
   className = '',
+  followCenter = false,
 }: MapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -93,6 +96,8 @@ export default function Map({
   const gmMarkersRef = useRef<{ marker: google.maps.Marker; id: string }[]>([]);
   const gmPolylinesRef = useRef<google.maps.Polyline[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const userHasPannedRef = useRef(false);
+  const lastPannedCenterRef = useRef<[number, number] | null>(null);
 
   // Keep latest callbacks in refs so effects don't re-run on every render
   const onMapClickRef = useRef(onMapClick);
@@ -134,20 +139,47 @@ export default function Map({
       mapRef.current.addListener('click', (e: google.maps.MapMouseEvent) => {
         if (e.latLng) onMapClickRef.current?.(e.latLng.lat(), e.latLng.lng());
       });
+      // Stop programmatic re-centering once the user takes control of the camera
+      mapRef.current.addListener('dragstart', () => {
+        userHasPannedRef.current = true;
+      });
 
       setMapReady(true);
     });
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sync markers ──────────────────────────────────────────────────────────
+  // ── Sync markers (update in place when possible so live GPS doesn't rebuild the map) ─
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
 
-    gmMarkersRef.current.forEach(({ marker }) => { marker.setMap(null); });
-    gmMarkersRef.current = [];
+    const nextIds = new Set(markers.map((m) => m.id));
+    const existingById = new globalThis.Map(gmMarkersRef.current.map((e) => [e.id, e.marker]));
+
+    // Remove markers that disappeared
+    gmMarkersRef.current.forEach(({ marker, id }) => {
+      if (!nextIds.has(id)) {
+        marker.setMap(null);
+        existingById.delete(id);
+      }
+    });
+
+    const nextRefs: { marker: google.maps.Marker; id: string }[] = [];
 
     markers.forEach((marker) => {
+      const existing = existingById.get(marker.id);
+      if (existing) {
+        existing.setPosition({ lat: marker.position[0], lng: marker.position[1] });
+        existing.setTitle(marker.label ?? '');
+        existing.setIcon({
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(makeMarkerSvg(marker))}`,
+          scaledSize: new google.maps.Size(34, 34),
+          anchor: new google.maps.Point(17, 17),
+        });
+        nextRefs.push({ marker: existing, id: marker.id });
+        return;
+      }
+
       const gmMarker = new google.maps.Marker({
         map: mapRef.current!,
         position: { lat: marker.position[0], lng: marker.position[1] },
@@ -173,11 +205,13 @@ export default function Map({
       } else {
         gmMarker.addListener('click', () => onMarkerClickRef.current?.(marker.id));
       }
-      gmMarkersRef.current.push({ marker: gmMarker, id: marker.id });
+      nextRefs.push({ marker: gmMarker, id: marker.id });
     });
 
-    // Auto-fit bounds when no explicit center was given
-    if (!center && markers.length > 0) {
+    gmMarkersRef.current = nextRefs;
+
+    // Auto-fit bounds when no explicit center was given (and user hasn't taken over)
+    if (!center && markers.length > 0 && !userHasPannedRef.current) {
       if (markers.length === 1) {
         mapRef.current.panTo({ lat: markers[0].position[0], lng: markers[0].position[1] });
         mapRef.current.setZoom(14);
@@ -217,11 +251,17 @@ export default function Map({
     });
   }, [mapReady, polylines]);
 
-  // ── Pan to explicit center when it changes ────────────────────────────────
+  // ── Pan to explicit center when it changes (respect user pan unless followCenter) ─
   useEffect(() => {
     if (!mapReady || !mapRef.current || !center) return;
+    if (!followCenter && userHasPannedRef.current) return;
+
+    const prev = lastPannedCenterRef.current;
+    if (prev && prev[0] === center[0] && prev[1] === center[1]) return;
+
+    lastPannedCenterRef.current = center;
     mapRef.current.panTo({ lat: center[0], lng: center[1] });
-  }, [mapReady, center]);
+  }, [mapReady, center, followCenter]);
 
   return (
     <div

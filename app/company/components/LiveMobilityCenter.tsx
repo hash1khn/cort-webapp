@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
     Users,
@@ -302,13 +302,31 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
         });
     }, [trips, vehicleCoords, defaultCenter]);
 
-    // Auto-center: prefer first live socket coord, then first REST coord
-    const mapCenter = useMemo((): [number, number] => {
+    // Keep map camera stable: seed once from first live ping (or REST defaultCenter).
+    // Do NOT follow every socket tick — that fights user pan/zoom.
+    const [mapCenter, setMapCenter] = useState<[number, number]>(defaultCenter);
+    const centerSeededRef = useRef(false);
+
+    useEffect(() => {
+        // New fleet / city default → allow a fresh initial frame
+        centerSeededRef.current = false;
+        setMapCenter(defaultCenter);
+    }, [defaultCenter[0], defaultCenter[1]]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (centerSeededRef.current) return;
         for (const trip of trips) {
             const live = vehicleCoords[String(trip.id)];
-            if (live && live.updatedAt > 0 && live.lat !== 0) return [live.lat, live.lng];
+            if (live && live.updatedAt > 0 && live.lat !== 0) {
+                centerSeededRef.current = true;
+                setMapCenter([live.lat, live.lng]);
+                return;
+            }
         }
-        return defaultCenter;
+        // REST/demo default is good enough until a live ping arrives
+        if (defaultCenter[0] && defaultCenter[1]) {
+            centerSeededRef.current = true;
+        }
     }, [vehicleCoords, trips, defaultCenter]);
 
     const liveCount = useMemo(
