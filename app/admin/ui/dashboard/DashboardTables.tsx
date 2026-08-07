@@ -1,7 +1,8 @@
 import type { ComponentType } from "react";
 import { BreakdownItem, OverdueInvoice, ProblemReport } from "../../../lib/types/admin-dashboard";
-import { ExternalLink, AlertCircle, Fuel, Wrench, Users, ArrowUpRight, MessageSquare, Tag } from "lucide-react";
-import { adminCard, adminTableHead, adminTableRow } from "../../components/ui/admin-styles";
+import { AlertCircle, Fuel, Wrench, Users, MessageSquare, Tag } from "lucide-react";
+import { adminTableHead, adminTableRow } from "../../components/ui/admin-styles";
+import { BentoTile } from "./BentoTile";
 import { cx } from "../../components/ui/cx";
 
 interface DashboardTablesProps {
@@ -10,6 +11,15 @@ interface DashboardTablesProps {
   repairExpenses: BreakdownItem[];
   overdueInvoices: OverdueInvoice[];
   problemReports: ProblemReport[];
+  className?: string;
+}
+
+function formatCurrency(val: number) {
+  return new Intl.NumberFormat("en-PK", {
+    style: "currency",
+    currency: "PKR",
+    maximumFractionDigits: 0,
+  }).format(val);
 }
 
 function SimpleTable({
@@ -17,65 +27,49 @@ function SimpleTable({
   data,
   valueLabel,
   icon: Icon,
-  colorClass,
 }: {
   title: string;
   data: BreakdownItem[];
   valueLabel: string;
   icon: ComponentType<{ className?: string }>;
-  colorClass: string;
 }) {
   return (
-    <div className={cx(adminCard, "overflow-hidden h-full transition-all hover:shadow-[var(--shadow-card-hover)]")}>
-      <div className={cx("p-5 flex items-center justify-between border-b border-[var(--border-default)]", colorClass)}>
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--bg-card)] shadow-sm border border-[var(--border-default)]">
-            <Icon className="w-4 h-4 text-[var(--text-secondary)]" />
-          </div>
-          <div className="text-[13px] font-bold tracking-tight text-[var(--text-primary)] uppercase">{title}</div>
+    <BentoTile padding="none" className="overflow-hidden h-full">
+      <div className="px-3.5 py-3 flex items-center gap-2.5 border-b border-[var(--border-default)]">
+        <div className="p-1.5 rounded-md bg-[var(--bg-subtle)] border border-[var(--border-default)]">
+          <Icon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
         </div>
-        <button className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
+        <div className="text-xs font-semibold tracking-tight text-[var(--text-primary)]">{title}</div>
       </div>
-      <div className="overflow-auto max-h-80 custom-scrollbar">
+      <div className="overflow-auto max-h-64 custom-scrollbar">
         <table className="w-full text-sm">
-          <thead className={cx(adminTableHead, "sticky top-0 z-10 px-5 py-3")}>
+          <thead className={cx(adminTableHead, "sticky top-0 z-10")}>
             <tr>
-              <th className="px-5 py-3 text-left font-bold">Category</th>
-              <th className="px-5 py-3 text-right font-bold">{valueLabel}</th>
+              <th className="px-3.5 py-2 text-left font-semibold text-[10px]">Name</th>
+              <th className="px-3.5 py-2 text-right font-semibold text-[10px]">{valueLabel}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--divider)]">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-5 py-10 text-center">
-                  <p className="text-xs font-medium text-[var(--text-muted)]">No records available</p>
+                <td colSpan={2} className="px-3.5 py-8 text-center">
+                  <p className="text-xs font-medium text-[var(--text-muted)]">No records</p>
                 </td>
               </tr>
             ) : (
               data.map((item, idx) => (
                 <tr key={idx} className={cx(adminTableRow, "group")}>
-                  <td className="px-5 py-3.5">
-                    <div className="flex flex-col">
-                      <span
-                        className="text-[13px] font-bold text-[var(--text-primary)] truncate max-w-[180px]"
-                        title={item.name}
-                      >
-                        {item.name}
-                      </span>
-                      <span className="text-[10px] text-[var(--text-muted)] font-medium uppercase mt-0.5">
-                        Reference ID: {idx + 1024}
-                      </span>
-                    </div>
+                  <td className="px-3.5 py-2.5">
+                    <span
+                      className="text-xs font-semibold text-[var(--text-primary)] truncate max-w-[160px] block"
+                      title={item.name}
+                    >
+                      {item.name}
+                    </span>
                   </td>
-                  <td className="px-5 py-3.5 text-right">
-                    <span className="text-[13px] font-extrabold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
-                      {new Intl.NumberFormat("en-PK", {
-                        style: "currency",
-                        currency: "PKR",
-                        maximumFractionDigits: 0,
-                      }).format(item.value)}
+                  <td className="px-3.5 py-2.5 text-right">
+                    <span className="text-xs font-bold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                      {formatCurrency(item.value)}
                     </span>
                   </td>
                 </tr>
@@ -84,65 +78,55 @@ function SimpleTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </BentoTile>
   );
 }
 
 function OverdueInvoicesTable({ invoices }: { invoices: OverdueInvoice[] }) {
   return (
-    <div className="rounded-2xl border border-rose-500/20 bg-[var(--bg-card)] overflow-hidden shadow-[var(--shadow-card)] h-full lg:col-span-3">
-      <div className="bg-rose-500/10 p-6 flex justify-between items-center border-b border-[var(--border-default)]">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[var(--bg-card)] flex items-center justify-center text-rose-500 shadow-sm border border-rose-500/20">
-            <AlertCircle className="w-6 h-6" />
+    <BentoTile padding="none" className="overflow-hidden h-full">
+      <div className="px-3.5 py-3 flex justify-between items-center border-b border-[var(--border-default)]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[var(--bg-subtle)] flex items-center justify-center text-[var(--text-secondary)] border border-[var(--border-default)]">
+            <AlertCircle className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] font-extrabold text-rose-500 uppercase tracking-widest mb-0.5">
-              Exposure Alert
-            </div>
-            <div className="text-lg font-bold text-[var(--text-primary)]">Overdue Payables (&gt;30 Days)</div>
+            <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Overdue</div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">Invoices &gt;30 days</div>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold">
-          <ExternalLink className="w-3.5 h-3.5" />
-          Review All
-        </div>
+        <span className="text-[11px] font-bold text-[var(--text-secondary)] bg-[var(--bg-subtle)] px-2.5 py-1 rounded-full">
+          {invoices.length}
+        </span>
       </div>
-      <div className="overflow-auto max-h-96 custom-scrollbar">
-        <table className="w-full text-sm text-left border-collapse">
-          <thead className={cx(adminTableHead, "sticky top-0 z-20 px-6 py-4")}>
+      <div className="overflow-auto max-h-72 custom-scrollbar">
+        <table className="w-full text-sm text-left">
+          <thead className={cx(adminTableHead, "sticky top-0 z-20")}>
             <tr>
-              <th className="px-6 py-4 font-bold">Billing Entity</th>
-              <th className="px-6 py-4 font-bold">Release Date</th>
-              <th className="px-6 py-4 font-bold">Cycle Status</th>
-              <th className="px-6 py-4 font-bold text-right">Outstanding Amount</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Entity</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Date</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Status</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px] text-right">Amount</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--divider)] bg-[var(--bg-card)]">
+          <tbody className="divide-y divide-[var(--divider)]">
             {invoices.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center">
-                  <div className="bg-emerald-500/10 text-emerald-500 px-6 py-3 rounded-2xl inline-flex items-center gap-2 font-bold text-sm">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Financial clearance: No overdue payments found
-                  </div>
+                <td colSpan={4} className="px-3.5 py-8 text-center">
+                  <span className="text-xs font-medium text-emerald-600">No overdue payments</span>
                 </td>
               </tr>
             ) : (
               invoices.map((inv) => (
                 <tr key={inv.id} className={adminTableRow}>
-                  <td className="px-6 py-4">
+                  <td className="px-3.5 py-2.5">
                     <div className="flex flex-col">
-                      <span className="font-bold text-[var(--text-primary)] group-hover:text-rose-500 transition-colors">
-                        {inv.company_name}
-                      </span>
-                      <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase mt-1">
-                        Invoice #{inv.invoice_number}
-                      </span>
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{inv.company_name}</span>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">#{inv.invoice_number}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-semibold text-[var(--text-muted)]">
+                  <td className="px-3.5 py-2.5">
+                    <span className="text-[11px] font-medium text-[var(--text-muted)]">
                       {new Date(inv.generated_at).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "short",
@@ -150,19 +134,13 @@ function OverdueInvoicesTable({ invoices }: { invoices: OverdueInvoice[] }) {
                       })}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-extrabold bg-rose-500/10 text-rose-500 border border-rose-500/20 uppercase tracking-tighter">
+                  <td className="px-3.5 py-2.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500/10 text-rose-500 uppercase">
                       {inv.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="text-sm font-black text-rose-500">
-                      {new Intl.NumberFormat("en-PK", {
-                        style: "currency",
-                        currency: "PKR",
-                        maximumFractionDigits: 0,
-                      }).format(inv.total_amount)}
-                    </span>
+                  <td className="px-3.5 py-2.5 text-right">
+                    <span className="text-xs font-bold text-rose-500">{formatCurrency(inv.total_amount)}</span>
                   </td>
                 </tr>
               ))
@@ -170,7 +148,7 @@ function OverdueInvoicesTable({ invoices }: { invoices: OverdueInvoice[] }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </BentoTile>
   );
 }
 
@@ -190,46 +168,44 @@ function formatProblemIssueType(issueType: ProblemReport["issue_type"]): string 
 
 function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
   return (
-    <div className="rounded-2xl border border-amber-500/20 bg-[var(--bg-card)] overflow-hidden shadow-[var(--shadow-card)] h-full lg:col-span-3">
-      <div className="bg-amber-500/10 p-6 flex justify-between items-center border-b border-[var(--border-default)]">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[var(--bg-card)] flex items-center justify-center text-amber-500 shadow-sm border border-amber-500/20">
-            <MessageSquare className="w-6 h-6" />
+    <BentoTile padding="none" className="overflow-hidden h-full">
+      <div className="px-3.5 py-3 flex justify-between items-center border-b border-[var(--border-default)]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[var(--bg-subtle)] flex items-center justify-center text-[var(--text-secondary)] border border-[var(--border-default)]">
+            <MessageSquare className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] font-extrabold text-amber-500 uppercase tracking-widest mb-0.5">
-              Incident Queue
-            </div>
-            <div className="text-lg font-bold text-[var(--text-primary)]">Field Problem Reports</div>
+            <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Incidents</div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">Problem reports</div>
           </div>
         </div>
-        <div className="text-xs font-black text-amber-600 bg-amber-500/15 px-4 py-1.5 rounded-full border border-amber-500/20">
-          {reports.length} Reports
-        </div>
+        <span className="text-[11px] font-bold text-[var(--text-secondary)] bg-[var(--bg-subtle)] px-2.5 py-1 rounded-full">
+          {reports.length}
+        </span>
       </div>
-      <div className="overflow-auto max-h-96 custom-scrollbar">
+      <div className="overflow-auto max-h-72 custom-scrollbar">
         <table className="w-full text-sm text-left">
-          <thead className={cx(adminTableHead, "sticky top-0 z-20 px-6 py-4")}>
+          <thead className={cx(adminTableHead, "sticky top-0 z-20")}>
             <tr>
-              <th className="px-6 py-4 font-bold">Timestamp</th>
-              <th className="px-6 py-4 font-bold">Originator</th>
-              <th className="px-6 py-4 font-bold">Issue type</th>
-              <th className="px-6 py-4 font-bold">Status Brief</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">When</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Who</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Type</th>
+              <th className="px-3.5 py-2 font-semibold text-[10px]">Message</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--divider)] bg-[var(--bg-card)]">
+          <tbody className="divide-y divide-[var(--divider)]">
             {reports.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-[var(--text-muted)] font-medium">
-                  No active incident reports
+                <td colSpan={4} className="px-3.5 py-8 text-center text-[var(--text-muted)] text-xs font-medium">
+                  No active reports
                 </td>
               </tr>
             ) : (
               reports.map((report) => (
                 <tr key={report.id} className={adminTableRow}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3.5 py-2.5 whitespace-nowrap">
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-[var(--text-primary)]">
+                      <span className="text-[11px] font-semibold text-[var(--text-primary)]">
                         {new Date(report.created_at).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -243,40 +219,24 @@ function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[var(--bg-subtle)] flex items-center justify-center text-[10px] font-bold text-[var(--text-primary)]">
-                        {report.reporter_name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[13px] font-bold text-[var(--text-primary)]">
-                          {report.reporter_name}
-                        </span>
-                        <span className="text-[10px] text-[var(--text-muted)] uppercase font-medium">
-                          {report.reporter_role}
-                        </span>
-                      </div>
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{report.reporter_name}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] uppercase">{report.reporter_role}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5">
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-1">
                       <Tag className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
-                      <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                      <span className="text-[11px] font-medium text-[var(--text-secondary)]">
                         {formatProblemIssueType(report.issue_type)}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="bg-[var(--bg-subtle)] p-3 rounded-xl border border-[var(--border-default)] text-[12px] text-[var(--text-secondary)] leading-relaxed italic">
-                      &quot;
-                      {report.message.length > 80
-                        ? report.message.substring(0, 80) + "..."
-                        : report.message}
-                      &quot;
-                    </div>
+                  <td className="px-3.5 py-2.5">
+                    <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2 max-w-xs">
+                      {report.message}
+                    </p>
                   </td>
                 </tr>
               ))
@@ -284,7 +244,7 @@ function ProblemReportsTable({ reports }: { reports: ProblemReport[] }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </BentoTile>
   );
 }
 
@@ -294,34 +254,22 @@ export function DashboardTables({
   repairExpenses,
   overdueInvoices,
   problemReports,
+  className,
 }: DashboardTablesProps) {
   return (
-    <div className="space-y-10">
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+    <div className={cx("space-y-5", className)}>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <SimpleTable
-          title="Top Clients by Revenue"
+          title="Top clients"
           data={revenueByClient}
-          valueLabel="Gross Revenue"
+          valueLabel="Revenue"
           icon={Users}
-          colorClass="bg-blue-500/5"
         />
-        <SimpleTable
-          title="Fuel Consumption"
-          data={fuelExpenses}
-          valueLabel="Total Cost"
-          icon={Fuel}
-          colorClass="bg-orange-500/5"
-        />
-        <SimpleTable
-          title="Maintenance Costs"
-          data={repairExpenses}
-          valueLabel="Expense"
-          icon={Wrench}
-          colorClass="bg-[var(--bg-subtle)]"
-        />
+        <SimpleTable title="Fuel" data={fuelExpenses} valueLabel="Cost" icon={Fuel} />
+        <SimpleTable title="Maintenance" data={repairExpenses} valueLabel="Cost" icon={Wrench} />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2">
         <OverdueInvoicesTable invoices={overdueInvoices || []} />
         <ProblemReportsTable reports={problemReports || []} />
       </div>

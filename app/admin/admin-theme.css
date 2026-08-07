@@ -231,3 +231,13 @@
   border-color: var(--divider) !important;
 }
 
+/* Super Admin dashboard typography */
+.admin-dashboard {
+  font-family: var(--font-plus-jakarta), var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.admin-dashboard .tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+

@@ -11,6 +11,7 @@ import {
   Moon,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LayoutDashboard,
   Building2,
   FileText,
@@ -48,38 +49,118 @@ type NavItem = {
   allowInternalStaff?: boolean;
 };
 
-const nav: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { href: "/admin/companies", label: "Companies", icon: Building2, permission: "companies" },
-  { href: "/admin/pricing", label: "Contracts & Pricing", icon: FileText, permission: "pricing" },
-  { href: "/admin/fixed-contracts", label: "Fixed-Term Cars", icon: Car, permission: "fixed_contracts" },
-  { href: "/admin/vehicles", label: "Vehicles", icon: Car, permission: "vehicles" },
-  { href: "/admin/vehicles/fueling", label: "Fuel Records", icon: Fuel, permission: "fuel_records" },
-  { href: "/admin/vehicles/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance" },
-  { href: "/admin/settings/vehicle-fuel-averages", label: "Fuel Averages", icon: Gauge, permission: "ops_shuttle" },
-  { href: "/admin/vendors", label: "Vendors", icon: Store, permission: "vendors" },
-  { href: "/admin/vendors/logs", label: "Trip Logs", icon: ClipboardList, permission: "vendor_logs" },
-  { href: "/admin/external-vendors", label: "External Vendors", icon: Truck, permission: "external_vendors" },
-  { href: "/admin/drivers", label: "Drivers", icon: Users, permission: "drivers" },
-  { href: "/admin/bookings/pending", label: "Bookings", icon: Calendar, permission: "bookings" },
-  { href: "/admin/routes", label: "Routes", icon: Map, permission: "routes" },
-  // Utilities
-  { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin, allowInternalStaff: true },
-  { href: "/admin/routes/shuttle-trips", label: "Shuttle trip scheduling", icon: Bus, permission: "ops_shuttle" },
-  { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
-  { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },
-  { href: "/admin/reports", label: "Reports", icon: BarChart3, permission: "reports" },
-  { href: "/admin/expenses", label: "Expenses", icon: Receipt, permission: "expenses" },
-  { href: "/admin/invoicing", label: "Invoicing", icon: FileSpreadsheet, permission: "invoicing" },
-  { href: "/admin/permissions", label: "Staff & Permissions", icon: Shield },
-  { href: "/admin/leads", label: "Leads", icon: UserPlus, permission: "dashboard" },
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    icon: LayoutDashboard,
+    items: [
+      { href: "/admin", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+    ],
+  },
+  {
+    id: "commercial",
+    label: "Commercial",
+    icon: Building2,
+    items: [
+      { href: "/admin/companies", label: "Companies", icon: Building2, permission: "companies" },
+      { href: "/admin/pricing", label: "Contracts & Pricing", icon: FileText, permission: "pricing" },
+      { href: "/admin/fixed-contracts", label: "Fixed-Term Cars", icon: Car, permission: "fixed_contracts" },
+      { href: "/admin/leads", label: "Leads", icon: UserPlus, permission: "dashboard" },
+    ],
+  },
+  {
+    id: "fleet",
+    label: "Fleet",
+    icon: Car,
+    items: [
+      { href: "/admin/vehicles", label: "Vehicles", icon: Car, permission: "vehicles" },
+      { href: "/admin/vehicles/fueling", label: "Fuel Records", icon: Fuel, permission: "fuel_records" },
+      { href: "/admin/vehicles/maintenance", label: "Maintenance", icon: Wrench, permission: "maintenance" },
+      { href: "/admin/settings/vehicle-fuel-averages", label: "Fuel Averages", icon: Gauge, permission: "ops_shuttle" },
+    ],
+  },
+  {
+    id: "partners",
+    label: "Partners",
+    icon: Store,
+    items: [
+      { href: "/admin/vendors", label: "Vendors", icon: Store, permission: "vendors" },
+      { href: "/admin/vendors/logs", label: "Trip Logs", icon: ClipboardList, permission: "vendor_logs" },
+      { href: "/admin/external-vendors", label: "External Vendors", icon: Truck, permission: "external_vendors" },
+      { href: "/admin/drivers", label: "Drivers", icon: Users, permission: "drivers" },
+    ],
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    icon: Bus,
+    items: [
+      { href: "/admin/bookings/pending", label: "Bookings", icon: Calendar, permission: "bookings" },
+      { href: "/admin/routes", label: "Routes", icon: Map, permission: "routes" },
+      { href: "/admin/routes/shuttle-trips", label: "Shuttle Scheduling", icon: Bus, permission: "ops_shuttle" },
+      { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
+      { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },
+      { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin, allowInternalStaff: true },
+    ],
+  },
+  {
+    id: "finance",
+    label: "Finance",
+    icon: Receipt,
+    items: [
+      { href: "/admin/reports", label: "Reports", icon: BarChart3, permission: "reports" },
+      { href: "/admin/expenses", label: "Expenses", icon: Receipt, permission: "expenses" },
+      { href: "/admin/invoicing", label: "Invoicing", icon: FileSpreadsheet, permission: "invoicing" },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    icon: Shield,
+    items: [
+      { href: "/admin/permissions", label: "Staff & Permissions", icon: Shield },
+    ],
+  },
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "cort-admin-sidebar-collapsed";
+const SIDEBAR_OPEN_GROUPS_KEY = "cort-admin-sidebar-open-groups";
 
 function readCollapsed(): boolean {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+}
+
+function readOpenGroups(): string[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SIDEBAR_OPEN_GROUPS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
+function canSeeNavItem(
+  item: NavItem,
+  isSuperAdmin: boolean,
+  isInternalStaff: boolean,
+  hasPermission: (permission: PermissionKey) => boolean,
+): boolean {
+  if (item.allowInternalStaff && isInternalStaff) return true;
+  if (!item.permission) return isSuperAdmin;
+  if (isSuperAdmin) return true;
+  return hasPermission(item.permission);
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -88,34 +169,89 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useAdminTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [groupsHydrated, setGroupsHydrated] = useState(false);
+  const [flyoutGroupId, setFlyoutGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     setCollapsed(readCollapsed());
+    const savedGroups = readOpenGroups();
+    setOpenGroups(savedGroups ?? []);
+    setGroupsHydrated(true);
   }, []);
 
   const setCollapsedPersisted = (value: boolean) => {
     setCollapsed(value);
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(value));
+    if (value) setFlyoutGroupId(null);
+  };
+
+  // Close flyout when sidebar expands or route changes
+  useEffect(() => {
+    if (!collapsed) setFlyoutGroupId(null);
+  }, [collapsed]);
+
+  useEffect(() => {
+    setFlyoutGroupId(null);
+  }, [pathname]);
+
+  const setOpenGroupsPersisted = (next: string[] | ((prev: string[]) => string[])) => {
+    setOpenGroups((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      localStorage.setItem(SIDEBAR_OPEN_GROUPS_KEY, JSON.stringify(value));
+      return value;
+    });
   };
 
   const isLogin = pathname === "/admin/login";
 
-  const visibleNav = useMemo(() => {
-    return nav.filter((item) => {
-      if (item.allowInternalStaff && isInternalStaff) return true;
-      if (!item.permission) return isSuperAdmin;
-      if (isSuperAdmin) return true;
-      return hasPermission(item.permission);
-    });
+  const visibleGroups = useMemo(() => {
+    return navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          canSeeNavItem(item, isSuperAdmin, isInternalStaff, hasPermission),
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
   }, [isSuperAdmin, isInternalStaff, hasPermission]);
+
+  const flatVisibleNav = useMemo(
+    () => visibleGroups.flatMap((group) => group.items),
+    [visibleGroups],
+  );
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/admin";
-    const found = visibleNav.find((n) => pathname === n.href);
-    if (found) return found.href;
-    const prefix = visibleNav.find((n) => n.href !== "/admin" && pathname.startsWith(n.href));
-    return prefix?.href ?? "/admin";
-  }, [pathname, visibleNav]);
+    const exact = flatVisibleNav.find((n) => pathname === n.href);
+    if (exact) return exact.href;
+    // Prefer the longest matching prefix so nested routes highlight correctly
+    const prefixMatches = flatVisibleNav
+      .filter((n) => n.href !== "/admin" && pathname.startsWith(n.href))
+      .sort((a, b) => b.href.length - a.href.length);
+    return prefixMatches[0]?.href ?? "/admin";
+  }, [pathname, flatVisibleNav]);
+
+  const activeGroupId = useMemo(() => {
+    return visibleGroups.find((group) => group.items.some((item) => item.href === activeHref))?.id;
+  }, [visibleGroups, activeHref]);
+
+  // Keep the active section open when navigating
+  useEffect(() => {
+    if (!groupsHydrated || !activeGroupId) return;
+    setOpenGroups((prev) => {
+      if (prev.includes(activeGroupId)) return prev;
+      const next = [...prev, activeGroupId];
+      localStorage.setItem(SIDEBAR_OPEN_GROUPS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [activeGroupId, groupsHydrated]);
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroupsPersisted((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId],
+    );
+  };
 
   const logoSrc =
     theme === "light"
@@ -124,72 +260,207 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (isLogin) return <>{children}</>;
 
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+  const renderNavLink = (
+    item: NavItem,
+    opts: { isMobile?: boolean; compact?: boolean; nested?: boolean; index?: number },
+  ) => {
+    const { isMobile = false, compact = false, nested = false, index = 0 } = opts;
+    const active = item.href === activeHref;
+    const Icon = item.icon;
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={compact ? item.label : undefined}
+        onClick={() => isMobile && setIsMobileMenuOpen(false)}
+        style={isMobile ? { animationDelay: `${(index + 1) * 40}ms` } : undefined}
+        className={cx(
+          "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 relative",
+          isMobile && "animate-fade-slide-up opacity-0",
+          compact ? "justify-center px-2" : nested ? "pl-9" : "",
+          active
+            ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)]"
+            : "text-[var(--nav-inactive-text)] hover:text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)]",
+        )}
+      >
+        {active && !compact && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[var(--cort-orange)]" />
+        )}
+        <Icon
+          size={nested && !compact ? 16 : 18}
+          strokeWidth={active ? 2 : 1.5}
+          className={cx(
+            "shrink-0",
+            active ? "text-[var(--nav-active-text)]" : "group-hover:text-[var(--text-primary)]",
+          )}
+        />
+        <span
+          className={cx(
+            "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
+            compact ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100",
+          )}
+        >
+          {item.label}
+        </span>
+      </Link>
+    );
+  };
+
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const compact = collapsed && !isMobile;
+    let linkIndex = 0;
+
+    return (
     <>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div
+        className={cx(
+          "flex-1",
+          compact ? "overflow-visible" : "overflow-y-auto overflow-x-hidden",
+        )}
+      >
         <div
           className={cx(
             "flex flex-col items-center justify-center transition-all duration-300",
-            collapsed && !isMobile ? "px-2 py-6" : "px-6 py-8",
+            compact ? "px-2 py-6" : "px-6 py-8",
           )}
         >
           <img
-            src={collapsed && !isMobile ? "/app_icon.png" : logoSrc}
+            src={compact ? "/app_icon.png" : logoSrc}
             alt="TrafLinq"
             className={cx(
               "object-contain transition-all duration-300",
-              collapsed && !isMobile ? "h-9 w-9 rounded-lg" : "h-14 w-auto",
+              compact ? "h-9 w-9 rounded-lg" : "h-14 w-auto",
             )}
           />
         </div>
 
         <nav className="px-3 pb-6 space-y-1">
-          {visibleNav.map((item, index) => {
-            const active = item.href === activeHref;
-            const Icon = item.icon;
-            const isSubItem =
-              item.href.includes("/fueling") ||
-              item.href.includes("/maintenance") ||
-              item.href.includes("/logs") ||
-              item.href.includes("/shuttle-trips") ||
-              item.href === "/admin/fixed-contracts";
+          {visibleGroups.map((group) => {
+            const isOpen = openGroups.includes(group.id) || group.items.length === 1;
+            const groupHasActive = group.id === activeGroupId;
+            const GroupIcon = group.icon;
+            const flyoutOpen = flyoutGroupId === group.id;
+
+            // Single-item groups always render as a direct link
+            if (group.items.length === 1) {
+              return renderNavLink(group.items[0], {
+                isMobile,
+                compact,
+                nested: false,
+                index: linkIndex++,
+              });
+            }
+
+            // Collapsed rail: group icon + flyout of child links
+            if (compact) {
+              return (
+                <div
+                  key={group.id}
+                  className="relative"
+                  onMouseEnter={() => setFlyoutGroupId(group.id)}
+                  onMouseLeave={() => setFlyoutGroupId((id) => (id === group.id ? null : id))}
+                >
+                  <button
+                    type="button"
+                    title={group.label}
+                    aria-expanded={flyoutOpen}
+                    aria-label={group.label}
+                    onClick={() =>
+                      setFlyoutGroupId((id) => (id === group.id ? null : group.id))
+                    }
+                    className={cx(
+                      "flex w-full items-center justify-center rounded-lg px-2 py-2.5 transition-all duration-200",
+                      groupHasActive || flyoutOpen
+                        ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)]"
+                        : "text-[var(--nav-inactive-text)] hover:text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)]",
+                    )}
+                  >
+                    <GroupIcon size={18} strokeWidth={groupHasActive || flyoutOpen ? 2 : 1.5} />
+                  </button>
+
+                  {flyoutOpen && (
+                    <div className="absolute left-full top-0 z-50 pl-2">
+                      <div className="min-w-[12rem] rounded-lg border border-[var(--border-default)] bg-[var(--bg-sidebar)] py-2 shadow-lg">
+                        <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                          {group.label}
+                        </div>
+                        <div className="space-y-0.5 px-1">
+                          {group.items.map((item) => {
+                            const active = item.href === activeHref;
+                            const ItemIcon = item.icon;
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                onClick={() => setFlyoutGroupId(null)}
+                                className={cx(
+                                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
+                                  active
+                                    ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)]"
+                                    : "text-[var(--nav-inactive-text)] hover:text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)]",
+                                )}
+                              >
+                                <ItemIcon size={16} strokeWidth={active ? 2 : 1.5} className="shrink-0" />
+                                <span className="whitespace-nowrap">{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed && !isMobile ? item.label : undefined}
-                onClick={() => isMobile && setIsMobileMenuOpen(false)}
-                style={isMobile ? { animationDelay: `${(index + 1) * 50}ms` } : undefined}
-                className={cx(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 relative",
-                  isMobile && "animate-fade-slide-up opacity-0",
-                  !collapsed || isMobile ? (isSubItem ? "pl-5" : "") : "justify-center px-2",
-                  active
-                    ? "bg-[var(--nav-active-bg)] text-[var(--nav-active-text)]"
-                    : "text-[var(--nav-inactive-text)] hover:text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)]",
-                )}
-              >
-                {active && (!collapsed || isMobile) && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-[var(--cort-orange)]" />
-                )}
-                <Icon
-                  size={18}
-                  strokeWidth={active ? 2 : 1.5}
+              <div key={group.id} className="space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  aria-expanded={isOpen}
                   className={cx(
-                    "shrink-0",
-                    active ? "text-[var(--nav-active-text)]" : "group-hover:text-[var(--text-primary)]",
-                  )}
-                />
-                <span
-                  className={cx(
-                    "whitespace-nowrap transition-all duration-300 ease-in-out overflow-hidden",
-                    collapsed && !isMobile ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100",
+                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200",
+                    groupHasActive
+                      ? "text-[var(--text-primary)]"
+                      : "text-[var(--nav-inactive-text)] hover:text-[var(--text-primary)] hover:bg-[var(--nav-hover-bg)]",
                   )}
                 >
-                  {item.label}
-                </span>
-              </Link>
+                  <GroupIcon
+                    size={18}
+                    strokeWidth={groupHasActive ? 2 : 1.5}
+                    className="shrink-0"
+                  />
+                  <span className="flex-1 text-left whitespace-nowrap overflow-hidden">
+                    {group.label}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={cx(
+                      "shrink-0 text-[var(--text-muted)] transition-transform duration-200",
+                      isOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                <div
+                  className={cx(
+                    "grid transition-[grid-template-rows] duration-200 ease-out",
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                  )}
+                >
+                  <div className="overflow-hidden space-y-0.5">
+                    {group.items.map((item) =>
+                      renderNavLink(item, {
+                        isMobile,
+                        nested: true,
+                        index: linkIndex++,
+                      }),
+                    )}
+                  </div>
+                </div>
+              </div>
             );
           })}
         </nav>
@@ -237,7 +508,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     </>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] font-sans">
@@ -258,7 +530,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <aside
           className={cx(
             "sticky top-0 h-screen hidden shrink-0 border-r border-[var(--border-default)] bg-[var(--bg-sidebar)] text-[var(--text-primary)] md:flex md:flex-col transition-all duration-300 ease-in-out relative",
-            collapsed ? "w-[4.5rem]" : "w-72",
+            collapsed ? "w-[4.5rem] overflow-visible z-30" : "w-72 overflow-hidden",
           )}
         >
           <button
@@ -295,7 +567,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <BookingNotificationProvider />
           <BenchmarkChangeRequestAlertProvider />
-          <main className="mx-auto w-full max-w-full flex-1 px-4 py-6 md:px-6 bg-[var(--bg-page)]">
+          <main className="mx-auto w-full max-w-full flex-1 px-4 pt-3 pb-6 md:px-6 md:pt-4 bg-[var(--bg-page)]">
             {children}
           </main>
         </div>
