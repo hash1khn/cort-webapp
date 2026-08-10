@@ -9,6 +9,8 @@ export type MapMarker = {
   description?: string;
   color?: string;
   type?: string;
+  /** Degrees clockwise from north (same as mobile / GPS heading). Vehicles rotate to face this. */
+  heading?: number;
 };
 
 export type MapPolyline = {
@@ -33,6 +35,8 @@ type MapProps = {
 };
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+const VEHICLE_ICON_SIZE = 44;
+const HEADING_JITTER_DEG = 2;
 
 let mapsPromise: Promise<void> | null = null;
 function loadMaps(): Promise<void> {
@@ -61,21 +65,82 @@ function loadMaps(): Promise<void> {
   return mapsPromise;
 }
 
-/** Build marker icon — birdeye PNGs for vehicles, SVG circle for stops/labels */
-function getMarkerIcon(marker: MapMarker): { url: string; scaledSize: { width: number; height: number }; anchor: { x: number; y: number } } {
+function isVehicleMarker(marker: MapMarker): boolean {
   const type = marker.type ?? marker.id;
-  const isShuttle = type === 'shuttle';
-  const isVehicle = type === 'driver' || type === 'chauffeur' || isShuttle;
+  return type === 'driver' || type === 'chauffeur' || type === 'shuttle';
+}
 
-  if (isVehicle) {
-    const size = 44;
-    return {
-      url: isShuttle ? '/bus_birdeye.png' : '/car_birdeye.png',
-      scaledSize: { width: size, height: size },
-      anchor: { x: size / 2, y: size / 2 },
+function vehicleIconSrc(marker: MapMarker): string {
+  const type = marker.type ?? marker.id;
+  return type === 'shuttle' ? '/bus_birdeye.png' : '/car_birdeye.png';
+}
+
+/** Bearing in degrees clockwise from north (matches mobile calculateHeading). */
+function bearingDegrees(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): number {
+  const toRad = Math.PI / 180;
+  const lat1 = fromLat * toRad;
+  const lat2 = toLat * toRad;
+  const dLon = (toLng - fromLng) * toRad;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+function shortestHeadingDiff(from: number, to: number): number {
+  return ((to - from + 540) % 360) - 180;
+}
+
+const imageCache = new Map<string, HTMLImageElement>();
+const rotatedIconCache = new Map<string, string>();
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  const cached = imageCache.get(src);
+  if (cached?.complete) return Promise.resolve(cached);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
     };
-  }
+    img.onerror = () => reject(new Error(`Failed to load marker image: ${src}`));
+    img.src = src;
+  });
+}
 
+async function getRotatedVehicleIconUrl(src: string, headingDeg: number): Promise<string> {
+  const rounded = Math.round(headingDeg / 2) * 2; // 2° buckets — less cache churn, still smooth
+  const key = `${src}|${rounded}`;
+  const hit = rotatedIconCache.get(key);
+  if (hit) return hit;
+
+  const img = await loadImage(src);
+  const size = VEHICLE_ICON_SIZE * 2; // retina
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return src;
+
+  ctx.clearRect(0, 0, size, size);
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate((rounded * Math.PI) / 180);
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+
+  const url = canvas.toDataURL('image/png');
+  if (rotatedIconCache.size > 360) rotatedIconCache.clear();
+  rotatedIconCache.set(key, url);
+  return url;
+}
+
+function getStopMarkerIcon(marker: MapMarker): google.maps.Icon {
   const bg = marker.color ?? '#6366f1';
   const labelText = marker.label
     ? (marker.label.length <= 3 ? marker.label : marker.label.slice(0, 2))
@@ -88,8 +153,8 @@ function getMarkerIcon(marker: MapMarker): { url: string; scaledSize: { width: n
 
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: { width: size, height: size },
-    anchor: { x: size / 2, y: size / 2 },
+    scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(size / 2, size / 2),
   };
 }
 
@@ -112,6 +177,8 @@ export default function Map({
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const userHasPannedRef = useRef(false);
   const lastPannedCenterRef = useRef<[number, number] | null>(null);
+  /** Last known lat/lng/heading per marker — used when socket heading is missing. */
+  const lastMotionRef = useRef<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
 
   // Keep latest callbacks in refs so effects don't re-run on every render
   const onMapClickRef = useRef(onMapClick);
@@ -128,6 +195,33 @@ export default function Map({
     s.textContent = '@keyframes cort-ping{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.85}}';
     document.head.appendChild(s);
   }, []);
+
+  const resolveHeading = (marker: MapMarker): number => {
+    const [lat, lng] = marker.position;
+    const prev = lastMotionRef.current.get(marker.id);
+
+    let heading =
+      typeof marker.heading === 'number' && !Number.isNaN(marker.heading)
+        ? ((marker.heading % 360) + 360) % 360
+        : null;
+
+    if (heading == null && prev) {
+      const moved =
+        Math.abs(lat - prev.lat) > 1e-7 || Math.abs(lng - prev.lng) > 1e-7;
+      if (moved) {
+        const fromMotion = bearingDegrees(prev.lat, prev.lng, lat, lng);
+        const diff = shortestHeadingDiff(prev.heading, fromMotion);
+        heading = Math.abs(diff) > HEADING_JITTER_DEG ? fromMotion : prev.heading;
+      } else {
+        heading = prev.heading;
+      }
+    }
+
+    if (heading == null) heading = prev?.heading ?? 0;
+
+    lastMotionRef.current.set(marker.id, { lat, lng, heading });
+    return heading;
+  };
 
   // ── Initialise map (once) ─────────────────────────────────────────────────
   useEffect(() => {
@@ -166,6 +260,7 @@ export default function Map({
   // ── Sync markers (update in place when possible so live GPS doesn't rebuild the map) ─
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
+    let cancelled = false;
 
     const nextIds = new Set(markers.map((m) => m.id));
     const existingById = new globalThis.Map(gmMarkersRef.current.map((e) => [e.id, e.marker]));
@@ -175,51 +270,77 @@ export default function Map({
       if (!nextIds.has(id)) {
         marker.setMap(null);
         existingById.delete(id);
+        lastMotionRef.current.delete(id);
       }
     });
 
     const nextRefs: { marker: google.maps.Marker; id: string }[] = [];
 
+    const applyIcon = (gmMarker: google.maps.Marker, icon: google.maps.Icon) => {
+      gmMarker.setIcon(icon);
+    };
+
     markers.forEach((marker) => {
-      const icon = getMarkerIcon(marker);
       const existing = existingById.get(marker.id);
-      if (existing) {
-        existing.setPosition({ lat: marker.position[0], lng: marker.position[1] });
-        existing.setTitle(marker.label ?? '');
-        existing.setIcon({
-          url: icon.url,
-          scaledSize: new google.maps.Size(icon.scaledSize.width, icon.scaledSize.height),
-          anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
+      const gmMarker =
+        existing ??
+        new google.maps.Marker({
+          map: mapRef.current!,
+          position: { lat: marker.position[0], lng: marker.position[1] },
+          title: marker.label,
         });
-        nextRefs.push({ marker: existing, id: marker.id });
-        return;
+
+      gmMarker.setPosition({ lat: marker.position[0], lng: marker.position[1] });
+      gmMarker.setTitle(marker.label ?? '');
+
+      if (!existing) {
+        if (marker.label) {
+          const iw = infoWindowRef.current!;
+          gmMarker.addListener('click', () => {
+            const description = marker.description
+              ? `<div style="font-size:11px;color:#4b5563;margin-top:4px">${marker.description}</div>`
+              : '';
+            iw.setContent(
+              `<div style="font-size:12px;font-weight:600">${marker.label}</div>${description}`,
+            );
+            iw.open({ anchor: gmMarker, map: mapRef.current });
+            onMarkerClickRef.current?.(marker.id);
+          });
+        } else {
+          gmMarker.addListener('click', () => onMarkerClickRef.current?.(marker.id));
+        }
       }
 
-      const gmMarker = new google.maps.Marker({
-        map: mapRef.current!,
-        position: { lat: marker.position[0], lng: marker.position[1] },
-        title: marker.label,
-        icon: {
-          url: icon.url,
-          scaledSize: new google.maps.Size(icon.scaledSize.width, icon.scaledSize.height),
-          anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
-        },
-      });
-      if (marker.label) {
-        const iw = infoWindowRef.current!;
-        gmMarker.addListener('click', () => {
-          const description = marker.description
-            ? `<div style="font-size:11px;color:#4b5563;margin-top:4px">${marker.description}</div>`
-            : '';
-          iw.setContent(
-            `<div style="font-size:12px;font-weight:600">${marker.label}</div>${description}`,
-          );
-          iw.open({ anchor: gmMarker, map: mapRef.current });
-          onMarkerClickRef.current?.(marker.id);
+      if (isVehicleMarker(marker)) {
+        const heading = resolveHeading(marker);
+        const src = vehicleIconSrc(marker);
+        const size = VEHICLE_ICON_SIZE;
+        const rounded = Math.round(heading / 2) * 2;
+        const cacheKey = `${src}|${rounded}`;
+        const cachedUrl = rotatedIconCache.get(cacheKey);
+
+        applyIcon(gmMarker, {
+          url: cachedUrl ?? src,
+          scaledSize: new google.maps.Size(size, size),
+          anchor: new google.maps.Point(size / 2, size / 2),
         });
+
+        if (!cachedUrl) {
+          getRotatedVehicleIconUrl(src, heading)
+            .then((url) => {
+              if (cancelled) return;
+              applyIcon(gmMarker, {
+                url,
+                scaledSize: new google.maps.Size(size, size),
+                anchor: new google.maps.Point(size / 2, size / 2),
+              });
+            })
+            .catch(() => { /* keep unrotated fallback */ });
+        }
       } else {
-        gmMarker.addListener('click', () => onMarkerClickRef.current?.(marker.id));
+        applyIcon(gmMarker, getStopMarkerIcon(marker));
       }
+
       nextRefs.push({ marker: gmMarker, id: marker.id });
     });
 
@@ -236,6 +357,8 @@ export default function Map({
         mapRef.current.fitBounds(bounds, 40);
       }
     }
+
+    return () => { cancelled = true; };
   }, [mapReady, markers, center]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync polylines ────────────────────────────────────────────────────────
@@ -286,4 +409,3 @@ export default function Map({
     />
   );
 }
-

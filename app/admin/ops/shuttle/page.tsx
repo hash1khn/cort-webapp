@@ -277,7 +277,9 @@ function OpsShuttleContent() {
     if (!driverCoord) return null;
     return {
       id: 'driver',
+      type: 'shuttle',
       position: [driverCoord.lat, driverCoord.lng],
+      heading: driverCoord.heading,
       label: `Driver · ${driverCoord.speed !== undefined ? `${Math.round((driverCoord.speed ?? 0) * 3.6)} km/h` : 'live'}`,
     };
   }, [driverCoord]);

@@ -144,7 +144,9 @@ export default function CompanyRouteTrackingPage() {
         if (!driverCoord) return null;
         return {
             id: 'driver',
+            type: 'shuttle',
             position: [driverCoord.lat, driverCoord.lng],
+            heading: driverCoord.heading,
             label: driverCoord.speed !== undefined
                 ? t('driverLabel', { speed: `${Math.round((driverCoord.speed ?? 0) * 3.6)} km/h` })
                 : t('driverLive'),

@@ -296,6 +296,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 position: [lat, lng] as [number, number],
                 label: trip.label + (hasLive ? ' 🔴' : isPending ? ' ⏳' : ''),
                 type: trip.type,
+                heading: hasLive ? live.heading : undefined,
             }];
         });
     }, [trips, vehicleCoords, defaultCenter]);

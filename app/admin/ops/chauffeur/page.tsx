@@ -142,6 +142,7 @@ function OpsChauffeurContent() {
             if (b.driver_lat != null && b.driver_lng != null) {
                 markers.push({
                     id: `driver-${b.id}`,
+                    type: 'chauffeur',
                     position: [b.driver_lat, b.driver_lng],
                     label: `${b.driver_name ?? 'Driver'} · ${b.plate_number ?? '—'}\n${STATUS_LABELS[b.status] ?? b.status}`,
                     color: isSelected ? '#f47f00' : '#0C225E',
