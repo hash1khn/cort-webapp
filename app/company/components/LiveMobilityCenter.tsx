@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl';
 import {
     Users,
-    Bus,
-    Car,
     Calendar,
     AlertTriangle,
     Navigation,
@@ -105,8 +103,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const stats = [
         { label: t('activeRidesLabel'), value: mobility.activeRides, icon: <Navigation size={20} />, show: true },
         { label: t('employeesTravelingLabel'), value: mobility.employeesTraveling, icon: <Users size={20} />, show: true },
-        { label: t('shuttlesRunningLabel'), value: mobility.shuttlesRunning, icon: <Bus size={20} />, show: showShuttle },
-        { label: t('chauffeurRidesLabel'), value: mobility.chauffeurRides, icon: <Car size={20} />, show: showChauffeur },
+        { label: t('shuttlesRunningLabel'), value: mobility.shuttlesRunning, icon: <img src="/bus_birdeye.png" alt="" className="w-5 h-5 object-contain" />, show: showShuttle },
+        { label: t('chauffeurRidesLabel'), value: mobility.chauffeurRides, icon: <img src="/car_birdeye.png" alt="" className="w-5 h-5 object-contain" />, show: showChauffeur },
         { label: t('upcomingRidesLabel'), value: mobility.upcomingBookings, icon: <Calendar size={20} />, show: true },
     ].filter(s => s.show);
 

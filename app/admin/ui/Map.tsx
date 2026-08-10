@@ -61,22 +61,36 @@ function loadMaps(): Promise<void> {
   return mapsPromise;
 }
 
-/** Build an SVG string for use as a google.maps.Marker icon data URI */
-function makeMarkerSvg(marker: MapMarker): string {
+/** Build marker icon — birdeye PNGs for vehicles, SVG circle for stops/labels */
+function getMarkerIcon(marker: MapMarker): { url: string; scaledSize: { width: number; height: number }; anchor: { x: number; y: number } } {
   const type = marker.type ?? marker.id;
-  const isVehicle = type === 'driver' || type === 'chauffeur' || type === 'shuttle';
-  const bg = isVehicle ? '#f47f00' : (marker.color ?? '#6366f1');
-  const emoji = type === 'shuttle' ? '🚌' : isVehicle ? '🚗' : '';
-  const labelText = !isVehicle && marker.label
+  const isShuttle = type === 'shuttle';
+  const isVehicle = type === 'driver' || type === 'chauffeur' || isShuttle;
+
+  if (isVehicle) {
+    const size = 44;
+    return {
+      url: isShuttle ? '/bus_birdeye.png' : '/car_birdeye.png',
+      scaledSize: { width: size, height: size },
+      anchor: { x: size / 2, y: size / 2 },
+    };
+  }
+
+  const bg = marker.color ?? '#6366f1';
+  const labelText = marker.label
     ? (marker.label.length <= 3 ? marker.label : marker.label.slice(0, 2))
     : '';
   const size = 34;
-
-  return `<svg width="${size}" height="${size}" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
     <circle cx="17" cy="17" r="15" fill="${bg}" stroke="white" stroke-width="3"/>
-    ${emoji ? `<text x="17" y="22" font-size="14" text-anchor="middle" dominant-baseline="middle">${emoji}</text>` : ''}
     ${labelText ? `<text x="17" y="17" font-size="11" font-weight="700" fill="white" text-anchor="middle" dominant-baseline="middle">${labelText}</text>` : ''}
   </svg>`;
+
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: { width: size, height: size },
+    anchor: { x: size / 2, y: size / 2 },
+  };
 }
 
 export default function Map({
@@ -167,14 +181,15 @@ export default function Map({
     const nextRefs: { marker: google.maps.Marker; id: string }[] = [];
 
     markers.forEach((marker) => {
+      const icon = getMarkerIcon(marker);
       const existing = existingById.get(marker.id);
       if (existing) {
         existing.setPosition({ lat: marker.position[0], lng: marker.position[1] });
         existing.setTitle(marker.label ?? '');
         existing.setIcon({
-          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(makeMarkerSvg(marker))}`,
-          scaledSize: new google.maps.Size(34, 34),
-          anchor: new google.maps.Point(17, 17),
+          url: icon.url,
+          scaledSize: new google.maps.Size(icon.scaledSize.width, icon.scaledSize.height),
+          anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
         });
         nextRefs.push({ marker: existing, id: marker.id });
         return;
@@ -185,9 +200,9 @@ export default function Map({
         position: { lat: marker.position[0], lng: marker.position[1] },
         title: marker.label,
         icon: {
-          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(makeMarkerSvg(marker))}`,
-          scaledSize: new google.maps.Size(34, 34),
-          anchor: new google.maps.Point(17, 17),
+          url: icon.url,
+          scaledSize: new google.maps.Size(icon.scaledSize.width, icon.scaledSize.height),
+          anchor: new google.maps.Point(icon.anchor.x, icon.anchor.y),
         },
       });
       if (marker.label) {
