@@ -97,8 +97,8 @@ function shortestHeadingDiff(from: number, to: number): number {
   return ((to - from + 540) % 360) - 180;
 }
 
-const imageCache = new Map<string, HTMLImageElement>();
-const rotatedIconCache = new Map<string, string>();
+const imageCache = new globalThis.Map<string, HTMLImageElement>();
+const rotatedIconCache = new globalThis.Map<string, string>();
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   const cached = imageCache.get(src);
@@ -178,7 +178,7 @@ export default function Map({
   const userHasPannedRef = useRef(false);
   const lastPannedCenterRef = useRef<[number, number] | null>(null);
   /** Last known lat/lng/heading per marker — used when socket heading is missing. */
-  const lastMotionRef = useRef<Map<string, { lat: number; lng: number; heading: number }>>(new Map());
+  const lastMotionRef = useRef<globalThis.Map<string, { lat: number; lng: number; heading: number }>>(new globalThis.Map());
 
   // Keep latest callbacks in refs so effects don't re-run on every render
   const onMapClickRef = useRef(onMapClick);
