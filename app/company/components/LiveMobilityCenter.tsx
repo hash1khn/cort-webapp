@@ -22,13 +22,9 @@ import { selectDashboardStats } from '../../lib/store/slices/dashboardSlice';
 import { selectCompany } from '../../lib/store/slices/companySlice';
 import { useLiveMobilityTracking } from '../../lib/hooks/useLiveMobilityTracking';
 import type { MapMarker } from '../../admin/ui/Map';
-import {
-    DEMO_MAP_CENTER,
-    DEMO_MOBILITY_STATS,
-    getDemoEmployeesForTrip,
-    getDemoMobilityTrips,
-    isDemoTripId,
-} from '../data/mobilityDemoData';
+
+/** Initial map viewport before the first fetch resolves. */
+const DEFAULT_MAP_CENTER: [number, number] = [24.8607, 67.0011];
 
 // Dynamic import for Map to avoid SSR issues with Leaflet
 function MapLoading() {
@@ -65,8 +61,6 @@ interface TripEntry {
     restLng: number | null;
     /** Full raw trip object — shuttles only, used for the click detail panel */
     rawTrip?: any;
-    /** Demo-only onboard employees */
-    mockEmployees?: any[];
 }
 
 const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
@@ -80,11 +74,10 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     const [trips, setTrips] = useState<TripEntry[]>([]);
     const [tripsLoading, setTripsLoading] = useState(true);
     const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-    const [defaultCenter, setDefaultCenter] = useState<[number, number]>(DEMO_MAP_CENTER);
+    const [defaultCenter, setDefaultCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
     const [selectedShuttleTrip, setSelectedShuttleTrip] = useState<any | null>(null);
     const [tripEmployees, setTripEmployees] = useState<any[]>([]);
     const [tripEmployeesLoading, setTripEmployeesLoading] = useState(false);
-    const [isDemoMode, setIsDemoMode] = useState(false);
 
     // Clock tick
     useEffect(() => {
@@ -95,11 +88,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
     // ── Service gates ──────────────────────────────────────────────────────────
     const hasShuttle = company?.services_enabled?.shuttle_enabled ?? false;
     const hasChauffeur = company?.services_enabled?.chauffeur_enabled ?? false;
-    const showShuttle = hasShuttle || isDemoMode;
-    const showChauffeur = hasChauffeur || isDemoMode;
+    const showShuttle = hasShuttle;
+    const showChauffeur = hasChauffeur;
 
-    // ── Real counters from mobility block (demo overrides when no live trips) ─
-    const mobility = isDemoMode ? DEMO_MOBILITY_STATS : (dashboardStats?.mobility ?? data);
+    // ── Real counters from mobility block ──────────────────────────────────────
+    const mobility = dashboardStats?.mobility ?? data;
     const stats = [
         { label: t('activeRidesLabel'), value: mobility.activeRides, icon: <Navigation size={20} />, show: true },
         { label: t('employeesTravelingLabel'), value: mobility.employeesTraveling, icon: <Users size={20} />, show: true },
@@ -238,24 +231,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 }
             }
 
-            if (collected.length === 0) {
-                const demoTrips = getDemoMobilityTrips({ hasShuttle, hasChauffeur });
-                setTrips(demoTrips);
-                setIsDemoMode(true);
-                const firstWithCoords = demoTrips.find((dt) => dt.restLat && dt.restLng);
-                if (firstWithCoords) {
-                    setDefaultCenter([firstWithCoords.restLat, firstWithCoords.restLng]);
-                }
-            } else {
-                setTrips(collected);
-                setIsDemoMode(false);
-            }
+            setTrips(collected);
             setLastRefreshed(new Date());
         } catch (err) {
             console.error('[LiveMobilityCenter] fetchActiveTrips error', err);
-            const demoTrips = getDemoMobilityTrips({ hasShuttle, hasChauffeur });
-            setTrips(demoTrips);
-            setIsDemoMode(true);
+            setTrips([]);
         } finally {
             setTripsLoading(false);
         }
@@ -269,10 +249,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
 
     // ── Live socket tracking ───────────────────────────────────────────────────
     // Stable reference: only re-create when the set of ids/types changes.
-    // Demo trips (negative IDs) are excluded — no Redis seed / socket rooms for mocks.
     const trackingInput = useMemo(
         () => trips
-            .filter((t) => !isDemoTripId(t.id))
             .map((t) => ({ id: t.id, type: t.type, lastLat: t.restLat, lastLng: t.restLng })),
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [trips.map((t) => `${t.type}:${t.id}:${t.restLat ?? ''}:${t.restLng ?? ''}`).join(',')],
@@ -347,12 +325,6 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
         setTripEmployees([]);
         setTripEmployeesLoading(true);
 
-        if (isDemoTripId(tripId)) {
-            setTripEmployees(entry.mockEmployees ?? getDemoEmployeesForTrip(tripId));
-            setTripEmployeesLoading(false);
-            return;
-        }
-
         try {
             const data = await apiClient.request<any[]>(`/shuttle-trips/${tripId}/employees`);
             setTripEmployees(Array.isArray(data) ? data : []);
@@ -396,21 +368,14 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 sm:gap-4">
-                    {/* Socket live / demo indicator */}
-                    {isDemoMode ? (
-                        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border-amber-500/30 text-amber-400">
-                            <Radio size={11} className="text-amber-400 shrink-0" />
-                            {t('demoData')}
-                        </div>
-                    ) : (
-                        <div className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-colors
-                            ${isConnected
-                                ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                                : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
-                            <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
-                            {isConnected ? t('live') : t('connecting')}
-                        </div>
-                    )}
+                    {/* Socket live indicator */}
+                    <div className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-colors
+                        ${isConnected
+                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                            : 'bg-white/5 border-[var(--border-input)] text-[var(--text-muted)]'}`}>
+                        <Radio size={11} className={isConnected ? 'text-green-400' : 'text-[var(--text-muted)]'} />
+                        {isConnected ? t('live') : t('connecting')}
+                    </div>
 
                     <div className="flex items-center gap-2 sm:gap-4">
                         <div className="flex flex-col items-end">
@@ -475,13 +440,11 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <span className="text-[9px] sm:text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider truncate">
                                     {tripsLoading
                                         ? t('syncing')
-                                        : isDemoMode
-                                            ? t('demoVehiclesOnMap', { count: trips.length })
-                                            : liveCount > 0
-                                                ? t('vehiclesLive', { count: liveCount })
-                                                : trips.length > 0
-                                                    ? t('tripsTracked', { count: trips.length })
-                                                    : t('noActiveTrips')}
+                                        : liveCount > 0
+                                            ? t('vehiclesLive', { count: liveCount })
+                                            : trips.length > 0
+                                                ? t('tripsTracked', { count: trips.length })
+                                                : t('noActiveTrips')}
                                 </span>
                             </div>
                             {lastRefreshed && (
@@ -570,7 +533,7 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                 <div className="flex-1 overflow-y-auto">
                                     <div className="px-4 py-2.5 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
                                         <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">
-                                            {isDemoMode ? t('onboardPassengers') : t('assignedEmployees')}
+                                            {t('assignedEmployees')}
                                         </span>
                                     </div>
                                     <div className="p-3 space-y-2">
@@ -677,11 +640,8 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                     <span className="text-[9px] text-green-400 font-black uppercase tracking-wider">{t('socketLive')}</span>
                                 </div>
                             )}
-                            {trips.length === 0 && !tripsLoading && !isDemoMode && (
+                            {trips.length === 0 && !tripsLoading && (
                                 <p className="text-[9px] text-[var(--text-muted)] font-bold mt-1">{t('noTripsToday')}</p>
-                            )}
-                            {isDemoMode && (
-                                <p className="text-[9px] text-amber-400/80 font-bold mt-1">{t('sampleFleetData')}</p>
                             )}
                         </div>
                     </div>
@@ -755,7 +715,6 @@ const LiveMobilityCenter = ({ data }: LiveMobilityCenterProps) => {
                                             {showShuttle && shuttleCount > 0 && showChauffeur && chauffeurCount > 0 && ' · '}
                                             {showChauffeur && chauffeurCount > 0 && t('onMapChauffeur', { count: chauffeurCount })}
                                             {liveCount > 0 && t('onMapLive', { count: liveCount })}
-                                            {isDemoMode && ` · ${t('sampleFleetData').toLowerCase()}`}
                                         </div>
                                     </div>
                                 </div>
