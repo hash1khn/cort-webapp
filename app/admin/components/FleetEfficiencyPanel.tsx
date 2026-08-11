@@ -29,6 +29,8 @@ type ShuttleMetric = {
   fuel_variance_pct: string | null;
   actual_distance_km: string | null;
   planned_distance_km: string | null;
+  vehicles: { plate_number: string; make: string | null; model: string | null } | null;
+  shuttle_trips: { users: { full_name: string } | null } | null;
 };
 
 type RouteComparison = {
@@ -197,6 +199,13 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
   const [recentMetrics, setRecentMetrics] = useState<ShuttleMetric[]>([]);
   const [fuelFlags, setFuelFlags] = useState<FuelFlag[]>([]);
 
+  // Recent shuttle trips date filter (yyyy-mm-dd). Draft values are edited freely;
+  // fromDate/toDate (applied) only change — and trigger a refetch — on "Apply".
+  const [fromDateDraft, setFromDateDraft] = useState('');
+  const [toDateDraft, setToDateDraft] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   // Chauffeur state
   const [chauffeurUtil, setChauffeurUtil] = useState<{ summary: ChauffeurUtilizationSummary; bookings: ChauffeurUtilizationRow[] } | null>(null);
 
@@ -239,9 +248,14 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       if (!isAi) return;
 
       // 2. Fetch only what's enabled
+      const dateParams = new URLSearchParams();
+      if (fromDate) dateParams.set('from', fromDate);
+      if (toDate) dateParams.set('to', toDate);
+      const dateQuery = dateParams.toString() ? `?${dateParams.toString()}` : '';
+
       const fetches = await Promise.allSettled([
         isShuttle
-          ? apiClient.request<{ summary: ShuttleMetricsSummary; metrics: ShuttleMetric[] }>(`/admin/companies/${companyId}/shuttle-metrics`)
+          ? apiClient.request<{ summary: ShuttleMetricsSummary; metrics: ShuttleMetric[] }>(`/admin/companies/${companyId}/shuttle-metrics${dateQuery}`)
           : Promise.resolve(null),
         isShuttle
           ? apiClient.request<FuelFlag[]>(`/admin/companies/${companyId}/fuel-variance?flagged_only=true`)
@@ -259,7 +273,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setSummary(metricsRes.value.summary);
-        setRecentMetrics(metricsRes.value.metrics.slice(0, 10));
+        setRecentMetrics(metricsRes.value.metrics.slice(0, 25));
       }
       if (fuelRes.status === 'fulfilled' && fuelRes.value) setFuelFlags(fuelRes.value);
       if (insightsRes.status === 'fulfilled') setInsights(insightsRes.value);
@@ -268,7 +282,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, fromDate, toDate]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -302,6 +316,21 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       setGenerating(false);
     }
   };
+
+  const applyDateFilter = () => {
+    setFromDate(fromDateDraft);
+    setToDate(toDateDraft);
+  };
+
+  const clearDateFilter = () => {
+    setFromDateDraft('');
+    setToDateDraft('');
+    setFromDate('');
+    setToDate('');
+  };
+
+  const dateFilterDirty = fromDateDraft !== fromDate || toDateDraft !== toDate;
+  const dateFilterActive = fromDate !== '' || toDate !== '';
 
   if (loading) {
     return (
@@ -428,15 +457,62 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
             )}
 
             {/* Recent shuttle trips + map */}
-            {recentMetrics.length > 0 && (
-              <section>
-                <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Recent Shuttle Trips</h3>
+            <section>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Recent Shuttle Trips</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                    From
+                    <input
+                      type="date"
+                      value={fromDateDraft}
+                      max={toDateDraft || undefined}
+                      onChange={(e) => setFromDateDraft(e.target.value)}
+                      className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                    To
+                    <input
+                      type="date"
+                      value={toDateDraft}
+                      min={fromDateDraft || undefined}
+                      onChange={(e) => setToDateDraft(e.target.value)}
+                      className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                    />
+                  </label>
+                  <button
+                    onClick={applyDateFilter}
+                    disabled={!dateFilterDirty}
+                    className="rounded-md bg-[#f47f00] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#d96f00] disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                  {(dateFilterActive || dateFilterDirty) && (
+                    <button
+                      onClick={clearDateFilter}
+                      className="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)] underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {recentMetrics.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">
+                  {dateFilterActive ? 'No shuttle trips found in the selected date range.' : 'No shuttle trips recorded yet.'}
+                </p>
+              ) : (
+              <>
                 <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)]">
                   <table className="min-w-full text-sm divide-y divide-gray-100">
                     <thead className="bg-[var(--bg-subtle)] text-xs text-[var(--text-muted)] uppercase">
                       <tr>
                         <th className="px-4 py-3 text-left">Date</th>
                         <th className="px-4 py-3 text-left">Dir</th>
+                        <th className="px-4 py-3 text-left">Vehicle</th>
+                        <th className="px-4 py-3 text-left">Driver</th>
                         <th className="px-4 py-3 text-right">Occupancy</th>
                         <th className="px-4 py-3 text-right">Detour</th>
                         <th className="px-4 py-3 text-right">Idle (min)</th>
@@ -449,6 +525,13 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                         <tr key={m.id} className={`hover:bg-[var(--bg-subtle)]/50 ${selectedTripForMap === m.shuttle_trip_id ? 'bg-blue-50/40' : ''}`}>
                           <td className="px-4 py-2.5">{new Date(m.trip_date).toLocaleDateString()}</td>
                           <td className="px-4 py-2.5 text-[var(--text-muted)]">{m.direction}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="font-medium text-[var(--text-primary)]">{m.vehicles?.plate_number ?? '—'}</div>
+                            {(m.vehicles?.make || m.vehicles?.model) && (
+                              <div className="text-xs text-[var(--text-muted)]">{[m.vehicles?.make, m.vehicles?.model].filter(Boolean).join(' ')}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-[var(--text-secondary)]">{m.shuttle_trips?.users?.full_name ?? '—'}</td>
                           <td className={`px-4 py-2.5 text-right ${m.occupancy_pct && parseFloat(m.occupancy_pct) < 50 ? 'text-orange-500' : 'text-[var(--text-primary)]'}`}>
                             {pct(m.occupancy_pct)}
                           </td>
@@ -505,8 +588,9 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                     )}
                   </div>
                 )}
-              </section>
-            )}
+              </>
+              )}
+            </section>
           </div>
         )}
       </div>
