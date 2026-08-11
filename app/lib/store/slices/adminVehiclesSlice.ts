@@ -375,6 +375,18 @@ export const deleteMaintenanceRecord = createAsyncThunk(
 );
 
 
+export const markMaintenanceRecordAsPaid = createAsyncThunk(
+    'adminVehicles/markMaintenanceRecordAsPaid',
+    async (id: number, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.markMaintenanceRecordAsPaid(id);
+            return response.data;
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to mark maintenance record as paid');
+        }
+    }
+);
+
 export const adminVehiclesSlice = createSlice({
     name: 'adminVehicles',
     initialState,
@@ -539,7 +551,17 @@ export const adminVehiclesSlice = createSlice({
                 if (!action.payload.requiresApproval) {
                     state.maintenanceRecords = state.maintenanceRecords.filter(r => r.id !== action.payload.id);
                 }
-            });
+            })
+
+            .addCase(markMaintenanceRecordAsPaid.pending, (state) => { state.maintenanceActionStatus = 'loading'; })
+            .addCase(markMaintenanceRecordAsPaid.fulfilled, (state, action) => {
+                state.maintenanceActionStatus = 'succeeded';
+                const index = state.maintenanceRecords.findIndex(r => r.id === action.payload.id);
+                if (index !== -1) {
+                    state.maintenanceRecords[index] = { ...state.maintenanceRecords[index], ...action.payload };
+                }
+            })
+            .addCase(markMaintenanceRecordAsPaid.rejected, (state, action) => { state.maintenanceActionStatus = 'failed'; state.maintenanceActionError = action.payload as string; });
     },
 });
 

@@ -13,6 +13,7 @@ import {
     createMaintenanceRecord,
     updateMaintenanceRecord,
     deleteMaintenanceRecord,
+    markMaintenanceRecordAsPaid,
     fetchAdminVehicles,
     selectMaintenanceRecords,
     selectUpcomingMaintenance,
@@ -154,6 +155,16 @@ function MaintenancePageContent() {
             }
         } catch (err: any) {
             toast.error(err || "Failed to delete maintenance record");
+        }
+    };
+
+    const handleMarkAsPaid = async (record: MaintenanceRecord) => {
+        if (!confirm("Mark this maintenance record as paid?")) return;
+        try {
+            await dispatch(markMaintenanceRecordAsPaid(record.id)).unwrap();
+            toast.success("Maintenance record marked as paid");
+        } catch (err: any) {
+            toast.error(err || "Failed to mark maintenance record as paid");
         }
     };
 
@@ -378,6 +389,7 @@ function MaintenancePageContent() {
                                 <th className="px-4 py-3 text-right">Odometer</th>
                                 <th className="px-4 py-3 text-right">Next Service</th>
                                 <th className="px-4 py-3 text-right">Cost</th>
+                                <th className="px-4 py-3 text-left">Payment Status</th>
                                 <th className="px-4 py-3 text-left">Added By</th>
                                 <th className="px-4 py-3 text-right">Actions</th>
                             </tr>
@@ -402,6 +414,12 @@ function MaintenancePageContent() {
                                     <td className="px-4 py-3 text-right font-medium text-blue">
                                         {r.cost ? `PKR ${Number(r.cost).toFixed(2)}` : '-'}
                                     </td>
+                                    <td className="px-4 py-3">
+                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.payment_status === "PAID" ? "bg-success/10 text-success" : "bg-orange/10 text-orange"
+                                            }`}>
+                                            {r.payment_status || "UNPAID"}
+                                        </span>
+                                    </td>
                                     <td className="px-4 py-3 text-muted">{r.added_by_name || "—"}</td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
@@ -413,6 +431,16 @@ function MaintenancePageContent() {
                                             >
                                                 Edit
                                             </button>
+                                            {r.payment_status !== "PAID" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleMarkAsPaid(r)}
+                                                    disabled={!canUpdate}
+                                                    className="inline-flex h-8 items-center justify-center rounded-md border border-border bg-white px-3 text-xs font-medium text-success hover:bg-success/5 disabled:opacity-50 disabled:pointer-events-none"
+                                                >
+                                                    Mark as Paid
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => handleDelete(r)}
@@ -427,14 +455,14 @@ function MaintenancePageContent() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         No maintenance records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>

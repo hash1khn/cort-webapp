@@ -108,6 +108,8 @@ export interface MaintenanceRecord {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    payment_status?: "PAID" | "UNPAID" | string;
+    paid_at?: string | null;
     created_by?: string | null;
     added_by_name?: string | null;
     vehicles?: {

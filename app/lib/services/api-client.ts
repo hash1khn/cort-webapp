@@ -1459,6 +1459,12 @@ class ApiClient {
         return this.request<UpcomingMaintenanceResponse>('/vehicle-maintenance/upcoming');
     }
 
+    async markMaintenanceRecordAsPaid(id: number): Promise<MaintenanceRecordResponse> {
+        return this.request<MaintenanceRecordResponse>(`/vehicle-maintenance/${id}/pay`, {
+            method: 'POST',
+        });
+    }
+
     // ===== COMPANY FEATURES =====
 
     async getCompanyFeatures(companyId: number) {
