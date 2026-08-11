@@ -24,6 +24,8 @@ export interface Expense {
     created_at: string;
     updated_at: string;
     booking_id: number | null;
+    created_by?: string | null;
+    added_by_name?: string | null;
 }
 
 export interface CreateExpenseRequest {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "../../../lib/store/hooks";
+import { useAuth } from "../../../lib/contexts/auth-context";
 import { PermissionGate } from "../../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
@@ -56,6 +57,7 @@ const toLocalDateInputValue = (date: Date) => {
 
 function FuelingPageContent() {
     const dispatch = useAppDispatch();
+    const { user, isSuperAdmin } = useAuth();
     const ability = useAdminAbility();
     const canCreate = ability.can("create", ADMIN_SUBJECTS.fuel_records);
     const canUpdate = ability.can("update", ADMIN_SUBJECTS.fuel_records);
@@ -144,9 +146,23 @@ function FuelingPageContent() {
         dispatch(updateFuelRecord({ id: selectedRecord.id, data: formData as UpdateFuelRecordRequest }));
     };
 
-    const handleDelete = (record: FuelRecord) => {
-        if (!confirm(`Are you sure you want to delete this fuel record?`)) return;
-        dispatch(deleteFuelRecord(record.id));
+    const handleDelete = async (record: FuelRecord) => {
+        const isOwner = isSuperAdmin || record.created_by === user?.id;
+        const confirmMessage = isOwner
+            ? "Are you sure you want to delete this fuel record?"
+            : "You didn't add this record. Deleting it will send a request to the super admin for approval. Continue?";
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            const result = await dispatch(deleteFuelRecord(record.id)).unwrap();
+            if (result.requiresApproval) {
+                toast.success(result.message || "Delete request sent for super admin approval");
+            } else {
+                toast.success("Fuel record deleted");
+            }
+        } catch (err: any) {
+            toast.error(err || "Failed to delete fuel record");
+        }
     };
 
     const handleBulkPay = () => {
@@ -512,6 +528,7 @@ function FuelingPageContent() {
                                 <th className="px-4 py-3 text-right">Rate (PKR/L)</th>
                                 <th className="px-4 py-3 text-right">Total Cost</th>
                                 <th className="px-4 py-3 text-center">Status</th>
+                                <th className="px-4 py-3 text-left">Added By</th>
                                 <th className="px-4 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -565,6 +582,7 @@ function FuelingPageContent() {
                                             {r.billed ? "Paid" : "Unpaid"}
                                         </span>
                                     </td>
+                                    <td className="px-4 py-3 text-muted">{r.added_by_name || "—"}</td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
@@ -589,14 +607,14 @@ function FuelingPageContent() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={11} className="px-4 py-8 text-center text-muted">
                                         No fuel records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={10} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={11} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>

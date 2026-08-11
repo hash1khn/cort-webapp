@@ -37,6 +37,7 @@ import { useAuth } from "../../lib/contexts/auth-context";
 import { PermissionKey } from "../../lib/types/auth-types";
 import { BookingNotificationProvider } from "../components/BookingNotificationProvider";
 import { BenchmarkChangeRequestAlertProvider } from "../components/BenchmarkChangeRequestAlertProvider";
+import { DeleteRequestsBell } from "../components/DeleteRequestsBell";
 import { cx } from "../components/ui/cx";
 import { useAdminTheme } from "../lib/theme-context";
 
@@ -192,6 +193,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <div className="my-2 border-t border-[var(--nav-border)]" />
+          <DeleteRequestsBell collapsed={collapsed && !isMobile} />
         </nav>
       </div>
 

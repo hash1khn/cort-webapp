@@ -1,7 +1,7 @@
 // Barrel file — re-exports all domain types for convenient imports
 
 // Common
-export type { PaginatedResponse } from './common';
+export type { PaginatedResponse, DeleteRecordResult } from './common';
 
 // Auth (re-export from existing auth-types)
 export type { LoginRequest, LoginResponse, ProfileResponse, SignupRequest } from '../../types/auth-types';

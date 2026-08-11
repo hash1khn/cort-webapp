@@ -48,6 +48,8 @@ export interface FuelRecord {
     created_at: string;
     updated_at: string;
     booking_id?: number | null;
+    created_by?: string | null;
+    added_by_name?: string | null;
     vehicles?: {
         id: number;
         plate_number: string;
@@ -106,6 +108,8 @@ export interface MaintenanceRecord {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    created_by?: string | null;
+    added_by_name?: string | null;
     vehicles?: {
         id: number;
         plate_number: string;

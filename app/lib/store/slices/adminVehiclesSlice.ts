@@ -276,8 +276,12 @@ export const deleteFuelRecord = createAsyncThunk(
     'adminVehicles/deleteFuelRecord',
     async (id: number, { rejectWithValue }) => {
         try {
-            await apiClient.deleteFuelRecord(id);
-            return id;
+            const response = await apiClient.deleteFuelRecord(id);
+            return {
+                id,
+                requiresApproval: response.data?.requiresApproval ?? false,
+                message: response.data?.message,
+            };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to delete fuel record');
         }
@@ -358,8 +362,12 @@ export const deleteMaintenanceRecord = createAsyncThunk(
     'adminVehicles/deleteMaintenanceRecord',
     async (id: number, { rejectWithValue }) => {
         try {
-            await apiClient.deleteMaintenanceRecord(id);
-            return id;
+            const response = await apiClient.deleteMaintenanceRecord(id);
+            return {
+                id,
+                requiresApproval: response.data?.requiresApproval ?? false,
+                message: response.data?.message,
+            };
         } catch (err: any) {
             return rejectWithValue(err.message || 'Failed to delete maintenance record');
         }
@@ -485,7 +493,9 @@ export const adminVehiclesSlice = createSlice({
             .addCase(updateFuelRecord.rejected, (state, action) => { state.fuelActionStatus = 'failed'; state.fuelActionError = action.payload as string; })
 
             .addCase(deleteFuelRecord.fulfilled, (state, action) => {
-                state.fuelRecords = state.fuelRecords.filter(r => r.id !== action.payload);
+                if (!action.payload.requiresApproval) {
+                    state.fuelRecords = state.fuelRecords.filter(r => r.id !== action.payload.id);
+                }
             })
 
             .addCase(markFuelRecordsAsPaid.pending, (state) => { state.fuelActionStatus = 'loading'; })
@@ -526,7 +536,9 @@ export const adminVehiclesSlice = createSlice({
             .addCase(updateMaintenanceRecord.rejected, (state, action) => { state.maintenanceActionStatus = 'failed'; state.maintenanceActionError = action.payload as string; })
 
             .addCase(deleteMaintenanceRecord.fulfilled, (state, action) => {
-                state.maintenanceRecords = state.maintenanceRecords.filter(r => r.id !== action.payload);
+                if (!action.payload.requiresApproval) {
+                    state.maintenanceRecords = state.maintenanceRecords.filter(r => r.id !== action.payload.id);
+                }
             });
     },
 });

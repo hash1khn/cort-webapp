@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { format, parse } from "date-fns";
+import { toast } from "sonner";
 import {
     ExpensesApi,
     Expense,
@@ -9,6 +10,7 @@ import {
     CreateExpenseRequest,
     UpdateExpenseRequest,
 } from "../../lib/services/api-client";
+import { useAuth } from "../../lib/contexts/auth-context";
 import { PermissionGate } from "../components/PermissionGate";
 import { AdminCan, useAdminAbility } from "../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../lib/abilities/admin-subjects";
@@ -63,6 +65,7 @@ export default function ExpensesPage() {
 }
 
 function ExpensesPageContent() {
+    const { user, isSuperAdmin } = useAuth();
     const ability = useAdminAbility();
     const canCreate = ability.can("create", ADMIN_SUBJECTS.expenses);
     const canUpdate = ability.can("update", ADMIN_SUBJECTS.expenses);
@@ -156,10 +159,25 @@ function ExpensesPageContent() {
         fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this expense?")) return;
-        await ExpensesApi.delete(id);
-        fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
+    const handleDelete = async (expense: Expense) => {
+        const isOwner = isSuperAdmin || expense.created_by === user?.id;
+        const confirmMessage = isOwner
+            ? "Are you sure you want to delete this expense?"
+            : "You didn't add this record. Deleting it will send a request to the super admin for approval. Continue?";
+        if (!confirm(confirmMessage)) return;
+
+        try {
+            const response = await ExpensesApi.delete(expense.id);
+            const result = (response as any)?.data;
+            if (result?.requiresApproval) {
+                toast.success(result.message || "Delete request sent for super admin approval");
+            } else {
+                toast.success("Expense deleted");
+            }
+            fetchExpenses(currentPage, filterStartDate, filterEndDate, filterCategory);
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to delete expense");
+        }
     };
 
     const handleMarkAsPaid = async (id: number) => {
@@ -290,6 +308,9 @@ function ExpensesPageContent() {
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Paid At
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                Added By
+                            </th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                                 Amount
                             </th>
@@ -301,21 +322,21 @@ function ExpensesPageContent() {
                     <tbody className="divide-y divide-gray-200 bg-white">
                         {isLoading && (
                             <tr>
-                                <td colSpan={7} className="p-4 text-center text-sm text-gray-500">
+                                <td colSpan={8} className="p-4 text-center text-sm text-gray-500">
                                     Loading expenses...
                                 </td>
                             </tr>
                         )}
                         {error && (
                             <tr>
-                                <td colSpan={7} className="p-4 text-center text-sm text-red-500">
+                                <td colSpan={8} className="p-4 text-center text-sm text-red-500">
                                     {error}
                                 </td>
                             </tr>
                         )}
                         {!isLoading && !expenses?.length && (
                             <tr>
-                                <td colSpan={7} className="p-4 text-center text-sm text-gray-500">
+                                <td colSpan={8} className="p-4 text-center text-sm text-gray-500">
                                     No expenses found.
                                 </td>
                             </tr>
@@ -352,6 +373,9 @@ function ExpensesPageContent() {
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                     {expense.paid_at ? format(new Date(expense.paid_at), "MMM d, HH:mm") : "-"}
                                 </td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                                    {expense.added_by_name || "—"}
+                                </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
                                     {Number(expense.amount).toLocaleString()}
                                 </td>
@@ -376,7 +400,7 @@ function ExpensesPageContent() {
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => handleDelete(expense.id)}
+                                        onClick={() => handleDelete(expense)}
                                         disabled={!canDelete}
                                         className="text-red-600 hover:text-red-900 ml-4 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                                     >

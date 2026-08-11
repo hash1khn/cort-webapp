@@ -1,6 +1,7 @@
 import { LoginRequest, LoginResponse, ProfileResponse, SignupRequest, StaffPermissions } from '../types/auth-types';
 import {
     PaginatedResponse,
+    DeleteRecordResult,
     // Multi-mode platform
     Pagination,
     CompanyFeature,
@@ -1398,7 +1399,7 @@ class ApiClient {
         });
     }
 
-    async deleteFuelRecord(id: number): Promise<{ data: { message: string }; statusCode: number; message: string }> {
+    async deleteFuelRecord(id: number): Promise<{ data: DeleteRecordResult; statusCode: number; message: string }> {
         return this.request(`/vehicle-fuel/${id}`, {
             method: 'DELETE',
         });
@@ -1448,7 +1449,7 @@ class ApiClient {
         });
     }
 
-    async deleteMaintenanceRecord(id: number): Promise<{ data: { message: string }; statusCode: number; message: string }> {
+    async deleteMaintenanceRecord(id: number): Promise<{ data: DeleteRecordResult; statusCode: number; message: string }> {
         return this.request(`/vehicle-maintenance/${id}`, {
             method: 'DELETE',
         });
@@ -2171,7 +2172,7 @@ export const ExpensesApi = {
     },
 
     delete: async (id: number) => {
-        return apiClient.request<void>(`/expenses/${id}`, {
+        return apiClient.request<{ data: DeleteRecordResult; statusCode: number; message: string }>(`/expenses/${id}`, {
             method: 'DELETE',
         });
     },
