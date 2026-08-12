@@ -87,6 +87,7 @@ function FuelingPageContent() {
     // Form Data
     const [formData, setFormData] = useState<Omit<Partial<CreateFuelRecordRequest>, 'booking_id'> & { booking_id?: number | null }>({});
     const [taggedBooking, setTaggedBooking] = useState<TaggedBooking | null>(null);
+    const [previousOdometer, setPreviousOdometer] = useState<number | null>(null);
 
     const loadData = useCallback(() => {
         const params: QueryFuelRecordParams = { limit: 100 };
@@ -132,6 +133,35 @@ function FuelingPageContent() {
             dispatch(resetFuelActionStatus());
         }
     }, [actionStatus, dispatch, loadData]);
+
+    useEffect(() => {
+        if (!isModalOpen || !formData.vehicle_id) {
+            setPreviousOdometer(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await apiClient.getPreviousFuelOdometer({
+                    vehicle_id: formData.vehicle_id!,
+                    before_record_id: modalMode === "edit" && selectedRecord ? selectedRecord.id : undefined,
+                });
+                if (!cancelled) {
+                    setPreviousOdometer(
+                        res.data?.odometer_reading != null ? Number(res.data.odometer_reading) : null,
+                    );
+                }
+            } catch {
+                if (!cancelled) setPreviousOdometer(null);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isModalOpen, formData.vehicle_id, modalMode, selectedRecord?.id]);
 
     const handleCreate = () => {
         if (!formData.vehicle_id || !formData.date || !formData.fuel_litres || !formData.current_fuel_rate) {
@@ -233,6 +263,7 @@ function FuelingPageContent() {
         setSelectedRecord(null);
         setFormData({});
         setTaggedBooking(null);
+        setPreviousOdometer(null);
     };
 
     const renderForm = () => (
@@ -298,19 +329,13 @@ function FuelingPageContent() {
                     className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
                     placeholder="45230"
                 />
-                {(() => {
-                    if (!formData.vehicle_id) return null;
-                    const prev = records
-                        .filter(r => r.vehicle_id === formData.vehicle_id && r.odometer_reading != null
-                            && !(modalMode === 'edit' && selectedRecord && r.id === selectedRecord.id))
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                    if (!prev?.odometer_reading) return null;
+                {previousOdometer != null && (() => {
                     const kmDriven = formData.odometer_reading
-                        ? Number(formData.odometer_reading) - Number(prev.odometer_reading)
+                        ? Number(formData.odometer_reading) - previousOdometer
                         : null;
                     return (
                         <div className="text-xs text-muted">
-                            Last reading: <span className="font-semibold text-ink">{Number(prev.odometer_reading).toLocaleString()} km</span>
+                            Last reading: <span className="font-semibold text-ink">{previousOdometer.toLocaleString()} km</span>
                             {kmDriven != null && kmDriven > 0 && (
                                 <> &mdash; <span className="text-blue font-semibold">{kmDriven.toLocaleString()} km driven</span>
                                 {formData.fuel_litres && formData.fuel_litres > 0 && (
@@ -380,38 +405,18 @@ function FuelingPageContent() {
     const unpaidRecordsCount = records.filter(r => !r.billed).length;
     const isAllSelected = unpaidRecordsCount > 0 && selectedIds.length === unpaidRecordsCount;
 
-    // --- Fuel efficiency per record ---
-    // For each record that has an odometer reading, compute km driven since the
-    // previous fill for the same vehicle and derive km/L.
-    const efficiencyMap = useMemo(() => {
-        const withOdo = [...records].filter(r => r.odometer_reading != null);
-        // Sort ascending by vehicle then date so we can walk forward
-        withOdo.sort((a, b) => {
-            if (a.vehicle_id !== b.vehicle_id) return a.vehicle_id - b.vehicle_id;
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-        });
-        const map = new Map<number, { kmDriven: number; kmPerLitre: number; prevOdometer: number }>();
-        const lastOdo = new Map<number, number>(); // vehicle_id → last odometer
-        for (const r of withOdo) {
-            const prev = lastOdo.get(r.vehicle_id);
-            const odo = Number(r.odometer_reading);
-            if (prev !== undefined) {
-                const kmDriven = odo - prev;
-                const litres = Number(r.fuel_litres);
-                if (kmDriven > 0 && litres > 0) {
-                    map.set(r.id, { kmDriven, kmPerLitre: kmDriven / litres, prevOdometer: prev });
-                }
-            }
-            lastOdo.set(r.vehicle_id, odo);
-        }
-        return map;
-    }, [records]);
-
     const avgEfficiency = useMemo(() => {
-        const vals = Array.from(efficiencyMap.values()).map(v => v.kmPerLitre);
+        const vals = records
+            .map((r) => r.mileage_km_per_litre)
+            .filter((v): v is number => v != null && v > 0);
         if (vals.length === 0) return null;
         return vals.reduce((s, v) => s + v, 0) / vals.length;
-    }, [efficiencyMap]);
+    }, [records]);
+
+    const mileageIntervalCount = useMemo(
+        () => records.filter((r) => r.mileage_km_per_litre != null && r.mileage_km_per_litre > 0).length,
+        [records],
+    );
 
     return (
         <div className="flex flex-col gap-6">
@@ -439,7 +444,7 @@ function FuelingPageContent() {
                         {avgEfficiency != null ? (
                             <>
                                 <div className="mt-2 text-2xl font-bold text-navy">{avgEfficiency.toFixed(1)} <span className="text-base font-medium">km/L</span></div>
-                                <div className="mt-1 text-xs text-muted">based on {efficiencyMap.size} interval{efficiencyMap.size !== 1 ? 's' : ''}</div>
+                                <div className="mt-1 text-xs text-muted">based on {mileageIntervalCount} interval{mileageIntervalCount !== 1 ? 's' : ''}</div>
                             </>
                         ) : (
                             <div className="mt-2 text-sm text-muted">Add odometer readings to track mileage</div>
@@ -563,16 +568,14 @@ function FuelingPageContent() {
                                         {r.odometer_reading ? `${Number(r.odometer_reading).toLocaleString()} km` : <span className="text-xs">—</span>}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {(() => {
-                                            const eff = efficiencyMap.get(r.id);
-                                            if (!eff) return <span className="text-xs text-muted">—</span>;
-                                            return (
-                                                <div>
-                                                    <div className="font-semibold text-navy">{eff.kmPerLitre.toFixed(1)} <span className="text-xs font-normal text-muted">km/L</span></div>
-                                                    <div className="text-xs text-muted">{eff.kmDriven.toLocaleString()} km</div>
-                                                </div>
-                                            );
-                                        })()}
+                                        {r.mileage_km_per_litre != null && r.mileage_km_driven != null ? (
+                                            <div>
+                                                <div className="font-semibold text-navy">{r.mileage_km_per_litre.toFixed(1)} <span className="text-xs font-normal text-muted">km/L</span></div>
+                                                <div className="text-xs text-muted">{r.mileage_km_driven.toLocaleString()} km</div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-muted">—</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right font-semibold">{Number(r.fuel_litres)} L</td>
                                     <td className="px-4 py-3 text-right">PKR {Number(r.current_fuel_rate).toFixed(2)}</td>

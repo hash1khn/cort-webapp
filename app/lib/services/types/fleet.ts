@@ -50,6 +50,8 @@ export interface FuelRecord {
     booking_id?: number | null;
     created_by?: string | null;
     added_by_name?: string | null;
+    mileage_km_driven?: number | null;
+    mileage_km_per_litre?: number | null;
     vehicles?: {
         id: number;
         plate_number: string;

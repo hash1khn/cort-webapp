@@ -1381,6 +1381,19 @@ class ApiClient {
         return this.request<PaginatedResponse<FuelRecord>>(`/vehicle-fuel${queryString ? `?${queryString}` : ''}`);
     }
 
+    async getPreviousFuelOdometer(params: {
+        vehicle_id: number;
+        before_record_id?: number;
+        exclude_id?: number;
+    }): Promise<{ data: { id: number; odometer_reading: number; date: string } | null }> {
+        const query = new URLSearchParams();
+        query.append('vehicle_id', String(params.vehicle_id));
+        if (params.before_record_id) query.append('before_record_id', String(params.before_record_id));
+        if (params.exclude_id) query.append('exclude_id', String(params.exclude_id));
+
+        return this.request(`/vehicle-fuel/previous-odometer?${query.toString()}`);
+    }
+
     async createFuelRecord(data: CreateFuelRecordRequest): Promise<FuelRecordResponse> {
         return this.request<FuelRecordResponse>('/vehicle-fuel', {
             method: 'POST',
