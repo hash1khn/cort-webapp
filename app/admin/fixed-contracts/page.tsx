@@ -41,6 +41,22 @@ function FixedTermContractsContent() {
   const canUpdate = ability.can("update", ADMIN_SUBJECTS.pricing);
   const canDelete = ability.can("delete", ADMIN_SUBJECTS.pricing);
 
+  // Helpers to avoid timezone month shifts when displaying month-start dates.
+  const toUtcMonthValue = (value: string | Date) => {
+    const d = value instanceof Date ? value : new Date(value);
+    // Backend works with month-start dates.
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  };
+
+  const formatUtcMonthLabel = (value: string | Date) => {
+    const d = value instanceof Date ? value : new Date(value);
+    return d.toLocaleDateString(undefined, {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+    });
+  };
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -140,7 +156,7 @@ function FixedTermContractsContent() {
     setSettlementData({
       amount: Number(contract.current_month_due?.amount_remaining ?? contract.monthly_amount).toString(),
       billingMonth: contract.current_month_due?.billing_month
-        ? new Date(contract.current_month_due.billing_month).toISOString().split("T")[0]
+        ? toUtcMonthValue(contract.current_month_due.billing_month)
         : "",
       paymentMethod: "",
       notes: "",
@@ -442,13 +458,10 @@ function FixedTermContractsContent() {
               >
                 <option value="">Oldest unpaid month</option>
                 {(fixedTermContracts.find((c) => c.id === settlingContractId)?.monthly_dues ?? [])
-                  .filter((due) => Number(due.amount_remaining) > 0)
+                  .filter((due) => Number(String(due.amount_remaining ?? 0).trim()) > 0)
                   .map((due) => {
-                    const monthLabel = new Date(due.billing_month).toLocaleDateString(undefined, {
-                      year: "numeric",
-                      month: "short",
-                    });
-                    const monthValue = new Date(due.billing_month).toISOString().split("T")[0];
+                    const monthLabel = formatUtcMonthLabel(due.billing_month);
+                    const monthValue = toUtcMonthValue(due.billing_month);
                     return (
                       <option key={due.id} value={monthValue}>
                         {monthLabel} - Remaining PKR {Number(due.amount_remaining).toLocaleString()}
