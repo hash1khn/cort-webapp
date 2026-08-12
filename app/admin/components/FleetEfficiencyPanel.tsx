@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient } from '@/app/lib/services/api-client';
 import { AlertTriangle, Fuel, Bus, Navigation, TrendingDown, TrendingUp, Zap, RefreshCw, Map as MapIcon, X, Clock, Users, Package, CarFront, Lock, Car } from 'lucide-react';
@@ -21,6 +21,7 @@ type ShuttleMetric = {
   id: number;
   shuttle_trip_id: number;
   route_id: number | null;
+  vehicle_id: number | null;
   trip_date: string;
   direction: string;
   occupancy_pct: string | null;
@@ -196,7 +197,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
   // Shuttle state
   const [summary, setSummary] = useState<ShuttleMetricsSummary | null>(null);
-  const [recentMetrics, setRecentMetrics] = useState<ShuttleMetric[]>([]);
+  const [allMetrics, setAllMetrics] = useState<ShuttleMetric[]>([]);
   const [fuelFlags, setFuelFlags] = useState<FuelFlag[]>([]);
 
   // Recent shuttle trips date filter (yyyy-mm-dd). Draft values are edited freely;
@@ -205,6 +206,10 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
   const [toDateDraft, setToDateDraft] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  // Recent shuttle trips vehicle filter — applied client-side against the
+  // already-fetched (date-filtered) metrics, so it updates instantly.
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
 
   // Chauffeur state
   const [chauffeurUtil, setChauffeurUtil] = useState<{ summary: ChauffeurUtilizationSummary; bookings: ChauffeurUtilizationRow[] } | null>(null);
@@ -273,7 +278,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
       if (metricsRes.status === 'fulfilled' && metricsRes.value) {
         setSummary(metricsRes.value.summary);
-        setRecentMetrics(metricsRes.value.metrics.slice(0, 25));
+        setAllMetrics(metricsRes.value.metrics);
       }
       if (fuelRes.status === 'fulfilled' && fuelRes.value) setFuelFlags(fuelRes.value);
       if (insightsRes.status === 'fulfilled') setInsights(insightsRes.value);
@@ -331,6 +336,26 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
   const dateFilterDirty = fromDateDraft !== fromDate || toDateDraft !== toDate;
   const dateFilterActive = fromDate !== '' || toDate !== '';
+  const vehicleFilterActive = selectedVehicleId !== '';
+
+  const vehicleOptions = useMemo(() => {
+    const byId: Record<number, string> = {};
+    for (const m of allMetrics) {
+      if (m.vehicle_id != null) {
+        byId[m.vehicle_id] = m.vehicles?.plate_number ?? `#${m.vehicle_id}`;
+      }
+    }
+    return Object.entries(byId)
+      .map(([id, plate]) => [Number(id), plate] as [number, string])
+      .sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allMetrics]);
+
+  const recentMetrics = useMemo(() => {
+    const filtered = selectedVehicleId
+      ? allMetrics.filter(m => String(m.vehicle_id) === selectedVehicleId)
+      : allMetrics;
+    return filtered.slice(0, 25);
+  }, [allMetrics, selectedVehicleId]);
 
   if (loading) {
     return (
@@ -462,6 +487,19 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                 <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Recent Shuttle Trips</h3>
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                    Vehicle
+                    <select
+                      value={selectedVehicleId}
+                      onChange={(e) => setSelectedVehicleId(e.target.value)}
+                      className="rounded-md border border-[var(--border-default)] bg-[var(--bg-card)] px-2 py-1 text-xs text-[var(--text-primary)]"
+                    >
+                      <option value="">All vehicles</option>
+                      {vehicleOptions.map(([id, plate]) => (
+                        <option key={id} value={id}>{plate}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
                     From
                     <input
                       type="date"
@@ -501,7 +539,11 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
 
               {recentMetrics.length === 0 ? (
                 <p className="text-sm text-[var(--text-muted)]">
-                  {dateFilterActive ? 'No shuttle trips found in the selected date range.' : 'No shuttle trips recorded yet.'}
+                  {vehicleFilterActive
+                    ? 'No shuttle trips found for the selected vehicle in this date range.'
+                    : dateFilterActive
+                      ? 'No shuttle trips found in the selected date range.'
+                      : 'No shuttle trips recorded yet.'}
                 </p>
               ) : (
               <>
