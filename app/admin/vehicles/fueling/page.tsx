@@ -252,6 +252,7 @@ function FuelingPageContent() {
             odometer_reading: record.odometer_reading ?? undefined,
             billed: record.billed,
             booking_id: record.booking_id ?? undefined,
+            receipt_id: record.receipt_id ?? undefined,
         });
         setTaggedBooking(record.booking_id ? { id: record.booking_id, label: `Booking #${record.booking_id}` } : null);
         setModalMode("edit");
@@ -346,6 +347,17 @@ function FuelingPageContent() {
                         </div>
                     );
                 })()}
+            </label>
+
+            <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold tracking-wider text-muted">Receipt ID</span>
+                <input
+                    type="text"
+                    value={formData.receipt_id || ""}
+                    onChange={(e) => setFormData({ ...formData, receipt_id: e.target.value || undefined })}
+                    className="h-10 rounded-md border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                    placeholder="RCP-20250812-0042"
+                />
             </label>
 
             <label className="flex flex-col gap-1 sm:col-span-2">
@@ -532,6 +544,7 @@ function FuelingPageContent() {
                                 <th className="px-4 py-3 text-right">Litres</th>
                                 <th className="px-4 py-3 text-right">Rate (PKR/L)</th>
                                 <th className="px-4 py-3 text-right">Total Cost</th>
+                                <th className="px-4 py-3 text-left">Receipt ID</th>
                                 <th className="px-4 py-3 text-center">Status</th>
                                 <th className="px-4 py-3 text-left">Added By</th>
                                 <th className="px-4 py-3 text-right">Actions</th>
@@ -580,6 +593,7 @@ function FuelingPageContent() {
                                     <td className="px-4 py-3 text-right font-semibold">{Number(r.fuel_litres)} L</td>
                                     <td className="px-4 py-3 text-right">PKR {Number(r.current_fuel_rate).toFixed(2)}</td>
                                     <td className="px-4 py-3 text-right font-bold text-blue">PKR {Number(r.fuel_cost).toFixed(2)}</td>
+                                    <td className="px-4 py-3 text-muted">{r.receipt_id || "—"}</td>
                                     <td className="px-4 py-3 text-center">
                                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${r.billed ? "bg-success/10 text-success" : "bg-orange/10 text-orange"}`}>
                                             {r.billed ? "Paid" : "Unpaid"}
@@ -610,14 +624,14 @@ function FuelingPageContent() {
                             ))}
                             {!isLoading && records.length === 0 && (
                                 <tr>
-                                    <td colSpan={11} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={12} className="px-4 py-8 text-center text-muted">
                                         No fuel records found matching your filters.
                                     </td>
                                 </tr>
                             )}
                             {isLoading && (
                                 <tr>
-                                    <td colSpan={11} className="px-4 py-8 text-center text-muted">
+                                    <td colSpan={12} className="px-4 py-8 text-center text-muted">
                                         Loading...
                                     </td>
                                 </tr>
