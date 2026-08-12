@@ -605,9 +605,11 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                       <div className="flex items-center gap-2">
                         <MapIcon className="h-4 w-4 text-[var(--text-muted)]" />
                         <span className="text-sm font-semibold text-[var(--text-primary)]">Route Map Overlay</span>
-                        <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                        <span className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-blue-600" /> Planned
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-orange-500 ml-1" /> Actual
+                          <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500 ml-2" /> Departed
+                          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#c2410c] ml-1" /> Arrived
                         </span>
                       </div>
                       <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
@@ -892,8 +894,45 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
   if (comparison.planned_points.length > 0) {
     const first = comparison.planned_points[0];
     const last = comparison.planned_points[comparison.planned_points.length - 1];
-    markers.push({ id: 'start', position: [first.lat, first.lng], label: 'Start', color: '#22c55e', type: 'pickup' });
-    markers.push({ id: 'end', position: [last.lat, last.lng], label: 'End', color: '#ef4444', type: 'dropoff' });
+    markers.push({
+      id: 'planned-start',
+      position: [first.lat, first.lng],
+      label: 'First Stop',
+      description: 'First stop on the planned office route.',
+      color: '#22c55e',
+      type: 'pickup',
+    });
+    markers.push({
+      id: 'planned-end',
+      position: [last.lat, last.lng],
+      label: 'Last Stop',
+      description: 'Last stop on the planned office route.',
+      color: '#ef4444',
+      type: 'dropoff',
+    });
+  }
+  // Driver's real GPS trail start/end — usually differs from the planned
+  // first/last stop, since the driver starts from (and returns to) their
+  // own location, not the office route itself.
+  if (comparison.actual_points.length > 0) {
+    const departed = comparison.actual_points[0];
+    const arrived = comparison.actual_points[comparison.actual_points.length - 1];
+    markers.push({
+      id: 'actual-start',
+      position: [departed.lat, departed.lng],
+      label: 'Departed',
+      description: 'Where the driver actually started this trip (GPS).',
+      color: '#f97316',
+      type: 'actual-start',
+    });
+    markers.push({
+      id: 'actual-end',
+      position: [arrived.lat, arrived.lng],
+      label: 'Arrived',
+      description: 'Where the driver actually ended this trip (GPS).',
+      color: '#c2410c',
+      type: 'actual-end',
+    });
   }
 
   const m = comparison.metrics;
