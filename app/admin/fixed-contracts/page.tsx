@@ -64,6 +64,7 @@ function FixedTermContractsContent() {
     carDescription: "",
     ownerName: "",
     monthlyAmount: "",
+    category: "CHAUFFEUR" as "CHAUFFEUR" | "SHUTTLE",
   });
   const [settlingContractId, setSettlingContractId] = useState<number | null>(null);
   const [settlementData, setSettlementData] = useState({
@@ -84,7 +85,7 @@ function FixedTermContractsContent() {
       setIsAdding(false);
       setEditingId(null);
       setTogglingId(null);
-      setFormData({ carDescription: "", ownerName: "", monthlyAmount: "" });
+      setFormData({ carDescription: "", ownerName: "", monthlyAmount: "", category: "CHAUFFEUR" });
     } else if (actionStatus === "failed" && error) {
       alert("Error: " + error);
       dispatch(resetActionStatus());
@@ -102,6 +103,7 @@ function FixedTermContractsContent() {
         carDescription: formData.carDescription,
         ownerName: formData.ownerName,
         monthlyAmount: Number(formData.monthlyAmount),
+        category: formData.category,
         startDate: new Date().toISOString().split('T')[0], // Today's date
       })
     );
@@ -120,6 +122,7 @@ function FixedTermContractsContent() {
           carDescription: formData.carDescription,
           ownerName: formData.ownerName,
           monthlyAmount: Number(formData.monthlyAmount),
+          category: formData.category,
         },
       })
     );
@@ -132,6 +135,7 @@ function FixedTermContractsContent() {
       carDescription: contract.car_description,
       ownerName: contract.owner_name,
       monthlyAmount: contract.monthly_amount.toString(),
+      category: contract.category ?? "CHAUFFEUR",
     });
   };
 
@@ -202,7 +206,7 @@ function FixedTermContractsContent() {
           onClick={() => {
             setIsAdding(true);
             setEditingId(null);
-            setFormData({ carDescription: "", ownerName: "", monthlyAmount: "" });
+            setFormData({ carDescription: "", ownerName: "", monthlyAmount: "", category: "CHAUFFEUR" });
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-[#f47f00] px-6 py-3 text-sm font-bold text-white shadow-lg hover:bg-[#d97000] transition-all"
         >
@@ -219,7 +223,7 @@ function FixedTermContractsContent() {
               <X size={18} />
             </button>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Car Description</span>
               <div className="relative">
@@ -259,6 +263,17 @@ function FixedTermContractsContent() {
                 />
               </div>
             </div>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Category</span>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as "CHAUFFEUR" | "SHUTTLE" })}
+                className="h-10 w-full rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+              >
+                <option value="CHAUFFEUR">Chauffeur</option>
+                <option value="SHUTTLE">Shuttle</option>
+              </select>
+            </div>
           </div>
           <div className="mt-6 flex justify-end gap-3">
             <button
@@ -285,6 +300,7 @@ function FixedTermContractsContent() {
             <thead className="bg-[var(--bg-subtle)] text-xs uppercase font-semibold text-[var(--text-muted)]">
               <tr>
                 <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4">Car Description</th>
                 <th className="px-6 py-4">Owner Name</th>
                 <th className="px-6 py-4 text-right">Monthly Amount</th>
@@ -297,7 +313,7 @@ function FixedTermContractsContent() {
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-[var(--text-muted)]">
+                  <td colSpan={9} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     <div className="flex flex-col items-center gap-2">
                       <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0c225e] border-t-transparent" />
                       <span>Loading contracts...</span>
@@ -306,7 +322,7 @@ function FixedTermContractsContent() {
                 </tr>
               ) : fixedTermContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-[var(--text-muted)]">
+                  <td colSpan={9} className="px-6 py-12 text-center text-[var(--text-muted)]">
                     No fixed-term contracts found.
                   </td>
                 </tr>
@@ -319,6 +335,15 @@ function FixedTermContractsContent() {
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${contract.is_active ? "bg-green-600" : "bg-slate-400"}`} />
                         {contract.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        (contract.category ?? "CHAUFFEUR") === "SHUTTLE"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-indigo-100 text-indigo-700"
+                      }`}>
+                        {(contract.category ?? "CHAUFFEUR") === "SHUTTLE" ? "Shuttle" : "Chauffeur"}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-[var(--text-primary)]">{contract.car_description}</td>
@@ -403,7 +428,7 @@ function FixedTermContractsContent() {
             {!isLoading && fixedTermContracts.length > 0 && (
               <tfoot className="bg-[var(--bg-subtle)]/50 font-bold">
                 <tr>
-                  <td colSpan={3} className="px-6 py-4 text-right text-[var(--text-muted)]">Total Monthly Payable (Active):</td>
+                  <td colSpan={4} className="px-6 py-4 text-right text-[var(--text-muted)]">Total Monthly Payable (Active):</td>
                   <td className="px-6 py-4 text-right text-[var(--text-primary)]">
                     PKR {fixedTermContracts
                       .filter(c => c.is_active)

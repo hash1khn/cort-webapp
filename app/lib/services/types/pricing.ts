@@ -100,11 +100,14 @@ export interface SingleChauffeurContractResponse {
     message: string;
 }
 
+export type FixedTermContractCategory = 'CHAUFFEUR' | 'SHUTTLE';
+
 export interface FixedTermContract {
     id: number;
     car_description: string;
     owner_name: string;
     monthly_amount: string;
+    category: FixedTermContractCategory;
     start_date: string;
     end_date: string | null;
     is_active: boolean;
@@ -146,6 +149,7 @@ export interface CreateFixedTermContractRequest {
     carDescription: string;
     ownerName: string;
     monthlyAmount: number;
+    category?: FixedTermContractCategory;
     startDate: string;
     endDate?: string | null;
     notes?: string | null;
@@ -155,6 +159,7 @@ export interface UpdateFixedTermContractRequest {
     carDescription?: string;
     ownerName?: string;
     monthlyAmount?: number;
+    category?: FixedTermContractCategory;
     startDate?: string;
     isActive?: boolean;
     endDate?: string | null;
