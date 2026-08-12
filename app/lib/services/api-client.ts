@@ -1173,6 +1173,17 @@ class ApiClient {
         });
     }
 
+    /** Admin: change driver and/or vehicle on a scheduled or in-progress shuttle trip. */
+    async updateShuttleTripAssignment(
+        tripId: number,
+        data: { driver_id?: string; vehicle_id?: number },
+    ): Promise<any> {
+        return this.request<any>(`/shuttle-trips/${tripId}/assignment`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
     async getActiveBookingLocations(): Promise<any> {
         return this.request<any>(`/admin/bookings/active-locations`);
     }

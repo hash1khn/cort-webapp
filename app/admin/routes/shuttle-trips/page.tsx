@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bus, RefreshCw, Square, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bus, Pencil, RefreshCw, Square, Trash2, X } from 'lucide-react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Card } from '@/app/admin/ui/Card';
@@ -15,6 +15,9 @@ import {
     selectAdminCompanies,
     selectAdminCompaniesStatus,
 } from '@/app/lib/store/slices/adminCompaniesSlice';
+import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
+import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
+import { DriverType } from '@/app/lib/services/types/drivers';
 
 type GenerationRoute = {
     id: number;
@@ -25,6 +28,7 @@ type GenerationRoute = {
 
 type ScheduledTripRow = {
     id: number;
+    driver_id: string | null;
     trip_date: string | null;
     direction: string;
     status: string;
@@ -32,8 +36,10 @@ type ScheduledTripRow = {
         id: number;
         name: string;
         company_id: number | null;
+        assigned_vehicle_id: number | null;
+        assigned_driver_id: string | null;
         companies: { id: number; name: string } | null;
-        vehicles: { plate_number: string; model: string | null } | null;
+        vehicles: { id: number; plate_number: string; model: string | null } | null;
     } | null;
     users: { id: string; full_name: string } | null;
 };
@@ -55,6 +61,10 @@ function formatTripDate(isoOrDate: string | null): string {
     return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
+function canEditAssignment(status: string): boolean {
+    return status === 'SCHEDULED' || status === 'STARTED' || status === 'IN_PROGRESS';
+}
+
 export default function ShuttleTripsSchedulingPage() {
     return (
         <PermissionGate permission="ops_shuttle">
@@ -71,6 +81,8 @@ function ShuttleTripsSchedulingContent() {
     const canMutate = hasCrud('ops_shuttle', 'update');
     const companies = useAppSelector(selectAdminCompanies);
     const companiesStatus = useAppSelector(selectAdminCompaniesStatus);
+    const drivers = useAppSelector(selectAdminDrivers);
+    const vehicles = useAppSelector(selectAdminVehicles);
 
     const [generationRoutes, setGenerationRoutes] = useState<GenerationRoute[]>([]);
     const [fromDate, setFromDate] = useState(utcTodayYmd);
@@ -90,6 +102,11 @@ function ShuttleTripsSchedulingContent() {
     const [regenerateBusy, setRegenerateBusy] = useState(false);
     const [endingTripId, setEndingTripId] = useState<number | null>(null);
     const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+    const [editingTrip, setEditingTrip] = useState<ScheduledTripRow | null>(null);
+    const [editDriverId, setEditDriverId] = useState('');
+    const [editVehicleId, setEditVehicleId] = useState('');
+    const [assignmentSaving, setAssignmentSaving] = useState(false);
+    const [extraVehicle, setExtraVehicle] = useState<{ id: number; plate_number: string; model?: string | null } | null>(null);
 
     const loadGenerationRoutes = useCallback(async (companyId?: number) => {
         const params = new URLSearchParams();
@@ -127,6 +144,11 @@ function ShuttleTripsSchedulingContent() {
     }, [dispatch, companiesStatus]);
 
     useEffect(() => {
+        dispatch(fetchAdminDrivers({ limit: 200, driver_type: DriverType.SHUTTLE }));
+        dispatch(fetchAdminVehicles({ limit: 200 }));
+    }, [dispatch]);
+
+    useEffect(() => {
         loadGenerationRoutes(filterCompanyId === '' ? undefined : filterCompanyId).catch(() => setGenerationRoutes([]));
     }, [loadGenerationRoutes, filterCompanyId]);
 
@@ -138,6 +160,88 @@ function ShuttleTripsSchedulingContent() {
         if (filterCompanyId === '') return generationRoutes;
         return generationRoutes.filter((r) => r.company_id === filterCompanyId);
     }, [generationRoutes, filterCompanyId]);
+
+    const vehiclesForEdit = useMemo(() => {
+        if (!extraVehicle) return vehicles;
+        const exists = vehicles.some((v) => v.id === extraVehicle.id);
+        return exists ? vehicles : [...vehicles, extraVehicle as (typeof vehicles)[number]];
+    }, [vehicles, extraVehicle]);
+
+    const driversForEdit = useMemo(() => {
+        if (!editingTrip?.users?.id) return drivers;
+        const exists = drivers.some((d) => d.id === editingTrip.users!.id);
+        if (exists) return drivers;
+        return [
+            ...drivers,
+            {
+                id: editingTrip.users.id,
+                full_name: editingTrip.users.full_name,
+            } as (typeof drivers)[number],
+        ];
+    }, [drivers, editingTrip]);
+
+    const openEditAssignment = async (trip: ScheduledTripRow) => {
+        setEditingTrip(trip);
+        setEditDriverId(trip.driver_id ?? trip.users?.id ?? '');
+        setEditVehicleId(
+            String(trip.routes?.assigned_vehicle_id ?? trip.routes?.vehicles?.id ?? ''),
+        );
+        setExtraVehicle(null);
+        const vehicleId = trip.routes?.assigned_vehicle_id ?? trip.routes?.vehicles?.id;
+        if (vehicleId && !vehicles.some((v) => v.id === vehicleId)) {
+            try {
+                const res = await apiClient.getVehicle(vehicleId);
+                const v = (res as { data?: typeof extraVehicle })?.data ?? res;
+                if (v && typeof v === 'object' && 'id' in v) {
+                    setExtraVehicle(v as typeof extraVehicle);
+                }
+            } catch {
+                /* keep dropdown without extra vehicle */
+            }
+        }
+    };
+
+    const closeEditAssignment = () => {
+        setEditingTrip(null);
+        setEditDriverId('');
+        setEditVehicleId('');
+        setExtraVehicle(null);
+    };
+
+    const handleSaveAssignment = async () => {
+        if (!canMutate || !editingTrip) return;
+        if (!editDriverId && !editVehicleId) {
+            setBanner({ type: 'err', text: 'Select a driver and/or vehicle.' });
+            return;
+        }
+        setAssignmentSaving(true);
+        setBanner(null);
+        try {
+            const payload: { driver_id?: string; vehicle_id?: number } = {};
+            const currentDriverId = editingTrip.driver_id ?? editingTrip.users?.id ?? '';
+            const currentVehicleId =
+                editingTrip.routes?.assigned_vehicle_id ?? editingTrip.routes?.vehicles?.id ?? null;
+            if (editDriverId && editDriverId !== currentDriverId) {
+                payload.driver_id = editDriverId;
+            }
+            const nextVehicleId = editVehicleId ? Number(editVehicleId) : null;
+            if (nextVehicleId != null && nextVehicleId !== currentVehicleId) {
+                payload.vehicle_id = nextVehicleId;
+            }
+            if (!payload.driver_id && payload.vehicle_id == null) {
+                setBanner({ type: 'err', text: 'No changes to save.' });
+                return;
+            }
+            await apiClient.updateShuttleTripAssignment(editingTrip.id, payload);
+            setBanner({ type: 'ok', text: `Trip #${editingTrip.id} assignment updated.` });
+            closeEditAssignment();
+            await loadTrips();
+        } catch (e) {
+            setBanner({ type: 'err', text: e instanceof Error ? e.message : 'Failed to update assignment' });
+        } finally {
+            setAssignmentSaving(false);
+        }
+    };
 
     const handleGenerateForDate = async () => {
         if (!canMutate || selectedRouteId === '') {
@@ -450,32 +554,44 @@ function ShuttleTripsSchedulingContent() {
                                                 : '—'}
                                         </td>
                                         <td className="px-3 py-2 text-right">
-                                            {trip.status === 'SCHEDULED' && canMutate ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDelete(trip)}
-                                                    className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Delete
-                                                </button>
-                                            ) : (trip.status === 'STARTED' || trip.status === 'IN_PROGRESS') && canMutate ? (
-                                                <button
-                                                    type="button"
-                                                    disabled={endingTripId === trip.id}
-                                                    onClick={() => handleForceEnd(trip)}
-                                                    className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
-                                                >
-                                                    {endingTripId === trip.id ? (
-                                                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                                                    ) : (
-                                                        <Square className="h-3.5 w-3.5" />
-                                                    )}
-                                                    {endingTripId === trip.id ? 'Ending…' : 'Force End'}
-                                                </button>
-                                            ) : (
-                                                <span className="text-xs text-gray-400">—</span>
-                                            )}
+                                            <div className="flex flex-wrap items-center justify-end gap-1">
+                                                {canEditAssignment(trip.status) && canMutate && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditAssignment(trip)}
+                                                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Edit
+                                                    </button>
+                                                )}
+                                                {trip.status === 'SCHEDULED' && canMutate ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDelete(trip)}
+                                                        className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        Delete
+                                                    </button>
+                                                ) : (trip.status === 'STARTED' || trip.status === 'IN_PROGRESS') && canMutate ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled={endingTripId === trip.id}
+                                                        onClick={() => handleForceEnd(trip)}
+                                                        className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                                    >
+                                                        {endingTripId === trip.id ? (
+                                                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Square className="h-3.5 w-3.5" />
+                                                        )}
+                                                        {endingTripId === trip.id ? 'Ending…' : 'Force End'}
+                                                    </button>
+                                                ) : !canEditAssignment(trip.status) ? (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                ) : null}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -509,6 +625,77 @@ function ShuttleTripsSchedulingContent() {
                     </div>
                 )}
             </Card>
+
+            {editingTrip && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-xl">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">Edit trip assignment</h3>
+                                <p className="mt-0.5 text-sm text-gray-500">
+                                    Trip #{editingTrip.id} · {editingTrip.direction} · {formatTripDate(editingTrip.trip_date)}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeEditAssignment}
+                                className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Close"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-4 px-5 py-4">
+                            <p className="text-sm text-gray-600">
+                                <span className="font-medium text-gray-800">{editingTrip.routes?.name ?? 'Route'}</span>
+                                {editingTrip.routes?.companies?.name ? ` · ${editingTrip.routes.companies.name}` : ''}
+                            </p>
+                            <label className="flex flex-col gap-1 text-sm">
+                                <span className="font-medium text-gray-700">Driver</span>
+                                <select
+                                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30"
+                                    value={editDriverId}
+                                    onChange={(e) => setEditDriverId(e.target.value)}
+                                >
+                                    <option value="">Select driver…</option>
+                                    {driversForEdit.map((d) => (
+                                        <option key={d.id} value={d.id}>
+                                            {d.full_name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="flex flex-col gap-1 text-sm">
+                                <span className="font-medium text-gray-700">Vehicle</span>
+                                <select
+                                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30"
+                                    value={editVehicleId}
+                                    onChange={(e) => setEditVehicleId(e.target.value)}
+                                >
+                                    <option value="">Select vehicle…</option>
+                                    {vehiclesForEdit.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {[v.model, v.plate_number].filter(Boolean).join(' · ')}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span className="text-xs text-gray-500">
+                                    Vehicle is stored on the route, so other trips on this route will use the same vehicle.
+                                </span>
+                            </label>
+                        </div>
+                        <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+                            <Button variant="outline" onClick={closeEditAssignment} disabled={assignmentSaving}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSaveAssignment} disabled={assignmentSaving}>
+                                {assignmentSaving ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Save changes
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
