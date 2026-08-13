@@ -26,12 +26,16 @@ type GenerationRoute = {
     companies: { id: number; name: string } | null;
 };
 
+type TripVehicle = { id: number; plate_number: string; model: string | null };
+
 type ScheduledTripRow = {
     id: number;
     driver_id: string | null;
+    vehicle_id: number | null;
     trip_date: string | null;
     direction: string;
     status: string;
+    vehicles: TripVehicle | null;
     routes: {
         id: number;
         name: string;
@@ -39,7 +43,7 @@ type ScheduledTripRow = {
         assigned_vehicle_id: number | null;
         assigned_driver_id: string | null;
         companies: { id: number; name: string } | null;
-        vehicles: { id: number; plate_number: string; model: string | null } | null;
+        vehicles: TripVehicle | null;
     } | null;
     users: { id: string; full_name: string } | null;
 };
@@ -63,6 +67,14 @@ function formatTripDate(isoOrDate: string | null): string {
 
 function canEditAssignment(status: string): boolean {
     return status === 'SCHEDULED' || status === 'STARTED' || status === 'IN_PROGRESS';
+}
+
+function tripVehicle(trip: ScheduledTripRow): TripVehicle | null {
+    return trip.vehicles ?? trip.routes?.vehicles ?? null;
+}
+
+function tripVehicleId(trip: ScheduledTripRow): number | null {
+    return trip.vehicle_id ?? trip.vehicles?.id ?? trip.routes?.assigned_vehicle_id ?? trip.routes?.vehicles?.id ?? null;
 }
 
 export default function ShuttleTripsSchedulingPage() {
@@ -183,11 +195,9 @@ function ShuttleTripsSchedulingContent() {
     const openEditAssignment = async (trip: ScheduledTripRow) => {
         setEditingTrip(trip);
         setEditDriverId(trip.driver_id ?? trip.users?.id ?? '');
-        setEditVehicleId(
-            String(trip.routes?.assigned_vehicle_id ?? trip.routes?.vehicles?.id ?? ''),
-        );
+        setEditVehicleId(String(tripVehicleId(trip) ?? ''));
         setExtraVehicle(null);
-        const vehicleId = trip.routes?.assigned_vehicle_id ?? trip.routes?.vehicles?.id;
+        const vehicleId = tripVehicleId(trip);
         if (vehicleId && !vehicles.some((v) => v.id === vehicleId)) {
             try {
                 const res = await apiClient.getVehicle(vehicleId);
@@ -219,8 +229,7 @@ function ShuttleTripsSchedulingContent() {
         try {
             const payload: { driver_id?: string; vehicle_id?: number } = {};
             const currentDriverId = editingTrip.driver_id ?? editingTrip.users?.id ?? '';
-            const currentVehicleId =
-                editingTrip.routes?.assigned_vehicle_id ?? editingTrip.routes?.vehicles?.id ?? null;
+            const currentVehicleId = tripVehicleId(editingTrip);
             if (editDriverId && editDriverId !== currentDriverId) {
                 payload.driver_id = editDriverId;
             }
@@ -536,7 +545,9 @@ function ShuttleTripsSchedulingContent() {
                                 </tr>
                             )}
                             {!listLoading &&
-                                rows.map((trip) => (
+                                rows.map((trip) => {
+                                    const vehicle = tripVehicle(trip);
+                                    return (
                                     <tr key={trip.id} className="hover:bg-gray-50/80">
                                         <td className="whitespace-nowrap px-3 py-2 text-gray-900">{formatTripDate(trip.trip_date)}</td>
                                         <td className="px-3 py-2 text-gray-700">{trip.routes?.companies?.name ?? '—'}</td>
@@ -549,8 +560,8 @@ function ShuttleTripsSchedulingContent() {
                                         </td>
                                         <td className="px-3 py-2 text-gray-700">{trip.users?.full_name ?? '—'}</td>
                                         <td className="whitespace-nowrap px-3 py-2 text-gray-600">
-                                            {trip.routes?.vehicles
-                                                ? `${trip.routes.vehicles.model ?? ''} ${trip.routes.vehicles.plate_number}`.trim()
+                                            {vehicle
+                                                ? `${vehicle.model ?? ''} ${vehicle.plate_number}`.trim()
                                                 : '—'}
                                         </td>
                                         <td className="px-3 py-2 text-right">
@@ -594,7 +605,8 @@ function ShuttleTripsSchedulingContent() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                         </tbody>
                     </table>
                 </div>
@@ -680,7 +692,7 @@ function ShuttleTripsSchedulingContent() {
                                     ))}
                                 </select>
                                 <span className="text-xs text-gray-500">
-                                    Vehicle is stored on the route, so other trips on this route will use the same vehicle.
+                                    This changes the vehicle for this trip only. Past trips and the route default stay the same.
                                 </span>
                             </label>
                         </div>
