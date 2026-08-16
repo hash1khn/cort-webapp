@@ -1184,6 +1184,22 @@ class ApiClient {
         });
     }
 
+    async setShuttleTripResourceOverride(
+        tripId: number,
+        data: { driver_id?: string; vehicle_id?: number },
+    ): Promise<any> {
+        return this.request<any>(`/shuttle-trips/${tripId}/resource-override`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async clearShuttleTripResourceOverride(tripId: number): Promise<any> {
+        return this.request<any>(`/shuttle-trips/${tripId}/resource-override`, {
+            method: 'DELETE',
+        });
+    }
+
     async getActiveBookingLocations(): Promise<any> {
         return this.request<any>(`/admin/bookings/active-locations`);
     }

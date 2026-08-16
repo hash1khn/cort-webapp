@@ -67,8 +67,8 @@ const nav: NavItem[] = [
   { href: "/admin/routes", label: "Routes", icon: Map, permission: "routes" },
   // Utilities
   { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin, allowInternalStaff: true },
+  { href: "/admin/routes/daily-overrides", label: "Today's shuttle plan", icon: ArrowLeftRight, permission: "ops_shuttle" },
   { href: "/admin/routes/shuttle-trips", label: "Shuttle trip scheduling", icon: Bus, permission: "ops_shuttle" },
-  { href: "/admin/routes/daily-overrides", label: "Daily route overrides", icon: ArrowLeftRight, permission: "ops_shuttle" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, permission: "reports" },

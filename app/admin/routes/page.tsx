@@ -103,7 +103,7 @@ function RoutesPageContent() {
                         <Link href="/admin/routes/daily-overrides">
                             <Button variant="outline">
                                 <ArrowLeftRight className="mr-2 h-4 w-4" />
-                                Daily route overrides
+                                Daily plan
                             </Button>
                         </Link>
                     ) : null}

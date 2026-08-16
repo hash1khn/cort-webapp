@@ -241,8 +241,8 @@ function ShuttleTripsSchedulingContent() {
                 setBanner({ type: 'err', text: 'No changes to save.' });
                 return;
             }
-            await apiClient.updateShuttleTripAssignment(editingTrip.id, payload);
-            setBanner({ type: 'ok', text: `Trip #${editingTrip.id} assignment updated.` });
+            await apiClient.setShuttleTripResourceOverride(editingTrip.id, payload);
+            setBanner({ type: 'ok', text: `Saved for this trip only. The route's usual driver and vehicle are unchanged.` });
             closeEditAssignment();
             await loadTrips();
         } catch (e) {
@@ -366,7 +366,7 @@ function ShuttleTripsSchedulingContent() {
                     <Link href="/admin/routes/daily-overrides">
                         <Button variant="outline">
                             <ArrowLeftRight className="mr-2 h-4 w-4" />
-                            Daily route overrides
+                            Daily plan
                         </Button>
                     </Link>
                     <Link href="/admin/routes">
@@ -581,7 +581,7 @@ function ShuttleTripsSchedulingContent() {
                                                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
-                                                        Edit
+                                                        Driver / vehicle
                                                     </button>
                                                 )}
                                                 {trip.status === 'SCHEDULED' && canMutate ? (
@@ -651,9 +651,9 @@ function ShuttleTripsSchedulingContent() {
                     <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-xl">
                         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900">Edit trip assignment</h3>
+                                <h3 className="text-lg font-semibold text-gray-900">Change driver or vehicle for this trip</h3>
                                 <p className="mt-0.5 text-sm text-gray-500">
-                                    Trip #{editingTrip.id} · {editingTrip.direction} · {formatTripDate(editingTrip.trip_date)}
+                                    {editingTrip.direction === 'MORNING' ? 'Morning' : 'Evening'} · {formatTripDate(editingTrip.trip_date)} — this trip only
                                 </p>
                             </div>
                             <button
@@ -700,7 +700,7 @@ function ShuttleTripsSchedulingContent() {
                                     ))}
                                 </select>
                                 <span className="text-xs text-gray-500">
-                                    This changes the vehicle for this trip only. Past trips and the route default stay the same.
+                                    Everyday swaps belong on Today&apos;s shuttle plan. This still applies to this trip only, not the route default.
                                 </span>
                             </label>
                         </div>

@@ -14,7 +14,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import Link from 'next/link';
-import { ArrowLeft, ArrowLeftRight, ArrowUp, ArrowDown, Clock, RotateCcw, Bus, GripVertical, X, Save } from 'lucide-react';
+import { ArrowLeftRight, ArrowUp, ArrowDown, Clock, RotateCcw, Bus, GripVertical, X, Save, Users, Car } from 'lucide-react';
 import { toast } from 'sonner';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
@@ -25,10 +25,12 @@ import { useAuth } from '@/app/lib/contexts/auth-context';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminCompanies, selectAdminCompanies, selectAdminCompaniesStatus } from '@/app/lib/store/slices/adminCompaniesSlice';
 import type { MapPolyline } from '@/app/admin/ui/Map';
+import { CrewAssignmentsPanel } from './CrewAssignmentsPanel';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
 type Direction = 'MORNING' | 'EVENING';
+type OpsTab = 'passengers' | 'crew';
 
 interface RouteOption {
     id: number;
@@ -104,10 +106,23 @@ function format12h(hhmm: string | null | undefined): string | null {
     return `${hour}:${minute} ${suffix}`;
 }
 
-function utcTodayYmd(): string {
+function localTodayYmd(): string {
     const n = new Date();
-    return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}-${String(n.getUTCDate()).padStart(2, '0')}`;
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
+
+function formatPlanDate(ymd: string): string {
+    const [y, m, d] = ymd.split('-').map(Number);
+    if (!y || !m || !d) return ymd;
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
+const COMPANY_STORAGE_KEY = 'cort-ops-shuttle-company-id';
 
 export default function DailyOverridesPage() {
     return (
@@ -253,7 +268,7 @@ function EmployeeCard({
                     onClick={onUndo}
                     disabled={busy}
                     className="shrink-0 text-gray-400 hover:text-red-600"
-                    title="Undo — revert to base route"
+                    title="Send back to their usual route"
                 >
                     <RotateCcw className="w-4 h-4" />
                 </button>
@@ -324,12 +339,15 @@ function RoutePanel({
                 <Bus className="w-4 h-4 shrink-0" style={{ color }} />
                 <div className="min-w-0">
                     <div className="font-semibold text-sm text-gray-900 truncate">{route.name}</div>
-                    <div className="text-xs text-gray-400">{entries.length} on route today</div>
+                    <div className="text-xs text-gray-400">{entries.length} {entries.length === 1 ? 'person' : 'people'} today</div>
                 </div>
             </div>
-            <div className="p-2 space-y-1.5 min-h-[80px] flex-1">
-                {entries.length === 0 && ghostOut.length === 0 && pendingGhostOut.length === 0 && (
-                    <p className="text-xs text-gray-300 text-center py-6">No one assigned</p>
+            <div className={`p-2 space-y-1.5 min-h-[80px] flex-1 ${isOver ? 'bg-blue-50/70' : ''}`}>
+                {isOver && (
+                    <p className="text-xs font-medium text-blue-600 text-center py-2">Drop here to move them onto this route</p>
+                )}
+                {entries.length === 0 && ghostOut.length === 0 && pendingGhostOut.length === 0 && !isOver && (
+                    <p className="text-xs text-gray-400 text-center py-6">Empty — drop a passenger here</p>
                 )}
                 {entries.map((entry) => (
                     <EmployeeCard
@@ -403,8 +421,9 @@ function DailyOverridesContent() {
     const companiesStatus = useAppSelector(selectAdminCompaniesStatus);
 
     const [companyId, setCompanyId] = useState<number | ''>('');
-    const [date, setDate] = useState(utcTodayYmd);
+    const [date, setDate] = useState(localTodayYmd);
     const [direction, setDirection] = useState<Direction>('MORNING');
+    const [opsTab, setOpsTab] = useState<OpsTab>('passengers');
 
     const [routes, setRoutes] = useState<RouteOption[]>([]);
     const [rosterByRoute, setRosterByRoute] = useState<Record<number, RosterEntry[]>>({});
@@ -426,6 +445,29 @@ function DailyOverridesContent() {
     useEffect(() => {
         if (companiesStatus === 'idle') dispatch(fetchAdminCompanies({ limit: 200 }));
     }, [dispatch, companiesStatus]);
+
+    useEffect(() => {
+        if (companyId !== '' || companies.length === 0) return;
+        try {
+            const raw = localStorage.getItem(COMPANY_STORAGE_KEY);
+            if (!raw) return;
+            const id = Number(raw);
+            if (Number.isFinite(id) && companies.some((c: Company) => c.id === id)) {
+                setCompanyId(id);
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [companies, companyId]);
+
+    useEffect(() => {
+        if (companyId === '') return;
+        try {
+            localStorage.setItem(COMPANY_STORAGE_KEY, String(companyId));
+        } catch {
+            /* ignore */
+        }
+    }, [companyId]);
 
     const loadRoutes = useCallback(async () => {
         if (companyId === '') {
@@ -603,6 +645,22 @@ function DailyOverridesContent() {
         Object.keys(orderByRoute).length > 0 ||
         editingUserId != null;
 
+    const confirmDiscardUnsaved = (message: string) => {
+        if (!hasUnsavedChanges) return true;
+        return window.confirm(message);
+    };
+
+    const switchOpsTab = (tab: OpsTab) => {
+        if (tab === opsTab) return;
+        if (opsTab === 'passengers' && tab === 'crew' && hasUnsavedChanges) {
+            const ok = window.confirm(
+                'Passenger moves are not saved yet. They stay on the Passengers tab until you Save or Discard. Switch anyway?',
+            );
+            if (!ok) return;
+        }
+        setOpsTab(tab);
+    };
+
     const clearDraft = useCallback(() => {
         setPendingMoves(new globalThis.Map());
         setPendingUndos(new globalThis.Map());
@@ -612,12 +670,7 @@ function DailyOverridesContent() {
     }, []);
 
     useEffect(() => {
-        setPendingMoves((prev) => {
-            if (prev.size > 0) {
-                toast.warning('Discarded unsaved changes — filters changed');
-            }
-            return new globalThis.Map();
-        });
+        setPendingMoves(new globalThis.Map());
         setPendingUndos(new globalThis.Map());
         setPendingTimes(new globalThis.Map());
         setOrderByRoute({});
@@ -910,33 +963,42 @@ function DailyOverridesContent() {
             .filter((p): p is MapPolyline => p != null);
     }, [routes, getDisplayEntries, routeColor, ghostOutByRoute, getPendingGhostOut]);
 
+    const passengerCount = useMemo(
+        () => routes.reduce((n, r) => n + getDisplayEntries(r.id).length, 0),
+        [routes, getDisplayEntries],
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <div className="text-sm font-medium text-gray-400">Routes</div>
-                    <h1 className="mt-1 text-2xl font-bold text-gray-900">Daily route overrides</h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Drag between routes, set pickup times, undo a temporary move, or reorder with the arrows.
-                        Nothing is written until you click <span className="font-medium">Save changes</span>.
+                    <div className="text-sm font-medium text-gray-400">Daily operations</div>
+                    <h1 className="mt-1 text-2xl font-bold text-gray-900">Today&apos;s shuttle plan</h1>
+                    <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                        Everything for one company, one day, one direction. Move passengers between routes, or swap who is driving and which vehicle is on the trip.
                     </p>
+                    {companyId !== '' && (
+                        <p className="mt-2 text-sm font-medium text-gray-700">
+                            {formatPlanDate(date)} · {direction === 'MORNING' ? 'Morning' : 'Evening'}
+                            {opsTab === 'passengers' && routes.length > 0 ? ` · ${passengerCount} ${passengerCount === 1 ? 'passenger' : 'passengers'} on ${routes.length} ${routes.length === 1 ? 'route' : 'routes'}` : ''}
+                        </p>
+                    )}
                 </div>
-                <Link href="/admin/routes">
-                    <Button variant="outline">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to routes
-                    </Button>
-                </Link>
             </div>
 
-            <Card className="p-4">
+            <Card className="p-4 space-y-4">
                 <div className="flex flex-wrap items-end gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Company</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">1. Company</label>
                         <select
-                            className="border rounded-md px-3 py-2 text-sm"
+                            className="border rounded-md px-3 py-2 text-sm min-w-[220px]"
                             value={companyId}
-                            onChange={(e) => setCompanyId(e.target.value ? Number(e.target.value) : '')}
+                            onChange={(e) => {
+                                const next = e.target.value ? Number(e.target.value) : '';
+                                if (next === companyId) return;
+                                if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change company and discard them?')) return;
+                                setCompanyId(next);
+                            }}
                         >
                             <option value="">Select a company</option>
                             {companies.map((c: Company) => (
@@ -945,21 +1007,30 @@ function DailyOverridesContent() {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">2. Date</label>
                         <input
                             type="date"
                             className="border rounded-md px-3 py-2 text-sm"
                             value={date}
-                            onChange={(e) => setDate(e.target.value)}
+                            onChange={(e) => {
+                                const next = e.target.value;
+                                if (next === date) return;
+                                if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change date and discard them?')) return;
+                                setDate(next);
+                            }}
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Direction</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">3. Morning or evening</label>
                         <div className="inline-flex rounded-md border overflow-hidden">
                             {(['MORNING', 'EVENING'] as Direction[]).map((d) => (
                                 <button
                                     key={d}
-                                    onClick={() => setDirection(d)}
+                                    onClick={() => {
+                                        if (d === direction) return;
+                                        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Switch direction and discard them?')) return;
+                                        setDirection(d);
+                                    }}
                                     className={`px-3 py-2 text-sm font-medium ${
                                         direction === d ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'
                                     }`}
@@ -970,28 +1041,56 @@ function DailyOverridesContent() {
                         </div>
                     </div>
                     {!canMutate && (
-                        <span className="text-xs text-gray-400 italic ml-auto">Read-only — you don&apos;t have permission to change overrides.</span>
+                        <span className="text-xs text-gray-400 italic ml-auto">You can view this plan but not change it.</span>
                     )}
-                    {canMutate && companyId !== '' && (
+                    {canMutate && companyId !== '' && opsTab === 'passengers' && (
                         <div className="ml-auto flex items-center gap-2">
                             <Button variant="outline" onClick={handleDiscardChanges} disabled={saving || !hasUnsavedChanges}>
                                 Discard
                             </Button>
                             <Button onClick={handleSaveChanges} disabled={saving || !hasUnsavedChanges}>
                                 {saving ? 'Saving…' : (
-                                    <><Save className="w-4 h-4 mr-2" /> Save changes</>
+                                    <><Save className="w-4 h-4 mr-2" /> Save passenger moves</>
                                 )}
                             </Button>
                         </div>
                     )}
                 </div>
+                {companyId !== '' && (
+                    <div className="flex flex-wrap items-center gap-1 border-t pt-3">
+                        <button
+                            onClick={() => switchOpsTab('passengers')}
+                            className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
+                                opsTab === 'passengers' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Users className="w-4 h-4" />
+                            Passengers
+                        </button>
+                        <button
+                            onClick={() => switchOpsTab('crew')}
+                            className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
+                                opsTab === 'crew' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Car className="w-4 h-4" />
+                            Drivers &amp; vehicles
+                        </button>
+                        {opsTab === 'passengers' && (
+                            <span className="ml-auto text-xs text-gray-400 hidden sm:inline">Saves only after you press Save</span>
+                        )}
+                        {opsTab === 'crew' && (
+                            <span className="ml-auto text-xs text-gray-400 hidden sm:inline">Saves as soon as you pick a new driver or vehicle</span>
+                        )}
+                    </div>
+                )}
             </Card>
 
-            {companyId !== '' && loading && routes.length > 0 && (
-                <p className="text-sm text-gray-400">Loading rosters…</p>
+            {companyId !== '' && opsTab === 'passengers' && loading && routes.length > 0 && (
+                <p className="text-sm text-gray-400">Loading who&apos;s on each route…</p>
             )}
 
-            {hasUnsavedChanges && (
+            {hasUnsavedChanges && opsTab === 'passengers' && (
                 <div className="sticky top-2 z-10 flex items-center gap-3 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 shadow-sm">
                     <span className="text-sm font-medium text-blue-800">
                         Unsaved changes{pendingMoves.size > 0 ? ` · ${pendingMoves.size} route ${pendingMoves.size === 1 ? 'move' : 'moves'}` : ''}
@@ -1009,7 +1108,7 @@ function DailyOverridesContent() {
                                     Saving…
                                 </div>
                             ) : (
-                                <><Save className="w-4 h-4 mr-2" /> Save changes</>
+                                <><Save className="w-4 h-4 mr-2" /> Save passenger moves</>
                             )}
                         </Button>
                     </div>
@@ -1017,18 +1116,40 @@ function DailyOverridesContent() {
             )}
 
             {companyId === '' ? (
-                <Card className="p-8 text-center text-sm text-gray-500">
-                    Select a company to load its routes and daily overrides.
+                <Card className="p-8 text-center space-y-2">
+                    <Bus className="w-8 h-8 mx-auto text-gray-300" />
+                    <p className="text-sm font-medium text-gray-700">Start with a company</p>
+                    <p className="text-sm text-gray-500">Choose who you&apos;re operating for today, then pick morning or evening.</p>
                 </Card>
+            ) : opsTab === 'crew' ? (
+                <CrewAssignmentsPanel
+                    companyId={companyId}
+                    date={date}
+                    direction={direction}
+                    canMutate={canMutate}
+                />
             ) : routesLoading ? (
                 <Card className="p-8 text-center text-sm text-gray-400">
                     Loading routes…
                 </Card>
             ) : routes.length === 0 ? (
-                <Card className="p-8 text-center text-sm text-gray-400">
-                    No eligible routes (driver + vehicle assigned) for this company.
+                <Card className="p-8 text-center space-y-3">
+                    <p className="text-sm font-medium text-gray-700">No ready shuttle routes</p>
+                    <p className="text-sm text-gray-500">
+                        This company has no shuttle routes with a usual driver and vehicle assigned. Set those on the routes page first.
+                    </p>
+                    <Link href="/admin/routes">
+                        <Button variant="outline">Open routes</Button>
+                    </Link>
                 </Card>
             ) : (
+                <>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
+                    <span>Drag a person onto another route. Use the arrows to change pickup order. Nothing is sent until you press Save.</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gray-300" /> Usual rider</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">Temporary</span> Moved for this day only</span>
+                    <span className="inline-flex items-center gap-1.5"><span className="rounded bg-blue-100 px-1.5 py-0.5 font-semibold text-blue-800">Pending</span> Not saved yet</span>
+                </div>
                 <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <div className="flex gap-4 overflow-x-auto pb-2">
                         {routes.map((route) => (
@@ -1064,11 +1185,12 @@ function DailyOverridesContent() {
                         ) : null}
                     </DragOverlay>
                 </DndContext>
+                </>
             )}
 
-            {routes.length > 0 && polylines.length > 0 && (
+            {opsTab === 'passengers' && routes.length > 0 && polylines.length > 0 && (
                 <Card className="p-2">
-                    <div className="px-2 py-1.5 text-sm font-semibold text-gray-700">Route preview — dashed lines show routes with active overrides today</div>
+                    <div className="px-2 py-1.5 text-sm font-semibold text-gray-700">Map preview — dashed lines are routes with a passenger move today</div>
                     <Map height="420px" polylines={polylines} />
                 </Card>
             )}
