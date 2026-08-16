@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
     DndContext,
@@ -141,7 +141,7 @@ function EmployeeCard({
     const dragId = `${routeId}::${entry.user_id}`;
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: dragId,
-        disabled: !canMutate,
+        disabled: !canMutate || busy,
         data: { routeId, entry },
     });
 
@@ -160,8 +160,8 @@ function EmployeeCard({
             <button
                 {...attributes}
                 {...listeners}
-                className={`shrink-0 text-gray-400 ${canMutate ? 'cursor-grab active:cursor-grabbing hover:text-gray-600' : 'cursor-not-allowed opacity-30'}`}
-                title={canMutate ? 'Drag to another route' : 'No permission to move'}
+                className={`shrink-0 text-gray-400 ${canMutate && !busy ? 'cursor-grab active:cursor-grabbing hover:text-gray-600' : 'cursor-not-allowed opacity-30'}`}
+                title={canMutate && !busy ? 'Drag to another route' : 'No permission to move'}
             >
                 <GripVertical className="w-4 h-4" />
             </button>
@@ -196,7 +196,7 @@ function EmployeeCard({
                     (pending || (entry.override && entry.override.id !== 0)) && (
                         <button
                             onClick={onStartEditTime}
-                            disabled={!canMutate}
+                            disabled={!canMutate || busy}
                             className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 disabled:cursor-not-allowed"
                         >
                             <Clock className="w-3 h-3" />
@@ -288,7 +288,11 @@ function RoutePanel({
     onNudge: (entry: RosterEntry, dir: -1 | 1) => void;
     busy: boolean;
 }) {
-    const { setNodeRef, isOver } = useDroppable({ id: `panel::${route.id}`, data: { routeId: route.id } });
+    const { setNodeRef, isOver } = useDroppable({
+        id: `panel::${route.id}`,
+        data: { routeId: route.id },
+        disabled: busy || !canMutate,
+    });
 
     return (
         <Card
@@ -387,7 +391,7 @@ function DailyOverridesContent() {
     const [editValue, setEditValue] = useState('');
     const [pendingMoves, setPendingMoves] = useState<globalThis.Map<string, PendingMove>>(new globalThis.Map());
     const [pendingUndos, setPendingUndos] = useState<globalThis.Map<number, PendingUndo>>(new globalThis.Map());
-    const [pendingTimes, setPendingTimes] = useState<globalThis.Map<string, string>>(new globalThis.Map());
+    const [pendingTimes, setPendingTimes] = useState<globalThis.Map<string, string | null>>(new globalThis.Map());
     const [orderByRoute, setOrderByRoute] = useState<Record<number, string[]>>({});
     const [saving, setSaving] = useState(false);
 
@@ -424,7 +428,9 @@ function DailyOverridesContent() {
             return;
         }
         try {
-            const data = await apiClient.request<OverrideRow[]>(`/shuttle-daily-overrides?date=${date}&direction=${direction}`);
+            const data = await apiClient.request<OverrideRow[]>(
+                `/shuttle-daily-overrides?date=${date}&direction=${direction}&company_id=${companyId}`,
+            );
             setOverrides(Array.isArray(data) ? data : []);
         } catch {
             setOverrides([]);
@@ -442,11 +448,14 @@ function DailyOverridesContent() {
         }
     }, [date, direction]);
 
+    const loadGen = useRef(0);
+
     const loadAll = useCallback(async () => {
         if (companyId === '' || routes.length === 0) {
             setRosterByRoute({});
             return;
         }
+        const gen = ++loadGen.current;
         setLoading(true);
         try {
             const entries = await Promise.all(
@@ -457,9 +466,10 @@ function DailyOverridesContent() {
                         .catch(() => [r.id, []] as const),
                 ),
             );
+            if (gen !== loadGen.current) return;
             setRosterByRoute(Object.fromEntries(entries));
         } finally {
-            setLoading(false);
+            if (gen === loadGen.current) setLoading(false);
         }
     }, [companyId, routes, date, direction]);
 
@@ -563,7 +573,8 @@ function DailyOverridesContent() {
         pendingMoves.size > 0 ||
         pendingUndos.size > 0 ||
         pendingTimes.size > 0 ||
-        Object.keys(orderByRoute).length > 0;
+        Object.keys(orderByRoute).length > 0 ||
+        editingUserId != null;
 
     const clearDraft = useCallback(() => {
         setPendingMoves(new globalThis.Map());
@@ -587,6 +598,7 @@ function DailyOverridesContent() {
     }, [date, direction, companyId]);
 
     const handleDragStart = (event: DragStartEvent) => {
+        if (saving) return;
         const data = event.active.data.current as { routeId: number; entry: RosterEntry } | undefined;
         if (data) setActiveDrag(data);
     };
@@ -594,7 +606,7 @@ function DailyOverridesContent() {
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveDrag(null);
-        if (!over || !canMutate) return;
+        if (saving || !over || !canMutate) return;
 
         const dragData = active.data.current as { routeId: number; entry: RosterEntry } | undefined;
         if (!dragData) return;
@@ -604,6 +616,12 @@ function DailyOverridesContent() {
         if (!toRouteId || toRouteId === fromRouteId) return;
 
         const originalRouteId = originalRouteByUserId.get(entry.user_id) ?? fromRouteId;
+
+        // Dragging a saved override back to its permanent route is an undo, not a POST home.
+        if (entry.override && entry.override.id !== 0 && entry.override.from_route_id === toRouteId) {
+            handleUndo(entry, fromRouteId);
+            return;
+        }
         const fromIds = getDisplayEntries(fromRouteId).map((e) => e.user_id).filter((id) => id !== entry.user_id);
         const toIds = [...getDisplayEntries(toRouteId).map((e) => e.user_id).filter((id) => id !== entry.user_id), entry.user_id];
         setOrderByRoute((prev) => ({ ...prev, [fromRouteId]: fromIds, [toRouteId]: toIds }));
@@ -633,11 +651,28 @@ function DailyOverridesContent() {
     };
 
     const handleCancelPendingMove = (userId: string) => {
+        const move = pendingMoves.get(userId);
         setPendingMoves((prev) => {
             const next = new globalThis.Map(prev);
             next.delete(userId);
             return next;
         });
+        setPendingTimes((prev) => {
+            if (!prev.has(userId)) return prev;
+            const next = new globalThis.Map(prev);
+            next.delete(userId);
+            return next;
+        });
+        if (move) {
+            const destIds = getDisplayEntries(move.toRouteId).map((e) => e.user_id).filter((id) => id !== userId);
+            const sourceIds = [...getDisplayEntries(move.fromRouteId).map((e) => e.user_id).filter((id) => id !== userId), userId];
+            setOrderByRoute((prev) => ({
+                ...prev,
+                [move.toRouteId]: destIds,
+                [move.fromRouteId]: sourceIds,
+            }));
+        }
+        if (editingUserId === userId) setEditingUserId(null);
     };
 
     const handleDiscardChanges = () => {
@@ -646,9 +681,17 @@ function DailyOverridesContent() {
 
     const handleSaveChanges = async () => {
         if (!hasUnsavedChanges || !canMutate) return;
+        const times = new globalThis.Map(pendingTimes);
+        if (editingUserId != null) {
+            const trimmed = editValue.trim();
+            times.set(editingUserId, trimmed ? trimmed : null);
+            setPendingTimes(times);
+            setEditingUserId(null);
+        }
         setSaving(true);
         const failedMoves: PendingMove[] = [];
         const failedUndos: PendingUndo[] = [];
+        const failedPatchUserIds = new Set<string>();
         const touchedRouteIds = new Set<number>();
 
         try {
@@ -672,7 +715,7 @@ function DailyOverridesContent() {
                 for (let i = 0; i < list.length; i++) {
                     const entry = list[i];
                     const toSequence = i + 1;
-                    const time = pendingTimes.get(entry.user_id);
+                    const time = times.get(entry.user_id);
                     const move = pendingMoves.get(entry.user_id);
 
                     if (move) {
@@ -700,7 +743,7 @@ function DailyOverridesContent() {
                     if (undoneUsers.has(entry.user_id)) continue;
                     if (!entry.override || entry.override.id === 0) continue;
 
-                    const sequenceChanged = Object.keys(orderByRoute).length > 0;
+                    const sequenceChanged = Boolean(orderByRoute[route.id]?.length);
                     if (!sequenceChanged && time === undefined) continue;
 
                     try {
@@ -713,6 +756,7 @@ function DailyOverridesContent() {
                         });
                         touchedRouteIds.add(route.id);
                     } catch (e) {
+                        failedPatchUserIds.add(entry.user_id);
                         toast.error(`Failed to update ${entry.user?.full_name ?? 'employee'}: ${e instanceof Error ? e.message : 'unknown error'}`);
                     }
                 }
@@ -720,7 +764,7 @@ function DailyOverridesContent() {
 
             setPendingMoves(new globalThis.Map(failedMoves.map((m) => [m.entry.user_id, m])));
             setPendingUndos(new globalThis.Map(failedUndos.map((u) => [u.overrideId, u])));
-            if (failedMoves.length === 0 && failedUndos.length === 0) {
+            if (failedMoves.length === 0 && failedUndos.length === 0 && failedPatchUserIds.size === 0) {
                 setPendingTimes(new globalThis.Map());
                 setOrderByRoute({});
                 toast.success('Changes saved');
@@ -735,7 +779,7 @@ function DailyOverridesContent() {
     };
 
     const handleUndo = (entry: RosterEntry, routeId: number) => {
-        if (!canMutate) return;
+        if (!canMutate || saving) return;
         if (pendingMoves.has(entry.user_id)) {
             handleCancelPendingMove(entry.user_id);
             return;
@@ -759,6 +803,7 @@ function DailyOverridesContent() {
     };
 
     const handleUndoGhost = (row: OverrideRow) => {
+        if (saving) return;
         const destEntry = (rosterByRoute[row.to_route_id] ?? []).find((e) => e.override?.id === row.id);
         if (destEntry) {
             handleUndo(destEntry, row.to_route_id);
@@ -784,30 +829,23 @@ function DailyOverridesContent() {
     };
 
     const handleStartEditTime = (userId: string, current: string | null) => {
-        if (!canMutate) return;
+        if (!canMutate || saving) return;
         setEditingUserId(userId);
-        setEditValue(pendingTimes.get(userId) ?? current ?? '');
+        setEditValue(pendingTimes.has(userId) ? (pendingTimes.get(userId) ?? '') : (current ?? ''));
     };
 
     const handleSaveTime = (userId: string) => {
-        if (!editValue) {
-            setPendingTimes((prev) => {
-                const next = new globalThis.Map(prev);
-                next.delete(userId);
-                return next;
-            });
-        } else {
-            setPendingTimes((prev) => {
-                const next = new globalThis.Map(prev);
-                next.set(userId, editValue);
-                return next;
-            });
-        }
+        const trimmed = editValue.trim();
+        setPendingTimes((prev) => {
+            const next = new globalThis.Map(prev);
+            next.set(userId, trimmed ? trimmed : null);
+            return next;
+        });
         setEditingUserId(null);
     };
 
     const handleNudge = (routeId: number, entry: RosterEntry, dir: -1 | 1) => {
-        if (!canMutate) return;
+        if (!canMutate || saving) return;
         const currentList = getDisplayEntries(routeId);
         const idx = currentList.findIndex((e) => e.user_id === entry.user_id);
         const neighborIdx = idx + dir;
