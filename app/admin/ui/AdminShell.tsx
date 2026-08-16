@@ -25,6 +25,7 @@ import {
   Map,
   MapPin,
   Bus,
+  ArrowLeftRight,
   BarChart3,
   Receipt,
   FileSpreadsheet,
@@ -67,6 +68,7 @@ const nav: NavItem[] = [
   // Utilities
   { href: "/admin/tracker-test", label: "Tracker Test", icon: MapPin, allowInternalStaff: true },
   { href: "/admin/routes/shuttle-trips", label: "Shuttle trip scheduling", icon: Bus, permission: "ops_shuttle" },
+  { href: "/admin/routes/daily-overrides", label: "Daily route overrides", icon: ArrowLeftRight, permission: "ops_shuttle" },
   { href: "/admin/ops/shuttle", label: "Ops: Shuttle", icon: Bus, permission: "ops_shuttle" },
   { href: "/admin/ops/chauffeur", label: "Ops: Chauffeur", icon: Car, permission: "ops_chauffeur" },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, permission: "reports" },
@@ -153,6 +155,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               item.href.includes("/maintenance") ||
               item.href.includes("/logs") ||
               item.href.includes("/shuttle-trips") ||
+              item.href.includes("/daily-overrides") ||
               item.href === "/admin/fixed-contracts";
 
             return (

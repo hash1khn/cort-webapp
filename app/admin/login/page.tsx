@@ -21,6 +21,7 @@ const NAV_PERMISSION_MAP: { href: string; permission: (typeof PERMISSION_KEYS)[n
   { href: "/admin/bookings/pending", permission: "bookings" },
   { href: "/admin/routes", permission: "routes" },
   { href: "/admin/routes/shuttle-trips", permission: "ops_shuttle" },
+  { href: "/admin/routes/daily-overrides", permission: "ops_shuttle" },
   { href: "/admin/ops/shuttle", permission: "ops_shuttle" },
   { href: "/admin/ops/chauffeur", permission: "ops_chauffeur" },
   { href: "/admin/reports", permission: "reports" },

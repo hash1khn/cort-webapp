@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
-import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight, Bus, Building2 } from 'lucide-react';
+import { Plus, MapPin, Truck, User, ArrowLeft, ChevronRight, Bus, ArrowLeftRight, Building2 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminRoutes, selectAdminRoutes, selectAdminRoutesStatus } from '@/app/lib/store/slices/adminRoutesSlice';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
@@ -96,6 +96,14 @@ function RoutesPageContent() {
                             <Button variant="outline">
                                 <Bus className="mr-2 h-4 w-4" />
                                 Shuttle trip scheduling
+                            </Button>
+                        </Link>
+                    ) : null}
+                    {canOpsShuttle ? (
+                        <Link href="/admin/routes/daily-overrides">
+                            <Button variant="outline">
+                                <ArrowLeftRight className="mr-2 h-4 w-4" />
+                                Daily route overrides
                             </Button>
                         </Link>
                     ) : null}

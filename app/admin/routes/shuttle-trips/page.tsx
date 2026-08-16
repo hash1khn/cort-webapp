@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bus, Pencil, RefreshCw, Square, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, Bus, Pencil, RefreshCw, Square, Trash2, X } from 'lucide-react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Card } from '@/app/admin/ui/Card';
@@ -362,12 +362,20 @@ function ShuttleTripsSchedulingContent() {
                         View upcoming trips, remove mistaken SCHEDULED trips, and generate trips for one route and one day at a time.
                     </p>
                 </div>
-                <Link href="/admin/routes">
-                    <Button variant="outline">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to routes
-                    </Button>
-                </Link>
+                <div className="flex gap-2">
+                    <Link href="/admin/routes/daily-overrides">
+                        <Button variant="outline">
+                            <ArrowLeftRight className="mr-2 h-4 w-4" />
+                            Daily route overrides
+                        </Button>
+                    </Link>
+                    <Link href="/admin/routes">
+                        <Button variant="outline">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back to routes
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {banner && (
