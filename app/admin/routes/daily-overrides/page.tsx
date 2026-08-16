@@ -51,6 +51,7 @@ interface RosterEntry {
     lat: number | null;
     lng: number | null;
     sequence: number | null;
+    pickup_time: string | null;
     is_override: boolean;
     override: {
         id: number;
@@ -89,6 +90,19 @@ interface OverrideRow {
 }
 
 const ROUTE_COLORS = ['#0C225E', '#0e7490', '#7c3aed', '#b45309', '#15803d', '#be123c'];
+
+/** HH:mm (24h) → 12-hour clock, e.g. 07:30 → 7:30 AM */
+function format12h(hhmm: string | null | undefined): string | null {
+    if (!hhmm) return null;
+    const match = hhmm.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return hhmm;
+    let hour = Number.parseInt(match[1], 10);
+    const minute = match[2];
+    if (Number.isNaN(hour)) return hhmm;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `${hour}:${minute} ${suffix}`;
+}
 
 function utcTodayYmd(): string {
     const n = new Date();
@@ -145,6 +159,8 @@ function EmployeeCard({
         data: { routeId, entry },
     });
 
+    const displayTime = format12h(entry.override?.scheduled_time ?? entry.pickup_time);
+
     const style = transform
         ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 }
         : undefined;
@@ -181,6 +197,12 @@ function EmployeeCard({
                     )}
                 </div>
                 <div className="text-xs text-gray-500 truncate">{entry.stop_name ?? 'No stop'}</div>
+                {!editing && displayTime && (
+                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        {displayTime}
+                    </div>
+                )}
                 {editing ? (
                     <div className="flex items-center gap-1 mt-1">
                         <input
@@ -199,8 +221,7 @@ function EmployeeCard({
                             disabled={!canMutate || busy}
                             className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 disabled:cursor-not-allowed"
                         >
-                            <Clock className="w-3 h-3" />
-                            {entry.override?.scheduled_time ?? 'Set time'}
+                            {entry.override?.scheduled_time ? 'Change time' : 'Set time'}
                         </button>
                     )
                 )}
@@ -335,6 +356,11 @@ function RoutePanel({
                         <div className="flex-1 min-w-0">
                             <div className="font-medium text-blue-700 truncate">{p.entry.user?.full_name ?? p.entry.user_id}</div>
                             <div className="text-xs text-blue-500">Moving to {p.toRouteName} — not saved</div>
+                            {format12h(p.entry.override?.scheduled_time ?? p.entry.pickup_time) && (
+                                <div className="text-xs text-blue-400 mt-0.5">
+                                    {format12h(p.entry.override?.scheduled_time ?? p.entry.pickup_time)}
+                                </div>
+                            )}
                         </div>
                         {canMutate && (
                             <button
@@ -520,6 +546,7 @@ function DailyOverridesContent() {
         if (time === undefined) return entry;
         return {
             ...entry,
+            pickup_time: time ?? entry.pickup_time,
             override: {
                 id: entry.override?.id ?? 0,
                 from_route_id: entry.override?.from_route_id ?? null,
@@ -816,6 +843,7 @@ function DailyOverridesContent() {
             lat: null,
             lng: null,
             sequence: row.to_sequence,
+            pickup_time: row.scheduled_time,
             is_override: true,
             override: {
                 id: row.id,
