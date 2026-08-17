@@ -13,7 +13,7 @@ import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/ad
 import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { DriverType } from '@/app/lib/services/types/drivers';
 import { PlanEmptyState } from './PlanEmptyState';
-import { initials } from './plan-types';
+import { initials, type PendingCrewChange } from './plan-types';
 
 type TripVehicle = { id: number; plate_number: string; make?: string | null; model: string | null };
 
@@ -64,11 +64,21 @@ export function CrewAssignmentsPanel({
     date,
     direction,
     canMutate,
+    pendingCrew,
+    saving,
+    reloadKey,
+    onQueueChange,
+    onClearTrip,
 }: {
     companyId: number;
     date: string;
     direction: 'MORNING' | 'EVENING';
     canMutate: boolean;
+    pendingCrew: globalThis.Map<number, PendingCrewChange>;
+    saving: boolean;
+    reloadKey: number;
+    onQueueChange: (tripId: number, change: PendingCrewChange) => void;
+    onClearTrip: (tripId: number) => void;
 }) {
     const dispatch = useAppDispatch();
     const drivers = useAppSelector(selectAdminDrivers);
@@ -76,7 +86,6 @@ export function CrewAssignmentsPanel({
 
     const [trips, setTrips] = useState<ScheduledTripRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [savingId, setSavingId] = useState<number | null>(null);
 
     useEffect(() => {
         dispatch(fetchAdminDrivers({ limit: 200, driver_type: DriverType.SHUTTLE }));
@@ -100,7 +109,7 @@ export function CrewAssignmentsPanel({
         } finally {
             setLoading(false);
         }
-    }, [companyId, date, direction]);
+    }, [companyId, date, direction, reloadKey]);
 
     useEffect(() => {
         loadTrips();
@@ -132,32 +141,37 @@ export function CrewAssignmentsPanel({
         return fromTrip ? vehicleLabel(fromTrip) : null;
     };
 
-    const applyOverride = async (trip: ScheduledTripRow, payload: { driver_id?: string; vehicle_id?: number }) => {
-        if (!canMutate) return;
-        setSavingId(trip.id);
-        try {
-            await apiClient.setShuttleTripResourceOverride(trip.id, payload);
-            toast.success('Saved for this trip only — the route\'s usual driver/vehicle is unchanged.');
-            await loadTrips();
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not save');
-        } finally {
-            setSavingId(null);
+    const applyDraft = (trip: ScheduledTripRow, patch: { driver_id?: string; vehicle_id?: number }) => {
+        if (!canMutate || saving) return;
+        const savedDriver = trip.driver_id ?? trip.users?.id ?? '';
+        const savedVehicle = tripVehicleId(trip);
+        const prev = pendingCrew.get(trip.id);
+        const nextDriver = patch.driver_id !== undefined
+            ? patch.driver_id
+            : (prev?.restore ? savedDriver : (prev?.driver_id ?? savedDriver));
+        const nextVehicle = patch.vehicle_id !== undefined
+            ? patch.vehicle_id
+            : (prev?.restore ? savedVehicle : (prev?.vehicle_id ?? savedVehicle));
+        if (nextDriver === savedDriver && nextVehicle === savedVehicle) {
+            onClearTrip(trip.id);
+            return;
         }
+        onQueueChange(trip.id, {
+            tripId: trip.id,
+            ...(nextDriver !== savedDriver ? { driver_id: nextDriver } : {}),
+            ...(nextVehicle !== savedVehicle && nextVehicle != null ? { vehicle_id: nextVehicle } : {}),
+        });
     };
 
-    const undoOverride = async (trip: ScheduledTripRow) => {
-        if (!canMutate) return;
-        setSavingId(trip.id);
-        try {
-            await apiClient.clearShuttleTripResourceOverride(trip.id);
-            toast.success('Restored the usual driver and vehicle for this trip.');
-            await loadTrips();
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not undo');
-        } finally {
-            setSavingId(null);
+    const queueRestore = (trip: ScheduledTripRow) => {
+        if (!canMutate || saving) return;
+        const pending = pendingCrew.get(trip.id);
+        if (pending) {
+            onClearTrip(trip.id);
+            return;
         }
+        if (!trip.shuttle_trip_resource_overrides) return;
+        onQueueChange(trip.id, { tripId: trip.id, restore: true });
     };
 
     if (loading) {
@@ -188,20 +202,22 @@ export function CrewAssignmentsPanel({
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-[var(--text-muted)]">
-                    {trips.length} {trips.length === 1 ? 'trip' : 'trips'} · changes save immediately for this {direction === 'MORNING' ? 'morning' : 'evening'} only
+                    {trips.length} {trips.length === 1 ? 'trip' : 'trips'} · changes save when you press Save — this {direction === 'MORNING' ? 'morning' : 'evening'} only
                 </span>
                 <span className="rounded-full bg-[color-mix(in_srgb,var(--cort-orange)_12%,transparent)] px-2.5 py-1 text-[11px] font-medium text-[var(--cort-orange)]">
                     Temporary — different from the usual crew
                 </span>
+                <span className="rounded-full border border-dashed border-[var(--cort-navy)] px-2.5 py-1 text-[11px] font-medium text-[var(--cort-navy)]">
+                    Pending — not saved
+                </span>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {trips.map((trip) => {
-                    const currentDriverId = trip.driver_id ?? trip.users?.id ?? '';
-                    const currentVehicleId = tripVehicleId(trip);
-                    const vehicle = tripVehicle(trip);
+                    const savedDriverId = trip.driver_id ?? trip.users?.id ?? '';
+                    const savedVehicleId = tripVehicleId(trip);
+                    const pending = pendingCrew.get(trip.id);
                     const isTemp = trip.shuttle_trip_resource_overrides != null;
                     const locked = trip.status === 'COMPLETED' || trip.status === 'CANCELLED';
-                    const busy = savingId === trip.id;
                     const status = statusBadge(trip.status ?? '');
                     const usualDriverId = trip.shuttle_trip_resource_overrides?.from_driver_id
                         ?? trip.routes?.assigned_driver_id
@@ -211,11 +227,23 @@ export function CrewAssignmentsPanel({
                         ?? trip.routes?.assigned_vehicle_id
                         ?? trip.routes?.vehicles?.id
                         ?? null;
+                    const currentDriverId = pending?.restore
+                        ? (usualDriverId ?? '')
+                        : (pending?.driver_id ?? savedDriverId);
+                    const currentVehicleId = pending?.restore
+                        ? (usualVehicleId ?? null)
+                        : (pending?.vehicle_id ?? savedVehicleId);
+                    const vehicle = currentVehicleId != null
+                        ? (companyVehicles.find((v) => v.id === currentVehicleId)
+                            ?? tripVehicle(trip)
+                            ?? trip.routes?.vehicles
+                            ?? null)
+                        : tripVehicle(trip);
                     const usualDriverLabel = driverName(usualDriverId) ?? 'Usual driver';
                     const usualVehicleLabel = vehicleName(usualVehicleId) ?? 'Usual vehicle';
-                    const currentDriverLabel = trip.users?.full_name ?? driverName(currentDriverId) ?? 'Select driver';
+                    const currentDriverLabel = driverName(currentDriverId) ?? trip.users?.full_name ?? 'Select driver';
                     const driverOptions = currentDriverId && !companyDrivers.some((d) => d.id === currentDriverId)
-                        ? [{ id: currentDriverId, full_name: trip.users?.full_name ?? 'Current driver' }, ...companyDrivers]
+                        ? [{ id: currentDriverId, full_name: currentDriverLabel }, ...companyDrivers]
                         : companyDrivers;
                     const vehicleOptions = currentVehicleId && !companyVehicles.some((v) => v.id === currentVehicleId)
                         ? [{ id: currentVehicleId, plate_number: vehicle?.plate_number ?? `#${currentVehicleId}`, make: vehicle?.make, model: vehicle?.model }, ...companyVehicles]
@@ -226,11 +254,15 @@ export function CrewAssignmentsPanel({
                             key={trip.id}
                             className={cx(
                                 'overflow-hidden rounded-2xl border bg-[var(--bg-card)] shadow-[var(--shadow-card)]',
-                                isTemp ? 'border-[color-mix(in_srgb,var(--cort-orange)_40%,transparent)]' : 'border-[var(--border-default)]',
+                                pending
+                                    ? 'border-dashed border-[var(--cort-navy)]'
+                                    : isTemp
+                                        ? 'border-[color-mix(in_srgb,var(--cort-orange)_40%,transparent)]'
+                                        : 'border-[var(--border-default)]',
                             )}
                         >
                             <div className="flex">
-                                <div className={cx('w-1.5 shrink-0', isTemp ? 'bg-[var(--cort-orange)]' : 'bg-[var(--cort-navy)]')} />
+                                <div className={cx('w-1.5 shrink-0', pending ? 'bg-[var(--cort-navy)]' : isTemp ? 'bg-[var(--cort-orange)]' : 'bg-[var(--cort-navy)]')} />
                                 <div className="flex-1 space-y-4 p-4">
                                     <div className="flex items-start justify-between gap-2">
                                         <div>
@@ -239,12 +271,24 @@ export function CrewAssignmentsPanel({
                                                 <Badge color={status.color}>{status.text}</Badge>
                                             </div>
                                         </div>
-                                        {isTemp && <Badge color="orange">Temporary</Badge>}
+                                        <div className="flex flex-wrap justify-end gap-1">
+                                            {pending && <Badge color="blue">Pending</Badge>}
+                                            {isTemp && !pending?.restore && <Badge color="orange">Temporary</Badge>}
+                                        </div>
                                     </div>
 
-                                    {isTemp && (
-                                        <p className="rounded-lg bg-[color-mix(in_srgb,var(--cort-orange)_10%,transparent)] px-3 py-2 text-xs text-[var(--cort-orange)]">
-                                            Usually {usualDriverLabel} · {usualVehicleLabel}
+                                    {(isTemp || pending) && (
+                                        <p className={cx(
+                                            'rounded-lg px-3 py-2 text-xs',
+                                            pending
+                                                ? 'bg-[color-mix(in_srgb,var(--cort-navy)_8%,transparent)] text-[var(--cort-navy)]'
+                                                : 'bg-[color-mix(in_srgb,var(--cort-orange)_10%,transparent)] text-[var(--cort-orange)]',
+                                        )}>
+                                            {pending?.restore
+                                                ? `Will restore ${usualDriverLabel} · ${usualVehicleLabel}`
+                                                : pending
+                                                    ? 'Not saved yet — press Save changes'
+                                                    : `Usually ${usualDriverLabel} · ${usualVehicleLabel}`}
                                         </p>
                                     )}
 
@@ -259,12 +303,12 @@ export function CrewAssignmentsPanel({
                                                 </span>
                                                 <select
                                                     className={cx(adminSelect, 'flex-1')}
-                                                    disabled={!canMutate || locked || busy}
+                                                    disabled={!canMutate || locked || saving}
                                                     value={currentDriverId}
                                                     onChange={(e) => {
                                                         const next = e.target.value;
-                                                        if (!next || next === currentDriverId) return;
-                                                        void applyOverride(trip, { driver_id: next });
+                                                        if (!next) return;
+                                                        applyDraft(trip, { driver_id: next });
                                                     }}
                                                 >
                                                     <option value="">Select driver</option>
@@ -281,12 +325,12 @@ export function CrewAssignmentsPanel({
                                             </span>
                                             <select
                                                 className={adminSelect}
-                                                disabled={!canMutate || locked || busy}
+                                                disabled={!canMutate || locked || saving}
                                                 value={currentVehicleId != null ? String(currentVehicleId) : ''}
                                                 onChange={(e) => {
                                                     const next = e.target.value ? Number(e.target.value) : null;
-                                                    if (next == null || next === currentVehicleId) return;
-                                                    void applyOverride(trip, { vehicle_id: next });
+                                                    if (next == null) return;
+                                                    applyDraft(trip, { vehicle_id: next });
                                                 }}
                                             >
                                                 <option value="">Select vehicle</option>
@@ -297,11 +341,22 @@ export function CrewAssignmentsPanel({
                                         </label>
                                     </div>
 
-                                    {isTemp && canMutate && !locked && (
+                                    {canMutate && !locked && pending && (
                                         <button
                                             type="button"
-                                            disabled={busy}
-                                            onClick={() => void undoOverride(trip)}
+                                            disabled={saving}
+                                            onClick={() => onClearTrip(trip.id)}
+                                            className={cx(adminBtnOutline, 'h-9 w-full text-xs')}
+                                        >
+                                            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                            Undo this trip
+                                        </button>
+                                    )}
+                                    {canMutate && !locked && isTemp && !pending && (
+                                        <button
+                                            type="button"
+                                            disabled={saving}
+                                            onClick={() => queueRestore(trip)}
                                             className={cx(adminBtnOutline, 'h-9 w-full text-xs')}
                                         >
                                             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
@@ -310,9 +365,6 @@ export function CrewAssignmentsPanel({
                                     )}
                                     {locked && (
                                         <p className="text-xs text-[var(--text-muted)]">This trip is finished — assignments can&apos;t be changed.</p>
-                                    )}
-                                    {busy && (
-                                        <p className="text-xs text-[var(--text-muted)]">Saving…</p>
                                     )}
                                 </div>
                             </div>

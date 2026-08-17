@@ -48,6 +48,13 @@ export interface PendingUndo {
     fromRouteId: number | null;
 }
 
+export interface PendingCrewChange {
+    tripId: number;
+    driver_id?: string;
+    vehicle_id?: number;
+    restore?: boolean;
+}
+
 export interface OverrideRow {
     id: number;
     user_id: string;

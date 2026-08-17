@@ -1,28 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/app/admin/ui/Button';
-import { Card } from '@/app/admin/ui/Card';
-import { Input } from '@/app/admin/ui/Input';
-import { Label } from '@/app/admin/ui/Label';
+import { useState, useEffect, useMemo } from 'react';
+import { UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
+import { Badge } from '@/app/admin/components/ui/Badge';
+import { adminBtnPrimary, adminInput, adminSelect } from '@/app/admin/components/ui/admin-styles';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
     fetchRouteAssignments,
     assignEmployeeToRoute,
     removeEmployeeFromRoute,
     selectRouteAssignments,
-    selectAssignmentStatus
+    selectAssignmentStatus,
+    type Route,
 } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchEmployees, selectEmployees } from '@/app/lib/store/slices/employeeSlice';
-import { Route } from '@/app/lib/store/slices/adminRoutesSlice';
-import { Trash, UserPlus } from 'lucide-react';
-import { toast } from 'sonner';
+import { format12h, initials } from '../../RouteCommandBar';
 
-interface RosteringTabProps {
-    route: Route;
-}
-
-export default function RosteringTab({ route }: RosteringTabProps) {
+export default function RosteringTab({ route }: { route: Route }) {
     const dispatch = useAppDispatch();
     const assignments = useAppSelector(selectRouteAssignments);
     const assignmentStatus = useAppSelector(selectAssignmentStatus);
@@ -30,13 +25,12 @@ export default function RosteringTab({ route }: RosteringTabProps) {
 
     const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
     const [selectedStopId, setSelectedStopId] = useState<number | ''>('');
-    const [isAdding, setIsAdding] = useState(false);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         if (route.id && route.company_id) {
             setSelectedEmployeeId('');
             setSelectedStopId('');
-            setIsAdding(false);
             dispatch(fetchRouteAssignments(route.id));
             dispatch(fetchEmployees(route.company_id.toString()));
         }
@@ -44,38 +38,33 @@ export default function RosteringTab({ route }: RosteringTabProps) {
 
     const handleAssign = async () => {
         if (!selectedEmployeeId || !selectedStopId) {
-            toast.error('Please select an employee and a pickup stop');
+            toast.error('Select a person and a pickup');
             return;
         }
-
         try {
             await dispatch(assignEmployeeToRoute({
                 user_id: selectedEmployeeId,
                 route_id: route.id,
-                pickup_stop_id: Number(selectedStopId)
+                pickup_stop_id: Number(selectedStopId),
             })).unwrap();
-
-            toast.success('Employee assigned successfully');
+            toast.success('Added to this route');
             setSelectedEmployeeId('');
             setSelectedStopId('');
-            setIsAdding(false);
-        } catch (error) {
-            toast.error('Failed to assign employee');
+        } catch {
+            toast.error('Could not add this person');
         }
     };
 
     const handleRemove = async (userId: string) => {
-        if (confirm('Are you sure you want to remove this employee from the roster?')) {
-            try {
-                await dispatch(removeEmployeeFromRoute(userId)).unwrap();
-                toast.success('Employee removed successfully');
-            } catch (error) {
-                toast.error('Failed to remove employee');
-            }
+        if (!confirm('Remove this person from the standing roster?')) return;
+        try {
+            await dispatch(removeEmployeeFromRoute(userId)).unwrap();
+            toast.success('Removed from this route');
+        } catch {
+            toast.error('Could not remove this person');
         }
     };
 
-    // Office = highest morning_sequence (last AM stop). Not assignable as a pickup.
     const officeStopId = (() => {
         const stops = route.route_stops ?? [];
         const withMorning = stops.filter((s) => s.morning_sequence != null);
@@ -87,88 +76,124 @@ export default function RosteringTab({ route }: RosteringTabProps) {
     const assignedUserIds = new Set(assignments.map((a) => a.user_id));
     const availableEmployees = employees.filter((emp) => !assignedUserIds.has(emp.id));
 
+    const stopById = useMemo(() => {
+        const map = new Map((route.route_stops ?? []).map((s) => [s.id, s]));
+        return map;
+    }, [route.route_stops]);
+
+    const visible = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return assignments;
+        return assignments.filter((a) => {
+            const name = a.users?.full_name ?? '';
+            const pickup = a.route_stops?.name ?? '';
+            return `${name} ${pickup}`.toLowerCase().includes(q);
+        });
+    }, [assignments, search]);
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Employee Roster ({assignments.length})</h3>
-                <Button onClick={() => setIsAdding(!isAdding)}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    {isAdding ? 'Cancel' : 'Add Employee'}
-                </Button>
+        <div className="space-y-4">
+            <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Who normally rides this route</h3>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                    This is the standing roster. Day-of moves live on Today&apos;s shuttle plan.
+                </p>
             </div>
 
-            {isAdding && (
-                <Card className="p-4 bg-gray-50 border-dashed">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div>
-                            <Label>Employee</Label>
-                            <select
-                                className="w-full border rounded p-2"
-                                value={selectedEmployeeId}
-                                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                            >
-                                <option value="">Select Employee</option>
-                                {availableEmployees.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.full_name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <Label>Pickup Stop</Label>
-                            <select
-                                className="w-full border rounded p-2"
-                                value={selectedStopId}
-                                onChange={(e) => setSelectedStopId(Number(e.target.value))}
-                            >
-                                <option value="">Select Stop</option>
-                                {pickupStops.map(stop => (
-                                    <option key={stop.id} value={stop.id}>
-                                        {stop.name} ({stop.morning_eta || 'No ETA'})
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="text-[11px] text-gray-400 mt-1">
-                                Office stop is excluded — employees board at pickups only.
-                            </p>
-                        </div>
-                        <Button onClick={handleAssign} disabled={assignmentStatus === 'loading'}>
-                            {assignmentStatus === 'loading' ? 'Assigning...' : 'Assign'}
-                        </Button>
+            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+                <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-3">
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Employee</label>
+                        <select
+                            className={adminSelect}
+                            value={selectedEmployeeId}
+                            onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                        >
+                            <option value="">Select employee</option>
+                            {availableEmployees.map((emp) => (
+                                <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                            ))}
+                        </select>
                     </div>
-                </Card>
-            )}
-
-            <div className="bg-white rounded-md border text-sm">
-                <div className="grid grid-cols-4 bg-gray-50 p-3 font-semibold border-b">
-                    <div className="col-span-1">Employee Name</div>
-                    <div className="col-span-1">Email</div>
-                    <div className="col-span-1">Pickup Stop</div>
-                    <div className="col-span-1 text-right">Actions</div>
+                    <div>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Pickup</label>
+                        <select
+                            className={adminSelect}
+                            value={selectedStopId}
+                            onChange={(e) => setSelectedStopId(e.target.value ? Number(e.target.value) : '')}
+                        >
+                            <option value="">Select pickup</option>
+                            {pickupStops.map((stop) => (
+                                <option key={stop.id} value={stop.id}>
+                                    {stop.name}{stop.morning_eta ? ` · ${format12h(stop.morning_eta) ?? stop.morning_eta}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-[11px] text-[var(--text-muted)]">Office is excluded — people board at pickups only.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => void handleAssign()}
+                        disabled={assignmentStatus === 'loading'}
+                        className={adminBtnPrimary}
+                    >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        {assignmentStatus === 'loading' ? 'Adding…' : 'Add to route'}
+                    </button>
                 </div>
-                {assignments.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                        No employees assigned to this route yet.
-                    </div>
-                ) : (
-                    assignments.map((assignment) => (
-                        <div key={assignment.user_id} className="grid grid-cols-4 p-3 border-b last:border-0 items-center hover:bg-gray-50">
-                            <div className="col-span-1 font-medium">{assignment.users?.full_name}</div>
-                            <div className="col-span-1 text-gray-500">{assignment.users?.email}</div>
-                            <div className="col-span-1">
-                                {assignment.route_stops?.name}
-                            </div>
-                            <div className="col-span-1 text-right">
+            </div>
+
+            <label className="block max-w-sm">
+                <span className="sr-only">Search roster</span>
+                <input
+                    className={adminInput}
+                    placeholder="Search name or pickup"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+            </label>
+
+            {visible.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-[var(--border-default)] py-10 text-center text-sm text-[var(--text-muted)]">
+                    {assignments.length === 0 ? 'No one is on this route yet.' : 'No one matches that search.'}
+                </p>
+            ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {visible.map((assignment) => {
+                        const name = assignment.users?.full_name ?? 'Employee';
+                        const stop = assignment.pickup_stop_id ? stopById.get(assignment.pickup_stop_id) : undefined;
+                        const pickupName = assignment.route_stops?.name ?? stop?.name ?? 'Pickup';
+                        const time = format12h(stop?.morning_eta ?? null);
+                        return (
+                            <div
+                                key={assignment.user_id}
+                                className="flex items-start gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]"
+                            >
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--cort-navy)] text-xs font-bold text-white">
+                                    {initials(name)}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <div className="font-semibold text-[var(--text-primary)]">{name}</div>
+                                    {assignment.users?.email && (
+                                        <div className="truncate text-xs text-[var(--text-muted)]">{assignment.users.email}</div>
+                                    )}
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                        <Badge color="gray">{pickupName}</Badge>
+                                        {time && <span className="text-xs text-[var(--text-muted)]">{time}</span>}
+                                    </div>
+                                </div>
                                 <button
-                                    onClick={() => handleRemove(assignment.user_id)}
-                                    className="text-red-500 hover:text-red-700 p-1"
+                                    type="button"
+                                    onClick={() => void handleRemove(assignment.user_id)}
+                                    className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-500/10"
                                 >
-                                    <Trash className="w-4 h-4" />
+                                    Remove
                                 </button>
                             </div>
-                        </div>
-                    ))
-                )}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

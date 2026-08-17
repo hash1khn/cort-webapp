@@ -216,6 +216,23 @@ export const optimizeAdminRoute = createAsyncThunk(
     }
 );
 
+export const reorderAdminRouteStops = createAsyncThunk(
+    'adminRoutes/reorderStops',
+    async (
+        { routeId, direction, stop_ids }: { routeId: number; direction: 'MORNING' | 'EVENING'; stop_ids: number[] },
+        { rejectWithValue },
+    ) => {
+        try {
+            return await apiClient.request<Route>(`/routes/${routeId}/stops/reorder`, {
+                method: 'POST',
+                body: JSON.stringify({ direction, stop_ids }),
+            });
+        } catch (err: any) {
+            return rejectWithValue(err.message || 'Failed to reorder stops');
+        }
+    }
+);
+
 export const deleteAdminRoute = createAsyncThunk(
     'adminRoutes/deleteRoute',
     async (id: number, { rejectWithValue }) => {
@@ -446,6 +463,15 @@ export const adminRoutesSlice = createSlice({
             .addCase(optimizeAdminRoute.rejected, (state, action) => {
                 state.actionStatus = 'failed';
                 state.actionError = action.payload as string;
+            })
+            .addCase(reorderAdminRouteStops.fulfilled, (state, action) => {
+                const index = state.routes.findIndex((r) => r.id === action.payload.id);
+                if (index !== -1) {
+                    state.routes[index] = action.payload;
+                }
+                if (state.currentRoute?.id === action.payload.id) {
+                    state.currentRoute = action.payload;
+                }
             })
             // Delete Route
             .addCase(deleteAdminRoute.pending, (state) => {

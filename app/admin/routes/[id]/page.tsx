@@ -18,14 +18,10 @@ import {
 } from '@/app/lib/store/slices/adminRoutesSlice';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
 import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
-import { Button } from '@/app/admin/ui/Button';
-import { Card } from '@/app/admin/ui/Card';
-import { Input } from '@/app/admin/ui/Input';
-import { Label } from '@/app/admin/ui/Label';
 import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import RosteringTab from './components/RosteringTab';
 import ManageStopsTab from './components/ManageStopsTab';
-import { ChevronLeft, Edit, Info, MapPin, Plus, Save, Trash, Users, X, ListOrdered, Sparkles, Building2 } from 'lucide-react';
+import { ChevronLeft, Info, Plus, Save, Trash, Users, X, ListOrdered, Sparkles, Building2, Sun, Sunset } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
@@ -33,6 +29,10 @@ import { DriverType } from '@/app/lib/services/types/drivers';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
 import { useAuth } from '@/app/lib/contexts/auth-context';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
+import { Badge } from '@/app/admin/components/ui/Badge';
+import { adminBtnDestructive, adminBtnOutline, adminBtnPrimary, adminInput, adminSelect } from '@/app/admin/components/ui/admin-styles';
+import { cx } from '@/app/admin/components/ui/cx';
+import { RouteCommandBar, RoutePill, format12h } from '../RouteCommandBar';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
@@ -466,224 +466,180 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     // ---- Render --------------------------------------------------------------
 
-    if (status === 'loading') return <div className="p-8 text-center">Loading route details...</div>;
-    if (!route) return <div className="p-8 text-center">Route not found</div>;
+    if (status === 'loading') return <div className="p-8 text-center text-[var(--text-muted)]">Loading route…</div>;
+    if (!route) return <div className="p-8 text-center text-[var(--text-muted)]">Route not found</div>;
+
+    const companyName = route.company?.name ?? route.companies?.name ?? 'Company';
+    const usualDriver = route.users?.full_name ?? 'Not set';
+    const usualVehicle = route.vehicles?.plate_number
+        ? [route.vehicles.model, route.vehicles.plate_number].filter(Boolean).join(' · ')
+        : 'Not set';
 
     return (
         <PermissionGate permission="routes">
-            <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4 mb-6">
-                <Button variant="ghost" size="sm" onClick={() => router.back()}>
-                    <ChevronLeft className="w-4 h-4 mr-1" /> Back
-                </Button>
-                <div className="flex-1">
-                    {isEditing ? (
-                        <Input
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="max-w-md font-bold text-xl h-10"
-                        />
-                    ) : (
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            {route.name}
-                            <button
-                                onClick={canEditRoutes ? () => { hydrateEditFormFromRoute(); setIsEditing(true); } : undefined}
-                                disabled={!canEditRoutes}
-                                className="text-gray-400 hover:text-blue-600 disabled:opacity-40"
-                            >
-                                <Edit className="w-4 h-4" />
-                            </button>
-                        </h1>
-                    )}
-                    <div className="text-gray-500 text-sm mt-1">
-                        Route ID: {route.id} · {route.route_stops?.length || 0} stops
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    {isEditing ? (
-                        <>
-                            <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                            <Button onClick={handleSaveDetails} disabled={!canEditRoutes}>Save Changes</Button>
-                        </>
-                    ) : (
-                        canEditRoutes && (
+            <div className="space-y-5">
+            <RouteCommandBar
+                title={route.name}
+                subtitle={`${companyName} · ${route.route_stops?.length || 0} stops`}
+                actions={
+                    <>
+                        <button type="button" onClick={() => router.push('/admin/routes')} className={adminBtnOutline}>
+                            <ChevronLeft className="mr-1 h-4 w-4" /> Back
+                        </button>
+                        {isEditing ? (
                             <>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleOptimizeRoute}
-                                    disabled={isOptimizing || (route.route_stops?.length ?? 0) < 3}
-                                    title="Optimize pickup order from office (last stop). Evening auto-reverses morning."
-                                >
-                                    <Sparkles className="w-4 h-4 mr-1" />
-                                    {isOptimizing ? 'Optimizing…' : 'Optimize Route'}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleDeleteRoute}
-                                    className="text-red-600 border-red-300 hover:bg-red-50"
-                                >
-                                    <Trash className="w-4 h-4 mr-1" /> Delete Route
-                                </Button>
+                                <button type="button" onClick={handleCancelEdit} className={adminBtnOutline}>Cancel</button>
+                                <button type="button" onClick={() => void handleSaveDetails()} disabled={!canEditRoutes} className={adminBtnPrimary}>
+                                    <Save className="mr-2 h-4 w-4" /> Save
+                                </button>
                             </>
-                        )
-                    )}
-                </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b">
-                {(['overview', 'stops', 'rostering'] as const).map((tab) => (
-                    <button
-                        key={tab}
-                        className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors capitalize flex items-center gap-2 ${activeTab === tab
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
-                            }`}
-                        onClick={() => setActiveTab(tab)}
-                    >
-                        {tab === 'overview' ? <Info className="w-4 h-4" /> : tab === 'stops' ? <ListOrdered className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                ))}
-            </div>
+                        ) : canEditRoutes && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => { hydrateEditFormFromRoute(); setIsEditing(true); }}
+                                    className={adminBtnOutline}
+                                >
+                                    Edit route
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleOptimizeRoute()}
+                                    disabled={isOptimizing || (route.route_stops?.length ?? 0) < 3}
+                                    className={adminBtnOutline}
+                                    title="Optimize pickup order from office. Evening auto-reverses morning."
+                                >
+                                    <Sparkles className="mr-1 h-4 w-4" />
+                                    {isOptimizing ? 'Optimizing…' : 'Optimize order'}
+                                </button>
+                                <button type="button" onClick={() => void handleDeleteRoute()} className={adminBtnDestructive}>
+                                    <Trash className="mr-1 h-4 w-4" /> Delete
+                                </button>
+                            </>
+                        )}
+                    </>
+                }
+                tabs={
+                    <div className="flex rounded-full bg-[var(--bg-subtle)] p-1">
+                        <RoutePill active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+                            <Info className="h-4 w-4" /> Overview
+                        </RoutePill>
+                        <RoutePill active={activeTab === 'stops'} onClick={() => setActiveTab('stops')}>
+                            <ListOrdered className="h-4 w-4" /> Stops
+                        </RoutePill>
+                        <RoutePill active={activeTab === 'rostering'} onClick={() => setActiveTab('rostering')}>
+                            <Users className="h-4 w-4" /> People
+                        </RoutePill>
+                    </div>
+                }
+            />
 
             {/* Overview Tab */}
             {activeTab === 'overview' && (
                 <div className="space-y-4">
-                    {/* Route meta (company, vehicle, driver) */}
-                    <Card className="p-4">
-                        <h3 className="font-semibold mb-3">Route Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+                        {isEditing && (
+                            <div className="mb-4">
+                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Route name</label>
+                                <input
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                    className={cx(adminInput, 'max-w-md')}
+                                />
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 text-sm">
                             <div>
-                                <span className="text-gray-500">Company:</span>{' '}
-                                <span className="font-medium">
-                                    {route.company?.name ?? route.companies?.name ?? 'N/A'}
-                                </span>
+                                <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Company</div>
+                                <div className="mt-1 font-medium text-[var(--text-primary)]">{companyName}</div>
                             </div>
                             {!isEditing && (
                                 <>
                                     <div>
-                                        <span className="text-gray-500">Vehicle:</span>{' '}
-                                        <span className="font-medium">
-                                            {route.vehicles?.model && route.vehicles?.plate_number
-                                                ? `${route.vehicles.model} (${route.vehicles.plate_number})`
-                                                : 'Unassigned'}
-                                        </span>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual driver</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{usualDriver}</div>
                                     </div>
                                     <div>
-                                        <span className="text-gray-500">Driver:</span>{' '}
-                                        <span className="font-medium">
-                                            {route.users?.full_name ?? 'Unassigned'}
-                                        </span>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual vehicle</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{usualVehicle}</div>
                                     </div>
                                     <div>
-                                        <span className="text-gray-500">Evening lock time (PKT):</span>{' '}
-                                        <span className="font-medium">
-                                            {formatTime(route.evening_lock_time) || 'Not set'}
-                                        </span>
-                                        <div className="text-xs text-gray-400 mt-0.5">
-                                            Drivers cannot start the evening return before this time
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening lock time</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">
+                                            {format12h(formatTime(route.evening_lock_time)) || 'Not set'}
                                         </div>
+                                        <div className="mt-0.5 text-xs text-[var(--text-muted)]">Evening return cannot start before this</div>
                                     </div>
                                 </>
                             )}
                             {isEditing && (
                                 <>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-gray-500 text-xs">Assigned Vehicle</span>
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual driver</label>
                                         <select
-                                            className="w-full border rounded-lg p-2 text-sm"
-                                            value={editForm.assigned_vehicle_id}
-                                            onChange={(e) =>
-                                                setEditForm({ ...editForm, assigned_vehicle_id: e.target.value })
-                                            }
-                                        >
-                                            <option value="">None</option>
-                                            {vehiclesForSelect.map((v: any) => (
-                                                <option key={v.id} value={v.id}>
-                                                    {v.plate_number}
-                                                    {v.model ? ` · ${v.model}` : ''}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-gray-500 text-xs">Assigned Driver</span>
-                                        <select
-                                            className="w-full border rounded-lg p-2 text-sm"
+                                            className={adminSelect}
                                             value={editForm.assigned_driver_id}
-                                            onChange={(e) =>
-                                                setEditForm({ ...editForm, assigned_driver_id: e.target.value })
-                                            }
+                                            onChange={(e) => setEditForm({ ...editForm, assigned_driver_id: e.target.value })}
                                         >
                                             <option value="">None</option>
                                             {driversForSelect.map((d) => (
-                                                <option key={d.id} value={d.id}>
-                                                    {d.full_name}
+                                                <option key={d.id} value={d.id}>{d.full_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual vehicle</label>
+                                        <select
+                                            className={adminSelect}
+                                            value={editForm.assigned_vehicle_id}
+                                            onChange={(e) => setEditForm({ ...editForm, assigned_vehicle_id: e.target.value })}
+                                        >
+                                            <option value="">None</option>
+                                            {vehiclesForSelect.map((v: { id: number; plate_number?: string; model?: string }) => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.plate_number}{v.model ? ` · ${v.model}` : ''}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="flex flex-col gap-1">
-                                        <span className="text-gray-500 text-xs">Evening lock time (PKT)</span>
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening lock time</label>
                                         <div className="flex items-center gap-2">
-                                            <Input
+                                            <input
                                                 type="time"
                                                 value={editForm.evening_lock_time}
-                                                onChange={(e) =>
-                                                    setEditForm({ ...editForm, evening_lock_time: e.target.value })
-                                                }
-                                                className="h-10 flex-1"
+                                                onChange={(e) => setEditForm({ ...editForm, evening_lock_time: e.target.value })}
+                                                className={adminInput}
                                             />
                                             {editForm.evening_lock_time && (
                                                 <button
                                                     type="button"
-                                                    className="text-xs text-gray-500 hover:text-red-600 underline"
-                                                    onClick={() =>
-                                                        setEditForm({ ...editForm, evening_lock_time: '' })
-                                                    }
+                                                    className="text-xs text-[var(--text-muted)] hover:text-rose-600"
+                                                    onClick={() => setEditForm({ ...editForm, evening_lock_time: '' })}
                                                 >
                                                     Clear
                                                 </button>
                                             )}
                                         </div>
-                                        <span className="text-xs text-gray-400">
-                                            Drivers cannot start evening trips before this time.
-                                        </span>
+                                        <span className="mt-1 block text-xs text-[var(--text-muted)]">Drivers cannot start evening trips before this time.</span>
                                     </div>
                                 </>
                             )}
                         </div>
-                    </Card>
+                    </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Map */}
                         <div className="col-span-2 flex flex-col gap-2" style={{ height: '520px' }}>
-                            {/* Direction toggle */}
-                            <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={() => setMapDirection('MORNING')}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                        mapDirection === 'MORNING'
-                                            ? 'bg-amber-100 text-amber-700 border border-amber-300'
-                                            : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    ☀ Morning route
-                                </button>
-                                <button
-                                    onClick={() => setMapDirection('EVENING')}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                        mapDirection === 'EVENING'
-                                            ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                            : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    🌙 Evening route
-                                </button>
+                            <div className="flex shrink-0 rounded-full bg-[var(--bg-subtle)] p-1 w-fit">
+                                <RoutePill active={mapDirection === 'MORNING'} onClick={() => setMapDirection('MORNING')}>
+                                    <Sun className="h-3.5 w-3.5" /> Morning
+                                </RoutePill>
+                                <RoutePill active={mapDirection === 'EVENING'} onClick={() => setMapDirection('EVENING')}>
+                                    <Sunset className="h-3.5 w-3.5" /> Evening
+                                </RoutePill>
                             </div>
-                            <Card className="overflow-hidden flex-1">
+                            <div className="flex-1 overflow-hidden rounded-2xl border border-[var(--border-default)]">
                                 <Map
                                     height="100%"
                                     markers={mapMarkers}
@@ -691,141 +647,98 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     onMarkerClick={handleMarkerClick}
                                     onMapClick={handleMapClick}
                                 />
-                            </Card>
+                            </div>
                         </div>
 
-                        {/* Stops Sidebar */}
-                        <Card className="p-4 flex flex-col" style={{ maxHeight: '520px' }}>
-                            <div className="flex justify-between items-center mb-3 shrink-0">
-                                <h3 className="font-semibold flex items-center gap-2">
-                                    <MapPin className="w-4 h-4" />
-                                    {mapDirection === 'MORNING' ? 'Morning' : 'Evening'} Stops
+                        <div className="flex max-h-[520px] flex-col overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
+                            <div className="mb-3 flex shrink-0 items-center justify-between">
+                                <h3 className="font-semibold text-[var(--text-primary)]">
+                                    {mapDirection === 'MORNING' ? 'Morning' : 'Evening'} stops
                                 </h3>
                                 {!isAddingStop && !editingStopId && (
-                                    <Button
-                                        size="sm"
+                                    <button
+                                        type="button"
                                         onClick={canEditRoutes ? handleStopAddClick : undefined}
                                         disabled={!canEditRoutes}
+                                        className={cx(adminBtnPrimary, 'h-8 px-3 text-xs')}
                                     >
-                                        <Plus className="w-4 h-4 mr-1" /> Add
-                                    </Button>
+                                        <Plus className="mr-1 h-4 w-4" /> Add stop
+                                    </button>
                                 )}
                             </div>
 
                             {/* Stop form (add / edit) */}
                             {(isAddingStop || editingStopId) && (
-                                <div className="bg-gray-50 rounded-lg border border-blue-100 p-3 mb-3 shrink-0 space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="font-medium text-sm text-blue-800">
-                                            {isAddingStop ? 'New Stop' : 'Edit Stop'}
+                                <div className="mb-3 shrink-0 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] p-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-medium text-[var(--text-primary)]">
+                                            {isAddingStop ? 'New stop' : 'Edit stop'}
                                         </h4>
-                                        <button onClick={resetStopForm}>
-                                            <X className="w-4 h-4 text-gray-400" />
+                                        <button type="button" onClick={resetStopForm} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]" aria-label="Close">
+                                            <X className="h-4 w-4" />
                                         </button>
                                     </div>
-
-                                    {/* Address Search */}
                                     <div>
-                                        <Label className="text-xs">Search Location</Label>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Search location</label>
                                         <StopAddressSearch
                                             onSelect={handleAddressSelect}
                                             defaultValue={stopForm.name}
                                             placeholder="Search address..."
-                                            className="mt-1"
                                         />
                                     </div>
-
-                                    {/* Name */}
                                     <div>
-                                        <Label className="text-xs">Stop Name</Label>
-                                        <Input
-                                            className="h-8 text-sm"
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Stop name</label>
+                                        <input
+                                            className={cx(adminInput, 'h-8 text-sm')}
                                             value={stopForm.name}
                                             onChange={(e) => setStopForm({ ...stopForm, name: e.target.value })}
                                             placeholder="e.g. Disco Bakery"
                                         />
                                     </div>
-
-                                    {/* Direction */}
                                     <div>
-                                        <Label className="text-xs">Direction</Label>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">When</label>
                                         <select
-                                            className="w-full h-8 px-2 mt-1 border rounded text-xs bg-white"
+                                            className={cx(adminSelect, 'h-8 text-xs')}
                                             value={stopForm.direction || 'BOTH'}
                                             onChange={(e) => setStopForm({ ...stopForm, direction: e.target.value })}
                                         >
-                                            <option value="BOTH">Both</option>
-                                            <option value="MORNING">Morning Only</option>
-                                            <option value="EVENING">Evening Only</option>
+                                            <option value="BOTH">Both directions</option>
+                                            <option value="MORNING">Morning only</option>
+                                            <option value="EVENING">Evening only</option>
                                         </select>
                                     </div>
-
-                                    {/* Coordinates */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <Label className="text-xs">Lat</Label>
-                                            <Input
-                                                className="h-8 text-sm"
-                                                type="number"
-                                                step="any"
-                                                value={stopForm.lat}
-                                                onChange={(e) => setStopForm({ ...stopForm, lat: e.target.value })}
-                                            />
+                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Lat</label>
+                                            <input className={cx(adminInput, 'h-8 text-sm')} type="number" step="any" value={stopForm.lat} onChange={(e) => setStopForm({ ...stopForm, lat: e.target.value })} />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">Lng</Label>
-                                            <Input
-                                                className="h-8 text-sm"
-                                                type="number"
-                                                step="any"
-                                                value={stopForm.lng}
-                                                onChange={(e) => setStopForm({ ...stopForm, lng: e.target.value })}
-                                            />
+                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Lng</label>
+                                            <input className={cx(adminInput, 'h-8 text-sm')} type="number" step="any" value={stopForm.lng} onChange={(e) => setStopForm({ ...stopForm, lng: e.target.value })} />
                                         </div>
                                     </div>
-
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <Label className="text-xs">AM</Label>
-                                            <Input
-                                                className="h-8 text-sm"
-                                                type="time"
-                                                value={stopForm.morning_eta}
-                                                onChange={(e) => setStopForm({ ...stopForm, morning_eta: e.target.value })}
-                                            />
+                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning time</label>
+                                            <input className={cx(adminInput, 'h-8 text-sm')} type="time" value={stopForm.morning_eta} onChange={(e) => setStopForm({ ...stopForm, morning_eta: e.target.value })} />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">PM</Label>
-                                            <Input
-                                                className="h-8 text-sm"
-                                                type="time"
-                                                value={stopForm.evening_eta}
-                                                onChange={(e) => setStopForm({ ...stopForm, evening_eta: e.target.value })}
-                                            />
+                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening time</label>
+                                            <input className={cx(adminInput, 'h-8 text-sm')} type="time" value={stopForm.evening_eta} onChange={(e) => setStopForm({ ...stopForm, evening_eta: e.target.value })} />
                                         </div>
                                     </div>
-
-                                    <Button 
-                                        size="sm" 
-                                        className="w-full" 
-                                        onClick={handleStopSubmit} 
+                                    <button
+                                        type="button"
+                                        className={cx(adminBtnPrimary, 'w-full text-xs')}
+                                        onClick={() => void handleStopSubmit()}
                                         disabled={!canEditRoutes || isSavingStop}
                                     >
-                                        {isSavingStop ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Saving...
-                                            </div>
-                                        ) : (
-                                            <><Save className="w-3 h-3 mr-2" /> Save Stop</>
-                                        )}
-                                    </Button>
+                                        {isSavingStop ? 'Saving…' : 'Save stop'}
+                                    </button>
                                 </div>
                             )}
 
-
-                            {/* Stops list */}
-                            <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+                            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
                                 {(route.route_stops ?? [])
                                     .filter(stop =>
                                         mapDirection === 'MORNING'
@@ -839,58 +752,46 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     )
                                     .map((stop) => {
                                     const isOffice = stop.id === officeStopId;
+                                    const seq = mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order);
                                     return (
                                     <div
                                         key={stop.id}
-                                        className={`relative pl-6 border-l-2 pb-3 last:pb-0 group ${
-                                            isOffice ? 'border-red-300' : 'border-gray-200'
-                                        }`}
+                                        className="group rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] p-3"
                                     >
-                                        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold ${
-                                            isOffice ? 'bg-red-500' : 'bg-[#6366f1]'
-                                        }`}>
-                                            {isOffice
-                                                ? <Building2 className="w-2.5 h-2.5" />
-                                                : (mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order))}
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div
-                                                className="cursor-pointer hover:text-blue-600"
-                                                onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
-                                            >
-                                                <div className="text-sm font-medium flex items-center gap-1.5 flex-wrap">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
+                                                    <span className={cx(
+                                                        'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white',
+                                                        isOffice ? 'bg-[var(--cort-orange)]' : 'bg-[var(--cort-navy)]',
+                                                    )}>
+                                                        {isOffice ? <Building2 className="h-3 w-3" /> : seq}
+                                                    </span>
                                                     {stop.name}
-                                                    {isOffice && (
-                                                        <>
-                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded">
-                                                                Office
-                                                            </span>
-                                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                                                                {mapDirection === 'MORNING' ? 'AM last' : 'PM first'}
-                                                            </span>
-                                                        </>
-                                                    )}
+                                                    {isOffice && <Badge color="orange">Office — last morning / first evening</Badge>}
                                                 </div>
-                                                <div className="text-xs text-gray-400">
-                                                    AM: {formatTime(stop.morning_eta) || '—'} · PM: {formatTime(stop.evening_eta) || '—'}
-                                                    {isOffice && ' · No employee assignment'}
+                                                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                                                    Morning {format12h(formatTime(stop.morning_eta)) || '—'} · Evening {format12h(formatTime(stop.evening_eta)) || '—'}
+                                                    {isOffice ? ' · People board at pickups only' : ''}
                                                 </div>
                                             </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex shrink-0 gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                                                 <button
+                                                    type="button"
                                                     onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
                                                     disabled={!canEditRoutes}
-                                                    className="p-1 hover:bg-gray-100 rounded text-blue-500 disabled:opacity-40"
+                                                    className="rounded-md px-2 py-1 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)] disabled:opacity-40"
                                                 >
-                                                    <Edit className="w-3 h-3" />
+                                                    Edit
                                                 </button>
                                                 <button
-                                                    onClick={canEditRoutes && !isOffice ? () => handleStopDelete(stop.id) : undefined}
+                                                    type="button"
+                                                    onClick={canEditRoutes && !isOffice ? () => void handleStopDelete(stop.id) : undefined}
                                                     disabled={!canEditRoutes || isOffice}
-                                                    className="p-1 hover:bg-gray-100 rounded text-red-500 disabled:opacity-40"
-                                                    title={isOffice ? 'Office cannot be deleted' : 'Delete stop'}
+                                                    className="rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-500/10 disabled:opacity-40"
+                                                    title={isOffice ? 'Office cannot be deleted' : 'Remove stop'}
                                                 >
-                                                    <Trash className="w-3 h-3" />
+                                                    Remove
                                                 </button>
                                             </div>
                                         </div>
@@ -898,14 +799,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     );
                                 })}
                             </div>
-
-                            {savedPolyline.length >= 2 && (
-                                <div className="shrink-0 mt-3 pt-2 border-t flex items-center gap-1.5 text-[10px] text-gray-400">
-                                    <div className="w-2 h-2 rounded-full bg-[#0C225E]" />
-                                    Road-following route via Google Maps
-                                </div>
-                            )}
-                        </Card>
+                        </div>
                     </div>
                 </div>
             )}

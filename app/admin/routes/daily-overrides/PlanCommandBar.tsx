@@ -20,6 +20,7 @@ export function PlanCommandBar({
     pendingMoves,
     pendingUndos,
     pendingTimes,
+    pendingCrew,
     mapOpen,
     showMapToggle,
     onCompanyChange,
@@ -43,6 +44,7 @@ export function PlanCommandBar({
     pendingMoves: number;
     pendingUndos: number;
     pendingTimes: number;
+    pendingCrew: number;
     mapOpen: boolean;
     showMapToggle: boolean;
     onCompanyChange: (id: number | '') => void;
@@ -57,6 +59,7 @@ export function PlanCommandBar({
     if (pendingMoves > 0) summaryBits.push(`${pendingMoves} ${pendingMoves === 1 ? 'move' : 'moves'}`);
     if (pendingUndos > 0) summaryBits.push(`${pendingUndos} undo${pendingUndos === 1 ? '' : 's'}`);
     if (pendingTimes > 0) summaryBits.push(`${pendingTimes} time ${pendingTimes === 1 ? 'edit' : 'edits'}`);
+    if (pendingCrew > 0) summaryBits.push(`${pendingCrew} crew ${pendingCrew === 1 ? 'change' : 'changes'}`);
 
     return (
         <div className="sticky top-0 z-20 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)]/95 shadow-[var(--shadow-card)] backdrop-blur-md">
@@ -166,7 +169,9 @@ export function PlanCommandBar({
                     </div>
 
                     <p className="hidden text-xs text-[var(--text-muted)] sm:block">
-                        {opsTab === 'passengers' ? 'Passenger moves save when you press Save.' : 'Driver and vehicle changes save immediately.'}
+                        {opsTab === 'passengers'
+                            ? 'Passenger moves save when you press Save.'
+                            : 'Driver and vehicle changes save when you press Save.'}
                     </p>
 
                     <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -183,7 +188,7 @@ export function PlanCommandBar({
                         </span>
                     )}
 
-                    {canMutate && opsTab === 'passengers' && (
+                    {canMutate && (
                         <>
                             {hasUnsavedChanges && summaryBits.length > 0 && (
                                 <span className="hidden text-xs font-medium text-[var(--cort-orange)] lg:inline">
@@ -209,7 +214,7 @@ export function PlanCommandBar({
                                 }
                             >
                                 {saving ? 'Saving…' : (
-                                    <><Save className="mr-2 h-4 w-4" /> Save passenger moves</>
+                                    <><Save className="mr-2 h-4 w-4" /> Save changes</>
                                 )}
                             </button>
                         </>
@@ -244,7 +249,7 @@ export function PlanFloatingSave({
                 disabled={saving}
                 className="inline-flex h-9 items-center rounded-full bg-[var(--cort-orange)] px-4 text-xs font-semibold text-white hover:bg-[var(--cort-orange-hover)] disabled:opacity-50"
             >
-                {saving ? 'Saving…' : 'Save moves'}
+                {saving ? 'Saving…' : 'Save changes'}
             </button>
         </div>
     );

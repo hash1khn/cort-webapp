@@ -31,6 +31,7 @@ import {
     type Direction,
     type OpsTab,
     type OverrideRow,
+    type PendingCrewChange,
     type PendingMove,
     type PendingUndo,
     type RosterEntry,
@@ -38,8 +39,6 @@ import {
 } from './plan-types';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
-
-const COMPANY_KEY = 'cort-ops-shuttle-company-id';
 
 export default function DailyOverridesPage() {
     return (
@@ -76,6 +75,8 @@ function DailyOverridesContent() {
     const [pendingMoves, setPendingMoves] = useState<globalThis.Map<string, PendingMove>>(new globalThis.Map());
     const [pendingUndos, setPendingUndos] = useState<globalThis.Map<number, PendingUndo>>(new globalThis.Map());
     const [pendingTimes, setPendingTimes] = useState<globalThis.Map<string, string | null>>(new globalThis.Map());
+    const [pendingCrew, setPendingCrew] = useState<globalThis.Map<number, PendingCrewChange>>(new globalThis.Map());
+    const [crewReloadKey, setCrewReloadKey] = useState(0);
     const [orderByRoute, setOrderByRoute] = useState<Record<number, string[]>>({});
     const [saving, setSaving] = useState(false);
 
@@ -84,29 +85,6 @@ function DailyOverridesContent() {
     useEffect(() => {
         if (companiesStatus === 'idle') dispatch(fetchAdminCompanies({ limit: 200 }));
     }, [dispatch, companiesStatus]);
-
-    useEffect(() => {
-        if (companyId !== '' || companies.length === 0) return;
-        try {
-            const raw = localStorage.getItem(COMPANY_KEY);
-            if (!raw) return;
-            const id = Number(raw);
-            if (Number.isFinite(id) && companies.some((c: Company) => c.id === id)) {
-                setCompanyId(id);
-            }
-        } catch {
-            /* ignore */
-        }
-    }, [companies, companyId]);
-
-    useEffect(() => {
-        if (companyId === '') return;
-        try {
-            localStorage.setItem(COMPANY_KEY, String(companyId));
-        } catch {
-            /* ignore */
-        }
-    }, [companyId]);
 
     const loadRoutes = useCallback(async () => {
         if (companyId === '') {
@@ -273,12 +251,13 @@ function DailyOverridesContent() {
         return [...pendingMoves.values()].filter((m) => m.fromRouteId === routeId);
     }, [pendingMoves]);
 
-    const hasUnsavedChanges =
+    const hasPassengerUnsaved =
         pendingMoves.size > 0 ||
         pendingUndos.size > 0 ||
         pendingTimes.size > 0 ||
         Object.keys(orderByRoute).length > 0 ||
         editingUserId != null;
+    const hasUnsavedChanges = hasPassengerUnsaved || pendingCrew.size > 0;
 
     const confirmDiscardUnsaved = (message: string) => {
         if (!hasUnsavedChanges) return true;
@@ -287,12 +266,6 @@ function DailyOverridesContent() {
 
     const switchOpsTab = (tab: OpsTab) => {
         if (tab === opsTab) return;
-        if (opsTab === 'passengers' && tab === 'crew' && hasUnsavedChanges) {
-            const ok = window.confirm(
-                'Passenger moves are not saved yet. They stay on the Passengers tab until you Save or Discard. Switch anyway?',
-            );
-            if (!ok) return;
-        }
         setOpsTab(tab);
     };
 
@@ -302,6 +275,7 @@ function DailyOverridesContent() {
         setPendingTimes(new globalThis.Map());
         setOrderByRoute({});
         setEditingUserId(null);
+        setPendingCrew(new globalThis.Map());
     }, []);
 
     useEffect(() => {
@@ -310,6 +284,7 @@ function DailyOverridesContent() {
         setPendingTimes(new globalThis.Map());
         setOrderByRoute({});
         setEditingUserId(null);
+        setPendingCrew(new globalThis.Map());
     }, [date, direction, companyId]);
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -406,9 +381,13 @@ function DailyOverridesContent() {
         const failedMoves: PendingMove[] = [];
         const failedUndos: PendingUndo[] = [];
         const failedPatchUserIds = new Set<string>();
+        const failedCrew: PendingCrewChange[] = [];
         const touchedRouteIds = new Set<number>();
+        const shouldSavePassengers = hasPassengerUnsaved;
+        const shouldSaveCrew = pendingCrew.size > 0;
 
         try {
+            if (shouldSavePassengers) {
             for (const undo of pendingUndos.values()) {
                 try {
                     await apiClient.request(`/shuttle-daily-overrides/${undo.overrideId}`, { method: 'DELETE' });
@@ -475,12 +454,44 @@ function DailyOverridesContent() {
                     }
                 }
             }
+            }
 
-            setPendingMoves(new globalThis.Map(failedMoves.map((m) => [m.entry.user_id, m])));
-            setPendingUndos(new globalThis.Map(failedUndos.map((u) => [u.overrideId, u])));
-            if (failedMoves.length === 0 && failedUndos.length === 0 && failedPatchUserIds.size === 0) {
-                setPendingTimes(new globalThis.Map());
-                setOrderByRoute({});
+            if (shouldSavePassengers) {
+                setPendingMoves(new globalThis.Map(failedMoves.map((m) => [m.entry.user_id, m])));
+                setPendingUndos(new globalThis.Map(failedUndos.map((u) => [u.overrideId, u])));
+                if (failedMoves.length === 0 && failedUndos.length === 0 && failedPatchUserIds.size === 0) {
+                    setPendingTimes(new globalThis.Map());
+                    setOrderByRoute({});
+                }
+            }
+
+            if (shouldSaveCrew) {
+                for (const change of pendingCrew.values()) {
+                    try {
+                        if (change.restore) {
+                            await apiClient.clearShuttleTripResourceOverride(change.tripId);
+                        } else {
+                            const payload: { driver_id?: string; vehicle_id?: number } = {};
+                            if (change.driver_id) payload.driver_id = change.driver_id;
+                            if (change.vehicle_id != null) payload.vehicle_id = change.vehicle_id;
+                            if (payload.driver_id || payload.vehicle_id != null) {
+                                await apiClient.setShuttleTripResourceOverride(change.tripId, payload);
+                            }
+                        }
+                    } catch (e) {
+                        failedCrew.push(change);
+                        toast.error(`Failed to update trip crew: ${e instanceof Error ? e.message : 'unknown error'}`);
+                    }
+                }
+                setPendingCrew(new globalThis.Map(failedCrew.map((c) => [c.tripId, c])));
+                if (failedCrew.length < pendingCrew.size) {
+                    setCrewReloadKey((n) => n + 1);
+                }
+            }
+
+            const passengersOk = !shouldSavePassengers || (failedMoves.length === 0 && failedUndos.length === 0 && failedPatchUserIds.size === 0);
+            const crewOk = !shouldSaveCrew || failedCrew.length === 0;
+            if (passengersOk && crewOk) {
                 toast.success('Changes saved');
             }
             if (touchedRouteIds.size > 0) {
@@ -602,19 +613,19 @@ function DailyOverridesContent() {
 
     const changeCompany = (next: number | '') => {
         if (next === companyId) return;
-        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change company and discard them?')) return;
+        if (!confirmDiscardUnsaved('You have unsaved changes. Change company and discard them?')) return;
         setCompanyId(next);
     };
 
     const changeDate = (next: string) => {
         if (!next || next === date) return;
-        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change date and discard them?')) return;
+        if (!confirmDiscardUnsaved('You have unsaved changes. Change date and discard them?')) return;
         setDate(next);
     };
 
     const changeDirection = (next: Direction) => {
         if (next === direction) return;
-        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Switch direction and discard them?')) return;
+        if (!confirmDiscardUnsaved('You have unsaved changes. Switch direction and discard them?')) return;
         setDirection(next);
     };
 
@@ -622,7 +633,8 @@ function DailyOverridesContent() {
         pendingMoves.size > 0 ? `${pendingMoves.size} ${pendingMoves.size === 1 ? 'move' : 'moves'}` : null,
         pendingUndos.size > 0 ? `${pendingUndos.size} undo${pendingUndos.size === 1 ? '' : 's'}` : null,
         pendingTimes.size > 0 ? `${pendingTimes.size} time ${pendingTimes.size === 1 ? 'edit' : 'edits'}` : null,
-    ].filter(Boolean).join(' · ') || 'Unsaved passenger moves';
+        pendingCrew.size > 0 ? `${pendingCrew.size} crew ${pendingCrew.size === 1 ? 'change' : 'changes'}` : null,
+    ].filter(Boolean).join(' · ') || 'Unsaved changes';
 
     return (
         <div className="space-y-5">
@@ -640,6 +652,7 @@ function DailyOverridesContent() {
                 pendingMoves={pendingMoves.size}
                 pendingUndos={pendingUndos.size}
                 pendingTimes={pendingTimes.size}
+                pendingCrew={pendingCrew.size}
                 mapOpen={mapOpen}
                 showMapToggle={opsTab === 'passengers' && routes.length > 0 && polylines.length > 0}
                 onCompanyChange={changeCompany}
@@ -654,7 +667,7 @@ function DailyOverridesContent() {
             {companyId === '' ? (
                 <PlanEmptyState
                     title="Pick a company to start the day"
-                    description="Choose who you're operating for, then morning or evening. The last company you used is remembered."
+                    description="Choose who you're operating for, then morning or evening."
                     action={
                         <select
                             className={adminSelect}
@@ -674,6 +687,24 @@ function DailyOverridesContent() {
                     date={date}
                     direction={direction}
                     canMutate={canMutate}
+                    pendingCrew={pendingCrew}
+                    saving={saving}
+                    reloadKey={crewReloadKey}
+                    onQueueChange={(tripId, change) => {
+                        setPendingCrew((prev) => {
+                            const next = new globalThis.Map(prev);
+                            next.set(tripId, change);
+                            return next;
+                        });
+                    }}
+                    onClearTrip={(tripId) => {
+                        setPendingCrew((prev) => {
+                            if (!prev.has(tripId)) return prev;
+                            const next = new globalThis.Map(prev);
+                            next.delete(tripId);
+                            return next;
+                        });
+                    }}
                 />
             ) : routesLoading ? (
                 <PlanBoardSkeleton />
@@ -730,7 +761,7 @@ function DailyOverridesContent() {
                 </div>
             )}
 
-            {hasUnsavedChanges && opsTab === 'passengers' && canMutate && (
+            {hasUnsavedChanges && canMutate && (
                 <PlanFloatingSave
                     summary={unsavedSummary}
                     saving={saving}
