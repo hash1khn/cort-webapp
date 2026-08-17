@@ -36,6 +36,7 @@ import {
 import { RouteDetailsEditor } from "../components/RouteDetailsEditor";
 import { RouteStopsEditor } from "../components/RouteStopsEditor";
 import { RouteOverviewMap } from "../components/RouteOverviewMap";
+import { getOfficeStops } from "../../../lib/utils/routeStops";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,12 +51,14 @@ type RouteStop = {
   evening_eta?: string | null;
   lat?: number | null;
   lng?: number | null;
+  stop_type?: "PICKUP" | "OFFICE";
 };
 
 type EmployeeAssignment = {
   user_id: string;
   route_id?: number | null;
   pickup_stop_id?: number | null;
+  office_stop_id?: number | null;
   users?: {
     id: string;
     full_name: string;
@@ -67,6 +70,11 @@ type EmployeeAssignment = {
     id: number;
     name: string;
     sequence_order: number;
+  } | null;
+  /** The assigned office stop — populated when the route has multiple OFFICE-type stops. */
+  office_route_stops?: {
+    id?: number;
+    name: string;
   } | null;
 };
 
@@ -100,18 +108,9 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function identifyOfficeStopId(
-  stops: Array<{ id: number; morning_sequence?: number | null }>,
-): number | null {
-  const withMorning = stops.filter((s) => s.morning_sequence != null);
-  if (withMorning.length === 0) return null;
-  const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-  return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
-}
-
 function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MORNING" | "EVENING" }) {
   const t = useTranslations("company.routes");
-  const officeStopId = identifyOfficeStopId(stops);
+  const officeStopIds = new Set(getOfficeStops(stops).map((s) => s.id));
   const sorted = [...stops]
     .filter((s) =>
       direction === "MORNING" ? s.morning_sequence != null : s.evening_sequence != null
@@ -133,7 +132,7 @@ function StopTimeline({ stops, direction }: { stops: RouteStop[]; direction: "MO
         {sorted.map((stop, idx) => {
           const eta =
             direction === "MORNING" ? formatTime(stop.morning_eta) : formatTime(stop.evening_eta);
-          const isOffice = stop.id === officeStopId;
+          const isOffice = officeStopIds.has(stop.id);
 
           return (
             <div key={stop.id} className="flex items-start gap-3">
@@ -217,6 +216,7 @@ export default function RouteDetailPage() {
   const [assigning, setAssigning] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedStopId, setSelectedStopId] = useState<number | "">("");
+  const [selectedOfficeStopId, setSelectedOfficeStopId] = useState<number | "">("");
 
   useEffect(() => {
     if (company?.id && employeeStatus === "idle") {
@@ -290,17 +290,23 @@ export default function RouteDetailPage() {
 
   async function handleAssignEmployee() {
     if (!routeId || !selectedUserId) return;
+    if (hasMultipleOffices && !selectedOfficeStopId) {
+      toast.error("Please select which office this employee is assigned to");
+      return;
+    }
     setAssigning(true);
     try {
       await apiClient.assignEmployeeToRoute({
         user_id: selectedUserId,
         route_id: routeId,
         pickup_stop_id: selectedStopId ? Number(selectedStopId) : undefined,
+        ...(hasMultipleOffices ? { office_stop_id: Number(selectedOfficeStopId) } : {}),
       });
       toast.success(t("employeeAssignedSuccess"));
       setShowAssignModal(false);
       setSelectedUserId("");
       setSelectedStopId("");
+      setSelectedOfficeStopId("");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("failedAssignEmployee"));
@@ -311,14 +317,11 @@ export default function RouteDetailPage() {
 
   const employees = route?.employee_route_assignments ?? [];
   const stops = route?.route_stops ?? [];
-  // Office = highest morning_sequence (last AM / first PM). Not assignable as pickup.
-  const officeStopId = (() => {
-    const withMorning = stops.filter((s) => s.morning_sequence != null);
-    if (withMorning.length === 0) return null;
-    const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-    return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
-  })();
-  const pickupStops = stops.filter((s) => s.id !== officeStopId);
+  // A route may have multiple OFFICE-type stops (multi-office shuttle support). Not assignable as pickup.
+  const officeStopsList = getOfficeStops(stops);
+  const officeStopIds = new Set(officeStopsList.map((s) => s.id));
+  const hasMultipleOffices = officeStopsList.length > 1;
+  const pickupStops = stops.filter((s) => !officeStopIds.has(s.id));
   const vehicle = route?.vehicles ?? null;
   const driver = route?.users ?? null;
 
@@ -576,6 +579,13 @@ export default function RouteDetailPage() {
                             </div>
                           )}
 
+                          {hasMultipleOffices && assignment.office_route_stops && (
+                            <div className="flex items-center gap-1.5 flex-shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs text-red-700">
+                              <Building2 className="w-3 h-3" />
+                              <span className="font-medium">{assignment.office_route_stops.name}</span>
+                            </div>
+                          )}
+
                           {canManageShuttle && emp?.id && (
                             <Button
                               variant="outline"
@@ -751,6 +761,29 @@ export default function RouteDetailPage() {
                     Office stop is excluded — employees board at pickups only.
                   </p>
                 </div>
+
+                {hasMultipleOffices && (
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1.5">
+                      Office
+                    </label>
+                    <select
+                      value={selectedOfficeStopId}
+                      onChange={(e) => setSelectedOfficeStopId(e.target.value ? Number(e.target.value) : "")}
+                      className="w-full h-10 rounded-lg border border-[var(--border-input)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] focus:border-[var(--cort-orange)] focus:ring-1 focus:ring-[var(--cort-orange)] outline-none transition-all"
+                    >
+                      <option value="">Select office</option>
+                      {officeStopsList.map((stop) => (
+                        <option key={stop.id} value={stop.id}>
+                          {stop.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                      This route has multiple offices — choose which one this employee is assigned to.
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-subtle)] flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setShowAssignModal(false)}>

@@ -8,6 +8,7 @@ import { Card } from "../../components/DashboardComponents";
 import { apiClient } from "../../../lib/services/api-client";
 import type { MapMarker, MapPolyline } from "@/app/admin/ui/Map";
 import type { CompanyRouteStop } from "./RouteStopsEditor";
+import { getOfficeStops } from "../../../lib/utils/routeStops";
 
 const Map = dynamic(() => import("@/app/admin/ui/Map"), { ssr: false });
 
@@ -21,20 +22,11 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-function identifyOfficeStopId(
-  stops: Array<{ id: number; morning_sequence?: number | null }>,
-): number | null {
-  const withMorning = stops.filter((s) => s.morning_sequence != null);
-  if (withMorning.length === 0) return null;
-  const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-  return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
-}
-
 export function RouteOverviewMap({ routeId, stops, refreshKey = 0 }: RouteOverviewMapProps) {
   const t = useTranslations("company.routes");
   const [mapDirection, setMapDirection] = useState<"MORNING" | "EVENING">("MORNING");
   const [savedPolyline, setSavedPolyline] = useState<[number, number][]>([]);
-  const officeStopId = useMemo(() => identifyOfficeStopId(stops), [stops]);
+  const officeStopIds = useMemo(() => new Set(getOfficeStops(stops).map((s) => s.id)), [stops]);
 
   const fetchPolyline = useCallback(async () => {
     try {
@@ -70,7 +62,7 @@ export function RouteOverviewMap({ routeId, stops, refreshKey = 0 }: RouteOvervi
   const mapMarkers: MapMarker[] = useMemo(
     () =>
       dirStops.map((s, idx) => {
-        const isOffice = s.id === officeStopId;
+        const isOffice = officeStopIds.has(s.id);
         return {
           id: s.id.toString(),
           position: [Number(s.lat), Number(s.lng)] as [number, number],
@@ -78,7 +70,7 @@ export function RouteOverviewMap({ routeId, stops, refreshKey = 0 }: RouteOvervi
           color: isOffice ? "#ef4444" : "#6366f1",
         };
       }),
-    [dirStops, officeStopId],
+    [dirStops, officeStopIds],
   );
 
   const mapPolylines: MapPolyline[] = useMemo(() => {

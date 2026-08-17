@@ -33,17 +33,9 @@ import { Badge } from '@/app/admin/components/ui/Badge';
 import { adminBtnDestructive, adminBtnOutline, adminBtnPrimary, adminInput, adminSelect } from '@/app/admin/components/ui/admin-styles';
 import { cx } from '@/app/admin/components/ui/cx';
 import { RouteCommandBar, RoutePill, format12h } from '../RouteCommandBar';
+import { getOfficeStops } from '@/app/lib/utils/routeStops';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
-
-function identifyOfficeStopId(
-    stops: Array<{ id: number; morning_sequence: number | null }>,
-): number | null {
-    const withMorning = stops.filter((s) => s.morning_sequence != null);
-    if (withMorning.length === 0) return null;
-    const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-    return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
-}
 
 /** Helper to format ISO time strings or Date objects to HH:mm */
 function formatTime(timeStr: string | null | undefined): string {
@@ -67,7 +59,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     const router = useRouter();
     const dispatch = useAppDispatch();
     const route = useAppSelector(selectCurrentRoute);
-    const officeStopId = identifyOfficeStopId(route?.route_stops ?? []);
+    const officeStopIds = new Set(getOfficeStops(route?.route_stops ?? []).map((s) => s.id));
+    const hasMultipleOffices = officeStopIds.size > 1;
     const status = useAppSelector(selectAdminRoutesStatus);
     const drivers = useAppSelector(selectAdminDrivers);
     const vehicles = useAppSelector(selectAdminVehicles);
@@ -86,9 +79,12 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         name: '',
         assigned_vehicle_id: '',
         assigned_driver_id: '',
+        evening_vehicle_id: '',
+        evening_driver_id: '',
         evening_lock_time: '',
     });
     const [currentAssignedVehicle, setCurrentAssignedVehicle] = useState<any>(null);
+    const [currentEveningVehicle, setCurrentEveningVehicle] = useState<any>(null);
 
     // Direction toggle for the overview map
     const [mapDirection, setMapDirection] = useState<'MORNING' | 'EVENING'>('MORNING');
@@ -101,10 +97,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         name: '',
         lat: '',
         lng: '',
-        morning_eta: '',
-        evening_eta: '',
         sequence_order: '',
-        direction: 'BOTH',
+        stopType: 'PICKUP' as 'PICKUP' | 'OFFICE',
     });
 
     // Road-following polyline for the saved route stops
@@ -121,7 +115,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         setEditingStopId(null);
         setIsAddingStop(false);
         setIsEditing(false);
-        setStopForm({ name: '', lat: '', lng: '', morning_eta: '', evening_eta: '', sequence_order: '', direction: 'BOTH' });
+        setStopForm({ name: '', lat: '', lng: '', sequence_order: '', stopType: 'PICKUP' });
         setActiveTab('overview');
     }, [id]);
 
@@ -138,62 +132,76 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 name: route.name,
                 assigned_vehicle_id: route.assigned_vehicle_id?.toString() || '',
                 assigned_driver_id: route.assigned_driver_id?.toString() || '',
+                evening_vehicle_id: route.evening_vehicle_id?.toString() || '',
+                evening_driver_id: route.evening_driver_id?.toString() || '',
                 evening_lock_time: formatTime(route.evening_lock_time) || '',
             });
             // Load the road-following polyline for the saved stops
             fetchSavedPolyline();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [route?.id, route?.assigned_vehicle_id, route?.assigned_driver_id, route?.name, route?.evening_lock_time]);
+    }, [route?.id, route?.assigned_vehicle_id, route?.assigned_driver_id, route?.evening_vehicle_id, route?.evening_driver_id, route?.name, route?.evening_lock_time]);
 
     // If the currently-assigned vehicle is excluded from the "available vehicles" list,
     // we still want it to remain selectable/visible in the edit dropdown.
     useEffect(() => {
         let cancelled = false;
-        const vehicleId = route?.assigned_vehicle_id;
-        if (!vehicleId) {
+        const ids = [route?.assigned_vehicle_id, route?.evening_vehicle_id].filter(
+            (id, i, arr): id is number => id != null && arr.indexOf(id) === i,
+        );
+        if (ids.length === 0) {
             setCurrentAssignedVehicle(null);
+            setCurrentEveningVehicle(null);
             return;
         }
         (async () => {
-            try {
-                const res: any = await apiClient.getVehicle(vehicleId);
-                const v = res?.data ?? res;
-                if (!cancelled) setCurrentAssignedVehicle(v);
-            } catch {
-                if (!cancelled) setCurrentAssignedVehicle(null);
-            }
+            const results = await Promise.all(
+                ids.map(async (vehicleId) => {
+                    try {
+                        const res: any = await apiClient.getVehicle(vehicleId);
+                        return { vehicleId, v: res?.data ?? res };
+                    } catch {
+                        return { vehicleId, v: null };
+                    }
+                }),
+            );
+            if (cancelled) return;
+            setCurrentAssignedVehicle(results.find((r) => r.vehicleId === route?.assigned_vehicle_id)?.v ?? null);
+            setCurrentEveningVehicle(results.find((r) => r.vehicleId === route?.evening_vehicle_id)?.v ?? null);
         })();
         return () => {
             cancelled = true;
         };
-    }, [route?.assigned_vehicle_id]);
+    }, [route?.assigned_vehicle_id, route?.evening_vehicle_id]);
 
     const vehiclesForSelect = useMemo(() => {
-        const currentId = currentAssignedVehicle?.id;
-        if (!currentId) return vehicles;
-        const exists = vehicles.some((v: any) => v?.id === currentId);
-        return exists ? vehicles : [...vehicles, currentAssignedVehicle];
-    }, [vehicles, currentAssignedVehicle]);
-
-    // Keep currently-assigned driver visible even if filtered out of the shuttle list
-    const driversForSelect = useMemo(() => {
-        const assignedId = route?.assigned_driver_id;
-        if (!assignedId) return drivers;
-        const exists = drivers.some((d) => d.id === assignedId);
-        if (exists) return drivers;
-        if (route?.users) {
-            return [
-                ...drivers,
-                {
-                    id: assignedId,
-                    full_name: route.users.full_name,
-                    phone: route.users.phone,
-                } as (typeof drivers)[number],
-            ];
+        const extra = [currentAssignedVehicle, currentEveningVehicle].filter(
+            (v): v is NonNullable<typeof v> => Boolean(v?.id),
+        );
+        const ids = new Set(vehicles.map((v: { id?: number }) => v?.id));
+        const merged = [...vehicles];
+        for (const v of extra) {
+            if (!ids.has(v.id)) {
+                ids.add(v.id);
+                merged.push(v);
+            }
         }
-        return drivers;
-    }, [drivers, route?.assigned_driver_id, route?.users]);
+        return merged;
+    }, [vehicles, currentAssignedVehicle, currentEveningVehicle]);
+
+    // Keep currently-assigned drivers visible even if filtered out of the shuttle list
+    const driversForSelect = useMemo(() => {
+        const extras: Array<{ id: string; full_name?: string; phone?: string }> = [];
+        const morningId = route?.assigned_driver_id;
+        const eveningId = route?.evening_driver_id;
+        if (morningId && !drivers.some((d) => d.id === morningId) && route?.users) {
+            extras.push({ id: morningId, full_name: route.users.full_name, phone: route.users.phone });
+        }
+        if (eveningId && !drivers.some((d) => d.id === eveningId) && !extras.some((e) => e.id === eveningId) && route?.evening_driver) {
+            extras.push({ id: eveningId, full_name: route.evening_driver.full_name, phone: route.evening_driver.phone });
+        }
+        return extras.length ? [...drivers, ...(extras as (typeof drivers)[number][])] : drivers;
+    }, [drivers, route?.assigned_driver_id, route?.evening_driver_id, route?.users, route?.evening_driver]);
 
     const hydrateEditFormFromRoute = useCallback(() => {
         if (!route) return;
@@ -201,6 +209,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             name: route.name,
             assigned_vehicle_id: route.assigned_vehicle_id?.toString() || '',
             assigned_driver_id: route.assigned_driver_id?.toString() || '',
+            evening_vehicle_id: route.evening_vehicle_id?.toString() || '',
+            evening_driver_id: route.evening_driver_id?.toString() || '',
             evening_lock_time: formatTime(route.evening_lock_time) || '',
         });
     }, [route]);
@@ -238,7 +248,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     // ---- Stop form helpers -----------------------------------------------
 
     const resetStopForm = () => {
-        setStopForm({ name: '', lat: '', lng: '', morning_eta: '', evening_eta: '', sequence_order: '', direction: 'BOTH' });
+        setStopForm({ name: '', lat: '', lng: '', sequence_order: '', stopType: 'PICKUP' });
         setEditingStopId(null);
         setIsAddingStop(false);
     };
@@ -248,10 +258,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             name: stop.name,
             lat: stop.lat?.toString() || '',
             lng: stop.lng?.toString() || '',
-            morning_eta: stop.morning_eta ? formatTime(stop.morning_eta) : '',
-            evening_eta: stop.evening_eta ? formatTime(stop.evening_eta) : '',
             sequence_order: stop.sequence_order?.toString() || '0',
-            direction: stop.morning_sequence != null && stop.evening_sequence != null ? 'BOTH' : (stop.morning_sequence != null ? 'MORNING' : 'EVENING'),
+            stopType: officeStopIds.has(stop.id) ? 'OFFICE' : 'PICKUP',
         });
         setEditingStopId(stop.id);
         setIsAddingStop(false);
@@ -262,6 +270,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         const maxOrder = route?.route_stops?.reduce((max, s) => Math.max(max, s.sequence_order), 0) || 0;
         setStopForm((prev) => ({ ...prev, sequence_order: (maxOrder + 1).toString() }));
         setIsAddingStop(true);
+    };
+
+    const handleStopFormTypeChange = (stopType: 'PICKUP' | 'OFFICE') => {
+        setStopForm((prev) => ({ ...prev, stopType }));
     };
 
     // Fill form from address search selection
@@ -281,21 +293,28 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             toast.error('Name and location are required');
             return;
         }
-        const data = {
+        const lat = parseFloat(stopForm.lat);
+        const lng = parseFloat(stopForm.lng);
+        // Timing (morning/evening ETA), direction, and ordering are intentionally not set
+        // here — this page only pins the stop and its type. Operations sets timing and
+        // rearranges order from the Stops tab, where a new stop defaults to both directions.
+        const data: Record<string, unknown> = {
             name: stopForm.name,
-            lat: parseFloat(stopForm.lat),
-            lng: parseFloat(stopForm.lng),
-            morning_eta: stopForm.morning_eta || null,
-            evening_eta: stopForm.evening_eta || null,
+            lat,
+            lng,
             sequence_order: parseInt(stopForm.sequence_order) || 0,
-            direction: stopForm.direction || 'BOTH',
         };
+        // Only sent when adding — editing an existing stop never changes its type here
+        // (converting an existing pickup/office is done from the Stops tab instead).
+        if (isAddingStop) {
+            data.stop_type = stopForm.stopType;
+        }
         // Duplicate guard: prevent adding a stop at the exact same lat/lng as an existing one
         if (isAddingStop) {
             const duplicate = route.route_stops?.find(
                 (s) =>
-                    Math.abs((s.lat ?? 0) - data.lat) < 0.0001 &&
-                    Math.abs((s.lng ?? 0) - data.lng) < 0.0001
+                    Math.abs((s.lat ?? 0) - lat) < 0.0001 &&
+                    Math.abs((s.lng ?? 0) - lng) < 0.0001
             );
             if (duplicate) {
                 toast.error(`A stop at this location already exists: "${duplicate.name}"`);
@@ -334,7 +353,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     const handleStopDelete = async (stopId: number) => {
         if (!canEditRoutes) return;
-        if (stopId === officeStopId) {
+        if (officeStopIds.has(stopId)) {
             toast.error('Cannot delete the company office stop. Edit its location instead.');
             return;
         }
@@ -389,6 +408,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         ? parseInt(editForm.assigned_vehicle_id, 10)
                         : null,
                     assigned_driver_id: editForm.assigned_driver_id || null,
+                    evening_vehicle_id: editForm.evening_vehicle_id
+                        ? parseInt(editForm.evening_vehicle_id, 10)
+                        : null,
+                    evening_driver_id: editForm.evening_driver_id || null,
                     evening_lock_time: editForm.evening_lock_time.trim() || null,
                 },
             })).unwrap();
@@ -417,7 +440,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
             )
             .map((s) => {
-                const isOffice = s.id === officeStopId;
+                const isOffice = officeStopIds.has(s.id);
                 if (editingStopId === s.id && stopForm.lat && stopForm.lng) {
                     return {
                         id: s.id.toString(),
@@ -470,10 +493,14 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     if (!route) return <div className="p-8 text-center text-[var(--text-muted)]">Route not found</div>;
 
     const companyName = route.company?.name ?? route.companies?.name ?? 'Company';
-    const usualDriver = route.users?.full_name ?? 'Not set';
-    const usualVehicle = route.vehicles?.plate_number
-        ? [route.vehicles.model, route.vehicles.plate_number].filter(Boolean).join(' · ')
-        : 'Not set';
+    const formatVehicle = (v?: { plate_number?: string; model?: string } | null) =>
+        v?.plate_number ? [v.model, v.plate_number].filter(Boolean).join(' · ') : null;
+    const morningDriver = route.users?.full_name ?? 'Not set';
+    const morningVehicle = formatVehicle(route.vehicles) ?? 'Not set';
+    const eveningDriver = route.evening_driver?.full_name
+        ?? (route.evening_driver_id ? 'Not set' : 'Same as morning');
+    const eveningVehicle = formatVehicle(route.evening_vehicle)
+        ?? (route.evening_vehicle_id ? 'Not set' : 'Same as morning');
 
     return (
         <PermissionGate permission="routes">
@@ -556,12 +583,20 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                             {!isEditing && (
                                 <>
                                     <div>
-                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual driver</div>
-                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{usualDriver}</div>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning driver</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{morningDriver}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual vehicle</div>
-                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{usualVehicle}</div>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning vehicle</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{morningVehicle}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening driver</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{eveningDriver}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening vehicle</div>
+                                        <div className="mt-1 font-medium text-[var(--text-primary)]">{eveningVehicle}</div>
                                     </div>
                                     <div>
                                         <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening lock time</div>
@@ -575,7 +610,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                             {isEditing && (
                                 <>
                                     <div>
-                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual driver</label>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning driver</label>
                                         <select
                                             className={adminSelect}
                                             value={editForm.assigned_driver_id}
@@ -588,13 +623,41 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual vehicle</label>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning vehicle</label>
                                         <select
                                             className={adminSelect}
                                             value={editForm.assigned_vehicle_id}
                                             onChange={(e) => setEditForm({ ...editForm, assigned_vehicle_id: e.target.value })}
                                         >
                                             <option value="">None</option>
+                                            {vehiclesForSelect.map((v: { id: number; plate_number?: string; model?: string }) => (
+                                                <option key={v.id} value={v.id}>
+                                                    {v.plate_number}{v.model ? ` · ${v.model}` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening driver</label>
+                                        <select
+                                            className={adminSelect}
+                                            value={editForm.evening_driver_id}
+                                            onChange={(e) => setEditForm({ ...editForm, evening_driver_id: e.target.value })}
+                                        >
+                                            <option value="">Same as morning</option>
+                                            {driversForSelect.map((d) => (
+                                                <option key={d.id} value={d.id}>{d.full_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening vehicle</label>
+                                        <select
+                                            className={adminSelect}
+                                            value={editForm.evening_vehicle_id}
+                                            onChange={(e) => setEditForm({ ...editForm, evening_vehicle_id: e.target.value })}
+                                        >
+                                            <option value="">Same as morning</option>
                                             {vehiclesForSelect.map((v: { id: number; plate_number?: string; model?: string }) => (
                                                 <option key={v.id} value={v.id}>
                                                     {v.plate_number}{v.model ? ` · ${v.model}` : ''}
@@ -678,6 +741,37 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             <X className="h-4 w-4" />
                                         </button>
                                     </div>
+                                    {isAddingStop && (
+                                        <div>
+                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Stop type</label>
+                                            <div className="inline-flex rounded-lg border border-[var(--border-default)] bg-[var(--bg-card)] p-0.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStopFormTypeChange('PICKUP')}
+                                                    className={cx(
+                                                        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                                                        stopForm.stopType === 'PICKUP'
+                                                            ? 'bg-[var(--cort-navy)] text-white'
+                                                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]',
+                                                    )}
+                                                >
+                                                    Pickup
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleStopFormTypeChange('OFFICE')}
+                                                    className={cx(
+                                                        'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                                                        stopForm.stopType === 'OFFICE'
+                                                            ? 'bg-[var(--cort-orange)] text-white'
+                                                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]',
+                                                    )}
+                                                >
+                                                    <Building2 className="h-3.5 w-3.5" /> Office
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Search location</label>
                                         <StopAddressSearch
@@ -695,18 +789,6 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             placeholder="e.g. Disco Bakery"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">When</label>
-                                        <select
-                                            className={cx(adminSelect, 'h-8 text-xs')}
-                                            value={stopForm.direction || 'BOTH'}
-                                            onChange={(e) => setStopForm({ ...stopForm, direction: e.target.value })}
-                                        >
-                                            <option value="BOTH">Both directions</option>
-                                            <option value="MORNING">Morning only</option>
-                                            <option value="EVENING">Evening only</option>
-                                        </select>
-                                    </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Lat</label>
@@ -717,16 +799,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             <input className={cx(adminInput, 'h-8 text-sm')} type="number" step="any" value={stopForm.lng} onChange={(e) => setStopForm({ ...stopForm, lng: e.target.value })} />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning time</label>
-                                            <input className={cx(adminInput, 'h-8 text-sm')} type="time" value={stopForm.morning_eta} onChange={(e) => setStopForm({ ...stopForm, morning_eta: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening time</label>
-                                            <input className={cx(adminInput, 'h-8 text-sm')} type="time" value={stopForm.evening_eta} onChange={(e) => setStopForm({ ...stopForm, evening_eta: e.target.value })} />
-                                        </div>
-                                    </div>
+                                    <p className="text-[11px] text-[var(--text-muted)]">
+                                        Timing and ordering are set from the Stops tab.
+                                    </p>
                                     <button
                                         type="button"
                                         className={cx(adminBtnPrimary, 'w-full text-xs')}
@@ -751,7 +826,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             : (a.evening_sequence ?? 0) - (b.evening_sequence ?? 0)
                                     )
                                     .map((stop) => {
-                                    const isOffice = stop.id === officeStopId;
+                                    const isOffice = officeStopIds.has(stop.id);
                                     const seq = mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order);
                                     return (
                                     <div
@@ -768,7 +843,11 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                                         {isOffice ? <Building2 className="h-3 w-3" /> : seq}
                                                     </span>
                                                     {stop.name}
-                                                    {isOffice && <Badge color="orange">Office — last morning / first evening</Badge>}
+                                                    {isOffice && (
+                                                        <Badge color="orange">
+                                                            {hasMultipleOffices ? 'Office stop' : 'Office — last morning / first evening'}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                                 <div className="mt-1 text-xs text-[var(--text-muted)]">
                                                     Morning {format12h(formatTime(stop.morning_eta)) || '—'} · Evening {format12h(formatTime(stop.evening_eta)) || '—'}

@@ -21,6 +21,7 @@ import { Card } from "../../components/DashboardComponents";
 import StopAddressSearch from "@/app/admin/ui/StopAddressSearch";
 import { apiClient } from "../../../lib/services/api-client";
 import type { MapMarker } from "@/app/admin/ui/Map";
+import { isOfficeStop, getOfficeStops } from "../../../lib/utils/routeStops";
 
 const Map = dynamic(() => import("@/app/admin/ui/Map"), { ssr: false });
 
@@ -35,9 +36,11 @@ export type CompanyRouteStop = {
   evening_eta?: string | null;
   lat?: number | null;
   lng?: number | null;
+  stop_type?: "PICKUP" | "OFFICE";
 };
 
 type StopDirection = "MORNING" | "EVENING" | "BOTH";
+type StopType = "PICKUP" | "OFFICE";
 
 type RouteStopsEditorProps = {
   routeId: number;
@@ -51,15 +54,6 @@ const labelCls = "block text-xs font-semibold text-[var(--text-muted)] mb-1";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
-}
-
-function identifyOfficeStopId(
-  stops: Array<{ id: number; morning_sequence?: number | null }>,
-): number | null {
-  const withMorning = stops.filter((s) => s.morning_sequence != null);
-  if (withMorning.length === 0) return null;
-  const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-  return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
 }
 
 function formatTime(timeStr: string | null | undefined): string {
@@ -145,10 +139,6 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
   const [isAdding, setIsAdding] = useState(false);
   const [originalDirection, setOriginalDirection] = useState<StopDirection | null>(null);
 
-  const officeStopId = identifyOfficeStopId(stops);
-  const officeStop = stops.find((s) => s.id === officeStopId) ?? null;
-  const isEditingOffice = editingStopId != null && editingStopId === officeStopId;
-
   const [formData, setFormData] = useState({
     name: "",
     lat: "",
@@ -158,7 +148,19 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
     direction: "BOTH" as StopDirection,
     morning_sequence: "",
     evening_sequence: "",
+    stopType: "PICKUP" as StopType,
   });
+
+  const officeStops = getOfficeStops(stops);
+  const officeStopIds = new Set(officeStops.map((s) => s.id));
+  // Reference office used only to pre-fill sensible default positions when adding a new stop.
+  const primaryOfficeStop = officeStops[0] ?? null;
+  const editingStop = editingStopId != null
+    ? stops.find((s) => s.id === editingStopId) ?? null
+    : null;
+  const isEditingOffice = editingStop != null && isOfficeStop(editingStop);
+  // True while the form (add or edit) represents an OFFICE-type stop.
+  const isOfficeForm = isAdding ? formData.stopType === "OFFICE" : isEditingOffice;
 
   const resetForm = () => {
     setFormData({
@@ -170,6 +172,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
       direction: "BOTH",
       morning_sequence: "",
       evening_sequence: "",
+      stopType: "PICKUP",
     });
     setEditingStopId(null);
     setIsAdding(false);
@@ -188,21 +191,22 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
       direction: dir,
       morning_sequence: stop.morning_sequence?.toString() ?? "",
       evening_sequence: stop.evening_sequence?.toString() ?? "",
+      stopType: isOfficeStop(stop) ? "OFFICE" : "PICKUP",
     });
     setEditingStopId(stop.id);
     setIsAdding(false);
   };
 
   const handleAddClick = () => {
-    // Insert new pickup BEFORE the office so office stays AM last / PM first
-    const officeMorning = officeStop?.morning_sequence ?? null;
+    // Insert new pickup BEFORE the (primary) office so office stays AM last / PM first
+    const officeMorning = primaryOfficeStop?.morning_sequence ?? null;
     const insertMorning =
       officeMorning != null
         ? officeMorning
         : Math.max(0, ...stops.map((s) => s.morning_sequence ?? 0)) + 1;
     const insertEvening =
-      officeStop?.evening_sequence != null
-        ? officeStop.evening_sequence + 1
+      primaryOfficeStop?.evening_sequence != null
+        ? primaryOfficeStop.evening_sequence + 1
         : Math.max(0, ...stops.map((s) => s.evening_sequence ?? 0)) + 1;
     resetForm();
     setOriginalDirection(null);
@@ -214,8 +218,18 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
     setIsAdding(true);
   };
 
+  // When marking the stop being added as an office (or back to a pickup),
+  // office stops are always BOTH-direction.
+  const handleStopTypeChange = (stopType: StopType) => {
+    setFormData((f) => ({
+      ...f,
+      stopType,
+      direction: stopType === "OFFICE" ? "BOTH" : f.direction,
+    }));
+  };
+
   const handleDirectionChange = (dir: StopDirection) => {
-    if (isEditingOffice) return;
+    if (isOfficeForm) return;
     const nextMorning = Math.max(0, ...stops.map((s) => s.morning_sequence ?? 0)) + 1;
     const nextEvening = Math.max(0, ...stops.map((s) => s.evening_sequence ?? 0)) + 1;
 
@@ -262,13 +276,15 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
       lng: parseFloat(formData.lng),
       morning_eta: formData.morning_eta || null,
       evening_eta: formData.evening_eta || null,
-      direction: isEditingOffice ? "BOTH" : formData.direction,
+      direction: isOfficeForm ? "BOTH" : formData.direction,
       sequence_order: 0,
+      stop_type: isOfficeForm ? "OFFICE" : "PICKUP",
     };
 
-    if (isEditingOffice && officeStop) {
-      data.morning_sequence = officeStop.morning_sequence;
-      data.evening_sequence = officeStop.evening_sequence;
+    // An existing office stop's position is locked — keep its current AM last / PM first sequences
+    if (isEditingOffice && editingStop) {
+      data.morning_sequence = editingStop.morning_sequence;
+      data.evening_sequence = editingStop.evening_sequence;
     } else {
       if (formData.morning_sequence !== "" && formData.direction !== "EVENING") {
         data.morning_sequence = parseInt(formData.morning_sequence, 10);
@@ -309,7 +325,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
   };
 
   const handleDelete = async (id: number) => {
-    if (id === officeStopId) {
+    if (officeStopIds.has(id)) {
       toast.error("Cannot delete the company office stop. Edit its location instead.");
       return;
     }
@@ -339,13 +355,45 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
           id: "form-pin",
           position: [parseFloat(formData.lat), parseFloat(formData.lng)],
           label: formData.name || t("newStop"),
-          color: isEditingOffice ? "#ef4444" : "#6366f1",
+          color: isOfficeForm ? "#ef4444" : "#6366f1",
         }]
         : [];
 
     return (
       <div className="space-y-4">
-        {isEditingOffice && (
+        {isAdding && (
+          <div>
+            <label className={labelCls}>Stop Type</label>
+            <div className="mt-1 flex rounded-lg border border-[var(--border-light)] p-0.5 bg-[var(--bg-subtle)] w-fit">
+              <button
+                type="button"
+                onClick={() => handleStopTypeChange("PICKUP")}
+                className={cx(
+                  "flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                  formData.stopType === "PICKUP"
+                    ? "bg-[var(--cort-orange)] text-white shadow-sm"
+                    : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]",
+                )}
+              >
+                <MapPin className="w-3.5 h-3.5" /> Pickup
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStopTypeChange("OFFICE")}
+                className={cx(
+                  "flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                  formData.stopType === "OFFICE"
+                    ? "bg-red-500 text-white shadow-sm"
+                    : "text-[var(--text-muted)] hover:bg-[var(--bg-card)]",
+                )}
+              >
+                <Building2 className="w-3.5 h-3.5" /> Office
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isOfficeForm && (
           <div className="rounded-lg border-2 border-red-300 bg-red-50 p-3 flex items-start gap-3">
             <span className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0">
               <Building2 className="w-4 h-4" />
@@ -353,15 +401,20 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
             <div>
               <p className="text-sm font-bold text-red-800">Company Office</p>
               <p className="text-xs text-red-700 mt-0.5">
-                Morning last stop · Evening first stop. Employees cannot be assigned to this stop.
+                Employees cannot be assigned to this stop as a pickup.
+                {isEditingOffice && " Morning last stop · Evening first stop."}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                  AM last
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wide bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded">
-                  PM first
-                </span>
+                {isEditingOffice && (
+                  <>
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                      AM last
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded">
+                      PM first
+                    </span>
+                  </>
+                )}
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
                   No employee assignment
                 </span>
@@ -414,9 +467,9 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
           <div>
             <label className={labelCls}>{t("direction")}</label>
             <select
-              value={isEditingOffice ? "BOTH" : formData.direction}
+              value={isOfficeForm ? "BOTH" : formData.direction}
               onChange={(e) => handleDirectionChange(e.target.value as StopDirection)}
-              disabled={isEditingOffice}
+              disabled={isOfficeForm}
               className={inputCls}
             >
               <option value="BOTH">{t("bothDirections")}</option>
@@ -425,9 +478,9 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
             </select>
           </div>
 
-          {(formData.direction === "MORNING" || formData.direction === "BOTH" || isEditingOffice) && (
+          {(formData.direction === "MORNING" || formData.direction === "BOTH" || isOfficeForm) && (
             <div>
-              <label className={labelCls}>{isEditingOffice ? "Morning arrival" : t("morningEta")}</label>
+              <label className={labelCls}>{isOfficeForm ? "Morning arrival" : t("morningEta")}</label>
               <input
                 type="time"
                 value={formData.morning_eta}
@@ -437,9 +490,9 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
             </div>
           )}
 
-          {(formData.direction === "EVENING" || formData.direction === "BOTH" || isEditingOffice) && (
+          {(formData.direction === "EVENING" || formData.direction === "BOTH" || isOfficeForm) && (
             <div>
-              <label className={labelCls}>{isEditingOffice ? "Evening departure" : t("eveningEta")}</label>
+              <label className={labelCls}>{isOfficeForm ? "Evening departure" : t("eveningEta")}</label>
               <input
                 type="time"
                 value={formData.evening_eta}
@@ -452,12 +505,12 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
 
         <div className={cx(
           "flex flex-wrap items-end gap-6 pt-1 pb-1 px-3 py-3 border rounded-lg",
-          isEditingOffice ? "bg-red-50 border-red-200" : "bg-[var(--bg-subtle)] border-[var(--border-light)]",
+          isOfficeForm ? "bg-red-50 border-red-200" : "bg-[var(--bg-subtle)] border-[var(--border-light)]",
         )}>
           <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide w-full -mb-2">
-            {isEditingOffice ? "Office position (locked)" : t("stopPositionInRoute")}
+            {isEditingOffice ? "Office position (locked)" : isOfficeForm ? "Office position" : t("stopPositionInRoute")}
           </span>
-          {(formData.direction === "MORNING" || formData.direction === "BOTH" || isEditingOffice) && (
+          {(formData.direction === "MORNING" || formData.direction === "BOTH" || isOfficeForm) && (
             <SequenceInput
               label={t("morningPosition")}
               value={formData.morning_sequence}
@@ -467,7 +520,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
               disabled={isEditingOffice}
             />
           )}
-          {(formData.direction === "EVENING" || formData.direction === "BOTH" || isEditingOffice) && (
+          {(formData.direction === "EVENING" || formData.direction === "BOTH" || isOfficeForm) && (
             <SequenceInput
               label={t("eveningPosition")}
               value={formData.evening_sequence}
@@ -479,8 +532,10 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
           )}
           <p className="text-xs text-[var(--text-muted)] italic self-end pb-0.5">
             {isEditingOffice
-              ? "Position is fixed so office stays last in morning and first in evening."
-              : t("stopSequenceHint")}
+              ? "Position is fixed so this office stays last in morning and first in evening."
+              : isOfficeForm
+                ? "Set where this office stop falls in the morning/evening order."
+                : t("stopSequenceHint")}
           </p>
         </div>
       </div>
@@ -530,7 +585,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
           {stops.map((stop) => {
             const dir = deriveDirection(stop);
             const isEditingThisStop = editingStopId === stop.id;
-            const isOffice = stop.id === officeStopId;
+            const isOffice = officeStopIds.has(stop.id);
 
             if (isEditingThisStop) {
               return (
@@ -657,7 +712,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
               </div>
               <ol className="divide-y divide-[var(--border-light)]">
                 {morningStops.map((s, i) => {
-                  const isOffice = s.id === officeStopId;
+                  const isOffice = officeStopIds.has(s.id);
                   return (
                     <li key={s.id} className={cx("flex items-center gap-2 px-3 py-2 text-sm", isOffice && "bg-red-50")}>
                       <span className={cx(
@@ -686,7 +741,7 @@ export function RouteStopsEditor({ routeId, stops, onUpdated }: RouteStopsEditor
               </div>
               <ol className="divide-y divide-[var(--border-light)]">
                 {eveningStops.map((s, i) => {
-                  const isOffice = s.id === officeStopId;
+                  const isOffice = officeStopIds.has(s.id);
                   return (
                     <li key={s.id} className={cx("flex items-center gap-2 px-3 py-2 text-sm", isOffice && "bg-red-50")}>
                       <span className={cx(

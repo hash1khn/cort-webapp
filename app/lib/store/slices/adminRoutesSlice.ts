@@ -13,6 +13,8 @@ export interface RouteStop {
     morning_sequence: number | null;
     evening_sequence: number | null;
     direction?: 'MORNING' | 'EVENING' | 'BOTH';
+    /** 'PICKUP' | 'OFFICE' — defaults to 'PICKUP' server-side. A route may have multiple OFFICE stops. */
+    stop_type?: 'PICKUP' | 'OFFICE';
     lat: number;
     lng: number;
     morning_eta?: string;
@@ -40,6 +42,8 @@ export interface Route {
     };
     assigned_vehicle_id?: number | null;
     assigned_driver_id?: string | null;
+    evening_vehicle_id?: number | null;
+    evening_driver_id?: string | null;
     company_vendor_link_id?: number | null;
     company_vendor_links?: {
         id: number;
@@ -55,6 +59,14 @@ export interface Route {
         full_name: string;
         phone: string;
     };
+    evening_vehicle?: {
+        plate_number: string;
+        model: string;
+    } | null;
+    evening_driver?: {
+        full_name: string;
+        phone: string;
+    } | null;
 }
 
 export interface CreateRouteRequest {
@@ -62,6 +74,8 @@ export interface CreateRouteRequest {
     company_id: number;
     assigned_vehicle_id?: number | null;
     assigned_driver_id?: string | null;
+    evening_vehicle_id?: number | null;
+    evening_driver_id?: string | null;
     stops: {
         name: string;
         lat: number;
@@ -70,11 +84,16 @@ export interface CreateRouteRequest {
         evening_eta?: string;
         sequence_order: number;
         direction?: 'MORNING' | 'EVENING' | 'BOTH';
+        /** 'PICKUP' | 'OFFICE' — defaults to 'PICKUP' server-side. */
+        stop_type?: 'PICKUP' | 'OFFICE';
     }[];
 }
 
 export type UpdateRouteRequest = Partial<
-    Pick<CreateRouteRequest, 'name' | 'company_id' | 'assigned_vehicle_id' | 'assigned_driver_id'>
+    Pick<
+        CreateRouteRequest,
+        'name' | 'company_id' | 'assigned_vehicle_id' | 'assigned_driver_id' | 'evening_vehicle_id' | 'evening_driver_id'
+    >
 > & {
     evening_lock_time?: string | null;
 };
@@ -84,6 +103,8 @@ export interface EmployeeAssignment {
     user_id: string;
     route_id: number;
     pickup_stop_id: number;
+    /** FK to a route_stops row with stop_type 'OFFICE'. Defaulted server-side when the route has exactly one office stop. */
+    office_stop_id?: number | null;
     users?: {
         full_name: string;
         email: string;
@@ -92,12 +113,19 @@ export interface EmployeeAssignment {
     route_stops?: {
         name: string;
     };
+    /** The assigned office stop — same relation shape as route_stops, but for the OFFICE stop. */
+    office_route_stops?: {
+        id?: number;
+        name: string;
+    } | null;
 }
 
 export interface AssignEmployeeRequest {
     user_id: string;
     route_id: number;
     pickup_stop_id: number;
+    /** Required when the route has more than one OFFICE stop; optional (server defaults) when it has exactly one. */
+    office_stop_id?: number;
 }
 
 interface AdminRoutesState {
@@ -421,6 +449,12 @@ export const adminRoutesSlice = createSlice({
                         users: updated.assigned_driver_id
                             ? (updated.users ?? state.routes[index].users)
                             : undefined,
+                        evening_vehicle: updated.evening_vehicle_id
+                            ? (updated.evening_vehicle ?? state.routes[index].evening_vehicle)
+                            : undefined,
+                        evening_driver: updated.evening_driver_id
+                            ? (updated.evening_driver ?? state.routes[index].evening_driver)
+                            : undefined,
                     };
                 }
                 // Merge carefully: bare PATCH responses omit relations/stops;
@@ -438,6 +472,12 @@ export const adminRoutesSlice = createSlice({
                             : undefined,
                         users: updated.assigned_driver_id
                             ? (updated.users ?? state.currentRoute.users)
+                            : undefined,
+                        evening_vehicle: updated.evening_vehicle_id
+                            ? (updated.evening_vehicle ?? state.currentRoute.evening_vehicle)
+                            : undefined,
+                        evening_driver: updated.evening_driver_id
+                            ? (updated.evening_driver ?? state.currentRoute.evening_driver)
                             : undefined,
                     };
                 }

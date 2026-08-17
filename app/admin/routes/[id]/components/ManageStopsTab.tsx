@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
     DndContext,
     PointerSensor,
@@ -17,25 +16,21 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import { useAppDispatch } from '@/app/lib/store/hooks';
 import {
-    createRouteStop,
     updateRouteStop,
     deleteRouteStop,
     reorderAdminRouteStops,
     Route,
     RouteStop,
 } from '@/app/lib/store/slices/adminRoutesSlice';
-import { Plus, Save, X, Sun, Sunset, MapPin, Building2, GripVertical } from 'lucide-react';
+import { Save, X, Sun, Sunset, Building2, GripVertical, ArrowLeftRight, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import type { MapMarker } from '@/app/admin/ui/Map';
 import { Badge } from '@/app/admin/components/ui/Badge';
-import { adminBtnOutline, adminBtnPrimary, adminInput, adminSelect } from '@/app/admin/components/ui/admin-styles';
+import { adminBtnOutline, adminBtnPrimary, adminInput } from '@/app/admin/components/ui/admin-styles';
 import { cx } from '@/app/admin/components/ui/cx';
 import { format12h } from '../../RouteCommandBar';
-
-const StopMap = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
+import { isOfficeStop, getOfficeStops } from '@/app/lib/utils/routeStops';
 
 type StopDirection = 'MORNING' | 'EVENING' | 'BOTH';
 
@@ -44,30 +39,23 @@ interface ManageStopsTabProps {
     onStopMutated?: () => void;
 }
 
-const DIRECTION_OPTIONS: { value: StopDirection; label: string }[] = [
-    { value: 'BOTH', label: 'Both' },
-    { value: 'MORNING', label: 'Morning only' },
-    { value: 'EVENING', label: 'Evening only' },
-];
-
-function identifyOfficeStopId(
-    stops: Array<{ id: number; morning_sequence: number | null }>,
-): number | null {
-    const withMorning = stops.filter((s) => s.morning_sequence != null);
-    if (withMorning.length === 0) return null;
-    const maxSeq = Math.max(...withMorning.map((s) => s.morning_sequence!));
-    return withMorning.find((s) => s.morning_sequence === maxSeq)?.id ?? null;
-}
-
 function formatTime(timeStr: string | null | undefined): string {
     if (!timeStr) return '';
-    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+    const trimmed = String(timeStr).trim();
+    const hhmmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+    if (hhmmMatch) {
+        const hour = Number.parseInt(hhmmMatch[1], 10);
+        const minute = hhmmMatch[2];
+        if (!Number.isNaN(hour) && hour >= 0 && hour <= 23) {
+            return `${String(hour).padStart(2, '0')}:${minute}`;
+        }
+    }
     try {
-        const date = new Date(timeStr.includes('T') ? timeStr : `1970-01-01T${timeStr}Z`);
-        if (isNaN(date.getTime())) return timeStr;
+        const date = new Date(trimmed.includes('T') ? trimmed : `1970-01-01T${trimmed}Z`);
+        if (isNaN(date.getTime())) return trimmed;
         return date.toISOString().substring(11, 16);
     } catch {
-        return timeStr;
+        return trimmed;
     }
 }
 
@@ -82,18 +70,19 @@ function deriveDirection(stop: RouteStop): StopDirection {
     return 'BOTH';
 }
 
-function directionLabel(direction: StopDirection): string {
-    if (direction === 'MORNING') return 'Morning only';
-    if (direction === 'EVENING') return 'Evening only';
-    return 'Both';
+function mergeOrder(prev: number[], server: number[]): number[] {
+    const allowed = new Set(server);
+    const kept = prev.filter((id) => allowed.has(id));
+    const missing = server.filter((id) => !kept.includes(id));
+    return [...kept, ...missing];
 }
 
-function pinOffice(ids: number[], column: 'MORNING' | 'EVENING', officeStopId: number | null): number[] {
-    if (!officeStopId || !ids.includes(officeStopId)) return ids;
-    const rest = ids.filter((id) => id !== officeStopId);
-    return column === 'MORNING' ? [...rest, officeStopId] : [officeStopId, ...rest];
+function moveColumnIds(ids: number[], activeId: number, overId: number): number[] {
+    const oldIndex = ids.indexOf(activeId);
+    const newIndex = ids.indexOf(overId);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return ids;
+    return arrayMove(ids, oldIndex, newIndex);
 }
-
 function sequenceIds(
     stops: RouteStop[] | undefined,
     key: 'morning_sequence' | 'evening_sequence',
@@ -106,26 +95,6 @@ function sequenceIds(
 
 function sameIds(a: number[], b: number[]): boolean {
     return a.length === b.length && a.every((id, i) => id === b[i]);
-}
-
-function mergeOrder(prev: number[], server: number[], column: 'MORNING' | 'EVENING', officeStopId: number | null): number[] {
-    const allowed = new Set(server);
-    const kept = prev.filter((id) => allowed.has(id));
-    const missing = server.filter((id) => !kept.includes(id));
-    return pinOffice([...kept, ...missing], column, officeStopId);
-}
-
-function moveColumnIds(
-    ids: number[],
-    activeId: number,
-    overId: number,
-    column: 'MORNING' | 'EVENING',
-    officeStopId: number | null,
-): number[] {
-    const oldIndex = ids.indexOf(activeId);
-    const newIndex = ids.indexOf(overId);
-    if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return ids;
-    return pinOffice(arrayMove(ids, oldIndex, newIndex), column, officeStopId);
 }
 
 const SILENT_DND_ANNOUNCEMENTS = {
@@ -146,35 +115,8 @@ function orderStops(stops: RouteStop[], ids: number[] | null): RouteStop[] {
     return ordered;
 }
 
-function SequenceInput({
-    label,
-    value,
-    onChange,
-    icon,
-    disabled = false,
-}: {
-    label: string;
-    value: string;
-    onChange: (v: string) => void;
-    icon: ReactNode;
-    disabled?: boolean;
-}) {
-    return (
-        <div className="flex flex-col gap-1">
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                {icon} {label} position
-            </span>
-            <input
-                type="number"
-                min={1}
-                value={value}
-                disabled={disabled}
-                onChange={(e) => onChange(e.target.value)}
-                className={cx(adminInput, 'w-24 text-center')}
-                placeholder="#"
-            />
-        </div>
-    );
+function stopActionKey(id: number, column: 'MORNING' | 'EVENING') {
+    return `${id}-${column}`;
 }
 
 function SortableStopCard({
@@ -183,6 +125,7 @@ function SortableStopCard({
     index,
     isOffice,
     dragDisabled,
+    isRemoving,
     onEdit,
     onRemove,
 }: {
@@ -191,14 +134,14 @@ function SortableStopCard({
     index: number;
     isOffice: boolean;
     dragDisabled: boolean;
+    isRemoving: boolean;
     onEdit: () => void;
     onRemove: () => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: stop.id,
-        disabled: dragDisabled || isOffice,
+        disabled: dragDisabled,
     });
-    const dir = deriveDirection(stop);
     const time = column === 'MORNING' ? displayTime(stop.morning_eta) : displayTime(stop.evening_eta);
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -210,28 +153,27 @@ function SortableStopCard({
             ref={setNodeRef}
             style={style}
             className={cx(
-                'group rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] p-3 shadow-[var(--shadow-card)]',
+                'group rounded-xl border p-3 shadow-[var(--shadow-card)]',
+                isOffice
+                    ? 'border-[color-mix(in_srgb,var(--cort-orange)_35%,transparent)] bg-[color-mix(in_srgb,var(--cort-orange)_6%,var(--bg-card))]'
+                    : 'border-[var(--border-default)] bg-[var(--bg-card)]',
                 isDragging && 'opacity-40',
             )}
         >
             <div className="flex items-start gap-2">
-                {!isOffice ? (
-                    <button
-                        type="button"
-                        className={cx(
-                            'mt-0.5 shrink-0 rounded-md p-1 text-[var(--text-muted)]',
-                            dragDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:bg-[var(--bg-subtle)] active:cursor-grabbing',
-                        )}
-                        aria-label="Drag to reorder"
-                        disabled={dragDisabled}
-                        {...attributes}
-                        {...listeners}
-                    >
-                        <GripVertical className="h-4 w-4" />
-                    </button>
-                ) : (
-                    <span className="mt-0.5 w-6 shrink-0" />
-                )}
+                <button
+                    type="button"
+                    className={cx(
+                        'mt-0.5 shrink-0 rounded-md p-1 text-[var(--text-muted)]',
+                        dragDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:bg-[var(--bg-subtle)] active:cursor-grabbing',
+                    )}
+                    aria-label="Drag to reorder"
+                    disabled={dragDisabled}
+                    {...attributes}
+                    {...listeners}
+                >
+                    <GripVertical className="h-4 w-4" />
+                </button>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -243,10 +185,8 @@ function SortableStopCard({
                                     {isOffice ? <Building2 className="h-3 w-3" /> : index + 1}
                                 </span>
                                 <span className="truncate">{stop.name}</span>
-                                {isOffice ? (
-                                    <Badge color="orange">Office — last morning / first evening</Badge>
-                                ) : (
-                                    <Badge color="gray">{directionLabel(dir)}</Badge>
+                                {isOffice && (
+                                    <Badge color="orange">Office</Badge>
                                 )}
                             </div>
                             <div className="mt-1.5 pl-8 text-xs text-[var(--text-muted)]">
@@ -265,10 +205,13 @@ function SortableStopCard({
                             <button
                                 type="button"
                                 onClick={onRemove}
-                                disabled={isOffice}
-                                className="rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-500/10 disabled:opacity-40"
+                                disabled={isOffice || isRemoving}
+                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-500/10 disabled:opacity-40"
                             >
-                                Remove
+                                {isRemoving ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : null}
+                                {isRemoving ? 'Removing…' : 'Remove'}
                             </button>
                         </div>
                     </div>
@@ -278,19 +221,68 @@ function SortableStopCard({
     );
 }
 
+function AbsentStopCard({
+    stop,
+    column,
+    isOffice,
+    disabled,
+    isAdding,
+    onAdd,
+}: {
+    stop: RouteStop;
+    column: 'MORNING' | 'EVENING';
+    isOffice: boolean;
+    disabled: boolean;
+    isAdding: boolean;
+    onAdd: () => void;
+}) {
+    const routeLabel = column === 'MORNING' ? 'morning' : 'evening';
+    const activeDirLabel = column === 'MORNING' ? 'evening' : 'morning';
+    const activeTime = column === 'MORNING' ? displayTime(stop.evening_eta) : displayTime(stop.morning_eta);
+
+    return (
+        <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[color-mix(in_srgb,var(--text-muted)_4%,var(--bg-card))] p-3 opacity-80">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-[var(--text-secondary)]">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--bg-subtle)] text-[var(--text-muted)]">
+                            {isOffice ? <Building2 className="h-3 w-3" /> : <span className="text-[10px]">—</span>}
+                        </span>
+                        <span className="truncate">{stop.name}</span>
+                        {isOffice && <Badge color="orange">Office</Badge>}
+                    </div>
+                    <p className="mt-1.5 pl-8 text-xs text-[var(--text-muted)]">
+                        Not on {routeLabel} route
+                        {activeTime !== '—' ? ` · on ${activeDirLabel} ${activeTime}` : ''}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={onAdd}
+                    disabled={disabled}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[var(--cort-navy)] px-2 py-1 text-xs font-medium text-[var(--cort-navy)] hover:bg-[color-mix(in_srgb,var(--cort-navy)_8%,transparent)] disabled:opacity-50"
+                >
+                    {isAdding ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                        <Plus className="h-3 w-3" />
+                    )}
+                    {isAdding ? 'Adding…' : `Add to ${routeLabel}`}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabProps) {
     const dispatch = useAppDispatch();
     const [isSaving, setIsSaving] = useState(false);
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
-    const [isAdding, setIsAdding] = useState(false);
-    const [originalDirection, setOriginalDirection] = useState<StopDirection | null>(null);
     const [morningIds, setMorningIds] = useState<number[]>(() => sequenceIds(route.route_stops, 'morning_sequence'));
     const [eveningIds, setEveningIds] = useState<number[]>(() => sequenceIds(route.route_stops, 'evening_sequence'));
     const [isSavingOrder, setIsSavingOrder] = useState(false);
-
-    const officeStopId = identifyOfficeStopId(route.route_stops ?? []);
-    const officeStop = (route.route_stops ?? []).find((s) => s.id === officeStopId) ?? null;
-    const isEditingOffice = editingStopId != null && editingStopId === officeStopId;
+    const [addingToColumnId, setAddingToColumnId] = useState<number | null>(null);
+    const [removingStopKey, setRemovingStopKey] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -299,9 +291,14 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         morning_eta: '',
         evening_eta: '',
         direction: 'BOTH' as StopDirection,
-        morning_sequence: '',
-        evening_sequence: '',
     });
+
+    const officeStops = getOfficeStops(route.route_stops ?? []);
+    const officeStopIds = useMemo(() => new Set(officeStops.map((s) => s.id)), [officeStops]);
+    const editingStop = editingStopId != null
+        ? (route.route_stops ?? []).find((s) => s.id === editingStopId) ?? null
+        : null;
+    const isEditingOffice = editingStop != null && isOfficeStop(editingStop);
 
     const resetForm = useCallback(() => {
         setFormData({
@@ -311,12 +308,8 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
             morning_eta: '',
             evening_eta: '',
             direction: 'BOTH',
-            morning_sequence: '',
-            evening_sequence: '',
         });
         setEditingStopId(null);
-        setIsAdding(false);
-        setOriginalDirection(null);
     }, []);
 
     useEffect(() => {
@@ -325,7 +318,6 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
 
     const handleEditClick = (stop: RouteStop) => {
         const dir = deriveDirection(stop);
-        setOriginalDirection(dir);
         setFormData({
             name: stop.name,
             lat: stop.lat?.toString() || '',
@@ -333,69 +325,16 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
             morning_eta: stop.morning_eta ? formatTime(stop.morning_eta) : '',
             evening_eta: stop.evening_eta ? formatTime(stop.evening_eta) : '',
             direction: dir,
-            morning_sequence: stop.morning_sequence?.toString() ?? '',
-            evening_sequence: stop.evening_sequence?.toString() ?? '',
         });
         setEditingStopId(stop.id);
-        setIsAdding(false);
-    };
-
-    const handleAddClick = () => {
-        const officeMorning = officeStop?.morning_sequence ?? null;
-        const insertMorning = officeMorning != null
-            ? officeMorning
-            : Math.max(0, ...(route.route_stops ?? []).map((s) => s.morning_sequence ?? 0)) + 1;
-        const insertEvening = officeStop?.evening_sequence != null
-            ? officeStop.evening_sequence + 1
-            : Math.max(0, ...(route.route_stops ?? []).map((s) => s.evening_sequence ?? 0)) + 1;
-        resetForm();
-        setOriginalDirection(null);
-        setFormData((f) => ({
-            ...f,
-            morning_sequence: insertMorning.toString(),
-            evening_sequence: insertEvening.toString(),
-        }));
-        setIsAdding(true);
-    };
-
-    const handleDirectionChange = (dir: StopDirection) => {
-        if (isEditingOffice) return;
-        const nextMorning = Math.max(0, ...(route.route_stops ?? []).map((s) => s.morning_sequence ?? 0)) + 1;
-        const nextEvening = Math.max(0, ...(route.route_stops ?? []).map((s) => s.evening_sequence ?? 0)) + 1;
-
-        setFormData((f) => ({
-            ...f,
-            direction: dir,
-            morning_sequence:
-                dir === 'EVENING'
-                    ? ''
-                    : dir === 'BOTH'
-                        ? (f.morning_sequence || nextMorning.toString())
-                        : f.morning_sequence,
-            evening_sequence:
-                dir === 'MORNING'
-                    ? ''
-                    : dir === 'BOTH'
-                        ? (f.evening_sequence || nextEvening.toString())
-                        : f.evening_sequence,
-        }));
     };
 
     const handleSubmit = async () => {
-        if (!formData.name || !formData.lat || !formData.lng) {
-            toast.error('Name, Latitude, and Longitude are required');
+        if (!editingStopId || !editingStop) return;
+        if (!formData.name) {
+            toast.error('Stop name is required');
             return;
         }
-
-        if (formData.direction === 'BOTH' && (!formData.morning_sequence || !formData.evening_sequence)) {
-            if (editingStopId && originalDirection && originalDirection !== 'BOTH') {
-                toast.error('When changing from Morning/Evening only to Both, set both sequence positions');
-            } else {
-                toast.error('Both Morning and Evening sequence positions are required for Both directions');
-            }
-            return;
-        }
-
         const data: Record<string, unknown> = {
             name: formData.name,
             lat: parseFloat(formData.lat),
@@ -403,30 +342,14 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
             morning_eta: formData.morning_eta || null,
             evening_eta: formData.evening_eta || null,
             direction: isEditingOffice ? 'BOTH' : formData.direction,
-            sequence_order: 0,
+            sequence_order: editingStop.sequence_order ?? 0,
+            morning_sequence: editingStop.morning_sequence,
+            evening_sequence: editingStop.evening_sequence,
         };
-
-        if (isEditingOffice && officeStop) {
-            data.morning_sequence = officeStop.morning_sequence;
-            data.evening_sequence = officeStop.evening_sequence;
-        } else {
-            if (formData.morning_sequence !== '' && formData.direction !== 'EVENING') {
-                data.morning_sequence = parseInt(formData.morning_sequence, 10);
-            }
-            if (formData.evening_sequence !== '' && formData.direction !== 'MORNING') {
-                data.evening_sequence = parseInt(formData.evening_sequence, 10);
-            }
-        }
-
         try {
             setIsSaving(true);
-            if (isAdding) {
-                await dispatch(createRouteStop({ routeId: route.id, data })).unwrap();
-                toast.success('Stop added successfully');
-            } else if (editingStopId) {
-                await dispatch(updateRouteStop({ stopId: editingStopId, routeId: route.id, data })).unwrap();
-                toast.success('Stop updated successfully');
-            }
+            await dispatch(updateRouteStop({ stopId: editingStopId, routeId: route.id, data })).unwrap();
+            toast.success('Stop updated successfully');
             onStopMutated?.();
             resetForm();
         } catch {
@@ -436,19 +359,81 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (id === officeStopId) {
-            toast.error('Cannot delete the company office stop. Change the office location by editing it instead.');
+    const handleDelete = async (id: number, column: 'MORNING' | 'EVENING') => {
+        if (officeStopIds.has(id)) {
+            toast.error('Cannot delete an office stop. Change the office location by editing it instead.');
             return;
         }
-        if (confirm('Are you sure you want to delete this stop?')) {
+        const stop = (route.route_stops ?? []).find((s) => s.id === id);
+        if (!stop) return;
+        const dir = deriveDirection(stop);
+
+        // BOTH-direction stop: removing from one column drops that direction only.
+        if (dir === 'BOTH') {
+            const msg =
+                column === 'EVENING'
+                    ? `Remove "${stop.name}" from the evening route only? It will stay on the morning route.`
+                    : `Remove "${stop.name}" from the morning route only? It will stay on the evening route.`;
+            if (!confirm(msg)) return;
+            const key = stopActionKey(id, column);
             try {
-                await dispatch(deleteRouteStop({ stopId: id, routeId: route.id })).unwrap();
-                toast.success('Stop deleted successfully');
+                setRemovingStopKey(key);
+                await dispatch(updateRouteStop({
+                    stopId: id,
+                    routeId: route.id,
+                    data: { direction: column === 'EVENING' ? 'MORNING' : 'EVENING' },
+                })).unwrap();
+                toast.success(
+                    column === 'EVENING' ? 'Removed from evening route' : 'Removed from morning route',
+                );
                 onStopMutated?.();
             } catch {
-                toast.error('Failed to delete stop');
+                toast.error('Failed to update stop');
+            } finally {
+                setRemovingStopKey(null);
             }
+            return;
+        }
+
+        if (!confirm(`Delete "${stop.name}"? This removes the stop from the route entirely.`)) return;
+        const key = stopActionKey(id, column);
+        try {
+            setRemovingStopKey(key);
+            await dispatch(deleteRouteStop({ stopId: id, routeId: route.id })).unwrap();
+            toast.success('Stop deleted successfully');
+            onStopMutated?.();
+        } catch {
+            toast.error('Failed to delete stop');
+        } finally {
+            setRemovingStopKey(null);
+        }
+    };
+
+    const handleAddToColumn = async (id: number, column: 'MORNING' | 'EVENING') => {
+        const stop = (route.route_stops ?? []).find((s) => s.id === id);
+        if (!stop) return;
+        const dir = deriveDirection(stop);
+        const targetDir: StopDirection | null =
+            column === 'EVENING' && dir === 'MORNING'
+                ? 'BOTH'
+                : column === 'MORNING' && dir === 'EVENING'
+                    ? 'BOTH'
+                    : null;
+        if (!targetDir) return;
+
+        try {
+            setAddingToColumnId(id);
+            await dispatch(updateRouteStop({
+                stopId: id,
+                routeId: route.id,
+                data: { direction: targetDir },
+            })).unwrap();
+            toast.success(`Added "${stop.name}" to the ${column === 'EVENING' ? 'evening' : 'morning'} route`);
+            onStopMutated?.();
+        } catch {
+            toast.error('Failed to add stop to route');
+        } finally {
+            setAddingToColumnId(null);
         }
     };
 
@@ -463,12 +448,14 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
     }, [route.id]);
 
     useEffect(() => {
-        setMorningIds((prev) => mergeOrder(prev, serverMorningIds, 'MORNING', officeStopId));
-    }, [morningMemberKey, officeStopId, serverMorningIds]);
+        setMorningIds((prev) => mergeOrder(prev, serverMorningIds));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [morningMemberKey, serverMorningIds]);
 
     useEffect(() => {
-        setEveningIds((prev) => mergeOrder(prev, serverEveningIds, 'EVENING', officeStopId));
-    }, [eveningMemberKey, officeStopId, serverEveningIds]);
+        setEveningIds((prev) => mergeOrder(prev, serverEveningIds));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [eveningMemberKey, serverEveningIds]);
 
     const morningStops = useMemo(() => {
         const sorted = (route.route_stops ?? []).filter((s) => s.morning_sequence != null);
@@ -480,12 +467,26 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         return orderStops(sorted, eveningIds);
     }, [route.route_stops, eveningIds]);
 
+    // Pickup stops on the other direction only — show as inactive in this column so ops can re-add.
+    const absentFromMorning = useMemo(
+        () => (route.route_stops ?? []).filter(
+            (s) => s.evening_sequence != null && s.morning_sequence == null && !isOfficeStop(s),
+        ),
+        [route.route_stops],
+    );
+    const absentFromEvening = useMemo(
+        () => (route.route_stops ?? []).filter(
+            (s) => s.morning_sequence != null && s.evening_sequence == null && !isOfficeStop(s),
+        ),
+        [route.route_stops],
+    );
+
     const morningDirty = !sameIds(morningIds, serverMorningIds);
     const eveningDirty = !sameIds(eveningIds, serverEveningIds);
     const orderDirty = morningDirty || eveningDirty;
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-    const dragLocked = isSavingOrder || isAdding || editingStopId != null;
+    const dragLocked = isSavingOrder || editingStopId != null;
 
     const applyColumnMove = (
         column: 'MORNING' | 'EVENING',
@@ -493,7 +494,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         overId: number,
     ) => {
         const setter = column === 'MORNING' ? setMorningIds : setEveningIds;
-        setter((ids) => moveColumnIds(ids, activeId, overId, column, officeStopId));
+        setter((ids) => moveColumnIds(ids, activeId, overId));
     };
 
     const handleColumnDragEnd = (column: 'MORNING' | 'EVENING', event: DragEndEvent) => {
@@ -534,161 +535,62 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         }
     };
 
-    const handleAddressSelect = useCallback(({ name, lat, lng }: { name: string; lat: number; lng: number; fullAddress: string }) => {
-        setFormData((f) => ({ ...f, name, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
-    }, []);
-
-    const handleMapClick = useCallback((lat: number, lng: number) => {
-        setFormData((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
-        toast.info('Coordinates updated from map click');
-    }, []);
-
-    const renderFormFields = () => {
-        const mapMarkers: MapMarker[] = formData.lat && formData.lng ? [{
-            id: 'form-pin',
-            position: [parseFloat(formData.lat), parseFloat(formData.lng)],
-            label: formData.name || 'New Stop',
-            color: '#6366f1',
-        }] : [];
-
-        return (
-            <div className="space-y-4">
-                {isEditingOffice && (
-                    <div className="flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--cort-orange)_35%,transparent)] bg-[var(--bg-subtle)] p-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cort-orange)] text-white">
-                            <Building2 className="h-4 w-4" />
-                        </span>
-                        <div>
-                            <p className="text-sm font-semibold text-[var(--text-primary)]">Office — last morning / first evening</p>
-                            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                                People board at pickups only. Position is locked so office stays last in the morning and first in the evening.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <div>
-                    <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                        Search location <span className="text-rose-500">*</span>
-                    </label>
-                    <StopAddressSearch
-                        onSelect={handleAddressSelect}
-                        defaultValue={formData.name}
-                        placeholder="Search address or place..."
-                        className="mt-1"
-                    />
-                </div>
-
-                <div className="overflow-hidden rounded-xl border border-[var(--border-default)]" style={{ height: 200 }}>
-                    <StopMap
-                        height="100%"
-                        markers={mapMarkers}
-                        onMapClick={handleMapClick}
-                        center={
-                            formData.lat && formData.lng
-                                ? [parseFloat(formData.lat), parseFloat(formData.lng)]
-                                : undefined
-                        }
-                    />
-                </div>
-                {formData.lat && formData.lng && (
-                    <p className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-                        <MapPin className="h-3 w-3" />
-                        {parseFloat(formData.lat).toFixed(5)}, {parseFloat(formData.lng).toFixed(5)} · Click map to adjust
-                    </p>
-                )}
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="col-span-1 md:col-span-2">
+    const renderFormFields = () => (
+        <div className="space-y-4">
+            <div>
+                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                    Stop name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                    className={adminInput}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g. Central Station"
+                />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {(formData.direction === 'MORNING' || formData.direction === 'BOTH' || isEditingOffice) && (
+                    <div>
                         <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                            Stop name <span className="text-rose-500">*</span>
+                            {isEditingOffice ? 'Morning arrival' : 'Morning time'}
+                            {formData.morning_eta && (
+                                <span className="ml-1.5 normal-case font-normal text-[var(--text-secondary)]">
+                                    ({format12h(formatTime(formData.morning_eta))})
+                                </span>
+                            )}
                         </label>
                         <input
                             className={adminInput}
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="e.g. Central Station"
+                            type="time"
+                            value={formData.morning_eta}
+                            onChange={(e) => setFormData({ ...formData, morning_eta: e.target.value })}
                         />
                     </div>
-
+                )}
+                {(formData.direction === 'EVENING' || formData.direction === 'BOTH' || isEditingOffice) && (
                     <div>
-                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">When</label>
-                        <select
-                            value={isEditingOffice ? 'BOTH' : formData.direction}
-                            onChange={(e) => handleDirectionChange(e.target.value as StopDirection)}
-                            disabled={isEditingOffice}
-                            className={adminSelect}
-                        >
-                            {DIRECTION_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                        <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                            {isEditingOffice ? 'Evening departure' : 'Evening time'}
+                            {formData.evening_eta && (
+                                <span className="ml-1.5 normal-case font-normal text-[var(--text-secondary)]">
+                                    ({format12h(formatTime(formData.evening_eta))})
+                                </span>
+                            )}
+                        </label>
+                        <input
+                            className={adminInput}
+                            type="time"
+                            value={formData.evening_eta}
+                            onChange={(e) => setFormData({ ...formData, evening_eta: e.target.value })}
+                        />
                     </div>
-
-                    {(formData.direction === 'MORNING' || formData.direction === 'BOTH' || isEditingOffice) && (
-                        <div>
-                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                                {isEditingOffice ? 'Morning arrival' : 'Morning time'}
-                            </label>
-                            <input
-                                className={adminInput}
-                                type="time"
-                                value={formData.morning_eta}
-                                onChange={(e) => setFormData({ ...formData, morning_eta: e.target.value })}
-                            />
-                        </div>
-                    )}
-                    {(formData.direction === 'EVENING' || formData.direction === 'BOTH' || isEditingOffice) && (
-                        <div>
-                            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                                {isEditingOffice ? 'Evening departure' : 'Evening time'}
-                            </label>
-                            <input
-                                className={adminInput}
-                                type="time"
-                                value={formData.evening_eta}
-                                onChange={(e) => setFormData({ ...formData, evening_eta: e.target.value })}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <div className={cx(
-                    'flex flex-wrap items-end gap-6 rounded-xl border px-3 py-3',
-                    isEditingOffice
-                        ? 'border-[color-mix(in_srgb,var(--cort-orange)_35%,transparent)] bg-[var(--bg-subtle)]'
-                        : 'border-[var(--border-default)] bg-[var(--bg-subtle)]',
-                )}>
-                    <span className="w-full text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                        {isEditingOffice ? 'Office position (locked)' : 'Stop position in route'}
-                    </span>
-                    {(formData.direction === 'MORNING' || formData.direction === 'BOTH' || isEditingOffice) && (
-                        <SequenceInput
-                            label="Morning"
-                            value={formData.morning_sequence}
-                            onChange={(v) => setFormData({ ...formData, morning_sequence: v })}
-                            icon={<Sun className="h-3 w-3" />}
-                            disabled={isEditingOffice}
-                        />
-                    )}
-                    {(formData.direction === 'EVENING' || formData.direction === 'BOTH' || isEditingOffice) && (
-                        <SequenceInput
-                            label="Evening"
-                            value={formData.evening_sequence}
-                            onChange={(v) => setFormData({ ...formData, evening_sequence: v })}
-                            icon={<Sunset className="h-3 w-3" />}
-                            disabled={isEditingOffice}
-                        />
-                    )}
-                    <p className="self-end pb-0.5 text-xs text-[var(--text-muted)]">
-                        {isEditingOffice
-                            ? 'Position is fixed so office stays last in morning and first in evening.'
-                            : 'Other stops will shift around this position automatically.'}
-                    </p>
-                </div>
+                )}
             </div>
-        );
-    };
+            <p className="text-xs text-[var(--text-muted)]">
+                Add stops from the Overview tab. Location and stop type are edited there too. Drag stops above to change order.
+            </p>
+        </div>
+    );
 
     return (
         <div className="space-y-5">
@@ -696,7 +598,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                 <div>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)]">Stops</h3>
                     <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                        Drag pickups to reorder. Press Save to keep it. Office stays last in the morning and first in the evening.
+                        Drag stops to reorder — pickups and offices. Press Save to keep it.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -724,19 +626,13 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                             </button>
                         </>
                     )}
-                    {!isAdding && !editingStopId && (
-                        <button type="button" onClick={handleAddClick} className={adminBtnPrimary}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add pickup
-                        </button>
-                    )}
                 </div>
             </div>
 
-            {(isAdding || editingStopId) && (
+            {editingStopId && (
                 <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
                     <h4 className="mb-3 font-semibold text-[var(--text-primary)]">
-                        {isAdding ? 'New pickup' : isEditingOffice ? `Edit office: ${formData.name}` : `Edit: ${formData.name}`}
+                        {isEditingOffice ? `Edit office: ${formData.name}` : `Edit: ${formData.name}`}
                     </h4>
                     {renderFormFields()}
                     <div className="mt-4 flex justify-end gap-2">
@@ -745,7 +641,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                         </button>
                         <button type="button" onClick={() => void handleSubmit()} disabled={isSaving} className={adminBtnPrimary}>
                             <Save className="mr-2 h-4 w-4" />
-                            {isSaving ? 'Saving…' : isAdding ? 'Save stop' : 'Update stop'}
+                            {isSaving ? 'Saving…' : 'Update stop'}
                         </button>
                     </div>
                 </div>
@@ -753,9 +649,9 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {([
-                    { column: 'MORNING' as const, stops: morningStops, title: 'Morning order', hint: 'office last', Icon: Sun },
-                    { column: 'EVENING' as const, stops: eveningStops, title: 'Evening order', hint: 'office first', Icon: Sunset },
-                ]).map(({ column, stops, title, hint, Icon }) => (
+                    { column: 'MORNING' as const, stops: morningStops, absent: absentFromMorning, title: 'Morning order', Icon: Sun },
+                    { column: 'EVENING' as const, stops: eveningStops, absent: absentFromEvening, title: 'Evening order', Icon: Sunset },
+                ]).map(({ column, stops, absent, title, Icon }) => (
                     <div key={column} className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-subtle)] [&_[aria-live]]:hidden [&_[role='status']]:hidden">
                         <div className="flex items-center gap-2 border-b border-[var(--border-default)] px-4 py-3">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--cort-navy)] text-white">
@@ -763,7 +659,10 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                             </span>
                             <div>
                                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h4>
-                                <p className="text-xs text-[var(--text-muted)]">{stops.length} stops · {hint}</p>
+                                <p className="text-xs text-[var(--text-muted)]">
+                                    {stops.length} stop{stops.length !== 1 ? 's' : ''}
+                                    {absent.length > 0 && ` · ${absent.length} not on route`}
+                                </p>
                             </div>
                         </div>
                         <DndContext
@@ -774,7 +673,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                         >
                             <SortableContext items={stops.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                                 <div className="space-y-2 p-3">
-                                    {stops.length === 0 ? (
+                                    {stops.length === 0 && absent.length === 0 ? (
                                         <p className="py-8 text-center text-sm text-[var(--text-muted)]">
                                             No {column === 'MORNING' ? 'morning' : 'evening'} stops
                                         </p>
@@ -785,12 +684,32 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                                                 stop={s}
                                                 column={column}
                                                 index={i}
-                                                isOffice={s.id === officeStopId}
-                                                dragDisabled={dragLocked}
+                                                isOffice={officeStopIds.has(s.id)}
+                                                dragDisabled={dragLocked || removingStopKey != null}
+                                                isRemoving={removingStopKey === stopActionKey(s.id, column)}
                                                 onEdit={() => handleEditClick(s)}
-                                                onRemove={() => void handleDelete(s.id)}
+                                                onRemove={() => void handleDelete(s.id, column)}
                                             />
                                         ))
+                                    )}
+                                    {absent.length > 0 && (
+                                        <div className="space-y-2 border-t border-dashed border-[var(--border-default)] pt-3">
+                                            <p className="flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                                                <ArrowLeftRight className="h-3 w-3" />
+                                                Not on {column === 'MORNING' ? 'morning' : 'evening'} route
+                                            </p>
+                                            {absent.map((s) => (
+                                                <AbsentStopCard
+                                                    key={`${column}-absent-${s.id}`}
+                                                    stop={s}
+                                                    column={column}
+                                                    isOffice={officeStopIds.has(s.id)}
+                                                    disabled={dragLocked || addingToColumnId != null || removingStopKey != null}
+                                                    isAdding={addingToColumnId === s.id}
+                                                    onAdd={() => void handleAddToColumn(s.id, column)}
+                                                />
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </SortableContext>

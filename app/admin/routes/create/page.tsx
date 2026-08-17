@@ -74,16 +74,19 @@ function CreateRoutePageContent() {
     const [companyId, setCompanyId] = useState('');
     const [assignedVehicleId, setAssignedVehicleId] = useState('');
     const [assignedDriverId, setAssignedDriverId] = useState('');
-    const [officeStop, setOfficeStop] = useState<Stop | null>(null);
+    const [eveningVehicleId, setEveningVehicleId] = useState('');
+    const [eveningDriverId, setEveningDriverId] = useState('');
+    /** A route may have multiple company office stops (multi-office shuttle support). */
+    const [officeStops, setOfficeStops] = useState<Stop[]>([]);
     const [pickupStops, setPickupStops] = useState<Stop[]>([]);
     const [pinMode, setPinMode] = useState<PinMode>('office');
     const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
     const polylineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    /** Ordered for API: pickups first, office always last (morning last / evening first after reverse). */
+    /** Ordered for API: pickups first, offices last. */
     const orderedStops = useMemo(
-        () => (officeStop ? [...pickupStops, officeStop] : [...pickupStops]),
-        [pickupStops, officeStop],
+        () => [...pickupStops, ...officeStops],
+        [pickupStops, officeStops],
     );
 
     useEffect(() => {
@@ -91,12 +94,6 @@ function CreateRoutePageContent() {
         dispatch(fetchAdminDrivers({ limit: 100, driver_type: DriverType.SHUTTLE }));
         dispatch(fetchAdminVehicles({ limit: 100 }));
     }, [dispatch, companiesStatus]);
-
-    // Once office is set, default map/search pin mode to pickups
-    useEffect(() => {
-        if (officeStop) setPinMode('pickup');
-        else setPinMode('office');
-    }, [officeStop]);
 
     const fetchPreviewPolyline = useCallback(async (currentStops: Stop[]) => {
         if (currentStops.length < 2) {
@@ -120,23 +117,22 @@ function CreateRoutePageContent() {
     }, [fetchPreviewPolyline]);
 
     const applyOffice = useCallback((stop: Stop) => {
-        setOfficeStop(stop);
-        setPickupStops((prev) => {
-            const next = [...prev];
-            schedulePolylineUpdate([...next, stop]);
+        setOfficeStops((prev) => {
+            const next = [...prev, stop];
+            schedulePolylineUpdate([...pickupStops, ...next]);
             return next;
         });
-        toast.success('Company office set');
-    }, [schedulePolylineUpdate]);
+        toast.success('Company office added');
+    }, [pickupStops, schedulePolylineUpdate]);
 
     const applyPickup = useCallback((stop: Stop) => {
         setPickupStops((prev) => {
             const updated = [...prev, stop];
-            schedulePolylineUpdate(officeStop ? [...updated, officeStop] : updated);
+            schedulePolylineUpdate([...updated, ...officeStops]);
             return updated;
         });
         toast.success(`Pickup "${stop.name}" added`);
-    }, [officeStop, schedulePolylineUpdate]);
+    }, [officeStops, schedulePolylineUpdate]);
 
     const handleAddressSelect = useCallback(({ name: stopName, lat, lng }: { name: string; lat: number; lng: number }) => {
         if (pinMode === 'office') {
@@ -148,37 +144,40 @@ function CreateRoutePageContent() {
 
     const handleMapClick = useCallback((lat: number, lng: number) => {
         if (pinMode === 'office') {
-            applyOffice(makeStop('Company Office', lat, lng, { morningEta: '09:00', eveningEta: '18:00' }));
+            applyOffice(makeStop(`Office ${officeStops.length + 1}`, lat, lng, { morningEta: '09:00', eveningEta: '18:00' }));
         } else {
             applyPickup(makeStop(`Pickup ${pickupStops.length + 1}`, lat, lng, { morningEta: '08:00', eveningEta: '18:30' }));
         }
-    }, [pinMode, pickupStops.length, applyOffice, applyPickup]);
+    }, [pinMode, pickupStops.length, officeStops.length, applyOffice, applyPickup]);
 
     const handleRemovePickup = useCallback((id: string) => {
         setPickupStops((prev) => {
             const updated = prev.filter((s) => s.id !== id);
-            schedulePolylineUpdate(officeStop ? [...updated, officeStop] : updated);
+            schedulePolylineUpdate([...updated, ...officeStops]);
             return updated;
         });
-    }, [officeStop, schedulePolylineUpdate]);
+    }, [officeStops, schedulePolylineUpdate]);
 
-    const handleClearOffice = useCallback(() => {
-        setOfficeStop(null);
-        schedulePolylineUpdate(pickupStops);
+    const handleRemoveOffice = useCallback((id: string) => {
+        setOfficeStops((prev) => {
+            const updated = prev.filter((s) => s.id !== id);
+            schedulePolylineUpdate([...pickupStops, ...updated]);
+            return updated;
+        });
     }, [pickupStops, schedulePolylineUpdate]);
 
     const handlePickupChange = useCallback((id: string, field: keyof Stop, value: string) => {
         setPickupStops((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
     }, []);
 
-    const handleOfficeChange = useCallback((field: keyof Stop, value: string) => {
-        setOfficeStop((prev) => (prev ? { ...prev, [field]: value } : prev));
+    const handleOfficeChange = useCallback((id: string, field: keyof Stop, value: string) => {
+        setOfficeStops((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
     }, []);
 
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!name || !companyId) { toast.error('Please fill in required fields'); return; }
-        if (!officeStop) { toast.error('Set the company office stop — it is required'); return; }
+        if (officeStops.length < 1) { toast.error('Set at least one company office stop — it is required'); return; }
         if (pickupStops.length < 1) { toast.error('Add at least one employee pickup stop'); return; }
 
         try {
@@ -187,15 +186,30 @@ function CreateRoutePageContent() {
                 company_id: Number(companyId),
                 assigned_vehicle_id: assignedVehicleId ? Number(assignedVehicleId) : undefined,
                 assigned_driver_id: assignedDriverId || undefined,
-                stops: orderedStops.map((stop, index) => ({
-                    name: stop.name,
-                    lat: stop.lat,
-                    lng: stop.lng,
-                    morning_eta: stop.direction !== 'EVENING' ? stop.morningEta : undefined,
-                    evening_eta: stop.direction !== 'MORNING' ? stop.eveningEta : undefined,
-                    sequence_order: index + 1,
-                    direction: stop.direction,
-                })),
+                evening_vehicle_id: eveningVehicleId ? Number(eveningVehicleId) : undefined,
+                evening_driver_id: eveningDriverId || undefined,
+                stops: [
+                    ...pickupStops.map((stop, index) => ({
+                        name: stop.name,
+                        lat: stop.lat,
+                        lng: stop.lng,
+                        morning_eta: stop.direction !== 'EVENING' ? stop.morningEta : undefined,
+                        evening_eta: stop.direction !== 'MORNING' ? stop.eveningEta : undefined,
+                        sequence_order: index + 1,
+                        direction: stop.direction,
+                        stop_type: 'PICKUP' as const,
+                    })),
+                    ...officeStops.map((stop, index) => ({
+                        name: stop.name,
+                        lat: stop.lat,
+                        lng: stop.lng,
+                        morning_eta: stop.morningEta,
+                        evening_eta: stop.eveningEta,
+                        sequence_order: pickupStops.length + index + 1,
+                        direction: 'BOTH' as const,
+                        stop_type: 'OFFICE' as const,
+                    })),
+                ],
             })).unwrap();
             toast.success('Route created successfully!');
             router.push('/admin/routes');
@@ -211,14 +225,12 @@ function CreateRoutePageContent() {
             label: `${index + 1}. ${s.name}`,
             color: '#6366f1',
         })),
-        ...(officeStop
-            ? [{
-                id: officeStop.id,
-                position: [officeStop.lat, officeStop.lng] as [number, number],
-                label: `Office · ${officeStop.name}`,
-                color: '#ef4444',
-            }]
-            : []),
+        ...officeStops.map((s) => ({
+            id: s.id,
+            position: [s.lat, s.lng] as [number, number],
+            label: `Office · ${s.name}`,
+            color: '#ef4444',
+        })),
     ];
 
     const mapPolylines: MapPolyline[] = routePolyline.length >= 2
@@ -227,8 +239,8 @@ function CreateRoutePageContent() {
         ? [{ positions: orderedStops.map((s) => [s.lat, s.lng] as [number, number]), color: '#2563eb' }]
         : [];
 
-    const mapCenter: [number, number] | undefined = officeStop
-        ? [officeStop.lat, officeStop.lng]
+    const mapCenter: [number, number] | undefined = officeStops[0]
+        ? [officeStops[0].lat, officeStops[0].lng]
         : pickupStops[0]
         ? [pickupStops[0].lat, pickupStops[0].lng]
         : undefined;
@@ -236,7 +248,7 @@ function CreateRoutePageContent() {
     const missing: string[] = [];
     if (!name.trim()) missing.push('Route name');
     if (!companyId) missing.push('Company');
-    if (!officeStop) missing.push('Office');
+    if (officeStops.length === 0) missing.push('At least one office');
     if (pickupStops.length < 1) missing.push('A pickup');
     const canSave = missing.length === 0;
 
@@ -244,7 +256,7 @@ function CreateRoutePageContent() {
         <div className="flex h-[calc(100vh-100px)] flex-col gap-4">
             <RouteCommandBar
                 title="New route"
-                subtitle="Office is always last in the morning and first in the evening."
+                subtitle="Offices are always last in the morning and first in the evening."
                 actions={
                     <>
                         <button type="button" onClick={() => router.back()} className={adminBtnOutline}>Cancel</button>
@@ -342,42 +354,58 @@ function CreateRoutePageContent() {
                     </div>
 
                     <section>
-                        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">2. Office (last morning stop)</h2>
-                        {!officeStop ? (
+                        <div className="mb-2 flex items-center justify-between">
+                            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                                2. Office{officeStops.length !== 1 ? 's' : ''}{officeStops.length > 0 ? ` (${officeStops.length})` : ''}
+                            </h2>
+                            <span className="rounded-full bg-[color-mix(in_srgb,var(--cort-orange)_12%,transparent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--cort-orange)]">
+                                At least 1 required
+                            </span>
+                        </div>
+                        {officeStops.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-subtle)] p-4 text-center">
                                 <p className="text-sm font-medium text-[var(--text-primary)]">No office set yet</p>
                                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                                    Switch to Set office, then search or click the map. Morning last stop · Evening first stop.
+                                    Switch to Set office, then search or click the map. Add more than one if this route serves multiple offices.
                                 </p>
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-[color-mix(in_srgb,var(--cort-orange)_35%,transparent)] bg-[var(--bg-subtle)] p-3">
-                                <div className="mb-2 flex items-start gap-2">
-                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cort-orange)] text-white">
-                                        <Building2 className="h-4 w-4" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <input
-                                            value={officeStop.name}
-                                            onChange={(e) => handleOfficeChange('name', e.target.value)}
-                                            className={cx(adminInput, 'h-8 text-sm font-semibold')}
-                                        />
-                                        <p className="mt-1 text-[11px] text-[var(--text-muted)]">Office — last morning / first evening</p>
+                            <div className="space-y-2">
+                                {officeStops.map((stop) => (
+                                    <div key={stop.id} className="rounded-xl border border-[color-mix(in_srgb,var(--cort-orange)_35%,transparent)] bg-[var(--bg-subtle)] p-3">
+                                        <div className="mb-2 flex items-start gap-2">
+                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--cort-orange)] text-white">
+                                                <Building2 className="h-4 w-4" />
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <input
+                                                    value={stop.name}
+                                                    onChange={(e) => handleOfficeChange(stop.id, 'name', e.target.value)}
+                                                    className={cx(adminInput, 'h-8 text-sm font-semibold')}
+                                                />
+                                                <p className="mt-1 text-[11px] text-[var(--text-muted)]">People board at pickups only — no employee assignment here.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveOffice(stop.id)}
+                                                className="text-[var(--text-muted)] hover:text-rose-600"
+                                                title="Remove office"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 pl-10 text-xs">
+                                            <div>
+                                                <label className="mb-0.5 block text-[var(--text-muted)]">Morning arrival</label>
+                                                <input type="time" value={stop.morningEta} onChange={(e) => handleOfficeChange(stop.id, 'morningEta', e.target.value)} className={adminInput} />
+                                            </div>
+                                            <div>
+                                                <label className="mb-0.5 block text-[var(--text-muted)]">Evening departure</label>
+                                                <input type="time" value={stop.eveningEta} onChange={(e) => handleOfficeChange(stop.id, 'eveningEta', e.target.value)} className={adminInput} />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button type="button" onClick={handleClearOffice} className="text-[var(--text-muted)] hover:text-rose-600" title="Clear office">
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 pl-10 text-xs">
-                                    <div>
-                                        <label className="mb-0.5 block text-[var(--text-muted)]">Morning time</label>
-                                        <input type="time" value={officeStop.morningEta} onChange={(e) => handleOfficeChange('morningEta', e.target.value)} className={adminInput} />
-                                    </div>
-                                    <div>
-                                        <label className="mb-0.5 block text-[var(--text-muted)]">Evening time</label>
-                                        <input type="time" value={officeStop.eveningEta} onChange={(e) => handleOfficeChange('eveningEta', e.target.value)} className={adminInput} />
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         )}
                     </section>
@@ -443,11 +471,16 @@ function CreateRoutePageContent() {
                         )}
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">4. Usual driver &amp; vehicle (optional)</h2>
+                    <section className="space-y-3">
+                        <div>
+                            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">4. Usual driver &amp; vehicle (optional)</h2>
+                            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                                Leave evening empty to use the same driver and vehicle as morning.
+                            </p>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div>
-                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual driver</label>
+                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning driver</label>
                                 <select
                                     className={adminSelect}
                                     value={assignedDriverId}
@@ -460,7 +493,7 @@ function CreateRoutePageContent() {
                                 </select>
                             </div>
                             <div>
-                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Usual vehicle</label>
+                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning vehicle</label>
                                 <select
                                     className={adminSelect}
                                     value={assignedVehicleId}
@@ -474,22 +507,60 @@ function CreateRoutePageContent() {
                                     ))}
                                 </select>
                             </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening driver</label>
+                                <select
+                                    className={adminSelect}
+                                    value={eveningDriverId}
+                                    onChange={(e) => setEveningDriverId(e.target.value)}
+                                >
+                                    <option value="">Same as morning</option>
+                                    {drivers.map((d) => (
+                                        <option key={d.id} value={d.id}>{d.full_name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Evening vehicle</label>
+                                <select
+                                    className={adminSelect}
+                                    value={eveningVehicleId}
+                                    onChange={(e) => setEveningVehicleId(e.target.value)}
+                                >
+                                    <option value="">Same as morning</option>
+                                    {vehicles.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.plate_number}{v.model ? ` · ${v.model}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </section>
 
-                    {officeStop && pickupStops.length > 0 && (
+                    {officeStops.length > 0 && pickupStops.length > 0 && (
                         <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] p-3 text-xs text-[var(--text-secondary)]">
                             <p className="mb-2 font-semibold text-[var(--text-primary)]">Order on save</p>
                             <p>
                                 <span className="font-medium">Morning → </span>
-                                {pickupStops.map((s) => s.name).join(' → ')} → {officeStop.name}
+                                {pickupStops.map((s) => s.name).join(' → ')} → {officeStops.map((s) => s.name).join(', ')}
                             </p>
                             <p className="mt-1">
                                 <span className="font-medium">Evening → </span>
-                                {officeStop.name} → {[...pickupStops].reverse().map((s) => s.name).join(' → ')}
+                                {officeStops.map((s) => s.name).join(', ')} → {[...pickupStops].reverse().map((s) => s.name).join(' → ')}
                             </p>
-                            <p className="mt-2 text-[var(--text-muted)]">Pickup order is auto-optimized on save; evening is the reverse of morning.</p>
+                            <p className="mt-2 text-[var(--text-muted)]">
+                                Pickup order is auto-optimized on save; evening is the reverse of morning.
+                                {officeStops.length > 1 && ' Multiple offices are placed after pickups — adjust exact positions from Manage Stops after creating the route.'}
+                            </p>
                         </section>
+                    )}
+
+                    {orderedStops.length >= 2 && (
+                        <div className="flex items-center gap-2 border-t border-[var(--border-default)] pt-2 text-xs text-[var(--text-muted)]">
+                            <div className="h-2 w-2 rounded-full bg-[var(--cort-navy)]" />
+                            Road-following route via Google Maps
+                        </div>
                     )}
                 </div>
 

@@ -1255,7 +1255,7 @@ class ApiClient {
         });
     }
 
-    async assignEmployeeToRoute(data: { user_id: string; route_id: number; pickup_stop_id?: number }): Promise<any> {
+    async assignEmployeeToRoute(data: { user_id: string; route_id: number; pickup_stop_id?: number; office_stop_id?: number }): Promise<any> {
         return this.request<any>('/employee-route-assignments/assign', {
             method: 'POST',
             body: JSON.stringify(data),
@@ -1951,6 +1951,7 @@ class ApiClient {
             morning_eta?: string;
             evening_eta?: string;
             sequence_order: number;
+            stop_type?: 'PICKUP' | 'OFFICE';
         }>;
     }) {
         return this.request<unknown>('/routes', {
@@ -1980,6 +1981,7 @@ class ApiClient {
         evening_eta?: string | null;
         morning_sequence?: number;
         evening_sequence?: number;
+        stop_type?: 'PICKUP' | 'OFFICE';
     }) {
         return this.request<unknown>(`/routes/${routeId}/stops`, {
             method: 'POST',
@@ -1997,6 +1999,7 @@ class ApiClient {
         evening_eta?: string | null;
         morning_sequence?: number;
         evening_sequence?: number;
+        stop_type?: 'PICKUP' | 'OFFICE';
     }) {
         return this.request<unknown>(`/routes/stops/${stopId}`, {
             method: 'PATCH',

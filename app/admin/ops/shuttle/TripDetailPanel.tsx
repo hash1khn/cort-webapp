@@ -1,7 +1,8 @@
 'use client';
 
-import { Clock, MapPin, Users } from 'lucide-react';
+import { Building2, Clock, MapPin, Users } from 'lucide-react';
 import { Card } from '@/app/admin/ui/Card';
+import { getOfficeStops, isOfficeStop } from '@/app/lib/utils/routeStops';
 
 export type TripEmployee = {
   id: number;
@@ -19,6 +20,11 @@ export type TripEmployee = {
     morning_sequence: number | null;
     evening_sequence: number | null;
   } | null;
+  /** The assigned office stop — populated when the route has multiple OFFICE-type stops. */
+  office_route_stops?: {
+    id?: number;
+    name: string;
+  } | null;
   boarding?: {
     employee_id: string;
     scanned_at: string | null;
@@ -33,6 +39,8 @@ export type TripDetailStop = {
   sequence_order: number;
   morning_eta: string | null;
   evening_eta: string | null;
+  /** 'PICKUP' | 'OFFICE' — defaults to 'PICKUP' server-side. */
+  stop_type?: 'PICKUP' | 'OFFICE';
 };
 
 export type TripDetailTrip = {
@@ -115,6 +123,21 @@ export function TripDetailPanel({
   const counts = occupancyCounts(employees);
   const vehicle = trip.routes?.vehicles;
   const vehicleLabel = [vehicle?.model, vehicle?.plate_number].filter(Boolean).join(' · ') || '—';
+  const officeStops = getOfficeStops(stops);
+  const hasMultipleOffices = officeStops.length > 1;
+
+  // Group employees by their assigned office when the route serves more than one.
+  const employeeGroups: { officeName: string | null; employees: TripEmployee[] }[] = hasMultipleOffices
+    ? (() => {
+        const byOffice = new Map<string, TripEmployee[]>();
+        for (const emp of employees) {
+          const officeName = emp.office_route_stops?.name ?? 'Unassigned office';
+          if (!byOffice.has(officeName)) byOffice.set(officeName, []);
+          byOffice.get(officeName)!.push(emp);
+        }
+        return Array.from(byOffice.entries()).map(([officeName, emps]) => ({ officeName, employees: emps }));
+      })()
+    : [{ officeName: null, employees }];
 
   return (
     <Card className="flex flex-col h-full min-h-0 overflow-y-auto overscroll-contain p-0">
@@ -203,6 +226,7 @@ export function TripDetailPanel({
           <div className="space-y-1.5">
             {stops.map((stop, idx) => {
               const isCurrent = stop.id === trip.current_stop_id;
+              const isOffice = isOfficeStop(stop);
               const eta =
                 trip.direction === 'MORNING' ? stop.morning_eta : stop.evening_eta;
               return (
@@ -211,17 +235,28 @@ export function TripDetailPanel({
                   className={`flex items-center gap-2 text-xs rounded-lg px-2 py-1.5 ${
                     isCurrent
                       ? 'bg-orange-50 text-orange-800 font-semibold'
-                      : 'text-gray-600'
+                      : isOffice
+                        ? 'bg-red-50/60 text-gray-700'
+                        : 'text-gray-600'
                   }`}
                 >
                   <span
                     className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      isCurrent ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'
+                      isCurrent
+                        ? 'bg-orange-500 text-white'
+                        : isOffice
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-100 text-gray-500'
                     }`}
                   >
-                    {idx + 1}
+                    {isOffice ? <Building2 className="w-3 h-3" /> : idx + 1}
                   </span>
                   <span className="truncate flex-1">{stop.name}</span>
+                  {isOffice && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded shrink-0">
+                      Office
+                    </span>
+                  )}
                   {eta && <span className="text-[10px] text-gray-400 shrink-0">{eta}</span>}
                 </div>
               );
@@ -257,41 +292,54 @@ export function TripDetailPanel({
               <p className="text-xs text-gray-400 font-medium">No employees assigned</p>
             </div>
           ) : (
-            employees.map((emp) => {
-              const label = boardingLabel(emp);
-              const name = emp.users?.full_name ?? 'Unknown';
-              return (
-                <div
-                  key={emp.id}
-                  className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100"
-                >
-                  <div className="w-7 h-7 rounded-full bg-[#0C225E]/10 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-[#0C225E]">
-                      {name.charAt(0).toUpperCase()}
+            employeeGroups.map((group) => (
+              <div key={group.officeName ?? 'all'} className="space-y-2">
+                {group.officeName && (
+                  <div className="flex items-center gap-1.5 px-0.5 pt-1 first:pt-0">
+                    <Building2 className="w-3 h-3 text-red-500" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">
+                      {group.officeName}
                     </span>
+                    <span className="text-[10px] text-gray-400">({group.employees.length})</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-semibold text-gray-900 truncate">{name}</div>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      {emp.route_stops?.name && (
-                        <span className="text-[10px] text-gray-500 font-medium flex items-center gap-0.5">
-                          <MapPin className="w-2.5 h-2.5" />
-                          {emp.route_stops.name}
+                )}
+                {group.employees.map((emp) => {
+                  const label = boardingLabel(emp);
+                  const name = emp.users?.full_name ?? 'Unknown';
+                  return (
+                    <div
+                      key={emp.id}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-[#0C225E]/10 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] font-bold text-[#0C225E]">
+                          {name.charAt(0).toUpperCase()}
                         </span>
-                      )}
-                      {emp.users?.department && (
-                        <span className="text-[10px] text-gray-400 truncate">
-                          {emp.users.department}
-                        </span>
-                      )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-gray-900 truncate">{name}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {emp.route_stops?.name && (
+                            <span className="text-[10px] text-gray-500 font-medium flex items-center gap-0.5">
+                              <MapPin className="w-2.5 h-2.5" />
+                              {emp.route_stops.name}
+                            </span>
+                          )}
+                          {emp.users?.department && (
+                            <span className="text-[10px] text-gray-400 truncate">
+                              {emp.users.department}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`mt-0.5 text-[10px] font-bold ${label.className}`}>
+                          {label.text}
+                        </div>
+                      </div>
                     </div>
-                    <div className={`mt-0.5 text-[10px] font-bold ${label.className}`}>
-                      {label.text}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+                  );
+                })}
+              </div>
+            ))
           )}
         </div>
       </div>
