@@ -41,6 +41,9 @@ import {
     CreateFixedTermContractRequest,
     UpdateFixedTermContractRequest,
     SettleFixedTermContractRequest,
+    // App config
+    MobileAppConfig,
+    UpdateMobileAppConfigRequest,
     // Bookings
     CreateChauffeurBookingRequest, ChauffeurBooking, ChauffeurBookingResponse, QueryChauffeurBookingParams, QueryBookingStatsParams,
     DailyTripLog, AddPaymentRequest,
@@ -986,6 +989,19 @@ class ApiClient {
             method: 'PUT',
             body: JSON.stringify({ value }),
         });
+    }
+
+    async getAppConfig(): Promise<MobileAppConfig> {
+        const res = await this.request<{ data: MobileAppConfig }>('/app-config');
+        return res.data;
+    }
+
+    async updateAppConfig(data: UpdateMobileAppConfigRequest): Promise<MobileAppConfig> {
+        const res = await this.request<{ data: MobileAppConfig }>('/app-config', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+        return res.data;
     }
 
     async getFuelPriceHistory(fuelType: 'PETROL' | 'DIESEL'): Promise<FuelPriceHistoryResponse> {

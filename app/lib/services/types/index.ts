@@ -3,6 +3,9 @@
 // Common
 export type { PaginatedResponse, DeleteRecordResult } from './common';
 
+// App config (mobile force-update / maintenance)
+export type { MobileAppConfig, UpdateMobileAppConfigRequest } from './app-config';
+
 // Auth (re-export from existing auth-types)
 export type { LoginRequest, LoginResponse, ProfileResponse, SignupRequest } from '../../types/auth-types';
 
