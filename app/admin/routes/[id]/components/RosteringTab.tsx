@@ -5,6 +5,7 @@ import { UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/app/admin/components/ui/Badge';
 import { adminBtnPrimary, adminInput, adminSelect } from '@/app/admin/components/ui/admin-styles';
+import { cx } from '@/app/admin/components/ui/cx';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
     fetchRouteAssignments,
@@ -148,7 +149,6 @@ export default function RosteringTab({ route }: { route: Route }) {
                                 </option>
                             ))}
                         </select>
-                        <p className="mt-1 text-[11px] text-[var(--text-muted)]">Office is excluded — people board at pickups only.</p>
                     </div>
                     {hasMultipleOffices && (
                         <div>
@@ -163,19 +163,23 @@ export default function RosteringTab({ route }: { route: Route }) {
                                     <option key={stop.id} value={stop.id}>{stop.name}</option>
                                 ))}
                             </select>
-                            <p className="mt-1 text-[11px] text-[var(--text-muted)]">This route has multiple offices — pick which one this person is assigned to.</p>
                         </div>
                     )}
                     <button
                         type="button"
                         onClick={() => void handleAssign()}
                         disabled={assignmentStatus === 'loading'}
-                        className={adminBtnPrimary}
+                        className={cx(adminBtnPrimary, 'h-[38px]')}
                     >
                         <UserPlus className="mr-2 h-4 w-4" />
                         {assignmentStatus === 'loading' ? 'Adding…' : 'Add to route'}
                     </button>
                 </div>
+                <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                    {hasMultipleOffices
+                        ? 'Office stops are excluded from pickup — people board at pickups only. This route has multiple offices, so pick which one this person is assigned to.'
+                        : 'Office is excluded — people board at pickups only.'}
+                </p>
             </div>
 
             <label className="block max-w-sm">
