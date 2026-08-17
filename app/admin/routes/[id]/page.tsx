@@ -21,7 +21,7 @@ import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/
 import StopAddressSearch from '@/app/admin/ui/StopAddressSearch';
 import RosteringTab from './components/RosteringTab';
 import ManageStopsTab from './components/ManageStopsTab';
-import { ChevronLeft, Info, Plus, Save, Trash, Users, X, ListOrdered, Sparkles, Building2, Sun, Sunset } from 'lucide-react';
+import { ChevronLeft, Info, Plus, Save, Trash, Users, X, ListOrdered, Sparkles, Building2, Sun, Sunset, Pencil } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
@@ -88,6 +88,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     // Direction toggle for the overview map
     const [mapDirection, setMapDirection] = useState<'MORNING' | 'EVENING'>('MORNING');
+    const [highlightedStopId, setHighlightedStopId] = useState<number | null>(null);
 
     // Stop form
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
@@ -370,9 +371,19 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     };
 
     const handleMarkerClick = (markerId: string) => {
-        const stop = route?.route_stops?.find((s) => s.id === parseInt(markerId));
-        if (stop) handleStopEditClick(stop);
+        if (markerId === 'new-temp') return;
+        const id = parseInt(markerId, 10);
+        if (!Number.isFinite(id)) return;
+        const stop = route?.route_stops?.find((s) => s.id === id);
+        if (!stop) return;
+        setHighlightedStopId(id);
     };
+
+    useEffect(() => {
+        if (highlightedStopId == null) return;
+        const el = document.getElementById(`overview-stop-${highlightedStopId}`);
+        el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, [highlightedStopId]);
 
     const handleMapClick = (lat: number, lng: number) => {
         if (isAddingStop || editingStopId) {
@@ -455,7 +466,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                     label: isOffice
                         ? `Office · ${s.name}`
                         : `${mapDirection === 'MORNING' ? (s.morning_sequence ?? s.sequence_order) : (s.evening_sequence ?? s.sequence_order)}. ${s.name}`,
-                    color: isOffice ? '#ef4444' : '#6366f1',
+                    color: highlightedStopId === s.id
+                        ? '#0c225e'
+                        : isOffice ? '#ef4444' : '#6366f1',
                 };
             });
 
@@ -513,22 +526,15 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                         <button type="button" onClick={() => router.push('/admin/routes')} className={adminBtnOutline}>
                             <ChevronLeft className="mr-1 h-4 w-4" /> Back
                         </button>
-                        {isEditing ? (
+                        {isEditing && activeTab !== 'overview' ? (
                             <>
                                 <button type="button" onClick={handleCancelEdit} className={adminBtnOutline}>Cancel</button>
                                 <button type="button" onClick={() => void handleSaveDetails()} disabled={!canEditRoutes} className={adminBtnPrimary}>
                                     <Save className="mr-2 h-4 w-4" /> Save
                                 </button>
                             </>
-                        ) : canEditRoutes && (
+                        ) : !isEditing && canEditRoutes ? (
                             <>
-                                <button
-                                    type="button"
-                                    onClick={() => { hydrateEditFormFromRoute(); setIsEditing(true); }}
-                                    className={adminBtnOutline}
-                                >
-                                    Edit route
-                                </button>
                                 <button
                                     type="button"
                                     onClick={() => void handleOptimizeRoute()}
@@ -543,7 +549,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     <Trash className="mr-1 h-4 w-4" /> Delete
                                 </button>
                             </>
-                        )}
+                        ) : null}
                     </>
                 }
                 tabs={
@@ -564,23 +570,54 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             {/* Overview Tab */}
             {activeTab === 'overview' && (
                 <div className="space-y-4">
-                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-card)]">
-                        {isEditing && (
-                            <div className="mb-4">
-                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Route name</label>
-                                <input
-                                    value={editForm.name}
-                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                    className={cx(adminInput, 'max-w-md')}
-                                />
+                    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-card)]">
+                        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-[220px] flex-1">
+                                <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Route name</div>
+                                {isEditing ? (
+                                    <input
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                        className={cx(adminInput, 'mt-1 max-w-xl')}
+                                    />
+                                ) : (
+                                    <div className="mt-1 text-base font-semibold text-[var(--text-primary)]">{route.name}</div>
+                                )}
                             </div>
-                        )}
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 text-sm">
+                            {canEditRoutes && (
+                                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                    {isEditing ? (
+                                        <>
+                                            <button type="button" onClick={handleCancelEdit} className={adminBtnOutline}>
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleSaveDetails()}
+                                                className={adminBtnPrimary}
+                                            >
+                                                <Save className="mr-2 h-4 w-4" /> Save
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => { hydrateEditFormFromRoute(); setIsEditing(true); }}
+                                            className={adminBtnOutline}
+                                        >
+                                            <Pencil className="mr-2 h-4 w-4" /> Edit route
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3 text-sm">
                             <div>
                                 <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Company</div>
                                 <div className="mt-1 font-medium text-[var(--text-primary)]">{companyName}</div>
                             </div>
-                            {!isEditing && (
+                            {!isEditing ? (
                                 <>
                                     <div>
                                         <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning driver</div>
@@ -606,8 +643,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                         <div className="mt-0.5 text-xs text-[var(--text-muted)]">Evening return cannot start before this</div>
                                     </div>
                                 </>
-                            )}
-                            {isEditing && (
+                            ) : (
                                 <>
                                     <div>
                                         <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Morning driver</label>
@@ -677,7 +713,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             {editForm.evening_lock_time && (
                                                 <button
                                                     type="button"
-                                                    className="text-xs text-[var(--text-muted)] hover:text-rose-600"
+                                                    className="shrink-0 text-xs text-[var(--text-muted)] hover:text-rose-600"
                                                     onClick={() => setEditForm({ ...editForm, evening_lock_time: '' })}
                                                 >
                                                     Clear
@@ -828,10 +864,18 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     .map((stop) => {
                                     const isOffice = officeStopIds.has(stop.id);
                                     const seq = mapDirection === 'MORNING' ? (stop.morning_sequence ?? stop.sequence_order) : (stop.evening_sequence ?? stop.sequence_order);
+                                    const isHighlighted = highlightedStopId === stop.id;
                                     return (
                                     <div
                                         key={stop.id}
-                                        className="group rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] p-3"
+                                        id={`overview-stop-${stop.id}`}
+                                        onClick={() => setHighlightedStopId(stop.id)}
+                                        className={cx(
+                                            'group cursor-pointer rounded-xl border p-3 transition-colors',
+                                            isHighlighted
+                                                ? 'border-[var(--cort-navy)] bg-[var(--cort-navy)]/8 ring-2 ring-[var(--cort-navy)]/20'
+                                                : 'border-[var(--border-default)] bg-[var(--bg-subtle)] hover:border-[var(--cort-navy)]/40',
+                                        )}
                                     >
                                         <div className="flex items-start justify-between gap-2">
                                             <div>
@@ -857,7 +901,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                             <div className="flex shrink-0 gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                                                 <button
                                                     type="button"
-                                                    onClick={canEditRoutes ? () => handleStopEditClick(stop) : undefined}
+                                                    onClick={canEditRoutes ? (e) => {
+                                                        e.stopPropagation();
+                                                        handleStopEditClick(stop);
+                                                    } : undefined}
                                                     disabled={!canEditRoutes}
                                                     className="rounded-md px-2 py-1 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)] disabled:opacity-40"
                                                 >
@@ -865,7 +912,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={canEditRoutes && !isOffice ? () => void handleStopDelete(stop.id) : undefined}
+                                                    onClick={canEditRoutes && !isOffice ? (e) => {
+                                                        e.stopPropagation();
+                                                        void handleStopDelete(stop.id);
+                                                    } : undefined}
                                                     disabled={!canEditRoutes || isOffice}
                                                     className="rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-500/10 disabled:opacity-40"
                                                     title={isOffice ? 'Office cannot be deleted' : 'Remove stop'}
