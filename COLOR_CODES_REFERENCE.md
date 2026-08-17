@@ -32,6 +32,8 @@ Charcoal:       #1a3a5c  (Navy darker variant)
 ```
 
 ### Status Colors
+
+
 ```
 Success Green:  #10b981  (Active, healthy, positive)
 Error Red:      #ef4444  (Alerts, warnings, overdue)
