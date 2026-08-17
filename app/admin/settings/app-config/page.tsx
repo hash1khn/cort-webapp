@@ -118,7 +118,7 @@ function AppConfigContent() {
       <AdminPageHeader
         eyebrow="Settings"
         title="App Config"
-        description="Control mobile maintenance mode and the minimum iOS / Android versions. Open apps pick up changes within about a minute."
+        description="Control mobile maintenance mode and the minimum iOS / Android versions. Open apps pick up changes the next time they launch or return to the foreground."
       />
 
       {error && (
@@ -237,9 +237,9 @@ function AppConfigContent() {
           </section>
 
           <p className="text-xs text-[var(--text-muted)]">
-            Already-open apps refresh this config about every minute, and again when brought
-            to the foreground. This only affects iOS and Android builds that include the
-            version-check code.
+            Already-open apps refresh this config when brought back to the foreground (not
+            more than once a minute). This only affects iOS and Android builds that include
+            the version-check code.
           </p>
 
           <div>
