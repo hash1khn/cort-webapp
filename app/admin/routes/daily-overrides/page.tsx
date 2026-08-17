@@ -8,121 +8,38 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
-    useDraggable,
-    useDroppable,
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import Link from 'next/link';
-import { ArrowLeftRight, ArrowUp, ArrowDown, Clock, RotateCcw, Bus, GripVertical, X, Save, Users, Car } from 'lucide-react';
 import { toast } from 'sonner';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
-import { Card } from '@/app/admin/ui/Card';
-import { Button } from '@/app/admin/ui/Button';
+import { adminBtnOutline, adminSelect } from '@/app/admin/components/ui/admin-styles';
 import { apiClient, Company } from '@/app/lib/services/api-client';
 import { useAuth } from '@/app/lib/contexts/auth-context';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminCompanies, selectAdminCompanies, selectAdminCompaniesStatus } from '@/app/lib/store/slices/adminCompaniesSlice';
 import type { MapPolyline } from '@/app/admin/ui/Map';
 import { CrewAssignmentsPanel } from './CrewAssignmentsPanel';
+import { PlanBoard, PlanBoardSkeleton, PlanDragPreview, PlanLegend } from './PlanBoard';
+import { PlanCommandBar, PlanFloatingSave } from './PlanCommandBar';
+import { PlanEmptyState } from './PlanEmptyState';
+import {
+    localTodayYmd,
+    ROUTE_COLORS,
+    type Direction,
+    type OpsTab,
+    type OverrideRow,
+    type PendingMove,
+    type PendingUndo,
+    type RosterEntry,
+    type RouteOption,
+} from './plan-types';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
-type Direction = 'MORNING' | 'EVENING';
-type OpsTab = 'passengers' | 'crew';
-
-interface RouteOption {
-    id: number;
-    name: string;
-    company_id: number | null;
-    companies: { id: number; name: string } | null;
-}
-
-interface RosterUser {
-    id: string;
-    full_name: string;
-    phone: string | null;
-    department: string | null;
-}
-
-interface RosterEntry {
-    user_id: string;
-    pickup_stop_id: number | null;
-    stop_name: string | null;
-    lat: number | null;
-    lng: number | null;
-    sequence: number | null;
-    pickup_time: string | null;
-    is_override: boolean;
-    override: {
-        id: number;
-        from_route_id: number | null;
-        from_route_name: string | null;
-        to_route_id: number;
-        scheduled_time: string | null;
-    } | null;
-    user: RosterUser | null;
-}
-
-interface PendingMove {
-    entry: RosterEntry;
-    fromRouteId: number;
-    toRouteId: number;
-    toRouteName: string;
-}
-
-interface PendingUndo {
-    overrideId: number;
-    entry: RosterEntry;
-    toRouteId: number;
-    fromRouteId: number | null;
-}
-
-interface OverrideRow {
-    id: number;
-    user_id: string;
-    from_route_id: number | null;
-    to_route_id: number;
-    to_sequence: number;
-    stop_name: string;
-    scheduled_time: string | null;
-    routes: { id: number; name: string };
-    users_shuttle_daily_stop_overrides_user_idTousers: { id: string; full_name: string; phone: string | null };
-}
-
-const ROUTE_COLORS = ['#0C225E', '#0e7490', '#7c3aed', '#b45309', '#15803d', '#be123c'];
-
-/** HH:mm (24h) → 12-hour clock, e.g. 07:30 → 7:30 AM */
-function format12h(hhmm: string | null | undefined): string | null {
-    if (!hhmm) return null;
-    const match = hhmm.match(/^(\d{1,2}):(\d{2})/);
-    if (!match) return hhmm;
-    let hour = Number.parseInt(match[1], 10);
-    const minute = match[2];
-    if (Number.isNaN(hour)) return hhmm;
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12 || 12;
-    return `${hour}:${minute} ${suffix}`;
-}
-
-function localTodayYmd(): string {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
-}
-
-function formatPlanDate(ymd: string): string {
-    const [y, m, d] = ymd.split('-').map(Number);
-    if (!y || !m || !d) return ymd;
-    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-    });
-}
-
-const COMPANY_STORAGE_KEY = 'cort-ops-shuttle-company-id';
+const COMPANY_KEY = 'cort-ops-shuttle-company-id';
 
 export default function DailyOverridesPage() {
     return (
@@ -131,285 +48,6 @@ export default function DailyOverridesPage() {
                 <DailyOverridesContent />
             </AdminCan>
         </PermissionGate>
-    );
-}
-
-function EmployeeCard({
-    entry,
-    routeId,
-    color,
-    canMutate,
-    pending,
-    editing,
-    onStartEditTime,
-    onSaveTime,
-    onCancelEditTime,
-    editValue,
-    onEditValueChange,
-    onUndo,
-    onCancelPendingMove,
-    onNudge,
-    busy,
-}: {
-    entry: RosterEntry;
-    routeId: number;
-    color: string;
-    canMutate: boolean;
-    pending: boolean;
-    editing: boolean;
-    onStartEditTime: () => void;
-    onSaveTime: () => void;
-    onCancelEditTime: () => void;
-    editValue: string;
-    onEditValueChange: (v: string) => void;
-    onUndo: () => void;
-    onCancelPendingMove: () => void;
-    onNudge: (dir: -1 | 1) => void;
-    busy: boolean;
-}) {
-    const dragId = `${routeId}::${entry.user_id}`;
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: dragId,
-        disabled: !canMutate || busy,
-        data: { routeId, entry },
-    });
-
-    const displayTime = format12h(entry.override?.scheduled_time ?? entry.pickup_time);
-
-    const style = transform
-        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 }
-        : undefined;
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm bg-white ${isDragging ? 'opacity-40' : ''} ${
-                pending ? 'border-blue-300 bg-blue-50 border-dashed' : entry.is_override ? 'border-amber-300 bg-amber-50' : 'border-gray-200'
-            }`}
-        >
-            <button
-                {...attributes}
-                {...listeners}
-                className={`shrink-0 text-gray-400 ${canMutate && !busy ? 'cursor-grab active:cursor-grabbing hover:text-gray-600' : 'cursor-not-allowed opacity-30'}`}
-                title={canMutate && !busy ? 'Drag to another route' : 'No permission to move'}
-            >
-                <GripVertical className="w-4 h-4" />
-            </button>
-
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-medium text-gray-900 truncate">{entry.user?.full_name ?? entry.user_id}</span>
-                    {pending && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded">
-                            Pending — not saved
-                        </span>
-                    )}
-                    {!pending && entry.is_override && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
-                            Temporary{entry.override?.from_route_name ? ` from ${entry.override.from_route_name}` : ''}
-                        </span>
-                    )}
-                </div>
-                <div className="text-xs text-gray-500 truncate">{entry.stop_name ?? 'No stop'}</div>
-                {!editing && displayTime && (
-                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                        <Clock className="w-3 h-3 shrink-0" />
-                        {displayTime}
-                    </div>
-                )}
-                {editing ? (
-                    <div className="flex items-center gap-1 mt-1">
-                        <input
-                            type="time"
-                            value={editValue}
-                            onChange={(e) => onEditValueChange(e.target.value)}
-                            className="text-xs border rounded px-1 py-0.5"
-                        />
-                        <Button size="sm" className="h-6 px-2 text-xs" onClick={onSaveTime} disabled={busy}>Set</Button>
-                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={onCancelEditTime}>Cancel</Button>
-                    </div>
-                ) : (
-                    (pending || (entry.override && entry.override.id !== 0)) && (
-                        <button
-                            onClick={onStartEditTime}
-                            disabled={!canMutate || busy}
-                            className="mt-1 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 disabled:cursor-not-allowed"
-                        >
-                            {entry.override?.scheduled_time ? 'Change time' : 'Set time'}
-                        </button>
-                    )
-                )}
-            </div>
-
-            {(pending || entry.is_override) && canMutate && (
-                <div className="flex flex-col gap-0.5 shrink-0">
-                    <button onClick={() => onNudge(-1)} disabled={busy} className="text-gray-400 hover:text-gray-700" title="Move earlier">
-                        <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => onNudge(1)} disabled={busy} className="text-gray-400 hover:text-gray-700" title="Move later">
-                        <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
-
-            {pending && canMutate && (
-                <button
-                    onClick={onCancelPendingMove}
-                    className="shrink-0 text-gray-400 hover:text-red-600"
-                    title="Cancel this move"
-                >
-                    <X className="w-4 h-4" />
-                </button>
-            )}
-
-            {!pending && entry.is_override && canMutate && (
-                <button
-                    onClick={onUndo}
-                    disabled={busy}
-                    className="shrink-0 text-gray-400 hover:text-red-600"
-                    title="Send back to their usual route"
-                >
-                    <RotateCcw className="w-4 h-4" />
-                </button>
-            )}
-
-            {!pending && !entry.is_override && (
-                <span
-                    className="shrink-0 w-2 h-2 rounded-full"
-                    style={{ backgroundColor: color }}
-                    title="Base roster"
-                />
-            )}
-        </div>
-    );
-}
-
-function RoutePanel({
-    route,
-    color,
-    entries,
-    pendingUserIds,
-    ghostOut,
-    pendingGhostOut,
-    canMutate,
-    editingOverrideId,
-    editValue,
-    onEditValueChange,
-    onStartEditTime,
-    onSaveTime,
-    onCancelEditTime,
-    onUndo,
-    onUndoGhost,
-    onCancelPendingMove,
-    onNudge,
-    busy,
-}: {
-    route: RouteOption;
-    color: string;
-    entries: RosterEntry[];
-    pendingUserIds: Set<string>;
-    ghostOut: OverrideRow[];
-    pendingGhostOut: PendingMove[];
-    canMutate: boolean;
-    editingOverrideId: string | null;
-    editValue: string;
-    onEditValueChange: (v: string) => void;
-    onStartEditTime: (userId: string, current: string | null) => void;
-    onSaveTime: (userId: string) => void;
-    onCancelEditTime: () => void;
-    onUndo: (entry: RosterEntry, routeId: number) => void;
-    onUndoGhost: (row: OverrideRow) => void;
-    onCancelPendingMove: (userId: string) => void;
-    onNudge: (entry: RosterEntry, dir: -1 | 1) => void;
-    busy: boolean;
-}) {
-    const { setNodeRef, isOver } = useDroppable({
-        id: `panel::${route.id}`,
-        data: { routeId: route.id },
-        disabled: busy || !canMutate,
-    });
-
-    return (
-        <Card
-            ref={setNodeRef}
-            className={`flex flex-col min-w-[280px] max-w-[320px] w-full shrink-0 ${isOver ? 'ring-2 ring-blue-400' : ''}`}
-        >
-            <div className="px-3 py-2.5 border-b flex items-center gap-2" style={{ borderLeft: `4px solid ${color}` }}>
-                <Bus className="w-4 h-4 shrink-0" style={{ color }} />
-                <div className="min-w-0">
-                    <div className="font-semibold text-sm text-gray-900 truncate">{route.name}</div>
-                    <div className="text-xs text-gray-400">{entries.length} {entries.length === 1 ? 'person' : 'people'} today</div>
-                </div>
-            </div>
-            <div className={`p-2 space-y-1.5 min-h-[80px] flex-1 ${isOver ? 'bg-blue-50/70' : ''}`}>
-                {isOver && (
-                    <p className="text-xs font-medium text-blue-600 text-center py-2">Drop here to move them onto this route</p>
-                )}
-                {entries.length === 0 && ghostOut.length === 0 && pendingGhostOut.length === 0 && !isOver && (
-                    <p className="text-xs text-gray-400 text-center py-6">Empty — drop a passenger here</p>
-                )}
-                {entries.map((entry) => (
-                    <EmployeeCard
-                        key={entry.user_id}
-                        entry={entry}
-                        routeId={route.id}
-                        color={color}
-                        canMutate={canMutate}
-                        pending={pendingUserIds.has(entry.user_id)}
-                        editing={editingOverrideId === entry.user_id}
-                        editValue={editValue}
-                        onEditValueChange={onEditValueChange}
-                        onStartEditTime={() => onStartEditTime(entry.user_id, entry.override?.scheduled_time ?? null)}
-                        onSaveTime={() => onSaveTime(entry.user_id)}
-                        onCancelEditTime={onCancelEditTime}
-                        onUndo={() => onUndo(entry, route.id)}
-                        onCancelPendingMove={() => onCancelPendingMove(entry.user_id)}
-                        onNudge={(dir) => onNudge(entry, dir)}
-                        busy={busy}
-                    />
-                ))}
-                {pendingGhostOut.map((p) => (
-                    <div key={p.entry.user_id} className="flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-blue-200 bg-blue-50/60 text-sm">
-                        <div className="flex-1 min-w-0">
-                            <div className="font-medium text-blue-700 truncate">{p.entry.user?.full_name ?? p.entry.user_id}</div>
-                            <div className="text-xs text-blue-500">Moving to {p.toRouteName} — not saved</div>
-                            {format12h(p.entry.override?.scheduled_time ?? p.entry.pickup_time) && (
-                                <div className="text-xs text-blue-400 mt-0.5">
-                                    {format12h(p.entry.override?.scheduled_time ?? p.entry.pickup_time)}
-                                </div>
-                            )}
-                        </div>
-                        {canMutate && (
-                            <button
-                                onClick={() => onCancelPendingMove(p.entry.user_id)}
-                                className="shrink-0 text-blue-400 hover:text-red-600"
-                                title="Cancel this move"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                ))}
-                {ghostOut.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-dashed border-gray-200 bg-gray-50 text-sm opacity-70">
-                        <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-500 truncate">{o.users_shuttle_daily_stop_overrides_user_idTousers.full_name}</div>
-                            <div className="text-xs text-gray-400">Moved to {o.routes.name} today</div>
-                        </div>
-                        {canMutate && (
-                            <button
-                                onClick={() => onUndoGhost(o)}
-                                className="shrink-0 text-gray-400 hover:text-red-600"
-                                title="Undo"
-                            >
-                                <RotateCcw className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </Card>
     );
 }
 
@@ -424,6 +62,7 @@ function DailyOverridesContent() {
     const [date, setDate] = useState(localTodayYmd);
     const [direction, setDirection] = useState<Direction>('MORNING');
     const [opsTab, setOpsTab] = useState<OpsTab>('passengers');
+    const [mapOpen, setMapOpen] = useState(false);
 
     const [routes, setRoutes] = useState<RouteOption[]>([]);
     const [rosterByRoute, setRosterByRoute] = useState<Record<number, RosterEntry[]>>({});
@@ -449,7 +88,7 @@ function DailyOverridesContent() {
     useEffect(() => {
         if (companyId !== '' || companies.length === 0) return;
         try {
-            const raw = localStorage.getItem(COMPANY_STORAGE_KEY);
+            const raw = localStorage.getItem(COMPANY_KEY);
             if (!raw) return;
             const id = Number(raw);
             if (Number.isFinite(id) && companies.some((c: Company) => c.id === id)) {
@@ -463,7 +102,7 @@ function DailyOverridesContent() {
     useEffect(() => {
         if (companyId === '') return;
         try {
-            localStorage.setItem(COMPANY_STORAGE_KEY, String(companyId));
+            localStorage.setItem(COMPANY_KEY, String(companyId));
         } catch {
             /* ignore */
         }
@@ -563,9 +202,6 @@ function DailyOverridesContent() {
         return map;
     }, [overrides]);
 
-    // The route each user appears under in the last-fetched server data — independent of any
-    // pending (unsaved) moves, so dragging a card back to where it actually lives cancels the
-    // pending move instead of creating a same-route no-op.
     const originalRouteByUserId = useMemo(() => {
         const map = new globalThis.Map<string, number>();
         for (const [routeId, entries] of Object.entries(rosterByRoute)) {
@@ -599,7 +235,6 @@ function DailyOverridesContent() {
         };
     }, [pendingTimes]);
 
-    /** Server roster for a route, with unsaved moves/undos/times/order applied locally. */
     const getDisplayEntries = useCallback((routeId: number): RosterEntry[] => {
         const server = (rosterByRoute[routeId] ?? []).filter((e) => {
             if (pendingUserIds.has(e.user_id)) return false;
@@ -697,7 +332,6 @@ function DailyOverridesContent() {
 
         const originalRouteId = originalRouteByUserId.get(entry.user_id) ?? fromRouteId;
 
-        // Dragging a saved override back to its permanent route is an undo, not a POST home.
         if (entry.override && entry.override.id !== 0 && entry.override.from_route_id === toRouteId) {
             handleUndo(entry, fromRouteId);
             return;
@@ -947,8 +581,6 @@ function DailyOverridesContent() {
     const polylines: MapPolyline[] = useMemo(() => {
         return routes
             .map((r) => {
-                // Reflects pending (unsaved) moves too — an instant client-side preview, no
-                // API round trip needed to see the route shape change while dragging.
                 const entries = getDisplayEntries(r.id)
                     .filter((e) => e.lat != null && e.lng != null);
                 if (entries.length < 2) return null;
@@ -968,159 +600,74 @@ function DailyOverridesContent() {
         [routes, getDisplayEntries],
     );
 
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="text-sm font-medium text-gray-400">Daily operations</div>
-                    <h1 className="mt-1 text-2xl font-bold text-gray-900">Today&apos;s shuttle plan</h1>
-                    <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                        Everything for one company, one day, one direction. Move passengers between routes, or swap who is driving and which vehicle is on the trip.
-                    </p>
-                    {companyId !== '' && (
-                        <p className="mt-2 text-sm font-medium text-gray-700">
-                            {formatPlanDate(date)} · {direction === 'MORNING' ? 'Morning' : 'Evening'}
-                            {opsTab === 'passengers' && routes.length > 0 ? ` · ${passengerCount} ${passengerCount === 1 ? 'passenger' : 'passengers'} on ${routes.length} ${routes.length === 1 ? 'route' : 'routes'}` : ''}
-                        </p>
-                    )}
-                </div>
-            </div>
+    const changeCompany = (next: number | '') => {
+        if (next === companyId) return;
+        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change company and discard them?')) return;
+        setCompanyId(next);
+    };
 
-            <Card className="p-4 space-y-4">
-                <div className="flex flex-wrap items-end gap-4">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">1. Company</label>
+    const changeDate = (next: string) => {
+        if (!next || next === date) return;
+        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change date and discard them?')) return;
+        setDate(next);
+    };
+
+    const changeDirection = (next: Direction) => {
+        if (next === direction) return;
+        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Switch direction and discard them?')) return;
+        setDirection(next);
+    };
+
+    const unsavedSummary = [
+        pendingMoves.size > 0 ? `${pendingMoves.size} ${pendingMoves.size === 1 ? 'move' : 'moves'}` : null,
+        pendingUndos.size > 0 ? `${pendingUndos.size} undo${pendingUndos.size === 1 ? '' : 's'}` : null,
+        pendingTimes.size > 0 ? `${pendingTimes.size} time ${pendingTimes.size === 1 ? 'edit' : 'edits'}` : null,
+    ].filter(Boolean).join(' · ') || 'Unsaved passenger moves';
+
+    return (
+        <div className="space-y-5">
+            <PlanCommandBar
+                companies={companies}
+                companyId={companyId}
+                date={date}
+                direction={direction}
+                opsTab={opsTab}
+                canMutate={canMutate}
+                saving={saving}
+                hasUnsavedChanges={hasUnsavedChanges}
+                passengerCount={passengerCount}
+                routeCount={routes.length}
+                pendingMoves={pendingMoves.size}
+                pendingUndos={pendingUndos.size}
+                pendingTimes={pendingTimes.size}
+                mapOpen={mapOpen}
+                showMapToggle={opsTab === 'passengers' && routes.length > 0 && polylines.length > 0}
+                onCompanyChange={changeCompany}
+                onDateChange={changeDate}
+                onDirectionChange={changeDirection}
+                onTabChange={switchOpsTab}
+                onSave={() => void handleSaveChanges()}
+                onDiscard={handleDiscardChanges}
+                onToggleMap={() => setMapOpen((v) => !v)}
+            />
+
+            {companyId === '' ? (
+                <PlanEmptyState
+                    title="Pick a company to start the day"
+                    description="Choose who you're operating for, then morning or evening. The last company you used is remembered."
+                    action={
                         <select
-                            className="border rounded-md px-3 py-2 text-sm min-w-[220px]"
+                            className={adminSelect}
                             value={companyId}
-                            onChange={(e) => {
-                                const next = e.target.value ? Number(e.target.value) : '';
-                                if (next === companyId) return;
-                                if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change company and discard them?')) return;
-                                setCompanyId(next);
-                            }}
+                            onChange={(e) => changeCompany(e.target.value ? Number(e.target.value) : '')}
                         >
                             <option value="">Select a company</option>
                             {companies.map((c: Company) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                         </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">2. Date</label>
-                        <input
-                            type="date"
-                            className="border rounded-md px-3 py-2 text-sm"
-                            value={date}
-                            onChange={(e) => {
-                                const next = e.target.value;
-                                if (next === date) return;
-                                if (!confirmDiscardUnsaved('You have unsaved passenger moves. Change date and discard them?')) return;
-                                setDate(next);
-                            }}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">3. Morning or evening</label>
-                        <div className="inline-flex rounded-md border overflow-hidden">
-                            {(['MORNING', 'EVENING'] as Direction[]).map((d) => (
-                                <button
-                                    key={d}
-                                    onClick={() => {
-                                        if (d === direction) return;
-                                        if (!confirmDiscardUnsaved('You have unsaved passenger moves. Switch direction and discard them?')) return;
-                                        setDirection(d);
-                                    }}
-                                    className={`px-3 py-2 text-sm font-medium ${
-                                        direction === d ? 'bg-primary text-primary-foreground' : 'bg-white text-gray-600 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {d === 'MORNING' ? 'Morning' : 'Evening'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    {!canMutate && (
-                        <span className="text-xs text-gray-400 italic ml-auto">You can view this plan but not change it.</span>
-                    )}
-                    {canMutate && companyId !== '' && opsTab === 'passengers' && (
-                        <div className="ml-auto flex items-center gap-2">
-                            <Button variant="outline" onClick={handleDiscardChanges} disabled={saving || !hasUnsavedChanges}>
-                                Discard
-                            </Button>
-                            <Button onClick={handleSaveChanges} disabled={saving || !hasUnsavedChanges}>
-                                {saving ? 'Saving…' : (
-                                    <><Save className="w-4 h-4 mr-2" /> Save passenger moves</>
-                                )}
-                            </Button>
-                        </div>
-                    )}
-                </div>
-                {companyId !== '' && (
-                    <div className="flex flex-wrap items-center gap-1 border-t pt-3">
-                        <button
-                            onClick={() => switchOpsTab('passengers')}
-                            className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
-                                opsTab === 'passengers' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Users className="w-4 h-4" />
-                            Passengers
-                        </button>
-                        <button
-                            onClick={() => switchOpsTab('crew')}
-                            className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${
-                                opsTab === 'crew' ? 'bg-primary text-primary-foreground' : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Car className="w-4 h-4" />
-                            Drivers &amp; vehicles
-                        </button>
-                        {opsTab === 'passengers' && (
-                            <span className="ml-auto text-xs text-gray-400 hidden sm:inline">Saves only after you press Save</span>
-                        )}
-                        {opsTab === 'crew' && (
-                            <span className="ml-auto text-xs text-gray-400 hidden sm:inline">Saves as soon as you pick a new driver or vehicle</span>
-                        )}
-                    </div>
-                )}
-            </Card>
-
-            {companyId !== '' && opsTab === 'passengers' && loading && routes.length > 0 && (
-                <p className="text-sm text-gray-400">Loading who&apos;s on each route…</p>
-            )}
-
-            {hasUnsavedChanges && opsTab === 'passengers' && (
-                <div className="sticky top-2 z-10 flex items-center gap-3 rounded-lg border border-blue-300 bg-blue-50 px-4 py-3 shadow-sm">
-                    <span className="text-sm font-medium text-blue-800">
-                        Unsaved changes{pendingMoves.size > 0 ? ` · ${pendingMoves.size} route ${pendingMoves.size === 1 ? 'move' : 'moves'}` : ''}
-                        {pendingUndos.size > 0 ? ` · ${pendingUndos.size} undo${pendingUndos.size === 1 ? '' : 's'}` : ''}
-                        {pendingTimes.size > 0 ? ` · ${pendingTimes.size} time ${pendingTimes.size === 1 ? 'edit' : 'edits'}` : ''}
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={handleDiscardChanges} disabled={saving}>
-                            Discard
-                        </Button>
-                        <Button size="sm" onClick={handleSaveChanges} disabled={saving}>
-                            {saving ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    Saving…
-                                </div>
-                            ) : (
-                                <><Save className="w-4 h-4 mr-2" /> Save passenger moves</>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {companyId === '' ? (
-                <Card className="p-8 text-center space-y-2">
-                    <Bus className="w-8 h-8 mx-auto text-gray-300" />
-                    <p className="text-sm font-medium text-gray-700">Start with a company</p>
-                    <p className="text-sm text-gray-500">Choose who you&apos;re operating for today, then pick morning or evening.</p>
-                </Card>
+                    }
+                />
             ) : opsTab === 'crew' ? (
                 <CrewAssignmentsPanel
                     companyId={companyId}
@@ -1129,70 +676,67 @@ function DailyOverridesContent() {
                     canMutate={canMutate}
                 />
             ) : routesLoading ? (
-                <Card className="p-8 text-center text-sm text-gray-400">
-                    Loading routes…
-                </Card>
+                <PlanBoardSkeleton />
             ) : routes.length === 0 ? (
-                <Card className="p-8 text-center space-y-3">
-                    <p className="text-sm font-medium text-gray-700">No ready shuttle routes</p>
-                    <p className="text-sm text-gray-500">
-                        This company has no shuttle routes with a usual driver and vehicle assigned. Set those on the routes page first.
-                    </p>
-                    <Link href="/admin/routes">
-                        <Button variant="outline">Open routes</Button>
-                    </Link>
-                </Card>
+                <PlanEmptyState
+                    title="No ready shuttle routes"
+                    description="This company has no shuttle routes with a usual driver and vehicle assigned. Set those on the routes page first."
+                    action={
+                        <Link href="/admin/routes" className={adminBtnOutline}>Open routes</Link>
+                    }
+                />
             ) : (
-                <>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-                    <span>Drag a person onto another route. Use the arrows to change pickup order. Nothing is sent until you press Save.</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-gray-300" /> Usual rider</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">Temporary</span> Moved for this day only</span>
-                    <span className="inline-flex items-center gap-1.5"><span className="rounded bg-blue-100 px-1.5 py-0.5 font-semibold text-blue-800">Pending</span> Not saved yet</span>
+                <div className="space-y-3">
+                    <PlanLegend />
+                    {loading && (
+                        <p className="text-sm text-[var(--text-muted)]">Loading who&apos;s on each route…</p>
+                    )}
+                    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                        <PlanBoard
+                            routes={routes}
+                            routeColor={routeColor}
+                            getDisplayEntries={getDisplayEntries}
+                            pendingUserIds={pendingUserIds}
+                            filteredGhostOutByRoute={filteredGhostOutByRoute}
+                            getPendingGhostOut={getPendingGhostOut}
+                            canMutate={canMutate}
+                            editingUserId={editingUserId}
+                            editValue={editValue}
+                            onEditValueChange={setEditValue}
+                            onStartEditTime={handleStartEditTime}
+                            onSaveTime={handleSaveTime}
+                            onCancelEditTime={() => setEditingUserId(null)}
+                            onUndo={handleUndo}
+                            onUndoGhost={handleUndoGhost}
+                            onCancelPendingMove={handleCancelPendingMove}
+                            onNudge={handleNudge}
+                            busy={saving}
+                        />
+                        <DragOverlay>
+                            {activeDrag ? (
+                                <PlanDragPreview name={activeDrag.entry.user?.full_name ?? activeDrag.entry.user_id} />
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
                 </div>
-                <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                    <div className="flex gap-4 overflow-x-auto pb-2">
-                        {routes.map((route) => (
-                            <RoutePanel
-                                key={route.id}
-                                route={route}
-                                color={routeColor.get(route.id) ?? '#0C225E'}
-                                entries={getDisplayEntries(route.id)}
-                                pendingUserIds={pendingUserIds}
-                                ghostOut={filteredGhostOutByRoute.get(route.id) ?? []}
-                                pendingGhostOut={getPendingGhostOut(route.id)}
-                                canMutate={canMutate}
-                                editingOverrideId={editingUserId}
-                                editValue={editValue}
-                                onEditValueChange={setEditValue}
-                                onStartEditTime={handleStartEditTime}
-                                onSaveTime={handleSaveTime}
-                                onCancelEditTime={() => setEditingUserId(null)}
-                                onUndo={handleUndo}
-                                onUndoGhost={handleUndoGhost}
-                                onCancelPendingMove={handleCancelPendingMove}
-                                onNudge={(entry, dir) => handleNudge(route.id, entry, dir)}
-                                busy={saving}
-                            />
-                        ))}
-                    </div>
-                    <DragOverlay>
-                        {activeDrag ? (
-                            <div className="flex items-center gap-2 p-2.5 rounded-lg border border-blue-300 bg-white shadow-lg text-sm">
-                                <ArrowLeftRight className="w-4 h-4 text-blue-500" />
-                                <span className="font-medium">{activeDrag.entry.user?.full_name ?? activeDrag.entry.user_id}</span>
-                            </div>
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
-                </>
             )}
 
-            {opsTab === 'passengers' && routes.length > 0 && polylines.length > 0 && (
-                <Card className="p-2">
-                    <div className="px-2 py-1.5 text-sm font-semibold text-gray-700">Map preview — dashed lines are routes with a passenger move today</div>
+            {opsTab === 'passengers' && mapOpen && routes.length > 0 && polylines.length > 0 && (
+                <div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] shadow-[var(--shadow-card)]">
+                    <div className="px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">
+                        Dashed lines are routes with a passenger move today
+                    </div>
                     <Map height="420px" polylines={polylines} />
-                </Card>
+                </div>
+            )}
+
+            {hasUnsavedChanges && opsTab === 'passengers' && canMutate && (
+                <PlanFloatingSave
+                    summary={unsavedSummary}
+                    saving={saving}
+                    onDiscard={handleDiscardChanges}
+                    onSave={() => void handleSaveChanges()}
+                />
             )}
         </div>
     );

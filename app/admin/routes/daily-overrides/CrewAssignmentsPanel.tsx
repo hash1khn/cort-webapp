@@ -2,15 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bus, Car, RotateCcw, User } from 'lucide-react';
+import { Car, RotateCcw, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/app/admin/ui/Button';
-import { Card } from '@/app/admin/ui/Card';
+import { Badge } from '@/app/admin/components/ui/Badge';
+import { adminBtnOutline, adminBtnPrimary, adminSelect } from '@/app/admin/components/ui/admin-styles';
+import { cx } from '@/app/admin/components/ui/cx';
 import { apiClient } from '@/app/lib/services/api-client';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import { fetchAdminDrivers, selectAdminDrivers } from '@/app/lib/store/slices/adminDriversSlice';
 import { fetchAdminVehicles, selectAdminVehicles } from '@/app/lib/store/slices/adminVehiclesSlice';
 import { DriverType } from '@/app/lib/services/types/drivers';
+import { PlanEmptyState } from './PlanEmptyState';
+import { initials } from './plan-types';
 
 type TripVehicle = { id: number; plate_number: string; make?: string | null; model: string | null };
 
@@ -49,11 +52,11 @@ function vehicleLabel(v: { plate_number?: string | null; make?: string | null; m
     return name ? `${plate} · ${name}` : plate;
 }
 
-function statusLabel(status: string): { text: string; className: string } {
-    if (status === 'SCHEDULED') return { text: 'Not started', className: 'bg-slate-100 text-slate-700' };
-    if (status === 'STARTED' || status === 'IN_PROGRESS') return { text: 'On the road', className: 'bg-emerald-100 text-emerald-800' };
-    if (status === 'COMPLETED') return { text: 'Finished', className: 'bg-zinc-100 text-zinc-500' };
-    return { text: status, className: 'bg-zinc-100 text-zinc-600' };
+function statusBadge(status: string): { text: string; color: 'gray' | 'green' | 'orange' } {
+    if (status === 'SCHEDULED') return { text: 'Not started', color: 'gray' };
+    if (status === 'STARTED' || status === 'IN_PROGRESS') return { text: 'On the road', color: 'green' };
+    if (status === 'COMPLETED') return { text: 'Finished', color: 'gray' };
+    return { text: status, color: 'orange' };
 }
 
 export function CrewAssignmentsPanel({
@@ -115,7 +118,10 @@ export function CrewAssignmentsPanel({
 
     const driverName = (id: string | null | undefined) => {
         if (!id) return null;
-        return companyDrivers.find((d) => d.id === id)?.full_name ?? trips.find((t) => t.users?.id === id)?.users?.full_name ?? trips.find((t) => t.routes?.users?.id === id)?.routes?.users?.full_name ?? null;
+        return companyDrivers.find((d) => d.id === id)?.full_name
+            ?? trips.find((t) => t.users?.id === id)?.users?.full_name
+            ?? trips.find((t) => t.routes?.users?.id === id)?.routes?.users?.full_name
+            ?? null;
     };
 
     const vehicleName = (id: number | null | undefined) => {
@@ -155,36 +161,40 @@ export function CrewAssignmentsPanel({
     };
 
     if (loading) {
-        return <p className="text-sm text-gray-400">Loading today&apos;s trips…</p>;
+        return (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-64 animate-pulse rounded-2xl bg-[var(--bg-subtle)]" />
+                ))}
+            </div>
+        );
     }
 
     if (trips.length === 0) {
         return (
-            <Card className="p-8 text-center space-y-3">
-                <Bus className="w-8 h-8 mx-auto text-gray-300" />
-                <p className="text-sm font-medium text-gray-700">No trips generated for this day yet</p>
-                <p className="text-sm text-gray-500">
-                    Generate the {direction === 'MORNING' ? 'morning' : 'evening'} trips first, then come back here to swap the driver or vehicle. Passenger moves on the other tab still work without this.
-                </p>
-                <Link href="/admin/routes/shuttle-trips">
-                    <Button variant="outline">Open trip scheduling</Button>
-                </Link>
-            </Card>
+            <PlanEmptyState
+                title="No trips generated for this day yet"
+                description={`Generate the ${direction === 'MORNING' ? 'morning' : 'evening'} trips first, then come back to swap the driver or vehicle. Passenger moves on the other tab still work without this.`}
+                action={
+                    <Link href="/admin/routes/shuttle-trips" className={adminBtnPrimary}>
+                        Open trip scheduling
+                    </Link>
+                }
+            />
         );
     }
 
     return (
-        <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-                <span>
-                    {trips.length} {trips.length === 1 ? 'trip' : 'trips'} · pick a new driver or vehicle and it saves immediately for this date and {direction === 'MORNING' ? 'morning' : 'evening'} only.
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-[var(--text-muted)]">
+                    {trips.length} {trips.length === 1 ? 'trip' : 'trips'} · changes save immediately for this {direction === 'MORNING' ? 'morning' : 'evening'} only
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">Temporary</span>
-                    Different from the route&apos;s usual crew
+                <span className="rounded-full bg-[color-mix(in_srgb,var(--cort-orange)_12%,transparent)] px-2.5 py-1 text-[11px] font-medium text-[var(--cort-orange)]">
+                    Temporary — different from the usual crew
                 </span>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {trips.map((trip) => {
                     const currentDriverId = trip.driver_id ?? trip.users?.id ?? '';
                     const currentVehicleId = tripVehicleId(trip);
@@ -192,7 +202,7 @@ export function CrewAssignmentsPanel({
                     const isTemp = trip.shuttle_trip_resource_overrides != null;
                     const locked = trip.status === 'COMPLETED' || trip.status === 'CANCELLED';
                     const busy = savingId === trip.id;
-                    const status = statusLabel(trip.status ?? '');
+                    const status = statusBadge(trip.status ?? '');
                     const usualDriverId = trip.shuttle_trip_resource_overrides?.from_driver_id
                         ?? trip.routes?.assigned_driver_id
                         ?? trip.routes?.users?.id
@@ -203,6 +213,7 @@ export function CrewAssignmentsPanel({
                         ?? null;
                     const usualDriverLabel = driverName(usualDriverId) ?? 'Usual driver';
                     const usualVehicleLabel = vehicleName(usualVehicleId) ?? 'Usual vehicle';
+                    const currentDriverLabel = trip.users?.full_name ?? driverName(currentDriverId) ?? 'Select driver';
                     const driverOptions = currentDriverId && !companyDrivers.some((d) => d.id === currentDriverId)
                         ? [{ id: currentDriverId, full_name: trip.users?.full_name ?? 'Current driver' }, ...companyDrivers]
                         : companyDrivers;
@@ -211,83 +222,101 @@ export function CrewAssignmentsPanel({
                         : companyVehicles;
 
                     return (
-                        <Card key={trip.id} className="p-4 space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <div className="font-semibold text-gray-900">{trip.routes?.name ?? `Route ${trip.id}`}</div>
-                                    <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${status.className}`}>
-                                        {status.text}
-                                    </span>
+                        <div
+                            key={trip.id}
+                            className={cx(
+                                'overflow-hidden rounded-2xl border bg-[var(--bg-card)] shadow-[var(--shadow-card)]',
+                                isTemp ? 'border-[color-mix(in_srgb,var(--cort-orange)_40%,transparent)]' : 'border-[var(--border-default)]',
+                            )}
+                        >
+                            <div className="flex">
+                                <div className={cx('w-1.5 shrink-0', isTemp ? 'bg-[var(--cort-orange)]' : 'bg-[var(--cort-navy)]')} />
+                                <div className="flex-1 space-y-4 p-4">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <div className="font-semibold text-[var(--text-primary)]">{trip.routes?.name ?? `Route ${trip.id}`}</div>
+                                            <div className="mt-1.5">
+                                                <Badge color={status.color}>{status.text}</Badge>
+                                            </div>
+                                        </div>
+                                        {isTemp && <Badge color="orange">Temporary</Badge>}
+                                    </div>
+
+                                    {isTemp && (
+                                        <p className="rounded-lg bg-[color-mix(in_srgb,var(--cort-orange)_10%,transparent)] px-3 py-2 text-xs text-[var(--cort-orange)]">
+                                            Usually {usualDriverLabel} · {usualVehicleLabel}
+                                        </p>
+                                    )}
+
+                                    <div className="space-y-3">
+                                        <label className="block">
+                                            <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                                                <User className="h-3.5 w-3.5" /> Driver today
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--cort-navy)] text-[11px] font-bold text-white">
+                                                    {initials(currentDriverLabel)}
+                                                </span>
+                                                <select
+                                                    className={cx(adminSelect, 'flex-1')}
+                                                    disabled={!canMutate || locked || busy}
+                                                    value={currentDriverId}
+                                                    onChange={(e) => {
+                                                        const next = e.target.value;
+                                                        if (!next || next === currentDriverId) return;
+                                                        void applyOverride(trip, { driver_id: next });
+                                                    }}
+                                                >
+                                                    <option value="">Select driver</option>
+                                                    {driverOptions.map((d) => (
+                                                        <option key={d.id} value={d.id}>{d.full_name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </label>
+
+                                        <label className="block">
+                                            <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                                                <Car className="h-3.5 w-3.5" /> Vehicle today
+                                            </span>
+                                            <select
+                                                className={adminSelect}
+                                                disabled={!canMutate || locked || busy}
+                                                value={currentVehicleId != null ? String(currentVehicleId) : ''}
+                                                onChange={(e) => {
+                                                    const next = e.target.value ? Number(e.target.value) : null;
+                                                    if (next == null || next === currentVehicleId) return;
+                                                    void applyOverride(trip, { vehicle_id: next });
+                                                }}
+                                            >
+                                                <option value="">Select vehicle</option>
+                                                {vehicleOptions.map((v) => (
+                                                    <option key={v.id} value={v.id}>{vehicleLabel(v)}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    {isTemp && canMutate && !locked && (
+                                        <button
+                                            type="button"
+                                            disabled={busy}
+                                            onClick={() => void undoOverride(trip)}
+                                            className={cx(adminBtnOutline, 'h-9 w-full text-xs')}
+                                        >
+                                            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                            Restore usual driver & vehicle
+                                        </button>
+                                    )}
+                                    {locked && (
+                                        <p className="text-xs text-[var(--text-muted)]">This trip is finished — assignments can&apos;t be changed.</p>
+                                    )}
+                                    {busy && (
+                                        <p className="text-xs text-[var(--text-muted)]">Saving…</p>
+                                    )}
                                 </div>
-                                {isTemp && (
-                                    <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
-                                        Temporary
-                                    </span>
-                                )}
                             </div>
-
-                            {isTemp && (
-                                <p className="text-xs text-amber-800 bg-amber-50 rounded-md px-2.5 py-1.5">
-                                    Usually {usualDriverLabel} · {usualVehicleLabel}
-                                </p>
-                            )}
-
-                            <label className="block text-xs font-medium text-gray-500">
-                                <span className="inline-flex items-center gap-1 mb-1"><User className="w-3.5 h-3.5" /> Driver today</span>
-                                <select
-                                    className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900"
-                                    disabled={!canMutate || locked || busy}
-                                    value={currentDriverId}
-                                    onChange={(e) => {
-                                        const next = e.target.value;
-                                        if (!next || next === currentDriverId) return;
-                                        void applyOverride(trip, { driver_id: next });
-                                    }}
-                                >
-                                    <option value="">Select driver</option>
-                                    {driverOptions.map((d) => (
-                                        <option key={d.id} value={d.id}>{d.full_name}</option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <label className="block text-xs font-medium text-gray-500">
-                                <span className="inline-flex items-center gap-1 mb-1"><Car className="w-3.5 h-3.5" /> Vehicle today</span>
-                                <select
-                                    className="w-full border rounded-md px-3 py-2 text-sm bg-white text-gray-900"
-                                    disabled={!canMutate || locked || busy}
-                                    value={currentVehicleId != null ? String(currentVehicleId) : ''}
-                                    onChange={(e) => {
-                                        const next = e.target.value ? Number(e.target.value) : null;
-                                        if (next == null || next === currentVehicleId) return;
-                                        void applyOverride(trip, { vehicle_id: next });
-                                    }}
-                                >
-                                    <option value="">Select vehicle</option>
-                                    {vehicleOptions.map((v) => (
-                                        <option key={v.id} value={v.id}>{vehicleLabel(v)}</option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            {isTemp && canMutate && !locked && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={busy}
-                                    onClick={() => void undoOverride(trip)}
-                                >
-                                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-                                    Restore usual driver & vehicle
-                                </Button>
-                            )}
-                            {locked && (
-                                <p className="text-xs text-gray-400">This trip is finished — assignments can&apos;t be changed.</p>
-                            )}
-                            {busy && (
-                                <p className="text-xs text-gray-400">Saving…</p>
-                            )}
-                        </Card>
+                        </div>
                     );
                 })}
             </div>
