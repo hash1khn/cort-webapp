@@ -1322,6 +1322,9 @@ class ApiClient {
             discountValue?: number;
             vendorId?: number;
             vendorCost?: number;
+            fuelMode?: 'CONTRACT' | 'SELECTED' | 'SYSTEM';
+            selectedFuelPrice?: number;
+            selectedDieselPrice?: number;
         }
     ) {
         return this.request('/invoices/generate/shuttle', {

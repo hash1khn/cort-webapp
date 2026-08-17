@@ -402,6 +402,148 @@ export function InvoicingLedger({ inv: ledger }: InvoicingLedgerProps) {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              Fuel Billing
+            </label>
+            <select
+              value={ledger.fuelMode}
+              onChange={(e) => ledger.setFuelMode(e.target.value as "CONTRACT" | "SELECTED")}
+              className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00] bg-[var(--bg-card)]"
+            >
+              <option value="CONTRACT">Same as contract (no fuel revision)</option>
+              <option value="SELECTED">Adjust to selected fuel (this invoice only)</option>
+            </select>
+            {ledger.shuttleContractFuel?.fuelBasePrice && (
+              <p className="text-xs text-[var(--text-muted)]">
+                Contract petrol base: PKR {ledger.shuttleContractFuel.fuelBasePrice}/L
+                {ledger.shuttleContractFuel.dieselBasePrice
+                  ? ` · Diesel base: PKR ${ledger.shuttleContractFuel.dieselBasePrice}/L`
+                  : ""}
+              </p>
+            )}
+          </div>
+
+          {ledger.fuelMode === "SELECTED" && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  Petrol Price (PKR/L)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={ledger.selectedFuelPrice}
+                  onChange={(e) => ledger.setSelectedFuelPrice(e.target.value)}
+                  placeholder="e.g. 264.61"
+                  className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                />
+              </div>
+              {ledger.shuttleRoutes.some((r) => r.fuel_type === "DIESEL") && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    Diesel Price (PKR/L)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={ledger.selectedDieselPrice}
+                    onChange={(e) => ledger.setSelectedDieselPrice(e.target.value)}
+                    placeholder="e.g. 276.34"
+                    className="w-full h-10 rounded-lg border border-[var(--border-default)] px-3 text-sm outline-none focus:border-[#f47f00] focus:ring-1 focus:ring-[#f47f00]"
+                  />
+                </div>
+              )}
+              <p className="text-xs text-[var(--text-muted)] sm:col-span-2">
+                Fuel on this invoice is revised against the contract base using these prices. Global fuel settings are not changed.
+              </p>
+              {ledger.fuelAdjustmentPreview ? (
+                <div className="sm:col-span-2 rounded-lg border border-[var(--border-default)] overflow-hidden">
+                  <div className="px-3 py-2 bg-[var(--bg-subtle)] space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                      Fuel Adjustment Preview
+                    </div>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Contract threshold: {ledger.fuelAdjustmentPreview.revisionLabel}. Selected petrol is{" "}
+                      {ledger.fuelAdjustmentPreview.petrolPercentChange >= 0 ? "+" : ""}
+                      {(ledger.fuelAdjustmentPreview.petrolPercentChange * 100).toFixed(1)}% vs contract
+                      {ledger.fuelAdjustmentPreview.willPetrolAdjust
+                        ? " — fuel will be revised."
+                        : " — within threshold, fuel stays as contract."}
+                      {ledger.fuelAdjustmentPreview.dieselPercentChange != null && (
+                        <>
+                          {" "}Diesel is {ledger.fuelAdjustmentPreview.dieselPercentChange >= 0 ? "+" : ""}
+                          {(ledger.fuelAdjustmentPreview.dieselPercentChange * 100).toFixed(1)}% vs contract
+                          {ledger.fuelAdjustmentPreview.willDieselAdjust
+                            ? " — diesel fuel will be revised."
+                            : " — diesel stays as contract."}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[var(--bg-subtle)]">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-[var(--text-muted)]">Route</th>
+                          <th className="px-3 py-2 text-left font-semibold text-[var(--text-muted)]">Fuel</th>
+                          <th className="px-3 py-2 text-right font-semibold text-[var(--text-muted)]">Contract / veh</th>
+                          <th className="px-3 py-2 text-right font-semibold text-[var(--text-muted)]">Adjusted / veh</th>
+                          <th className="px-3 py-2 text-right font-semibold text-[var(--text-muted)]">This invoice</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ledger.fuelAdjustmentPreview.rows.map((row) => {
+                          const changed = Math.abs(row.adjustedFuelPerVehicle - row.baseFuelPerVehicle) > 0.005;
+                          return (
+                            <tr key={row.routeId} className="border-t border-[var(--border-default)]">
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-[var(--text-primary)]">{row.particulars}</div>
+                                <div className="text-[var(--text-muted)]">{row.vehicleType}</div>
+                              </td>
+                              <td className="px-3 py-2 text-[var(--text-secondary)]">{row.fuelType}</td>
+                              <td className="px-3 py-2 text-right">
+                                {row.baseFuelPerVehicle.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className={`px-3 py-2 text-right font-semibold ${changed ? "text-orange-600" : "text-green-600"}`}>
+                                {row.adjustedFuelPerVehicle.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-3 py-2 text-right text-[var(--text-secondary)]">
+                                {row.billed
+                                  ? row.billedAdjustedFuel.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                  : "Excluded"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-default)] px-3 py-2 text-xs">
+                    <span className="text-[var(--text-muted)]">
+                      Contract fuel total: PKR {ledger.fuelAdjustmentPreview.contractFuelTotal.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      Adjusted fuel total: PKR {ledger.fuelAdjustmentPreview.adjustedFuelTotal.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {Math.abs(ledger.fuelAdjustmentPreview.delta) >= 0.01 && (
+                        <span className={ledger.fuelAdjustmentPreview.delta > 0 ? " text-orange-600" : " text-green-600"}>
+                          {" "}({ledger.fuelAdjustmentPreview.delta > 0 ? "+" : ""}
+                          {ledger.fuelAdjustmentPreview.delta.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-muted)] sm:col-span-2">
+                  Enter a petrol price to preview the fuel adjustment for this invoice.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Amount Vs Contract
             </label>
             <select

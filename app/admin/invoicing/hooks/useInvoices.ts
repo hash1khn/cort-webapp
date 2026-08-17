@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiClient, Company } from "../../../lib/services/api-client";
 import { ShuttleContractRoute } from "../../../lib/services/types/pricing";
@@ -8,6 +8,33 @@ import { useAdminAbility } from "../../../lib/abilities/AdminAbilityProvider";
 import { ADMIN_SUBJECTS } from "../../../lib/abilities/admin-subjects";
 import { useConfirm } from "../../../lib/hooks/useConfirm";
 import type { Invoice, InvoiceStats, PaginationMeta } from "../types";
+
+const WEEKLY_DIVISOR = 4.33;
+
+function parsePositiveNumber(value: string | null | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function calculateAdjustedFuel(
+  baseFuel: number,
+  contractBase: number,
+  currentPrice: number,
+  revisionPercentage: number | null,
+): { adjusted: number; willAdjust: boolean; percentChange: number } {
+  if (!contractBase) {
+    return { adjusted: baseFuel, willAdjust: false, percentChange: 0 };
+  }
+  const percentChange = (currentPrice - contractBase) / contractBase;
+  const willAdjust =
+    revisionPercentage === null || Math.abs(percentChange) > revisionPercentage;
+  return {
+    adjusted: willAdjust ? baseFuel * (currentPrice / contractBase) : baseFuel,
+    willAdjust,
+    percentChange,
+  };
+}
 
 export function useInvoices() {
   const confirm = useConfirm();
@@ -37,6 +64,14 @@ export function useInvoices() {
   const [continuedVehicles, setContinuedVehicles] = useState<string>("");
   const [amountMode, setAmountMode] = useState<"EXACT" | "LESS" | "MORE">("EXACT");
   const [amountDelta, setAmountDelta] = useState<string>("");
+  const [fuelMode, setFuelMode] = useState<"CONTRACT" | "SELECTED">("CONTRACT");
+  const [selectedFuelPrice, setSelectedFuelPrice] = useState<string>("");
+  const [selectedDieselPrice, setSelectedDieselPrice] = useState<string>("");
+  const [shuttleContractFuel, setShuttleContractFuel] = useState<{
+    fuelBasePrice: string;
+    dieselBasePrice: string | null;
+    revisionPercentage: string | null;
+  } | null>(null);
   const [shuttleDiscountType, setShuttleDiscountType] = useState<"NONE" | "PERCENTAGE" | "FLAT">("NONE");
   const [shuttleDiscountValue, setShuttleDiscountValue] = useState<string>("");
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
@@ -138,6 +173,11 @@ export function useInvoices() {
         const res = await apiClient.getShuttleContract(Number(selectedCompanyId));
         const routes: ShuttleContractRoute[] = res?.data?.shuttle_contract_routes ?? [];
         setShuttleRoutes(routes);
+        setShuttleContractFuel({
+          fuelBasePrice: String(res?.data?.fuel_base_price ?? ""),
+          dieselBasePrice: res?.data?.diesel_base_price != null ? String(res.data.diesel_base_price) : null,
+          revisionPercentage: res?.data?.revision_percentage != null ? String(res.data.revision_percentage) : null,
+        });
         const initial: Record<number, string> = {};
         const initialQuantities: Record<number, string> = {};
         const initialDates: Record<number, string> = {};
@@ -153,9 +193,28 @@ export function useInvoices() {
         setShuttleRoutes([]);
         setRouteTrips({});
         setRouteQuantities({});
+        setShuttleContractFuel(null);
       }
     })();
   }, [selectedCompanyId]);
+
+  useEffect(() => {
+    if (!showShuttleModal) return;
+    (async () => {
+      try {
+        const petrol = await apiClient.getSystemSetting("current_fuel_price");
+        setSelectedFuelPrice((prev) => prev || petrol?.data?.value || "");
+      } catch {
+        // Leave empty; user can type a price when using selected-fuel mode.
+      }
+      try {
+        const diesel = await apiClient.getSystemSetting("current_diesel_price");
+        setSelectedDieselPrice((prev) => prev || diesel?.data?.value || "");
+      } catch {
+        // Diesel setting is optional.
+      }
+    })();
+  }, [showShuttleModal]);
 
   const handleSendEmail = async (id: number, invoiceNumber: string) => {
     if (sendingEmailId) return;
@@ -277,6 +336,83 @@ export function useInvoices() {
     setCurrentPage(page);
   };
 
+  const fuelAdjustmentPreview = useMemo(() => {
+    const petrolPrice = parsePositiveNumber(selectedFuelPrice);
+    if (fuelMode !== "SELECTED" || !shuttleContractFuel || petrolPrice == null) {
+      return null;
+    }
+
+    const dieselPrice = parsePositiveNumber(selectedDieselPrice) ?? petrolPrice;
+    const petrolBase = parsePositiveNumber(shuttleContractFuel.fuelBasePrice) ?? 0;
+    const dieselBase =
+      parsePositiveNumber(shuttleContractFuel.dieselBasePrice) ?? petrolBase;
+    const revisionRaw = shuttleContractFuel.revisionPercentage;
+    const revisionPercentage =
+      revisionRaw == null || revisionRaw === "" ? null : Number(revisionRaw);
+    const safeRevision =
+      revisionPercentage != null && Number.isFinite(revisionPercentage)
+        ? revisionPercentage
+        : null;
+
+    const petrolAdj = calculateAdjustedFuel(1, petrolBase, petrolPrice, safeRevision);
+    const dieselAdj = calculateAdjustedFuel(1, dieselBase, dieselPrice, safeRevision);
+    const hasDieselRoutes = shuttleRoutes.some((r) => r.fuel_type === "DIESEL");
+    const isWeekly = billingPeriod === "WEEKLY";
+
+    const rows = shuttleRoutes.map((route) => {
+      const isDiesel = route.fuel_type === "DIESEL";
+      const isPerTrip = route.billing_type === "PER_TRIP";
+      const qty = Number(routeQuantities[route.id] ?? route.quantity ?? 0);
+      const trips = isPerTrip ? Number(routeTrips[route.id] ?? 0) : 1;
+      const billed = qty > 0 && (!isPerTrip || trips > 0);
+      const baseFuel = Number(route.fuel_cost_per_vehicle ?? 0);
+      const currentPrice = isDiesel ? dieselPrice : petrolPrice;
+      const contractBase = isDiesel ? dieselBase : petrolBase;
+      const fuel = calculateAdjustedFuel(baseFuel, contractBase, currentPrice, safeRevision);
+      const unitMultiplier = isPerTrip ? trips : isWeekly ? 1 / WEEKLY_DIVISOR : 1;
+      const billedQty = billed ? qty * unitMultiplier : 0;
+
+      return {
+        routeId: route.id,
+        particulars: route.particulars,
+        vehicleType: route.vehicle_type,
+        fuelType: isDiesel ? "Diesel" : "Petrol",
+        billed,
+        baseFuelPerVehicle: baseFuel,
+        adjustedFuelPerVehicle: fuel.adjusted,
+        billedContractFuel: billedQty * baseFuel,
+        billedAdjustedFuel: billedQty * fuel.adjusted,
+        willAdjust: fuel.willAdjust,
+        percentChange: fuel.percentChange,
+      };
+    });
+
+    const contractFuelTotal = rows.reduce((sum, row) => sum + row.billedContractFuel, 0);
+    const adjustedFuelTotal = rows.reduce((sum, row) => sum + row.billedAdjustedFuel, 0);
+
+    return {
+      petrolPercentChange: petrolAdj.percentChange,
+      dieselPercentChange: hasDieselRoutes ? dieselAdj.percentChange : null,
+      willPetrolAdjust: petrolAdj.willAdjust,
+      willDieselAdjust: hasDieselRoutes ? dieselAdj.willAdjust : null,
+      revisionLabel:
+        safeRevision == null ? "No limit (always revises)" : `${(safeRevision * 100).toFixed(1)}%`,
+      rows,
+      contractFuelTotal,
+      adjustedFuelTotal,
+      delta: adjustedFuelTotal - contractFuelTotal,
+    };
+  }, [
+    fuelMode,
+    selectedFuelPrice,
+    selectedDieselPrice,
+    shuttleContractFuel,
+    shuttleRoutes,
+    routeQuantities,
+    routeTrips,
+    billingPeriod,
+  ]);
+
   const handleGenerateShuttleInvoice = async () => {
     if (!selectedCompanyId) {
       toast.error("Please select a company.");
@@ -315,6 +451,22 @@ export function useInvoices() {
       }
     }
 
+    if (fuelMode === "SELECTED") {
+      const petrol = Number(selectedFuelPrice);
+      if (!selectedFuelPrice || Number.isNaN(petrol) || petrol <= 0) {
+        toast.error("Please enter a petrol price to adjust fuel for this invoice.");
+        return;
+      }
+      const hasDieselRoutes = shuttleRoutes.some((r) => r.fuel_type === "DIESEL");
+      if (hasDieselRoutes) {
+        const diesel = Number(selectedDieselPrice);
+        if (!selectedDieselPrice || Number.isNaN(diesel) || diesel <= 0) {
+          toast.error("Please enter a diesel price to adjust diesel routes for this invoice.");
+          return;
+        }
+      }
+    }
+
     setIsGeneratingShuttle(true);
     try {
       const contractRes = await apiClient.getShuttleContract(Number(selectedCompanyId));
@@ -344,6 +496,9 @@ export function useInvoices() {
         discountValue: shuttleDiscountType !== "NONE" && shuttleDiscountValue !== "" ? Number(shuttleDiscountValue) : undefined,
         vendorId: isVendorCar ? Number(selectedVendorId) : undefined,
         vendorCost: isVendorCar && vendorCost !== "" ? Number(vendorCost) : undefined,
+        fuelMode,
+        selectedFuelPrice: fuelMode === "SELECTED" && selectedFuelPrice !== "" ? Number(selectedFuelPrice) : undefined,
+        selectedDieselPrice: fuelMode === "SELECTED" && selectedDieselPrice !== "" ? Number(selectedDieselPrice) : undefined,
       });
 
       // Refresh invoices and stats
@@ -359,6 +514,7 @@ export function useInvoices() {
       setContinuedVehicles("");
       setAmountMode("EXACT");
       setAmountDelta("");
+      setFuelMode("CONTRACT");
       setShuttleDiscountType("NONE");
       setShuttleDiscountValue("");
       setIsVendorCar(false);
@@ -460,6 +616,8 @@ export function useInvoices() {
     isGeneratingShuttle, selectedCompanyId, setSelectedCompanyId, billingMonthRaw, setBillingMonthRaw,
     billingPeriod, setBillingPeriod, weeklyStartDate, setWeeklyStartDate, weeklyEndDate, setWeeklyEndDate,
     continuedVehicles, setContinuedVehicles, amountMode, setAmountMode, amountDelta, setAmountDelta,
+    fuelMode, setFuelMode, selectedFuelPrice, setSelectedFuelPrice, selectedDieselPrice, setSelectedDieselPrice,
+    shuttleContractFuel, fuelAdjustmentPreview,
     shuttleDiscountType, setShuttleDiscountType, shuttleDiscountValue, setShuttleDiscountValue,
     shuttleRoutes, routeTrips, setRouteTrips, routeQuantities, setRouteQuantities, routeTripDates, setRouteTripDates,
     isVendorCar, setIsVendorCar, selectedVendorId, setSelectedVendorId, vendorCost, setVendorCost, allVendors,
