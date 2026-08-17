@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { ChauffeurBooking, TripType } from "../../../../lib/services/api-client";
+import { ChauffeurFuelBillingSection, type ChauffeurFuelMode } from "./ChauffeurFuelBillingSection";
 
 interface DailyLogRow {
     id: string;
@@ -38,6 +40,8 @@ export interface RecalculatePayload {
     }>;
     discount_type?: 'NONE' | 'PERCENTAGE' | 'FLAT';
     discount_value?: number;
+    fuelMode?: ChauffeurFuelMode;
+    selectedFuelPrice?: number;
 }
 
 const PACKAGES = [
@@ -74,6 +78,8 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
     // Discount (only applied when mode = recalculate)
     const [discountType, setDiscountType] = useState<'NONE' | 'PERCENTAGE' | 'FLAT'>('NONE');
     const [discountValue, setDiscountValue] = useState('');
+    const [fuelMode, setFuelMode] = useState<ChauffeurFuelMode>('CONTRACT');
+    const [selectedFuelPrice, setSelectedFuelPrice] = useState('');
 
     // Pre-fill with existing booking values when modal opens
     useEffect(() => {
@@ -98,6 +104,8 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
             }));
             setDailyLogs(existingLogs);
             setShowDailyLogs(existingLogs.length > 0);
+            setFuelMode('CONTRACT');
+            setSelectedFuelPrice('');
         }
     }, [isOpen, booking]);
 
@@ -171,6 +179,20 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
         if (mode === 'recalculate' && discountType !== 'NONE' && discountValue !== '' && parseFloat(discountValue) > 0) {
             payload.discount_type = discountType;
             payload.discount_value = parseFloat(discountValue);
+        }
+
+        if (mode === 'recalculate') {
+            if (fuelMode === 'SELECTED') {
+                const petrol = Number(selectedFuelPrice);
+                if (!selectedFuelPrice || Number.isNaN(petrol) || petrol <= 0) {
+                    toast.error("Please enter a petrol price to adjust fuel for this invoice.");
+                    return;
+                }
+                payload.fuelMode = 'SELECTED';
+                payload.selectedFuelPrice = petrol;
+            } else {
+                payload.fuelMode = 'CONTRACT';
+            }
         }
 
         onSubmit(payload, mode);
@@ -469,6 +491,18 @@ export function RecalculateModal({ isOpen, onClose, onSubmit, booking, loading }
                     <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
                         ⚠️ This will <strong>delete the existing invoice</strong> and regenerate it with the new values. This action cannot be undone.
                     </div>
+                    )}
+
+                    {mode === 'recalculate' && (
+                        <ChauffeurFuelBillingSection
+                            companyId={booking.company_id}
+                            vehicleModel={booking.vehicle_model}
+                            distanceKm={distanceKm}
+                            fuelMode={fuelMode}
+                            selectedFuelPrice={selectedFuelPrice}
+                            onFuelModeChange={setFuelMode}
+                            onSelectedFuelPriceChange={setSelectedFuelPrice}
+                        />
                     )}
 
                     {/* ── Section 5: Discount — only in recalculate mode ── */}

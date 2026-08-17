@@ -1077,7 +1077,21 @@ class ApiClient {
         });
     }
 
-    async endTrip(id: number, data: { total_distance_km: number, expense_toll?: number, expense_parking?: number, expense_toll_image_url?: string, expense_parking_image_url?: string, start_time?: string, end_time?: string, daily_logs?: DailyTripLog[] }): Promise<ChauffeurBookingResponse> {
+    async endTrip(id: number, data: {
+        total_distance_km: number,
+        expense_toll?: number,
+        expense_parking?: number,
+        expense_toll_image_url?: string,
+        expense_parking_image_url?: string,
+        start_time?: string,
+        end_time?: string,
+        daily_logs?: DailyTripLog[],
+        vendor_cost?: number,
+        discount_type?: 'NONE' | 'PERCENTAGE' | 'FLAT',
+        discount_value?: number,
+        fuelMode?: 'CONTRACT' | 'SELECTED' | 'SYSTEM',
+        selectedFuelPrice?: number,
+    }): Promise<ChauffeurBookingResponse> {
         return this.request<ChauffeurBookingResponse>(`/admin/bookings/${id}/end`, {
             method: 'PATCH',
             body: JSON.stringify(data),
@@ -1107,6 +1121,10 @@ class ApiClient {
         expense_parking?: number;
         vendor_cost?: number;
         daily_logs?: DailyTripLog[];
+        discount_type?: 'NONE' | 'PERCENTAGE' | 'FLAT';
+        discount_value?: number;
+        fuelMode?: 'CONTRACT' | 'SELECTED' | 'SYSTEM';
+        selectedFuelPrice?: number;
     }): Promise<{ success: boolean; invoice_amount: number; invoice_number: string; savings: number }> {
         return this.request(`/admin/bookings/${id}/recalculate`, {
             method: 'PATCH',

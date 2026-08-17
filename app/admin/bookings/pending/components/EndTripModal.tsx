@@ -3,6 +3,7 @@
 import { useState, useEffect, memo } from "react";
 import { ChauffeurBooking, TripType } from "../../../../lib/services/api-client";
 import { uploadFile } from "../../../../lib/supabase";
+import { ChauffeurFuelBillingSection, type ChauffeurFuelMode } from "./ChauffeurFuelBillingSection";
 
 export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubmit, booking, loading }: { isOpen: boolean; onClose: () => void; onSubmit: (data: any) => void; booking: ChauffeurBooking | null; loading?: boolean }) {
     const [distance, setDistance] = useState("0");
@@ -11,6 +12,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
     const [vendorCost, setVendorCost] = useState("");
     const [discountType, setDiscountType] = useState<"NONE" | "PERCENTAGE" | "FLAT">("NONE");
     const [discountValue, setDiscountValue] = useState("");
+    const [fuelMode, setFuelMode] = useState<ChauffeurFuelMode>("CONTRACT");
+    const [selectedFuelPrice, setSelectedFuelPrice] = useState("");
     const [useManualStartTime, setUseManualStartTime] = useState(false);
     const [manualStartTime, setManualStartTime] = useState("");
     const [useManualEndTime, setUseManualEndTime] = useState(false);
@@ -77,6 +80,8 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                 currentDate.setDate(currentDate.getDate() + 1);
             }
             setDailyLogs(days);
+            setFuelMode("CONTRACT");
+            setSelectedFuelPrice("");
         }
     }, [isOpen, booking, manualEndTime, useManualEndTime, manualStartTime, useManualStartTime]);
 
@@ -132,6 +137,19 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
             if (discountType !== "NONE" && discountValue !== "" && parseFloat(discountValue) > 0) {
                 data.discount_type = discountType;
                 data.discount_value = parseFloat(discountValue);
+            }
+
+            if (fuelMode === "SELECTED") {
+                const petrol = parseFloat(selectedFuelPrice);
+                if (!selectedFuelPrice || Number.isNaN(petrol) || petrol <= 0) {
+                    alert("Please enter a petrol price to adjust fuel for this invoice.");
+                    setIsUploading(false);
+                    return;
+                }
+                data.fuelMode = "SELECTED";
+                data.selectedFuelPrice = petrol;
+            } else {
+                data.fuelMode = "CONTRACT";
             }
 
             if (useManualEndTime && manualEndTime) {
@@ -235,6 +253,15 @@ export const EndTripModal = memo(function EndTripModal({ isOpen, onClose, onSubm
                                 />
                             )}
                         </div>
+                        <ChauffeurFuelBillingSection
+                            companyId={booking?.company_id}
+                            vehicleModel={booking?.vehicle_model}
+                            distanceKm={distance}
+                            fuelMode={fuelMode}
+                            selectedFuelPrice={selectedFuelPrice}
+                            onFuelModeChange={setFuelMode}
+                            onSelectedFuelPriceChange={setSelectedFuelPrice}
+                        />
                     </div>
 
                     <div className="space-y-4">

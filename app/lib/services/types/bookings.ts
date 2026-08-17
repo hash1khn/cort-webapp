@@ -82,6 +82,7 @@ export interface ChauffeurTripLog {
     vendor_payment_status?: 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID' | null;
     vendor_amount_paid?: number | null;
     vendor_amount_remaining?: number | null;
+    fuel_price_snapshot?: number | null;
 }
 
 export interface DailyTripLog {
