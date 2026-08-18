@@ -35,13 +35,16 @@ function AdminDashboardContent() {
   const getDefaultDateRange = () => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Default to full calendar month so shuttle revenue (recognized by billing period end)
+    // appears immediately without requiring the user to set endDate manually.
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const toLocalDateInputValue = (d: Date) => {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
-    return { start: toLocalDateInputValue(firstDay), end: toLocalDateInputValue(now) };
+    return { start: toLocalDateInputValue(firstDay), end: toLocalDateInputValue(lastDay) };
   };
   const defaults = getDefaultDateRange();
   const [startDate, setStartDate] = useState<string>(defaults.start);
