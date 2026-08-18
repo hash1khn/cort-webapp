@@ -278,8 +278,22 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
     const dispatch = useAppDispatch();
     const [isSaving, setIsSaving] = useState(false);
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
-    const [morningIds, setMorningIds] = useState<number[]>(() => sequenceIds(route.route_stops, 'morning_sequence'));
-    const [eveningIds, setEveningIds] = useState<number[]>(() => sequenceIds(route.route_stops, 'evening_sequence'));
+    const officeStops = getOfficeStops(route.route_stops ?? []);
+    const officeStopIds = new Set(officeStops.map((s) => s.id));
+    const normalizeOfficeOrder = (ids: number[], column: 'MORNING' | 'EVENING') => {
+        const offices = ids.filter((id) => officeStopIds.has(id));
+        const pickups = ids.filter((id) => !officeStopIds.has(id));
+        // Office is pinned:
+        // - Morning: always last
+        // - Evening: always first
+        return column === 'MORNING' ? [...pickups, ...offices] : [...offices, ...pickups];
+    };
+    const [morningIds, setMorningIds] = useState<number[]>(() =>
+        normalizeOfficeOrder(sequenceIds(route.route_stops, 'morning_sequence'), 'MORNING'),
+    );
+    const [eveningIds, setEveningIds] = useState<number[]>(() =>
+        normalizeOfficeOrder(sequenceIds(route.route_stops, 'evening_sequence'), 'EVENING'),
+    );
     const [isSavingOrder, setIsSavingOrder] = useState(false);
     const [addingToColumnId, setAddingToColumnId] = useState<number | null>(null);
     const [removingStopKey, setRemovingStopKey] = useState<string | null>(null);
@@ -292,9 +306,6 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         evening_eta: '',
         direction: 'BOTH' as StopDirection,
     });
-
-    const officeStops = getOfficeStops(route.route_stops ?? []);
-    const officeStopIds = useMemo(() => new Set(officeStops.map((s) => s.id)), [officeStops]);
     const editingStop = editingStopId != null
         ? (route.route_stops ?? []).find((s) => s.id === editingStopId) ?? null
         : null;
@@ -443,17 +454,17 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
     const eveningMemberKey = useMemo(() => [...serverEveningIds].sort((a, b) => a - b).join(','), [serverEveningIds]);
 
     useEffect(() => {
-        setMorningIds(sequenceIds(route.route_stops, 'morning_sequence'));
-        setEveningIds(sequenceIds(route.route_stops, 'evening_sequence'));
+        setMorningIds(normalizeOfficeOrder(sequenceIds(route.route_stops, 'morning_sequence'), 'MORNING'));
+        setEveningIds(normalizeOfficeOrder(sequenceIds(route.route_stops, 'evening_sequence'), 'EVENING'));
     }, [route.id]);
 
     useEffect(() => {
-        setMorningIds((prev) => mergeOrder(prev, serverMorningIds));
+        setMorningIds((prev) => normalizeOfficeOrder(mergeOrder(prev, serverMorningIds), 'MORNING'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [morningMemberKey, serverMorningIds]);
 
     useEffect(() => {
-        setEveningIds((prev) => mergeOrder(prev, serverEveningIds));
+        setEveningIds((prev) => normalizeOfficeOrder(mergeOrder(prev, serverEveningIds), 'EVENING'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [eveningMemberKey, serverEveningIds]);
 
@@ -494,7 +505,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         overId: number,
     ) => {
         const setter = column === 'MORNING' ? setMorningIds : setEveningIds;
-        setter((ids) => moveColumnIds(ids, activeId, overId));
+        setter((ids) => normalizeOfficeOrder(moveColumnIds(ids, activeId, overId), column));
     };
 
     const handleColumnDragEnd = (column: 'MORNING' | 'EVENING', event: DragEndEvent) => {
@@ -504,8 +515,8 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
     };
 
     const handleDiscardOrder = () => {
-        setMorningIds(serverMorningIds);
-        setEveningIds(serverEveningIds);
+        setMorningIds(normalizeOfficeOrder(serverMorningIds, 'MORNING'));
+        setEveningIds(normalizeOfficeOrder(serverEveningIds, 'EVENING'));
     };
 
     const handleSaveOrder = async () => {
@@ -513,17 +524,19 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
         setIsSavingOrder(true);
         try {
             if (morningDirty) {
+                const normalizedMorningIds = normalizeOfficeOrder(morningIds, 'MORNING');
                 await dispatch(reorderAdminRouteStops({
                     routeId: route.id,
                     direction: 'MORNING',
-                    stop_ids: morningIds,
+                    stop_ids: normalizedMorningIds,
                 })).unwrap();
             }
             if (eveningDirty) {
+                const normalizedEveningIds = normalizeOfficeOrder(eveningIds, 'EVENING');
                 await dispatch(reorderAdminRouteStops({
                     routeId: route.id,
                     direction: 'EVENING',
-                    stop_ids: eveningIds,
+                    stop_ids: normalizedEveningIds,
                 })).unwrap();
             }
             toast.success('Stop order saved');
@@ -598,7 +611,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                 <div>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)]">Stops</h3>
                     <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                        Drag stops to reorder — pickups and offices. Press Save to keep it.
+                        Drag stops to reorder — pickups only. Office is pinned (morning last, evening first). Press Save to keep it.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -685,7 +698,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                                                 column={column}
                                                 index={i}
                                                 isOffice={officeStopIds.has(s.id)}
-                                                dragDisabled={dragLocked || removingStopKey != null}
+                                                dragDisabled={dragLocked || removingStopKey != null || officeStopIds.has(s.id)}
                                                 isRemoving={removingStopKey === stopActionKey(s.id, column)}
                                                 onEdit={() => handleEditClick(s)}
                                                 onRemove={() => void handleDelete(s.id, column)}
