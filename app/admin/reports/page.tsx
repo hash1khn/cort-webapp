@@ -429,6 +429,26 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                         <div className="flex-1 min-w-[280px]">
                                                             <div className="text-xs font-semibold text-muted uppercase mb-2">Stop Timeline</div>
                                                             <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                                                                {/* Started At */}
+                                                                <div className="flex items-center justify-between gap-4 px-3 py-2 bg-emerald-50 text-xs">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                                                                        <div>
+                                                                            <div className="font-semibold text-emerald-700">Trip Started</div>
+                                                                            <div className="text-emerald-600/70">
+                                                                                {log.started_at
+                                                                                    ? new Date(log.started_at).toLocaleDateString('en-PK', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric' })
+                                                                                    : '—'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="font-mono font-semibold text-emerald-700">
+                                                                        {log.started_at
+                                                                            ? new Date(log.started_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                            : '—'}
+                                                                    </div>
+                                                                </div>
+
                                                                 {log.stop_logs
                                                                     .slice()
                                                                     .sort((a, b) => {
@@ -461,21 +481,10 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                                             </div>
                                                                             <div className="text-right space-y-1 font-mono text-navy">
                                                                                 {isEvening ? (
-                                                                                    idx === 0 ? (
-                                                                                        <div>
-                                                                                            <div className="text-[10px] text-muted font-sans">Trip started</div>
-                                                                                            <div>
-                                                                                                {log.started_at
-                                                                                                    ? new Date(log.started_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
-                                                                                                    : '—'}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    ) : (
-                                                                                        <div>
-                                                                                            <div className="text-[10px] text-muted font-sans">Dropoff time</div>
-                                                                                            <div>{dropOffAt || '—'}</div>
-                                                                                        </div>
-                                                                                    )
+                                                                                    <div>
+                                                                                        <div className="text-[10px] text-muted font-sans">Dropoff time</div>
+                                                                                        <div>{dropOffAt || '—'}</div>
+                                                                                    </div>
                                                                                 ) : (
                                                                                     <>
                                                                                         <div>
@@ -492,6 +501,26 @@ function ShuttleLogsTab({ startDate, endDate }: { startDate: string; endDate: st
                                                                         </div>
                                                                         );
                                                                     })}
+
+                                                                {/* Completed At */}
+                                                                <div className="flex items-center justify-between gap-4 px-3 py-2 bg-zinc-50 text-xs">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="h-2 w-2 rounded-full bg-zinc-400 shrink-0" />
+                                                                        <div>
+                                                                            <div className="font-semibold text-zinc-600">Trip Completed</div>
+                                                                            <div className="text-zinc-400">
+                                                                                {log.completed_at
+                                                                                    ? new Date(log.completed_at).toLocaleDateString('en-PK', { timeZone: 'Asia/Karachi', month: 'short', day: 'numeric' })
+                                                                                    : '—'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="font-mono font-semibold text-zinc-600">
+                                                                        {log.completed_at
+                                                                            ? new Date(log.completed_at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true })
+                                                                            : '—'}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}
