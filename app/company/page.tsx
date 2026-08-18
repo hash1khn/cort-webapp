@@ -143,6 +143,8 @@ export default function CompanyDashboardPage() {
       avgTripCost: isChauffeurEnabled && dashboardStats.chauffeur.completedThisMonth > 0
         ? Math.round(dashboardStats.chauffeur.totalSpend / dashboardStats.chauffeur.completedThisMonth)
         : 0,
+      avgTripTotalSpendLifetime: isChauffeurEnabled ? (dashboardStats.chauffeur.totalSpendAllTime || 0) : 0,
+      shuttleTotalTripsLifetime: isShuttleEnabled ? (dashboardStats.shuttle.totalTripsAllTime || 0) : 0,
     },
     cost: {
       totalSpendMTD: isChauffeurEnabled ? dashboardStats.chauffeur.totalSpend : 0,

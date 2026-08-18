@@ -12,6 +12,8 @@ export type DashboardStats = {
         totalBookings: number;
         completedThisMonth: number;
         totalSpend: number;
+        completedAllTime: number;
+        totalSpendAllTime: number;
         spendTrend: string;
         totalSavings: number;
         completedTrend: string;
@@ -29,6 +31,7 @@ export type DashboardStats = {
     shuttle: {
         totalRoutes: number;
         monthlyTrips: number;
+        totalTripsAllTime: number;
     };
     alerts: {
         upcomingBookings: number;

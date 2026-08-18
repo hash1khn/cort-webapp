@@ -15,6 +15,8 @@ export interface DashboardData {
         activeRides: number;
         shuttleTrips: number;
         avgTripCost: number;
+        avgTripTotalSpendLifetime: number; // in PKR
+        shuttleTotalTripsLifetime: number;
     };
     cost: {
         totalSpendMTD: number; // in PKR

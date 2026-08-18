@@ -23,7 +23,9 @@ export default function DemoPage() {
             estimatedSavings: 450000,
             activeRides: 12,
             shuttleTrips: 186,
-            avgTripCost: 2400
+                avgTripCost: 2400,
+                avgTripTotalSpendLifetime: 1250000,
+                shuttleTotalTripsLifetime: 10
         },
         cost: {
             totalSpendMTD: 1250000,

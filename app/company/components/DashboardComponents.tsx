@@ -308,6 +308,9 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
                     {formatCurrency(data.avgTripCost)}
                 </div>
                 <div className="text-xs text-[var(--text-primary)] text-opacity-60 mt-1">{t('perCompletedRide')}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">
+                    {t('totalSpendLifetime')}: {tCurrency('pkr')} {formatCurrency(data.avgTripTotalSpendLifetime)}
+                </div>
             </div>
         </div>
 
@@ -342,6 +345,7 @@ export const ValueDeliveredSection = ({ data, benchmarkDelta, hasChauffeur = tru
                 <div className="relative z-10">
                     <div className="text-4xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tight mb-2">{data.shuttleTrips}</div>
                     <div className="text-xs text-[var(--text-muted)] mt-1">{t('totalRunsMtd')}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">{t('totalTripsLifetime')}: {data.shuttleTotalTripsLifetime}</div>
                 </div>
             </div>}
         </div>
