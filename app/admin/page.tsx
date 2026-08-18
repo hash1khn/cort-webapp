@@ -240,7 +240,7 @@ function AdminDashboardContent() {
 
           <section>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              <MetricCard label="Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
+              <MetricCard label="Chauffeur Cost per Ride" metric={{ current: stats.costPerRide, previous: 0, percentageChange: 0, trend: 'neutral' }} type="currency" />
               <MetricCard
                 label="Receivables"
                 metric={{ current: stats.totalReceivables, previous: 0, percentageChange: 0, trend: 'neutral' }}
