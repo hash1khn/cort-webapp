@@ -21,11 +21,22 @@ export type MapPolyline = {
   dashArray?: string;
 };
 
+export type MapPolygon = {
+  id?: string;
+  positions: [number, number][];
+  fillColor?: string;
+  strokeColor?: string;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+  strokeWeight?: number;
+};
+
 type MapProps = {
   center?: [number, number];
   zoom?: number;
   markers?: MapMarker[];
   polylines?: MapPolyline[];
+  polygons?: MapPolygon[];
   height?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onMarkerClick?: (id: string) => void;
@@ -163,6 +174,7 @@ export default function Map({
   zoom = 13,
   markers = [],
   polylines = [],
+  polygons = [],
   height = '400px',
   onMapClick,
   onMarkerClick,
@@ -174,6 +186,7 @@ export default function Map({
   const [mapReady, setMapReady] = useState(false);
   const gmMarkersRef = useRef<{ marker: google.maps.Marker; id: string }[]>([]);
   const gmPolylinesRef = useRef<google.maps.Polyline[]>([]);
+  const gmPolygonsRef = useRef<google.maps.Polygon[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const userHasPannedRef = useRef(false);
   const lastPannedCenterRef = useRef<[number, number] | null>(null);
@@ -388,6 +401,28 @@ export default function Map({
       gmPolylinesRef.current.push(line);
     });
   }, [mapReady, polylines]);
+
+  // ── Sync polygons ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+
+    gmPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
+    gmPolygonsRef.current = [];
+
+    polygons.forEach((polygon) => {
+      const path = polygon.positions.map(([lat, lng]) => ({ lat, lng }));
+      const shape = new google.maps.Polygon({
+        paths: path,
+        map: mapRef.current!,
+        fillColor: polygon.fillColor ?? '#f97316',
+        fillOpacity: polygon.fillOpacity ?? 0.18,
+        strokeColor: polygon.strokeColor ?? '#ea580c',
+        strokeOpacity: polygon.strokeOpacity ?? 0.9,
+        strokeWeight: polygon.strokeWeight ?? 2,
+      });
+      gmPolygonsRef.current.push(shape);
+    });
+  }, [mapReady, polygons]);
 
   // ── Pan to explicit center when it changes (respect user pan unless followCenter) ─
   useEffect(() => {

@@ -26,7 +26,7 @@ import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { apiClient } from '@/app/lib/services/api-client';
 import { DriverType } from '@/app/lib/services/types/drivers';
-import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
+import type { MapMarker, MapPolyline, MapPolygon } from '@/app/admin/ui/Map';
 import { useAuth } from '@/app/lib/contexts/auth-context';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { Badge } from '@/app/admin/components/ui/Badge';
@@ -34,6 +34,12 @@ import { adminBtnDestructive, adminBtnOutline, adminBtnPrimary, adminInput, admi
 import { cx } from '@/app/admin/components/ui/cx';
 import { RouteCommandBar, RoutePill, format12h } from '../RouteCommandBar';
 import { getOfficeStops } from '@/app/lib/utils/routeStops';
+import {
+    hasValidOfficeGeofence,
+    latLngRingToCompletionCoords,
+    parseOfficeGeofenceRing,
+    type LatLngCoord,
+} from '@/app/lib/utils/officeGeofence';
 
 const Map = dynamic(() => import('@/app/admin/ui/Map'), { ssr: false });
 
@@ -101,6 +107,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         sequence_order: '',
         stopType: 'PICKUP' as 'PICKUP' | 'OFFICE',
     });
+    const [geofenceMode, setGeofenceMode] = useState(false);
+    const [geofenceCoords, setGeofenceCoords] = useState<LatLngCoord[]>([]);
 
     // Road-following polyline for the saved route stops
     const [savedPolyline, setSavedPolyline] = useState<[number, number][]>([]);
@@ -117,6 +125,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         setIsAddingStop(false);
         setIsEditing(false);
         setStopForm({ name: '', lat: '', lng: '', sequence_order: '', stopType: 'PICKUP' });
+        setGeofenceMode(false);
+        setGeofenceCoords([]);
         setActiveTab('overview');
     }, [id]);
 
@@ -250,9 +260,15 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     const resetStopForm = () => {
         setStopForm({ name: '', lat: '', lng: '', sequence_order: '', stopType: 'PICKUP' });
+        setGeofenceMode(false);
+        setGeofenceCoords([]);
         setEditingStopId(null);
         setIsAddingStop(false);
     };
+
+    const isOfficeStopForm =
+        stopForm.stopType === 'OFFICE' ||
+        (editingStopId != null && officeStopIds.has(editingStopId));
 
     const handleStopEditClick = (stop: any) => {
         setStopForm({
@@ -262,6 +278,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
             sequence_order: stop.sequence_order?.toString() || '0',
             stopType: officeStopIds.has(stop.id) ? 'OFFICE' : 'PICKUP',
         });
+        setGeofenceCoords(parseOfficeGeofenceRing(stop.completion_geofence_geojson));
+        setGeofenceMode(false);
         setEditingStopId(stop.id);
         setIsAddingStop(false);
     };
@@ -275,6 +293,10 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
     const handleStopFormTypeChange = (stopType: 'PICKUP' | 'OFFICE') => {
         setStopForm((prev) => ({ ...prev, stopType }));
+        if (stopType !== 'OFFICE') {
+            setGeofenceMode(false);
+            setGeofenceCoords([]);
+        }
     };
 
     // Fill form from address search selection
@@ -309,6 +331,11 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
         // (converting an existing pickup/office is done from the Stops tab instead).
         if (isAddingStop) {
             data.stop_type = stopForm.stopType;
+        }
+        if (isOfficeStopForm) {
+            data.completion_geofence_coords = hasValidOfficeGeofence(geofenceCoords)
+                ? latLngRingToCompletionCoords(geofenceCoords)
+                : [];
         }
         // Duplicate guard: prevent adding a stop at the exact same lat/lng as an existing one
         if (isAddingStop) {
@@ -386,6 +413,12 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
     }, [highlightedStopId]);
 
     const handleMapClick = (lat: number, lng: number) => {
+        if (geofenceMode && isOfficeStopForm) {
+            setGeofenceCoords((prev) => [...prev, [lat, lng]]);
+            toast.info(`Geofence point ${geofenceCoords.length + 1} added`);
+            return;
+        }
+
         if (isAddingStop || editingStopId) {
             setStopForm((prev) => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
             toast.info('Coordinates updated from map click');
@@ -499,6 +532,58 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                 ? [{ positions: dirStops.map((s) => [s.lat, s.lng] as [number, number]), color: '#6366f1' }]
                 : [];
         })();
+
+    const mapPolygons: MapPolygon[] = (() => {
+        const polygons: MapPolygon[] = [];
+
+        for (const stop of route?.route_stops ?? []) {
+            if (!officeStopIds.has(stop.id)) continue;
+            if (editingStopId === stop.id && isOfficeStopForm) continue;
+
+            const ring = parseOfficeGeofenceRing(stop.completion_geofence_geojson);
+            if (!hasValidOfficeGeofence(ring)) continue;
+
+            polygons.push({
+                id: `office-geofence-${stop.id}`,
+                positions: ring,
+                fillColor: '#f97316',
+                strokeColor: '#ea580c',
+                fillOpacity: 0.12,
+            });
+        }
+
+        if (isOfficeStopForm && hasValidOfficeGeofence(geofenceCoords)) {
+            polygons.push({
+                id: 'office-geofence-editing',
+                positions: geofenceCoords,
+                fillColor: '#2563eb',
+                strokeColor: '#1d4ed8',
+                fillOpacity: 0.2,
+            });
+        } else if (isOfficeStopForm && geofenceCoords.length >= 2) {
+            polygons.push({
+                id: 'office-geofence-editing-draft',
+                positions: geofenceCoords,
+                fillColor: '#2563eb',
+                strokeColor: '#1d4ed8',
+                fillOpacity: 0.08,
+            });
+        }
+
+        return polygons;
+    })();
+
+    const geofenceVertexMarkers: MapMarker[] =
+        isOfficeStopForm && geofenceCoords.length > 0
+            ? geofenceCoords.map(([lat, lng], index) => ({
+                id: `geofence-vertex-${index}`,
+                position: [lat, lng] as [number, number],
+                label: String(index + 1),
+                color: '#2563eb',
+            }))
+            : [];
+
+    const overviewMapMarkers = [...mapMarkers, ...geofenceVertexMarkers];
 
     // ---- Render --------------------------------------------------------------
 
@@ -741,8 +826,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                             <div className="flex-1 overflow-hidden rounded-2xl border border-[var(--border-default)]">
                                 <Map
                                     height="100%"
-                                    markers={mapMarkers}
+                                    markers={overviewMapMarkers}
                                     polylines={mapPolylines}
+                                    polygons={mapPolygons}
                                     onMarkerClick={handleMarkerClick}
                                     onMapClick={handleMapClick}
                                 />
@@ -768,7 +854,8 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
 
                             {/* Stop form (add / edit) */}
                             {(isAddingStop || editingStopId) && (
-                                <div className="mb-3 shrink-0 space-y-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] p-3">
+                                <div className="mb-3 flex max-h-[320px] shrink-0 flex-col rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)]">
+                                    <div className="space-y-3 overflow-y-auto p-3">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-sm font-medium text-[var(--text-primary)]">
                                             {isAddingStop ? 'New stop' : 'Edit stop'}
@@ -838,6 +925,61 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     <p className="text-[11px] text-[var(--text-muted)]">
                                         Timing and ordering are set from the Stops tab.
                                     </p>
+                                    {isOfficeStopForm && (
+                                        <div className="space-y-2 rounded-lg border border-orange-200 bg-orange-50/70 p-3">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <p className="text-xs font-semibold text-orange-900">Morning completion geofence</p>
+                                                    <p className="mt-1 text-[11px] leading-relaxed text-orange-800/90">
+                                                        Draw the office approach area on the map. Drivers cannot complete a morning trip until their GPS is inside this polygon.
+                                                    </p>
+                                                </div>
+                                                {hasValidOfficeGeofence(geofenceCoords) && (
+                                                    <Badge color="orange">Configured</Badge>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    className={cx(
+                                                        adminBtnOutline,
+                                                        'h-8 px-3 text-xs',
+                                                        geofenceMode && 'border-[var(--cort-navy)] bg-[var(--cort-navy)]/5 text-[var(--cort-navy)]',
+                                                    )}
+                                                    onClick={() => setGeofenceMode((prev) => !prev)}
+                                                    disabled={!canEditRoutes}
+                                                >
+                                                    {geofenceMode ? 'Stop drawing' : 'Draw on map'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={cx(adminBtnOutline, 'h-8 px-3 text-xs')}
+                                                    onClick={() => setGeofenceCoords((prev) => prev.slice(0, -1))}
+                                                    disabled={!canEditRoutes || geofenceCoords.length === 0}
+                                                >
+                                                    Undo point
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={cx(adminBtnOutline, 'h-8 px-3 text-xs text-rose-700')}
+                                                    onClick={() => {
+                                                        setGeofenceCoords([]);
+                                                        setGeofenceMode(false);
+                                                    }}
+                                                    disabled={!canEditRoutes || geofenceCoords.length === 0}
+                                                >
+                                                    Clear geofence
+                                                </button>
+                                            </div>
+                                            <p className="text-[11px] text-orange-900/80">
+                                                {geofenceMode
+                                                    ? 'Click the map to add polygon corners. Add at least 3 points around the reachable office entrance.'
+                                                    : `${geofenceCoords.length} point${geofenceCoords.length === 1 ? '' : 's'} saved in this draft.`}
+                                            </p>
+                                        </div>
+                                    )}
+                                    </div>
+                                    <div className="border-t border-[var(--border-default)] bg-[var(--bg-subtle)] p-3">
                                     <button
                                         type="button"
                                         className={cx(adminBtnPrimary, 'w-full text-xs')}
@@ -846,6 +988,7 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                     >
                                         {isSavingStop ? 'Saving…' : 'Save stop'}
                                     </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -891,6 +1034,9 @@ export default function RouteDetailsPage({ params }: { params: Promise<{ id: str
                                                         <Badge color="orange">
                                                             {hasMultipleOffices ? 'Office stop' : 'Office — last morning / first evening'}
                                                         </Badge>
+                                                    )}
+                                                    {isOffice && hasValidOfficeGeofence(parseOfficeGeofenceRing(stop.completion_geofence_geojson)) && (
+                                                        <Badge color="blue">Geofence set</Badge>
                                                     )}
                                                 </div>
                                                 <div className="mt-1 text-xs text-[var(--text-muted)]">

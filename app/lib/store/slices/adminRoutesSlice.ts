@@ -19,6 +19,8 @@ export interface RouteStop {
     lng: number;
     morning_eta?: string;
     evening_eta?: string;
+    /** GeoJSON polygon string from PostGIS ST_AsGeoJSON(completion_geofence). */
+    completion_geofence_geojson?: string | null;
 }
 
 export interface Route {
