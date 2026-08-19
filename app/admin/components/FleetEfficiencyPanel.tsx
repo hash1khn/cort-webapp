@@ -614,7 +614,6 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-orange-500 ml-1" /> Actual
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500 ml-2" /> Departed
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#c2410c] ml-1" /> Arrived
-                          <span className="ml-2 text-[10px] italic">(shorter route highlighted)</span>
                         </span>
                       </div>
                       <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
@@ -895,27 +894,11 @@ function UtilizationBar({ pct }: { pct: number }) {
 }
 
 function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteComparison; routeInsight: FleetInsight | null }) {
-  const planned = comparison.metrics?.planned_distance_km;
-  const actual = comparison.metrics?.actual_distance_km;
-  const actualShorter = planned != null && actual != null && actual < planned;
-
   const plannedPolyline: MapPolyline | null = comparison.planned_points.length > 1
-    ? {
-        positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]),
-        color: '#2563eb',
-        weight: actualShorter ? 3 : 5,
-        opacity: actualShorter ? 0.5 : 0.9,
-        dashArray: actualShorter ? '6 4' : undefined,
-      }
+    ? { positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]), color: '#2563eb', weight: 4, opacity: 0.85 }
     : null;
   const actualPolyline: MapPolyline | null = comparison.actual_points.length > 1
-    ? {
-        positions: comparison.actual_points.map(p => [p.lat, p.lng] as [number, number]),
-        color: '#f97316',
-        weight: actualShorter ? 5 : 3,
-        opacity: actualShorter ? 0.9 : 0.5,
-        dashArray: actualShorter ? undefined : '6 4',
-      }
+    ? { positions: comparison.actual_points.map(p => [p.lat, p.lng] as [number, number]), color: '#f97316', weight: 3, opacity: 0.9, dashArray: '6 4' }
     : null;
   const polylines = [plannedPolyline, actualPolyline].filter(Boolean) as MapPolyline[];
 
@@ -993,23 +976,13 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           {m?.planned_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-blue-600" /> Planned</span>
-              <span className="font-medium flex items-center gap-1">
-                {m.planned_distance_km.toFixed(2)} km
-                {!actualShorter && m.actual_distance_km != null && m.actual_distance_km > m.planned_distance_km && (
-                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 rounded px-1">shorter</span>
-                )}
-              </span>
+              <span className="font-medium">{m.planned_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {m?.actual_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-orange-500" /> Actual</span>
-              <span className="font-medium flex items-center gap-1">
-                {m.actual_distance_km.toFixed(2)} km
-                {actualShorter && (
-                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 rounded px-1">shorter</span>
-                )}
-              </span>
+              <span className="font-medium">{m.actual_distance_km.toFixed(2)} km</span>
             </div>
           )}
           {comparison.idle_minutes != null && (
