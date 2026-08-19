@@ -250,8 +250,6 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
       setPoolEnabled(isPool);
       setAiEnabled(isAi);
 
-      if (!isAi) return;
-
       // 2. Fetch only what's enabled
       const dateParams = new URLSearchParams();
       if (fromDate) dateParams.set('from', fromDate);
@@ -262,10 +260,12 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
         isShuttle
           ? apiClient.request<{ summary: ShuttleMetricsSummary; metrics: ShuttleMetric[] }>(`/admin/companies/${companyId}/shuttle-metrics${dateQuery}`)
           : Promise.resolve(null),
-        isShuttle
+        isShuttle && isAi
           ? apiClient.request<FuelFlag[]>(`/admin/companies/${companyId}/fuel-variance?flagged_only=true`)
           : Promise.resolve(null),
-        apiClient.request<FleetInsight[]>(`/admin/companies/${companyId}/fleet-insights`),
+        isAi
+          ? apiClient.request<FleetInsight[]>(`/admin/companies/${companyId}/fleet-insights`)
+          : Promise.resolve([] as FleetInsight[]),
         isChauffeur
           ? apiClient.request<{ summary: ChauffeurUtilizationSummary; bookings: ChauffeurUtilizationRow[] }>(`/admin/companies/${companyId}/chauffeur-utilization`)
           : Promise.resolve(null),
@@ -381,8 +381,10 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
           <div className="flex items-center gap-2">
             <Bus className="h-5 w-5 text-blue-600" />
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">Shuttle Analytics</h2>
-            {shuttleEnabled && aiEnabled && (
-              <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
+            {shuttleEnabled && (
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${aiEnabled ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                {aiEnabled ? 'Active' : 'Metrics Only'}
+              </span>
             )}
           </div>
           {showGenerate && (
@@ -397,8 +399,8 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
           )}
         </div>
 
-        {!(shuttleEnabled && aiEnabled) ? (
-          <DisabledSection label="Shuttle + AI Insights must both be enabled" />
+        {!shuttleEnabled ? (
+          <DisabledSection label="Shuttle service must be enabled" />
         ) : (
           <div className="space-y-6">
             {/* KPI strip */}
@@ -427,16 +429,18 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
             )}
 
             {/* AI insights — shuttle types only */}
+            {aiEnabled && (
             <section>
               <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Shuttle</h3>
               {shuttleInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active shuttle insights. Click "Run AI Analysis" to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">No active shuttle insights. Click &quot;Run AI Analysis&quot; to generate.</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {shuttleInsights.map(i => <InsightCard key={i.id} insight={i} />)}
                 </div>
               )}
             </section>
+            )}
 
             {/* Fuel leakage flags */}
             {fuelFlags.length > 0 && (
@@ -610,6 +614,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                           <span className="inline-block h-2.5 w-6 rounded-sm bg-orange-500 ml-1" /> Actual
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500 ml-2" /> Departed
                           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#c2410c] ml-1" /> Arrived
+                          <span className="ml-2 text-[10px] italic">(shorter route highlighted)</span>
                         </span>
                       </div>
                       <button onClick={() => { setSelectedTripForMap(null); setRouteComparison(null); setSelectedRouteId(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
@@ -649,26 +654,30 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
         <div className="flex items-center gap-2 mb-5">
           <CarFront className="h-5 w-5 text-teal-600" />
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Chauffeur Analytics</h2>
-          {chauffeurEnabled && aiEnabled && (
-            <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
+          {chauffeurEnabled && (
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${aiEnabled ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+              {aiEnabled ? 'Active' : 'Metrics Only'}
+            </span>
           )}
         </div>
 
-        {!(chauffeurEnabled && aiEnabled) ? (
-          <DisabledSection label="Chauffeur + AI Insights must both be enabled" />
+        {!chauffeurEnabled ? (
+          <DisabledSection label="Chauffeur service must be enabled" />
         ) : (
           <div className="space-y-6">
             {/* AI insights — chauffeur types only */}
+            {aiEnabled && (
             <section>
               <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Chauffeur</h3>
               {chauffeurInsights.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No active chauffeur insights. Click "Run AI Analysis" to generate.</p>
+                <p className="text-sm text-[var(--text-muted)]">No active chauffeur insights. Click &quot;Run AI Analysis&quot; to generate.</p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {chauffeurInsights.map(i => <InsightCard key={i.id} insight={i} />)}
                 </div>
               )}
             </section>
+            )}
 
             {/* Package utilization KPIs */}
             {chauffeurUtil && (
@@ -765,16 +774,19 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
         <div className="flex items-center gap-2 mb-5">
           <Car className="h-5 w-5 text-violet-600" />
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Pool Fleet Analytics</h2>
-          {poolEnabled && aiEnabled && (
-            <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>
+          {poolEnabled && (
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${aiEnabled ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+              {aiEnabled ? 'Active' : 'Metrics Only'}
+            </span>
           )}
         </div>
 
-        {!(poolEnabled && aiEnabled) ? (
-          <DisabledSection label="Pool Fleet + AI Insights must both be enabled" />
+        {!poolEnabled ? (
+          <DisabledSection label="Pool Fleet service must be enabled" />
         ) : (
           <div className="space-y-6">
             {/* AI insights — pool types */}
+            {aiEnabled && (
             <section>
               <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">AI Insights — Pool Fleet</h3>
               {poolInsights.length === 0 ? (
@@ -785,6 +797,7 @@ export function FleetEfficiencyPanel({ companyId }: { companyId: number }) {
                 </div>
               )}
             </section>
+            )}
 
             {/* Pool utilization KPIs */}
             {poolUtil && (
@@ -882,11 +895,27 @@ function UtilizationBar({ pct }: { pct: number }) {
 }
 
 function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteComparison; routeInsight: FleetInsight | null }) {
+  const planned = comparison.metrics?.planned_distance_km;
+  const actual = comparison.metrics?.actual_distance_km;
+  const actualShorter = planned != null && actual != null && actual < planned;
+
   const plannedPolyline: MapPolyline | null = comparison.planned_points.length > 1
-    ? { positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]), color: '#2563eb', weight: 4, opacity: 0.85 }
+    ? {
+        positions: comparison.planned_points.map(p => [p.lat, p.lng] as [number, number]),
+        color: '#2563eb',
+        weight: actualShorter ? 3 : 5,
+        opacity: actualShorter ? 0.5 : 0.9,
+        dashArray: actualShorter ? '6 4' : undefined,
+      }
     : null;
   const actualPolyline: MapPolyline | null = comparison.actual_points.length > 1
-    ? { positions: comparison.actual_points.map(p => [p.lat, p.lng] as [number, number]), color: '#f97316', weight: 3, opacity: 0.9, dashArray: '6 4' }
+    ? {
+        positions: comparison.actual_points.map(p => [p.lat, p.lng] as [number, number]),
+        color: '#f97316',
+        weight: actualShorter ? 5 : 3,
+        opacity: actualShorter ? 0.9 : 0.5,
+        dashArray: actualShorter ? undefined : '6 4',
+      }
     : null;
   const polylines = [plannedPolyline, actualPolyline].filter(Boolean) as MapPolyline[];
 
@@ -964,13 +993,23 @@ function RouteMapOverlay({ comparison, routeInsight }: { comparison: RouteCompar
           {m?.planned_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-blue-600" /> Planned</span>
-              <span className="font-medium">{m.planned_distance_km.toFixed(2)} km</span>
+              <span className="font-medium flex items-center gap-1">
+                {m.planned_distance_km.toFixed(2)} km
+                {!actualShorter && m.actual_distance_km != null && m.actual_distance_km > m.planned_distance_km && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 rounded px-1">shorter</span>
+                )}
+              </span>
             </div>
           )}
           {m?.actual_distance_km != null && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[var(--text-muted)]"><span className="inline-block h-2 w-4 rounded-sm bg-orange-500" /> Actual</span>
-              <span className="font-medium">{m.actual_distance_km.toFixed(2)} km</span>
+              <span className="font-medium flex items-center gap-1">
+                {m.actual_distance_km.toFixed(2)} km
+                {actualShorter && (
+                  <span className="text-[10px] font-semibold text-green-600 bg-green-50 border border-green-200 rounded px-1">shorter</span>
+                )}
+              </span>
             </div>
           )}
           {comparison.idle_minutes != null && (
