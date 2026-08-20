@@ -48,6 +48,11 @@ const TRIAL_FLEET_PREFIXES = ["/company/fleet"];
 const TRIAL_POOL_PREFIXES = ["/company/bookings"];
 const TRIAL_SHUTTLE_PREFIXES = ["/company/routes", "/company/employees"];
 
+/** Company IDs for which the Invoices nav tab is temporarily hidden. */
+const HIDE_INVOICING_COMPANY_IDS = new Set<number>([
+  2,
+]);
+
 function trialHasPool(modules?: TrialModules): boolean {
   return modules === "pool" || modules === "both" || !modules;
 }
@@ -95,6 +100,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       vendors = false,
       isTrial = false,
       trialModules?: TrialModules,
+      currentCompanyId?: number | null,
     ) => {
       if (isTrial) {
         const items: NavItem[] = [
@@ -114,6 +120,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       }
 
       const hasFeature = (key: string) => featureList.find((f) => f.feature_key === key)?.is_enabled ?? false;
+      const hideInvoicing = currentCompanyId != null && HIDE_INVOICING_COMPANY_IDS.has(currentCompanyId);
 
       const adminItems: NavItem[] = [
         { href: withSaudiBase("/company/employees", basePath), labelKey: "nav.employees", icon: Users },
@@ -153,10 +160,12 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       if (servicesEnabled.shuttle_enabled || servicesEnabled.chauffeur_enabled) {
         groups[1].items.push({ href: withSaudiBase("/company/savings", basePath), labelKey: "nav.savings", icon: TrendingDown });
       }
-      // Temporarily disabled: company invoicing nav link.
-      // if (hasFeature("chauffeur_cort_managed") || hasFeature("shuttle_cort_managed")) {
-      //   groups[2].items.push({ href: withSaudiBase("/company/invoicing", basePath), labelKey: "nav.invoices", icon: Receipt });
-      // }
+      if (
+        !hideInvoicing
+        && (hasFeature("chauffeur_cort_managed") || hasFeature("shuttle_cort_managed"))
+      ) {
+        groups[2].items.push({ href: withSaudiBase("/company/invoicing", basePath), labelKey: "nav.invoices", icon: Receipt });
+      }
 
       return groups.filter((g) => g.items.length > 0);
     };
@@ -204,7 +213,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
   const isLogin =
     normalizedPath === "/company/login" ||
     normalizedPath === "/login";
-  const navGroups = buildNavGroups(servicesEnabled, features, hasVendors, isTrialUser, trialModules);
+  const navGroups = buildNavGroups(servicesEnabled, features, hasVendors, isTrialUser, trialModules, user?.company_id);
 
   const activeHref = useMemo(() => {
     const allItems = navGroups.flatMap((g) => g.items);
