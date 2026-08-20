@@ -12,7 +12,6 @@ import { BenchmarkChangeRequestsModal } from "../components/BenchmarkChangeReque
 import { useCompanyDetail } from "./hooks/useCompanyDetail";
 import { CompanyEmployeesTab } from "./components/CompanyEmployeesTab";
 import { CompanyServicesTab } from "./components/CompanyServicesTab";
-import { CompanyWhitelistingTab } from "./components/CompanyWhitelistingTab";
 import { PHONE_MAX_LENGTH, PHONE_PLACEHOLDER, sanitizePhoneInput } from "../../../lib/utils/phone";
 
 export default function CompanyDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -115,7 +114,7 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
 
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
-          {(["employees", "services", "whitelisting"] as const).map((tab) => (
+          {(["employees", "services"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => d.setActiveTab(tab)}
@@ -128,7 +127,6 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
             >
               {tab === "employees" && "Employees"}
               {tab === "services" && "Services & Configuration"}
-              {tab === "whitelisting" && "Vehicle Whitelisting"}
             </button>
           ))}
         </nav>
@@ -136,7 +134,6 @@ function CompanyDetailsContent({ params }: { params: Promise<{ id: string }> }) 
 
       {d.activeTab === "employees" && <CompanyEmployeesTab detail={d} />}
       {d.activeTab === "services" && <CompanyServicesTab detail={d} />}
-      {d.activeTab === "whitelisting" && <CompanyWhitelistingTab detail={d} />}
 
       <Modal isOpen={d.isEmpModalOpen} onClose={() => d.setIsEmpModalOpen(false)} title="Add New Employee">
         <div className="space-y-4">

@@ -23,7 +23,7 @@ export function useCompanyDetail(id: string) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<"employees" | "services" | "whitelisting">("employees");
+    const [activeTab, setActiveTab] = useState<"employees" | "services">("employees");
     const [linkContext, setLinkContext] = useState<'chauffeur' | 'shuttle' | 'general'>('general');
 
     // Feature flags state
@@ -67,11 +67,6 @@ export function useCompanyDetail(id: string) {
     const [csvSkippedRows, setCsvSkippedRows] = useState<Array<{ row: number; missing: string[] }>>([]);
     const [csvMissingHeaders, setCsvMissingHeaders] = useState<string[]>([]);
     const [csvHasPreview, setCsvHasPreview] = useState(false);
-
-    // Hardcoded for now - list of all possible vehicle models
-    const availableVehicleModels = [
-        "Toyota Corolla", "Honda Civic", "Suzuki Alto", "Suzuki Cultus", "Kia Sportage", "Hyundai Tucson"
-    ];
 
     const csvRequiredHeaders = useMemo(() => ["full_name", "email"], []);
     const csvOptionalHeaders = useMemo(
@@ -661,32 +656,6 @@ export function useCompanyDetail(id: string) {
         });
     };
 
-    const toggleVehicleModel = async (model: string) => {
-        if (!company) return;
-        const currentWhitelists = company.vehicle_whitelists || [];
-        const currentModels = currentWhitelists.map(w => w.allowed_vehicle_model);
-        const exists = currentModels.includes(model);
-
-        const nextModels = exists
-            ? currentModels.filter(m => m !== model)
-            : [...currentModels, model];
-
-        // Optimistic update locally requires faking the whitelist structure
-        // But since API expects models array, we perform API call then refresh or just standard optimistic UI
-        // Let's do API call then refresh for safety on complex relations
-
-        try {
-            await apiClient.updateCompany(company.id, { allowed_vehicle_models: nextModels });
-            // Manually update local state to reflect change without full fetch if possible, or just fetch
-            // Construct fake whitelist objects for local state
-            const newWhitelists = nextModels.map(m => ({ id: 0, company_id: company.id, allowed_vehicle_model: m }));
-            setCompany({ ...company, vehicle_whitelists: newWhitelists });
-        } catch (err: any) {
-            console.error(err);
-            toast.error("Failed to update vehicle whitelist");
-        }
-    };
-
     const handleChauffeurCortManagedToggle = async (newVal: boolean) => {
         if (!canUpdate) return;
         await toggleFeature('chauffeur_cort_managed', newVal);
@@ -711,8 +680,6 @@ export function useCompanyDetail(id: string) {
         }
     };
 
-  const currentModels = (company?.vehicle_whitelists || []).map((w) => w.allowed_vehicle_model);
-
   return {
     company, employees, isLoading, error, canCreate, canUpdate, canViewPricing,
     activeTab, setActiveTab, linkContext, setLinkContext,
@@ -720,7 +687,7 @@ export function useCompanyDetail(id: string) {
     companyVendorLinks, vendorsLoading, allVendors, showLinkModal, setShowLinkModal, linkSaving, linkForm, setLinkForm,
     isEmpModalOpen, setIsEmpModalOpen, newEmpName, setNewEmpName, newEmpEmail, setNewEmpEmail, newEmpPhone, setNewEmpPhone,
     newEmpPassword, setNewEmpPassword, isBenchmarksModalOpen, setIsBenchmarksModalOpen, newEmpId, setNewEmpId,
-    newEmpDepartment, setNewEmpDepartment, newEmpHomeAddress, setNewEmpHomeAddress, isCreatingEmp, isUploadingCsv, availableVehicleModels,
+    newEmpDepartment, setNewEmpDepartment, newEmpHomeAddress, setNewEmpHomeAddress, isCreatingEmp, isUploadingCsv,
     toggleFeature, saveTrackerConfig, testTrackerConnection, updateLink,
     handleCreateEmployee,
     openCsvModal,
@@ -737,7 +704,7 @@ export function useCompanyDetail(id: string) {
     csvPreviewSummary,
     uploadCsvFromPreview,
     handleExportCredentials,
-    toggleVehicleModel, handleChauffeurCortManagedToggle, handleShuttleCortManagedToggle, currentModels,
+    handleChauffeurCortManagedToggle, handleShuttleCortManagedToggle,
     toggleService, openLinkModal, handleLinkVendor, removeLink, handleToggleStatus, isTogglePending,
   };
 }
