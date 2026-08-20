@@ -3,6 +3,7 @@
 import { Building2, Clock, MapPin, Users } from 'lucide-react';
 import { Card } from '@/app/admin/ui/Card';
 import { getOfficeStops, isOfficeStop } from '@/app/lib/utils/routeStops';
+import { formatEtaTime12h, formatPktTime12h } from '@/app/lib/utils';
 
 export type TripEmployee = {
   id: number;
@@ -60,8 +61,7 @@ export type TripDetailTrip = {
 };
 
 function formatTime(iso: string | null | undefined) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return formatPktTime12h(iso);
 }
 
 function boardingLabel(emp: TripEmployee) {
@@ -227,8 +227,9 @@ export function TripDetailPanel({
             {stops.map((stop, idx) => {
               const isCurrent = stop.id === trip.current_stop_id;
               const isOffice = isOfficeStop(stop);
-              const eta =
+              const etaRaw =
                 trip.direction === 'MORNING' ? stop.morning_eta : stop.evening_eta;
+              const eta = formatEtaTime12h(etaRaw);
               return (
                 <div
                   key={stop.id}

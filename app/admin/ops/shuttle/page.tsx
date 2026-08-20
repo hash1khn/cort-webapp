@@ -8,6 +8,7 @@ import { Bus, MapPin, Navigation, RefreshCw, Radio, Square, Users } from 'lucide
 import { Card } from '@/app/admin/ui/Card';
 import { Button } from '@/app/admin/ui/Button';
 import { apiClient } from '@/app/lib/services/api-client';
+import { formatEtaTime12h, formatPktTime12h } from '@/app/lib/utils';
 import { useAuth } from '@/app/lib/contexts/auth-context';
 import { useShuttleTracking } from '@/app/lib/hooks/useShuttleTracking';
 import type { MapMarker, MapPolyline } from '@/app/admin/ui/Map';
@@ -268,7 +269,9 @@ function OpsShuttleContent() {
       .map((s) => ({
         id: `stop-${s.id}`,
         position: [s.lat!, s.lng!] as [number, number],
-        label: `${s.name}${selectedTrip?.direction === 'MORNING' ? (s.morning_eta ? ` · ${s.morning_eta}` : '') : (s.evening_eta ? ` · ${s.evening_eta}` : '')}`,
+        label: `${s.name}${selectedTrip?.direction === 'MORNING'
+          ? (s.morning_eta ? ` · ${formatEtaTime12h(s.morning_eta) ?? s.morning_eta}` : '')
+          : (s.evening_eta ? ` · ${formatEtaTime12h(s.evening_eta) ?? s.evening_eta}` : '')}`,
         color: s.id === selectedTrip?.current_stop_id ? '#f47f00' : '#6366f1',
       }));
   }, [selectedTrip]);
@@ -445,7 +448,7 @@ function OpsShuttleContent() {
                   {trip.started_at && (
                     <span className="flex items-center gap-1">
                       <Navigation className="w-3 h-3" />
-                      Started {new Date(trip.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Started {formatPktTime12h(trip.started_at) ?? '—'}
                     </span>
                   )}
                 </div>
