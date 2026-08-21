@@ -280,10 +280,13 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
     const [editingStopId, setEditingStopId] = useState<number | null>(null);
     const officeStops = getOfficeStops(route.route_stops ?? []);
     const officeStopIds = new Set(officeStops.map((s) => s.id));
+    const isMultiOffice = officeStops.length > 1;
     const normalizeOfficeOrder = (ids: number[], column: 'MORNING' | 'EVENING') => {
+        // Multi-office: admin owns the full order, including offices and interleaving.
+        if (isMultiOffice) return ids;
         const offices = ids.filter((id) => officeStopIds.has(id));
         const pickups = ids.filter((id) => !officeStopIds.has(id));
-        // Office is pinned:
+        // Single office is pinned:
         // - Morning: always last
         // - Evening: always first
         return column === 'MORNING' ? [...pickups, ...offices] : [...offices, ...pickups];
@@ -611,7 +614,9 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                 <div>
                     <h3 className="text-lg font-semibold text-[var(--text-primary)]">Stops</h3>
                     <p className="mt-0.5 text-sm text-[var(--text-muted)]">
-                        Drag stops to reorder — pickups only. Office is pinned (morning last, evening first). Press Save to keep it.
+                        {isMultiOffice
+                            ? 'Drag stops to reorder — pickups and offices. You set the full order. Press Save to keep it.'
+                            : 'Drag stops to reorder — pickups only. Office is pinned (morning last, evening first). Press Save to keep it.'}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -698,7 +703,7 @@ export default function ManageStopsTab({ route, onStopMutated }: ManageStopsTabP
                                                 column={column}
                                                 index={i}
                                                 isOffice={officeStopIds.has(s.id)}
-                                                dragDisabled={dragLocked || removingStopKey != null || officeStopIds.has(s.id)}
+                                                dragDisabled={dragLocked || removingStopKey != null || (!isMultiOffice && officeStopIds.has(s.id))}
                                                 isRemoving={removingStopKey === stopActionKey(s.id, column)}
                                                 onEdit={() => handleEditClick(s)}
                                                 onRemove={() => void handleDelete(s.id, column)}
