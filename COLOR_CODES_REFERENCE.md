@@ -47,6 +47,8 @@ Neutral:        #e2e8f0  (Disabled, inactive)
 
 
 
+
+
 ---
 
 ## Component Color Mapping
