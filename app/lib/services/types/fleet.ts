@@ -85,7 +85,7 @@ export interface CreateMaintenanceRecordRequest {
     maintenance_type: MaintenanceType;
     date: string; // ISO date format YYYY-MM-DD
     odometer_reading: number;
-    next_service_odometer?: number; // Auto-calculated for oil changes
+    next_service_odometer?: number; // Absolute due km = current odometer + interval entered in UI
     cost?: number;
     notes?: string;
 }

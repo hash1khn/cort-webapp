@@ -73,6 +73,8 @@ function MaintenancePageContent() {
 
     // Form Data
     const [formData, setFormData] = useState<Partial<CreateMaintenanceRecordRequest>>({});
+    /** Interval until next oil change (e.g. 5000, 9000). Converted to absolute next_service_odometer on save. */
+    const [oilChangeIntervalKm, setOilChangeIntervalKm] = useState<number | "">("");
 
     // Sync local state with Redux
     useEffect(() => {
@@ -131,12 +133,38 @@ function MaintenancePageContent() {
             alert("Please fill all required fields");
             return;
         }
-        dispatch(createMaintenanceRecord(formData as CreateMaintenanceRecordRequest));
+        const payload: CreateMaintenanceRecordRequest = {
+            ...(formData as CreateMaintenanceRecordRequest),
+        };
+        if (formData.maintenance_type === MaintenanceType.OIL_CHANGE) {
+            const interval = Number(oilChangeIntervalKm);
+            if (!oilChangeIntervalKm || Number.isNaN(interval) || interval <= 0) {
+                alert("Please enter how many km until the next oil change (e.g. 5000)");
+                return;
+            }
+            payload.next_service_odometer = Number(formData.odometer_reading) + interval;
+        }
+        dispatch(createMaintenanceRecord(payload));
     };
 
     const handleUpdate = () => {
         if (!selectedRecord) return;
-        dispatch(updateMaintenanceRecord({ id: selectedRecord.id, data: formData as UpdateMaintenanceRecordRequest }));
+        const payload: UpdateMaintenanceRecordRequest = { ...formData };
+        const type = formData.maintenance_type ?? selectedRecord.maintenance_type;
+        if (type === MaintenanceType.OIL_CHANGE) {
+            const interval = Number(oilChangeIntervalKm);
+            const odometer = Number(formData.odometer_reading ?? selectedRecord.odometer_reading);
+            if (!oilChangeIntervalKm || Number.isNaN(interval) || interval <= 0) {
+                alert("Please enter how many km until the next oil change (e.g. 5000)");
+                return;
+            }
+            if (Number.isNaN(odometer)) {
+                alert("Please enter a valid odometer reading");
+                return;
+            }
+            payload.next_service_odometer = odometer + interval;
+        }
+        dispatch(updateMaintenanceRecord({ id: selectedRecord.id, data: payload }));
     };
 
     const handleDelete = async (record: MaintenanceRecord) => {
@@ -174,6 +202,7 @@ function MaintenancePageContent() {
             date: new Date().toISOString().split('T')[0],
             maintenance_type: MaintenanceType.OIL_CHANGE,
         });
+        setOilChangeIntervalKm("");
         setModalMode("create");
         setIsModalOpen(true);
     };
@@ -187,9 +216,20 @@ function MaintenancePageContent() {
             maintenance_type: record.maintenance_type,
             date: formattedDate,
             odometer_reading: record.odometer_reading,
+            next_service_odometer: record.next_service_odometer ?? undefined,
             cost: record.cost || undefined,
             notes: record.notes || undefined,
         });
+        if (
+            record.maintenance_type === MaintenanceType.OIL_CHANGE &&
+            record.next_service_odometer != null &&
+            record.odometer_reading != null
+        ) {
+            const interval = Number(record.next_service_odometer) - Number(record.odometer_reading);
+            setOilChangeIntervalKm(interval > 0 ? interval : "");
+        } else {
+            setOilChangeIntervalKm("");
+        }
         setModalMode("edit");
         setIsModalOpen(true);
     };
@@ -198,6 +238,7 @@ function MaintenancePageContent() {
         setIsModalOpen(false);
         setSelectedRecord(null);
         setFormData({});
+        setOilChangeIntervalKm("");
     };
 
     const getTypeColor = (type: MaintenanceType) => {
@@ -282,13 +323,35 @@ function MaintenancePageContent() {
                     placeholder="Additional notes about this maintenance..."
                 />
             </label>
-            {formData.maintenance_type === MaintenanceType.OIL_CHANGE && formData.odometer_reading && (
-                <div className="col-span-full rounded-lg border border-border bg-blue/5 p-4">
-                    <div className="text-xs font-semibold tracking-wider text-muted">NEXT OIL CHANGE DUE</div>
-                    <div className="mt-1 text-2xl font-bold text-blue">
-                        {formData.odometer_reading + 5000} KM
-                    </div>
-                    <div className="text-xs text-muted mt-1">Auto-calculated: Current + 5,000 km</div>
+            {formData.maintenance_type === MaintenanceType.OIL_CHANGE && (
+                <div className="col-span-full space-y-2 rounded-lg border border-border bg-blue/5 p-4">
+                    <label className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold tracking-wider text-muted">Next Service Interval (KM) *</span>
+                        <input
+                            type="number"
+                            min={1}
+                            value={oilChangeIntervalKm}
+                            onChange={(e) =>
+                                setOilChangeIntervalKm(e.target.value === "" ? "" : Number(e.target.value))
+                            }
+                            className="h-10 rounded-md border border-border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue/40"
+                            placeholder="e.g. 5000 or 9000"
+                        />
+                        <span className="text-xs text-muted">
+                            How many km after this service until the next oil change.
+                        </span>
+                    </label>
+                    {formData.odometer_reading && oilChangeIntervalKm !== "" && Number(oilChangeIntervalKm) > 0 && (
+                        <div>
+                            <div className="text-xs font-semibold tracking-wider text-muted">NEXT OIL CHANGE DUE</div>
+                            <div className="mt-1 text-2xl font-bold text-blue">
+                                {(Number(formData.odometer_reading) + Number(oilChangeIntervalKm)).toLocaleString()} KM
+                            </div>
+                            <div className="text-xs text-muted mt-1">
+                                Current {Number(formData.odometer_reading).toLocaleString()} + {Number(oilChangeIntervalKm).toLocaleString()} km
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
