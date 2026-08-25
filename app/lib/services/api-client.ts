@@ -1296,6 +1296,7 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.startDate) query.append('startDate', params.startDate);
         if (params.endDate) query.append('endDate', params.endDate);
+        if (params.routeId) query.append('routeId', params.routeId.toString());
 
         const queryString = query.toString();
         const endpoint = `/companies/${companyId}/reports/shuttle${queryString ? `?${queryString}` : ''}`;
@@ -1309,6 +1310,7 @@ class ApiClient {
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.startDate) query.append('startDate', params.startDate);
         if (params.endDate) query.append('endDate', params.endDate);
+        if (params.routeId) query.append('routeId', params.routeId.toString());
 
         const queryString = query.toString();
         const endpoint = `/companies/reports/all-shuttle${queryString ? `?${queryString}` : ''}`;

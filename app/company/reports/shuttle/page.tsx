@@ -116,9 +116,12 @@ function buildShuttleExportRows(reports: ShuttleReport[]) {
   ]);
 }
 
-function shuttleExportBasename(startDate: string, endDate: string) {
+function shuttleExportBasename(startDate: string, endDate: string, routeName?: string) {
   const dateLabel = startDate && endDate ? `_${startDate}_to_${endDate}` : startDate ? `_from_${startDate}` : "";
-  return `cort_shuttle_report${dateLabel}`;
+  const routeLabel = routeName
+    ? `_${routeName.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40)}`
+    : "";
+  return `cort_shuttle_report${routeLabel}${dateLabel}`;
 }
 
 function parseShuttleReportsResponse(res: unknown, fallbackPage: number) {
@@ -140,13 +143,20 @@ function parseShuttleReportsResponse(res: unknown, fallbackPage: number) {
   };
 }
 
-function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
+function exportShuttleCSV(
+  reports: ShuttleReport[],
+  companyName: string,
+  startDate: string,
+  endDate: string,
+  routeName?: string,
+) {
   const rows = buildShuttleExportRows(reports);
   const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
 
   const csvContent = [
     `# CORT - Shuttle Report`,
     `# Company: ${companyName}`,
+    `# Route: ${routeName || "All"}`,
     `# Period: ${startDate || "All"} to ${endDate || "All"}`,
     `# Generated: ${new Date().toLocaleString("en-PK")}`,
     `# Total Trips: ${reports.length}`,
@@ -160,12 +170,18 @@ function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDa
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${shuttleExportBasename(startDate, endDate)}.csv`;
+  a.download = `${shuttleExportBasename(startDate, endDate, routeName)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
 
-async function exportShuttlePDF(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
+async function exportShuttlePDF(
+  reports: ShuttleReport[],
+  companyName: string,
+  startDate: string,
+  endDate: string,
+  routeName?: string,
+) {
   const jspdfMod = await import("jspdf");
   const autoTableMod = await import("jspdf-autotable");
   const jsPDF = jspdfMod.jsPDF ?? (jspdfMod as { default: typeof jspdfMod.jsPDF }).default;
@@ -190,6 +206,7 @@ async function exportShuttlePDF(reports: ShuttleReport[], companyName: string, s
   doc.setFontSize(8);
   doc.text(
     [
+      `Route: ${routeName || "All"}`,
       `Period: ${startDate || "All"} to ${endDate || "All"}`,
       `Generated: ${new Date().toLocaleString("en-PK")}`,
       `Total trips: ${reports.length}`,
@@ -214,7 +231,7 @@ async function exportShuttlePDF(reports: ShuttleReport[], companyName: string, s
     },
   });
 
-  doc.save(`${shuttleExportBasename(startDate, endDate)}.pdf`);
+  doc.save(`${shuttleExportBasename(startDate, endDate, routeName)}.pdf`);
 }
 
 export default function ShuttleReportsPage() {
@@ -232,14 +249,51 @@ export default function ShuttleReportsPage() {
   const [selectedReport, setSelectedReport] = useState<ShuttleReport | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [routeId, setRouteId] = useState<string>("");
+  const [routes, setRoutes] = useState<Array<{ id: number; name: string }>>([]);
 
-  const fetchReports = useCallback(async (page: number, start: string, end: string) => {
+  const selectedRouteId = routeId ? Number(routeId) : undefined;
+  const selectedRouteName = routes.find((route) => String(route.id) === routeId)?.name;
+
+  useEffect(() => {
+    if (!company?.id) return;
+    let cancelled = false;
+    apiClient
+      .request(`/routes?company_id=${company.id}`)
+      .then((res) => {
+        if (cancelled) return;
+        const raw = (res as { data?: unknown })?.data ?? res;
+        const list = Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as { data?: unknown })?.data)
+            ? (raw as { data: unknown[] }).data
+            : [];
+        setRoutes(
+          list
+            .map((item) => {
+              const route = item as { id?: number; name?: string };
+              return route.id && route.name ? { id: route.id, name: route.name } : null;
+            })
+            .filter((route): route is { id: number; name: string } => route != null)
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setRoutes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [company?.id]);
+
+  const fetchReports = useCallback(async (page: number, start: string, end: string, selectedRoute?: number) => {
     if (!company?.id) return;
     setIsLoading(true);
     try {
       const res = await apiClient.getShuttleReports(company.id, {
         startDate: start || undefined,
         endDate: end || undefined,
+        routeId: selectedRoute,
         page,
       });
       const parsed = parseShuttleReportsResponse(res, page);
@@ -266,6 +320,7 @@ export default function ShuttleReportsPage() {
         const res = await apiClient.getShuttleReports(company.id, {
           startDate: startDate || undefined,
           endDate: endDate || undefined,
+          routeId: selectedRouteId,
           page,
           limit: exportLimit,
         });
@@ -276,9 +331,9 @@ export default function ShuttleReportsPage() {
       } while (page <= pages);
 
       if (format === "pdf") {
-        await exportShuttlePDF(allReports, company.name ?? "Company", startDate, endDate);
+        await exportShuttlePDF(allReports, company.name ?? "Company", startDate, endDate, selectedRouteName);
       } else {
-        exportShuttleCSV(allReports, company.name ?? "Company", startDate, endDate);
+        exportShuttleCSV(allReports, company.name ?? "Company", startDate, endDate, selectedRouteName);
       }
     } catch (e) {
       console.error("Failed to export shuttle reports", e);
@@ -291,14 +346,14 @@ export default function ShuttleReportsPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
-      fetchReports(1, startDate, endDate);
+      fetchReports(1, startDate, endDate, selectedRouteId);
     }, 400);
     return () => clearTimeout(timer);
-  }, [startDate, endDate, fetchReports]);
+  }, [startDate, endDate, selectedRouteId, fetchReports]);
 
   // Page change
   useEffect(() => {
-    fetchReports(currentPage, startDate, endDate);
+    fetchReports(currentPage, startDate, endDate, selectedRouteId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
@@ -347,6 +402,19 @@ export default function ShuttleReportsPage() {
         title={t("shuttleTitle")}
         action={
           <>
+            <select
+              value={routeId}
+              onChange={(e) => setRouteId(e.target.value)}
+              className="h-[46px] max-w-[220px] rounded-xl border border-[var(--border-strong)] bg-[var(--bg-subtle)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-0"
+              aria-label={t("route")}
+            >
+              <option value="">{t("allRoutes")}</option>
+              {routes.map((route) => (
+                <option key={route.id} value={route.id}>
+                  {route.name}
+                </option>
+              ))}
+            </select>
             <div className="flex items-center gap-2 bg-[var(--bg-subtle)] p-1 rounded-xl border border-[var(--border-strong)] backdrop-blur-sm">
               <input
                 type="date"

@@ -105,4 +105,5 @@ export interface ReportQueryParams {
     limit?: number;
     startDate?: string;
     endDate?: string;
+    routeId?: number;
 }
