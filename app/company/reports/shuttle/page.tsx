@@ -67,6 +67,25 @@ function escapeCSV(value: string | number | null | undefined): string {
   return str;
 }
 
+function parseShuttleReportsResponse(res: unknown, fallbackPage: number) {
+  const raw = (res as { data?: unknown })?.data ?? res;
+  const payload = raw as { data?: ShuttleReport[]; pagination?: PaginationMeta };
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(raw)
+      ? (raw as ShuttleReport[])
+      : [];
+  const meta: Partial<PaginationMeta> = payload?.pagination ?? {};
+  return {
+    list,
+    pagination: {
+      page: meta.page ?? fallbackPage,
+      pages: meta.pages ?? 1,
+      total: meta.total ?? list.length,
+    },
+  };
+}
+
 function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
   const headers = [
     "Trip Date", "Direction", "Trip ID", "Route",
@@ -133,6 +152,7 @@ export default function ShuttleReportsPage() {
 
   const [reports, setReports] = useState<ShuttleReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState<ShuttleReport | null>(null);
@@ -147,17 +167,46 @@ export default function ShuttleReportsPage() {
         startDate: start || undefined,
         endDate: end || undefined,
         page,
-      }) as any;
-      const raw = res?.data ?? res;
-      setReports(raw?.data ?? raw ?? []);
-      const meta = raw?.pagination ?? {};
-      setPagination({ page: meta.page ?? page, pages: meta.pages ?? 1, total: meta.total ?? 0 });
+      });
+      const parsed = parseShuttleReportsResponse(res, page);
+      setReports(parsed.list);
+      setPagination(parsed.pagination);
     } catch (e) {
       console.error("Failed to fetch shuttle reports", e);
     } finally {
       setIsLoading(false);
     }
   }, [company?.id]);
+
+  const handleExport = async () => {
+    if (!company?.id || isExporting) return;
+    setIsExporting(true);
+    try {
+      const allReports: ShuttleReport[] = [];
+      let page = 1;
+      let pages = 1;
+      const exportLimit = 100;
+
+      do {
+        const res = await apiClient.getShuttleReports(company.id, {
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          page,
+          limit: exportLimit,
+        });
+        const parsed = parseShuttleReportsResponse(res, page);
+        allReports.push(...parsed.list);
+        pages = parsed.pagination.pages || 1;
+        page += 1;
+      } while (page <= pages);
+
+      exportShuttleCSV(allReports, company.name ?? "Company", startDate, endDate);
+    } catch (e) {
+      console.error("Failed to export shuttle reports", e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Debounce filter changes
   useEffect(() => {
@@ -227,8 +276,9 @@ export default function ShuttleReportsPage() {
             </div>
             <button
               type="button"
-              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md"
-              onClick={() => exportShuttleCSV(reports, company?.name ?? "Company", startDate, endDate)}
+              disabled={isExporting}
+              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md disabled:opacity-60 disabled:pointer-events-none"
+              onClick={handleExport}
             >
               <svg
                 className="w-4 h-4 text-[var(--text-primary)]"
@@ -243,7 +293,7 @@ export default function ShuttleReportsPage() {
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              {t("exportCsv")}
+              {isExporting ? `${t("exportCsv")}…` : t("exportCsv")}
             </button>
           </>
         }
