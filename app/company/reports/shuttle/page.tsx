@@ -99,6 +99,12 @@ function formatExportDateTime(value: string | null | undefined) {
   });
 }
 
+const BOARDING_LOG_HEADERS = [
+  "Trip Date", "Direction", "Trip ID", "Route",
+  "Passenger", "Employee ID", "Department",
+  "Status", "Boarded At", "Drop-off At",
+];
+
 function buildShuttleExportRows(reports: ShuttleReport[]) {
   return reports.map((r) => [
     formatExportDate(r.trip_date),
@@ -114,6 +120,23 @@ function buildShuttleExportRows(reports: ShuttleReport[]) {
     formatExportDateTime(r.started_at),
     formatExportDateTime(r.completed_at),
   ]);
+}
+
+function buildBoardingLogRows(reports: ShuttleReport[]) {
+  return reports.flatMap((r) =>
+    (r.passengers?.details ?? []).map((log) => [
+      formatExportDate(r.trip_date),
+      r.direction || "",
+      String(r.id),
+      r.route?.name || "",
+      log.employee?.full_name || "Unknown",
+      log.employee?.employee_id || "",
+      log.employee?.department || "",
+      log.status || "",
+      formatExportDateTime(log.scanned_at),
+      formatExportDateTime(log.drop_off_at),
+    ]),
+  );
 }
 
 function shuttleExportBasename(startDate: string, endDate: string, routeName?: string) {
@@ -151,6 +174,7 @@ function exportShuttleCSV(
   routeName?: string,
 ) {
   const rows = buildShuttleExportRows(reports);
+  const boardingRows = buildBoardingLogRows(reports);
   const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
 
   const csvContent = [
@@ -161,9 +185,15 @@ function exportShuttleCSV(
     `# Generated: ${new Date().toLocaleString("en-PK")}`,
     `# Total Trips: ${reports.length}`,
     `# Total Passengers Boarded: ${totalBoarded}`,
+    `# Boarding Log Rows: ${boardingRows.length}`,
     "",
+    "# Trips",
     SHUTTLE_EXPORT_HEADERS.map(escapeCSV).join(","),
     ...rows.map((row) => row.map(escapeCSV).join(",")),
+    "",
+    "# Boarding Logs",
+    BOARDING_LOG_HEADERS.map(escapeCSV).join(","),
+    ...boardingRows.map((row) => row.map(escapeCSV).join(",")),
   ].join("\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -229,6 +259,32 @@ async function exportShuttlePDF(
       8: { halign: "right" },
       9: { halign: "right" },
     },
+  });
+
+  const lastTable = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let boardingStartY = (lastTable?.finalY ?? 82) + 28;
+  if (boardingStartY > pageHeight - 80) {
+    doc.addPage();
+    boardingStartY = 40;
+  }
+  const boardingRows = buildBoardingLogRows(reports);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text("Boarding Logs", margin, boardingStartY);
+
+  autoTable(doc, {
+    head: [BOARDING_LOG_HEADERS],
+    body: boardingRows.length > 0
+      ? boardingRows
+      : [[{ content: "No boarding logs for the selected filters", colSpan: BOARDING_LOG_HEADERS.length }]],
+    startY: boardingStartY + 10,
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak" },
+    headStyles: { fillColor: [254, 133, 3], textColor: [20, 20, 20], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [250, 247, 244] },
   });
 
   doc.save(`${shuttleExportBasename(startDate, endDate, routeName)}.pdf`);
