@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { ChevronDown } from "lucide-react";
 import { useAppSelector } from "../../../lib/store/hooks";
 import { selectCompany } from "../../../lib/store/slices/companySlice";
 import { ShuttleReport, apiClient } from "../../../lib/services/api-client";
@@ -15,6 +16,8 @@ import {
 } from "../../components/PageLayout";
 import Modal from "../../bookings/components/Modal";
 import TableSkeleton from "@/app/components/ui/TableSkeleton";
+
+type ExportFormat = "csv" | "pdf";
 
 function DirectionBadge({ direction }: { direction: string }) {
   const isEvening = direction === "EVENING";
@@ -67,6 +70,57 @@ function escapeCSV(value: string | number | null | undefined): string {
   return str;
 }
 
+const SHUTTLE_EXPORT_HEADERS = [
+  "Trip Date", "Direction", "Trip ID", "Route",
+  "Vehicle", "Plate Number", "Driver",
+  "Boarded", "Absent", "Total Assigned", "Started At", "Completed At",
+];
+
+function formatExportDate(value: string | null | undefined) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("en-PK", {
+    timeZone: "Asia/Karachi",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatExportDateTime(value: string | null | undefined) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("en-PK", {
+    timeZone: "Asia/Karachi",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function buildShuttleExportRows(reports: ShuttleReport[]) {
+  return reports.map((r) => [
+    formatExportDate(r.trip_date),
+    r.direction || "",
+    String(r.id),
+    r.route?.name || "",
+    `${r.vehicle?.make || ""} ${r.vehicle?.model || ""}`.trim(),
+    r.vehicle?.plate_number || "",
+    r.driver?.full_name || "",
+    String(r.passengers?.boarded ?? 0),
+    String(r.passengers?.absent ?? 0),
+    String(r.passengers?.total ?? 0),
+    formatExportDateTime(r.started_at),
+    formatExportDateTime(r.completed_at),
+  ]);
+}
+
+function shuttleExportBasename(startDate: string, endDate: string) {
+  const dateLabel = startDate && endDate ? `_${startDate}_to_${endDate}` : startDate ? `_from_${startDate}` : "";
+  return `cort_shuttle_report${dateLabel}`;
+}
+
 function parseShuttleReportsResponse(res: unknown, fallbackPage: number) {
   const raw = (res as { data?: unknown })?.data ?? res;
   const payload = raw as { data?: ShuttleReport[]; pagination?: PaginationMeta };
@@ -87,40 +141,7 @@ function parseShuttleReportsResponse(res: unknown, fallbackPage: number) {
 }
 
 function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
-  const headers = [
-    "Trip Date", "Direction", "Trip ID", "Route",
-    "Vehicle", "Plate Number", "Driver",
-    "Boarded", "Absent", "Total Assigned", "Started At", "Completed At"
-  ];
-
-  const fmtCsvDateTime = (value: string | null | undefined) =>
-    value
-      ? new Date(value).toLocaleString("en-PK", {
-          timeZone: "Asia/Karachi",
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
-      : "";
-
-  const rows = reports.map((r) => [
-    r.trip_date ? new Date(r.trip_date).toLocaleDateString("en-PK", { timeZone: "Asia/Karachi", year: "numeric", month: "short", day: "numeric" }) : "",
-    r.direction || "",
-    r.id,
-    r.route?.name || "",
-    `${r.vehicle?.make || ""} ${r.vehicle?.model || ""}`.trim(),
-    r.vehicle?.plate_number || "",
-    r.driver?.full_name || "",
-    r.passengers?.boarded ?? 0,
-    r.passengers?.absent ?? 0,
-    r.passengers?.total ?? 0,
-    fmtCsvDateTime(r.started_at),
-    fmtCsvDateTime(r.completed_at),
-  ]);
-
+  const rows = buildShuttleExportRows(reports);
   const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
 
   const csvContent = [
@@ -131,18 +152,69 @@ function exportShuttleCSV(reports: ShuttleReport[], companyName: string, startDa
     `# Total Trips: ${reports.length}`,
     `# Total Passengers Boarded: ${totalBoarded}`,
     "",
-    headers.map(escapeCSV).join(","),
+    SHUTTLE_EXPORT_HEADERS.map(escapeCSV).join(","),
     ...rows.map((row) => row.map(escapeCSV).join(",")),
   ].join("\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const dateLabel = startDate && endDate ? `_${startDate}_to_${endDate}` : startDate ? `_from_${startDate}` : "";
   a.href = url;
-  a.download = `cort_shuttle_report${dateLabel}.csv`;
+  a.download = `${shuttleExportBasename(startDate, endDate)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function exportShuttlePDF(reports: ShuttleReport[], companyName: string, startDate: string, endDate: string) {
+  const jspdfMod = await import("jspdf");
+  const autoTableMod = await import("jspdf-autotable");
+  const jsPDF = jspdfMod.jsPDF ?? (jspdfMod as { default: typeof jspdfMod.jsPDF }).default;
+  const autoTable = autoTableMod.default ?? autoTableMod.autoTable;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 36;
+  const totalBoarded = reports.reduce((s, r) => s + (r.passengers?.boarded ?? 0), 0);
+
+  doc.setFillColor(254, 133, 3);
+  doc.rect(0, 0, pageWidth, 52, "F");
+  doc.setTextColor(20, 20, 20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("Shuttle Report", margin, 24);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(companyName, margin, 40);
+
+  doc.setTextColor(80, 80, 80);
+  doc.setFontSize(8);
+  doc.text(
+    [
+      `Period: ${startDate || "All"} to ${endDate || "All"}`,
+      `Generated: ${new Date().toLocaleString("en-PK")}`,
+      `Total trips: ${reports.length}`,
+      `Passengers boarded: ${totalBoarded}`,
+    ].join("   ·   "),
+    margin,
+    70,
+  );
+
+  autoTable(doc, {
+    head: [SHUTTLE_EXPORT_HEADERS],
+    body: buildShuttleExportRows(reports),
+    startY: 82,
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 7.5, cellPadding: 4, overflow: "linebreak" },
+    headStyles: { fillColor: [254, 133, 3], textColor: [20, 20, 20], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [250, 247, 244] },
+    columnStyles: {
+      7: { halign: "right" },
+      8: { halign: "right" },
+      9: { halign: "right" },
+    },
+  });
+
+  doc.save(`${shuttleExportBasename(startDate, endDate)}.pdf`);
 }
 
 export default function ShuttleReportsPage() {
@@ -153,6 +225,8 @@ export default function ShuttleReportsPage() {
   const [reports, setReports] = useState<ShuttleReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, pages: 1, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReport, setSelectedReport] = useState<ShuttleReport | null>(null);
@@ -178,8 +252,9 @@ export default function ShuttleReportsPage() {
     }
   }, [company?.id]);
 
-  const handleExport = async () => {
+  const handleExport = async (format: ExportFormat) => {
     if (!company?.id || isExporting) return;
+    setExportMenuOpen(false);
     setIsExporting(true);
     try {
       const allReports: ShuttleReport[] = [];
@@ -200,7 +275,11 @@ export default function ShuttleReportsPage() {
         page += 1;
       } while (page <= pages);
 
-      exportShuttleCSV(allReports, company.name ?? "Company", startDate, endDate);
+      if (format === "pdf") {
+        await exportShuttlePDF(allReports, company.name ?? "Company", startDate, endDate);
+      } else {
+        exportShuttleCSV(allReports, company.name ?? "Company", startDate, endDate);
+      }
     } catch (e) {
       console.error("Failed to export shuttle reports", e);
     } finally {
@@ -226,6 +305,17 @@ export default function ShuttleReportsPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!exportMenuRef.current?.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [exportMenuOpen]);
 
   if (!company) {
     return (
@@ -274,27 +364,55 @@ export default function ShuttleReportsPage() {
                 placeholder={t("endDate")}
               />
             </div>
-            <button
-              type="button"
-              disabled={isExporting}
-              className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md disabled:opacity-60 disabled:pointer-events-none"
-              onClick={handleExport}
-            >
-              <svg
-                className="w-4 h-4 text-[var(--text-primary)]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                disabled={isExporting}
+                aria-haspopup="menu"
+                aria-expanded={exportMenuOpen}
+                className="group relative flex items-center gap-2 rounded-xl bg-[var(--cort-orange)] px-5 py-2.5 text-sm font-bold text-[var(--text-primary)] transition-all hover:bg-[var(--cort-orange-hover)] hover:-translate-y-0.5 shadow-lg active:translate-y-0 active:shadow-md disabled:opacity-60 disabled:pointer-events-none"
+                onClick={() => setExportMenuOpen((open) => !open)}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              {isExporting ? `${t("exportCsv")}…` : t("exportCsv")}
-            </button>
+                <svg
+                  className="w-4 h-4 text-[var(--text-primary)]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {isExporting ? t("exporting") : t("export")}
+                <ChevronDown className={`w-4 h-4 transition-transform ${exportMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+              {exportMenuOpen && !isExporting && (
+                <div
+                  role="menu"
+                  className="absolute end-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--bg-card)] shadow-xl"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="w-full px-4 py-2.5 text-start text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                    onClick={() => handleExport("csv")}
+                  >
+                    {t("exportAsCsv")}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="w-full px-4 py-2.5 text-start text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                    onClick={() => handleExport("pdf")}
+                  >
+                    {t("exportAsPdf")}
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         }
       />
