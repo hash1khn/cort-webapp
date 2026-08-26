@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowLeftRight, Bus, Pencil, RefreshCw, Square, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, Ban, Bus, Pencil, RefreshCw, Square, Trash2, X } from 'lucide-react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { Card } from '@/app/admin/ui/Card';
@@ -69,6 +69,29 @@ function canEditAssignment(status: string): boolean {
     return status === 'SCHEDULED' || status === 'STARTED' || status === 'IN_PROGRESS';
 }
 
+function canChangeStatus(status: string): boolean {
+    return status === 'SCHEDULED' || status === 'STARTED' || status === 'IN_PROGRESS' || status === 'CANCELLED';
+}
+
+function statusSelectOptions(status: string): Array<'SCHEDULED' | 'STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'> {
+    if (status === 'CANCELLED') return ['CANCELLED', 'SCHEDULED'];
+    if (status === 'SCHEDULED') return ['SCHEDULED', 'CANCELLED'];
+    if (status === 'STARTED') return ['STARTED', 'CANCELLED'];
+    if (status === 'IN_PROGRESS') return ['IN_PROGRESS', 'CANCELLED'];
+    return [status as 'COMPLETED'];
+}
+
+function statusBadgeClass(status: string): string {
+    const map: Record<string, string> = {
+        SCHEDULED: 'bg-gray-100 text-gray-700',
+        STARTED: 'bg-blue-100 text-blue-700',
+        IN_PROGRESS: 'bg-orange-100 text-orange-700',
+        COMPLETED: 'bg-green-100 text-green-700',
+        CANCELLED: 'bg-red-100 text-red-700',
+    };
+    return map[status] ?? 'bg-gray-100 text-gray-700';
+}
+
 function tripVehicle(trip: ScheduledTripRow): TripVehicle | null {
     return trip.vehicles ?? trip.routes?.vehicles ?? null;
 }
@@ -100,6 +123,7 @@ function ShuttleTripsSchedulingContent() {
     const [fromDate, setFromDate] = useState(utcTodayYmd);
     const [filterCompanyId, setFilterCompanyId] = useState<number | ''>('');
     const [filterRouteId, setFilterRouteId] = useState<number | ''>('');
+    const [filterStatus, setFilterStatus] = useState<string>('');
     const [page, setPage] = useState(1);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState<string | null>(null);
@@ -113,6 +137,9 @@ function ShuttleTripsSchedulingContent() {
     const [dailyAllBusy, setDailyAllBusy] = useState(false);
     const [regenerateBusy, setRegenerateBusy] = useState(false);
     const [endingTripId, setEndingTripId] = useState<number | null>(null);
+    const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
+    const [selectedTripIds, setSelectedTripIds] = useState<number[]>([]);
+    const [bulkCancelling, setBulkCancelling] = useState(false);
     const [banner, setBanner] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
     const [editingTrip, setEditingTrip] = useState<ScheduledTripRow | null>(null);
     const [editDriverId, setEditDriverId] = useState('');
@@ -137,9 +164,11 @@ function ShuttleTripsSchedulingContent() {
             const params = new URLSearchParams({ from_date: fromDate, page: String(page), limit: '50' });
             if (filterCompanyId !== '') params.set('company_id', String(filterCompanyId));
             if (filterRouteId !== '') params.set('route_id', String(filterRouteId));
+            if (filterStatus) params.set('status', filterStatus);
             const res = await apiClient.request<Paginated<ScheduledTripRow>>(`/shuttle-trips/scheduled?${params.toString()}`);
             setRows(res?.data ?? []);
             setPagination(res?.pagination ?? null);
+            setSelectedTripIds([]);
         } catch (e) {
             setListError(e instanceof Error ? e.message : 'Failed to load trips');
             setRows([]);
@@ -147,7 +176,7 @@ function ShuttleTripsSchedulingContent() {
         } finally {
             setListLoading(false);
         }
-    }, [fromDate, filterCompanyId, filterRouteId, page]);
+    }, [fromDate, filterCompanyId, filterRouteId, filterStatus, page]);
 
     useEffect(() => {
         if (companiesStatus === 'idle') {
@@ -319,6 +348,92 @@ function ShuttleTripsSchedulingContent() {
         }
     };
 
+    const handleStatusChange = async (trip: ScheduledTripRow, nextStatus: string) => {
+        if (!canMutate || nextStatus === trip.status) return;
+        if (nextStatus !== 'SCHEDULED' && nextStatus !== 'CANCELLED') return;
+        const action = nextStatus === 'CANCELLED' ? 'Cancel' : 'Restore';
+        if (
+            !window.confirm(
+                `${action} ${trip.direction} trip #${trip.id} (${trip.routes?.name ?? 'route'}) on ${formatTripDate(trip.trip_date)}?`,
+            )
+        ) {
+            return;
+        }
+        try {
+            setStatusUpdatingId(trip.id);
+            setBanner(null);
+            await apiClient.updateShuttleTripStatus(trip.id, nextStatus);
+            setBanner({
+                type: 'ok',
+                text:
+                    nextStatus === 'CANCELLED'
+                        ? `${trip.direction} trip #${trip.id} cancelled.`
+                        : `${trip.direction} trip #${trip.id} restored to scheduled.`,
+            });
+            await loadTrips();
+        } catch (e) {
+            setBanner({ type: 'err', text: e instanceof Error ? e.message : 'Failed to update status' });
+        } finally {
+            setStatusUpdatingId(null);
+        }
+    };
+
+    const cancellableSelected = useMemo(
+        () => rows.filter((t) => selectedTripIds.includes(t.id) && canEditAssignment(t.status)),
+        [rows, selectedTripIds],
+    );
+
+    const handleBulkCancel = async () => {
+        if (!canMutate || cancellableSelected.length === 0) return;
+        if (
+            !window.confirm(
+                `Cancel ${cancellableSelected.length} trip${cancellableSelected.length === 1 ? '' : 's'}? Drivers will no longer see them as scheduled.`,
+            )
+        ) {
+            return;
+        }
+        setBulkCancelling(true);
+        setBanner(null);
+        let ok = 0;
+        const errors: string[] = [];
+        try {
+            for (const trip of cancellableSelected) {
+                try {
+                    await apiClient.updateShuttleTripStatus(trip.id, 'CANCELLED');
+                    ok += 1;
+                } catch (e) {
+                    errors.push(`#${trip.id}: ${e instanceof Error ? e.message : 'failed'}`);
+                }
+            }
+            setBanner({
+                type: errors.length ? 'err' : 'ok',
+                text: errors.length
+                    ? `Cancelled ${ok} trip(s). Failed: ${errors.join('; ')}`
+                    : `Cancelled ${ok} trip(s).`,
+            });
+            await loadTrips();
+        } finally {
+            setBulkCancelling(false);
+        }
+    };
+
+    const toggleSelectTrip = (tripId: number, checked: boolean) => {
+        setSelectedTripIds((prev) => (checked ? [...prev, tripId] : prev.filter((id) => id !== tripId)));
+    };
+
+    const selectableOnPage = rows.filter((t) => canEditAssignment(t.status));
+    const allSelectableChecked =
+        selectableOnPage.length > 0 && selectableOnPage.every((t) => selectedTripIds.includes(t.id));
+
+    const toggleSelectAllOnPage = (checked: boolean) => {
+        if (checked) {
+            setSelectedTripIds((prev) => [...new Set([...prev, ...selectableOnPage.map((t) => t.id)])]);
+        } else {
+            const pageIds = new Set(selectableOnPage.map((t) => t.id));
+            setSelectedTripIds((prev) => prev.filter((id) => !pageIds.has(id)));
+        }
+    };
+
     const handleDelete = async (trip: ScheduledTripRow) => {
         if (!canMutate || trip.status !== 'SCHEDULED') return;
         if (!window.confirm(`Delete ${trip.direction} trip #${trip.id} on ${formatTripDate(trip.trip_date)}?`)) return;
@@ -359,7 +474,7 @@ function ShuttleTripsSchedulingContent() {
                     <div className="text-sm font-medium text-gray-400">Routes</div>
                     <h1 className="mt-1 text-2xl font-bold text-gray-900">Shuttle trip scheduling</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        View upcoming trips, remove mistaken SCHEDULED trips, and generate trips for one route and one day at a time.
+                        View upcoming trips, change status (cancel or restore), remove mistaken SCHEDULED trips, and generate trips for one route and one day at a time.
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -461,11 +576,28 @@ function ShuttleTripsSchedulingContent() {
 
             <Card className="p-6 space-y-4">
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                    <h2 className="text-lg font-semibold text-gray-900">Scheduled trips</h2>
-                    <Button variant="outline" size="sm" onClick={() => loadTrips()} disabled={listLoading}>
-                        <RefreshCw className={`mr-2 h-4 w-4 ${listLoading ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </Button>
+                    <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Scheduled trips</h2>
+                        <p className="mt-1 text-sm text-gray-500">
+                            Change status in the table to cancel a trip (or restore a cancelled one). Select multiple rows to cancel them at once.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {canMutate && cancellableSelected.length > 0 && (
+                            <Button variant="outline" size="sm" onClick={handleBulkCancel} disabled={bulkCancelling}>
+                                {bulkCancelling ? (
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Ban className="mr-2 h-4 w-4" />
+                                )}
+                                Cancel selected ({cancellableSelected.length})
+                            </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => loadTrips()} disabled={listLoading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${listLoading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
+                    </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <label className="flex flex-col gap-1 text-sm">
@@ -517,6 +649,24 @@ function ShuttleTripsSchedulingContent() {
                             ))}
                         </select>
                     </label>
+                    <label className="flex flex-col gap-1 text-sm">
+                        <span className="font-medium text-gray-700">Status</span>
+                        <select
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30"
+                            value={filterStatus}
+                            onChange={(e) => {
+                                setFilterStatus(e.target.value);
+                                setPage(1);
+                            }}
+                        >
+                            <option value="">All statuses</option>
+                            <option value="SCHEDULED">Scheduled</option>
+                            <option value="STARTED">Started</option>
+                            <option value="IN_PROGRESS">In progress</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </label>
                 </div>
 
                 {listError && (
@@ -527,6 +677,18 @@ function ShuttleTripsSchedulingContent() {
                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="w-8 px-3 py-2 text-left">
+                                    {canMutate ? (
+                                        <input
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300"
+                                            checked={allSelectableChecked}
+                                            disabled={selectableOnPage.length === 0}
+                                            onChange={(e) => toggleSelectAllOnPage(e.target.checked)}
+                                            aria-label="Select all cancellable trips on this page"
+                                        />
+                                    ) : null}
+                                </th>
                                 <th className="px-3 py-2 text-left font-medium text-gray-600">Date (UTC)</th>
                                 <th className="px-3 py-2 text-left font-medium text-gray-600">Company</th>
                                 <th className="px-3 py-2 text-left font-medium text-gray-600">Route</th>
@@ -540,14 +702,14 @@ function ShuttleTripsSchedulingContent() {
                         <tbody className="divide-y divide-gray-100 bg-white">
                             {listLoading && (
                                 <tr>
-                                    <td colSpan={8} className="px-3 py-8 text-center text-gray-400">
+                                    <td colSpan={9} className="px-3 py-8 text-center text-gray-400">
                                         Loading…
                                     </td>
                                 </tr>
                             )}
                             {!listLoading && rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-3 py-8 text-center text-gray-400">
+                                    <td colSpan={9} className="px-3 py-8 text-center text-gray-400">
                                         No trips in this range.
                                     </td>
                                 </tr>
@@ -555,16 +717,39 @@ function ShuttleTripsSchedulingContent() {
                             {!listLoading &&
                                 rows.map((trip) => {
                                     const vehicle = tripVehicle(trip);
+                                    const statusOptions = statusSelectOptions(trip.status);
+                                    const statusLocked = !canMutate || !canChangeStatus(trip.status);
                                     return (
                                     <tr key={trip.id} className="hover:bg-gray-50/80">
+                                        <td className="px-3 py-2">
+                                            {canMutate && canEditAssignment(trip.status) ? (
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 rounded border-gray-300"
+                                                    checked={selectedTripIds.includes(trip.id)}
+                                                    onChange={(e) => toggleSelectTrip(trip.id, e.target.checked)}
+                                                    aria-label={`Select trip #${trip.id}`}
+                                                />
+                                            ) : null}
+                                        </td>
                                         <td className="whitespace-nowrap px-3 py-2 text-gray-900">{formatTripDate(trip.trip_date)}</td>
                                         <td className="px-3 py-2 text-gray-700">{trip.routes?.companies?.name ?? '—'}</td>
                                         <td className="px-3 py-2 text-gray-900">{trip.routes?.name ?? '—'}</td>
                                         <td className="px-3 py-2 text-gray-700">{trip.direction}</td>
                                         <td className="px-3 py-2">
-                                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                                                {trip.status}
-                                            </span>
+                                            <select
+                                                className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0C225E]/30 ${statusBadgeClass(trip.status)} ${statusLocked ? 'cursor-default appearance-none pr-2' : 'cursor-pointer'}`}
+                                                value={trip.status}
+                                                disabled={statusLocked || statusUpdatingId === trip.id}
+                                                onChange={(e) => handleStatusChange(trip, e.target.value)}
+                                                aria-label={`Status for trip #${trip.id}`}
+                                            >
+                                                {statusOptions.map((s) => (
+                                                    <option key={s} value={s}>
+                                                        {s}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </td>
                                         <td className="px-3 py-2 text-gray-700">{trip.users?.full_name ?? '—'}</td>
                                         <td className="whitespace-nowrap px-3 py-2 text-gray-600">

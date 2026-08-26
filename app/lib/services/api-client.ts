@@ -1207,6 +1207,17 @@ class ApiClient {
         });
     }
 
+    /** Admin: cancel a scheduled/in-progress trip, or restore a cancelled trip to SCHEDULED. */
+    async updateShuttleTripStatus(
+        tripId: number,
+        status: 'SCHEDULED' | 'CANCELLED',
+    ): Promise<any> {
+        return this.request<any>(`/shuttle-trips/${tripId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
+        });
+    }
+
     /** Admin: change driver and/or vehicle on a scheduled or in-progress shuttle trip. */
     async updateShuttleTripAssignment(
         tripId: number,
