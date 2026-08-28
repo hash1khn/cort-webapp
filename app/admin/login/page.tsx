@@ -44,9 +44,15 @@ export default function AdminLoginPage() {
     if (loginUser.role === UserRole.SUPER_ADMIN) return "/admin";
     if (loginUser.role === UserRole.INTERNAL_STAFF) {
       const permissions = normalizeStaffPermissions(loginUser.permissions ?? null);
-      const first = NAV_PERMISSION_MAP.find((item) =>
-        staffHasCrud(permissions, item.permission, "read"),
-      );
+      const first = NAV_PERMISSION_MAP.find((item) => {
+        if (item.href === "/admin/routes/shuttle-audit") {
+          return (
+            loginUser.email?.trim().toLowerCase() === "hashir.ahmed@cort.com.pk" &&
+            staffHasCrud(permissions, item.permission, "read")
+          );
+        }
+        return staffHasCrud(permissions, item.permission, "read");
+      });
       return first?.href ?? "/admin/login"; // no readable section → stay on login
     }
     return "/";

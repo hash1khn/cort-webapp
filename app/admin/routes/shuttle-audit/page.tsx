@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState, Fragment } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronRight, ScrollText } from 'lucide-react';
 import { PermissionGate } from '@/app/admin/components/PermissionGate';
 import { AdminCan } from '@/app/lib/abilities/AdminAbilityProvider';
 import { adminBtnOutline, adminCard, adminInput, adminPageTitle, adminSelect, adminTableHead, adminTableRow } from '@/app/admin/components/ui/admin-styles';
 import { apiClient } from '@/app/lib/services/api-client';
+import { useAuth } from '@/app/lib/contexts/auth-context';
 import { useAppDispatch, useAppSelector } from '@/app/lib/store/hooks';
 import {
     fetchAdminCompanies,
@@ -41,6 +43,9 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const ACTION_LABELS = Object.fromEntries(ACTION_OPTIONS.map((o) => [o.value, o.label]));
+
+// TODO: remove this email allowlist; shuttle_audit permission is the real gate
+const SHUTTLE_AUDIT_ALLOWED_EMAIL = 'hashir.ahmed@cort.com.pk';
 
 type AuditRow = {
     id: number;
@@ -89,6 +94,20 @@ function formatValue(value: unknown): string {
 }
 
 export default function ShuttleAuditPage() {
+    const router = useRouter();
+    const { user, loading } = useAuth();
+    const emailAllowed = user?.email?.trim().toLowerCase() === SHUTTLE_AUDIT_ALLOWED_EMAIL;
+
+    useEffect(() => {
+        if (!loading && user && !emailAllowed) {
+            router.replace('/admin');
+        }
+    }, [loading, user, emailAllowed, router]);
+
+    if (loading || !emailAllowed) {
+        return null;
+    }
+
     return (
         <PermissionGate permission="shuttle_audit">
             <AdminCan I="read" a="ShuttleAudit">

@@ -111,10 +111,22 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     return nav.filter((item) => {
       if (item.allowInternalStaff && isInternalStaff) return true;
       if (!item.permission) return isSuperAdmin;
-      if (isSuperAdmin) return true;
+      if (isSuperAdmin) {
+        // TODO: remove email allowlist — keep shuttle_audit permission as the real gate
+        if (item.href === "/admin/routes/shuttle-audit") {
+          return user?.email?.trim().toLowerCase() === "hashir.ahmed@cort.com.pk";
+        }
+        return true;
+      }
+      if (item.href === "/admin/routes/shuttle-audit") {
+        return (
+          hasPermission(item.permission) &&
+          user?.email?.trim().toLowerCase() === "hashir.ahmed@cort.com.pk"
+        );
+      }
       return hasPermission(item.permission);
     });
-  }, [isSuperAdmin, isInternalStaff, hasPermission]);
+  }, [isSuperAdmin, isInternalStaff, hasPermission, user?.email]);
 
   const activeHref = useMemo(() => {
     if (!pathname) return "/admin";
