@@ -36,6 +36,7 @@ const PERMISSION_LABELS: Record<PermissionKey, string> = {
   bookings: "Bookings",
   routes: "Routes",
   ops_shuttle: "Ops: Shuttle",
+  shuttle_audit: "Shuttle Audit Logs",
   ops_chauffeur: "Ops: Chauffeur",
   reports: "Reports",
   expenses: "Expenses",

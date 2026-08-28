@@ -22,6 +22,7 @@ export const PERMISSION_KEYS = [
     'bookings',
     'routes',
     'ops_shuttle',
+    'shuttle_audit',
     'ops_chauffeur',
     'reports',
     'expenses',

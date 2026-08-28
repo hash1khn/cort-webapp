@@ -17,6 +17,7 @@ export const ADMIN_SUBJECTS = {
   bookings: "Bookings",
   routes: "Routes",
   ops_shuttle: "OpsShuttle",
+  shuttle_audit: "ShuttleAudit",
   ops_chauffeur: "OpsChauffeur",
   reports: "Reports",
   expenses: "Expenses",

@@ -2045,6 +2045,53 @@ class ApiClient {
         });
     }
 
+    async getShuttleAuditLogs(params: {
+        company_id?: number;
+        route_id?: number;
+        trip_id?: number;
+        action?: string;
+        entity_type?: string;
+        actor_id?: string;
+        from?: string;
+        to?: string;
+        page?: number;
+        limit?: number;
+    } = {}) {
+        const search = new URLSearchParams();
+        if (params.company_id != null) search.set('company_id', String(params.company_id));
+        if (params.route_id != null) search.set('route_id', String(params.route_id));
+        if (params.trip_id != null) search.set('trip_id', String(params.trip_id));
+        if (params.action) search.set('action', params.action);
+        if (params.entity_type) search.set('entity_type', params.entity_type);
+        if (params.actor_id) search.set('actor_id', params.actor_id);
+        if (params.from) search.set('from', params.from);
+        if (params.to) search.set('to', params.to);
+        if (params.page != null) search.set('page', String(params.page));
+        if (params.limit != null) search.set('limit', String(params.limit));
+        const q = search.toString();
+        return this.request<{
+            data: Array<{
+                id: number;
+                actor_id: string;
+                actor_name: string | null;
+                actor_role: string | null;
+                action: string;
+                target_user_id: string | null;
+                company_id: number | null;
+                created_at: string;
+                notes: string;
+                before: Record<string, unknown> | null;
+                after: Record<string, unknown> | null;
+                entity_type: string | null;
+                entity_id: string | null;
+                route_id: number | null;
+                trip_id: number | null;
+                impersonated_by: string | null;
+            }>;
+            pagination: { page: number; limit: number; total: number; pages: number; hasNext: boolean; hasPrev: boolean };
+        }>(`/shuttle-audit-logs${q ? `?${q}` : ''}`);
+    }
+
     // ===== BOOKING VENDOR REQUESTS =====
 
     async getBookingVendorRequests(companyId: number, bookingId: number) {

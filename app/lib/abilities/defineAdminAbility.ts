@@ -10,7 +10,10 @@ export type AppAbility = MongoAbility<[AdminCrudAction, AdminSubject]>;
 /**
  * Subjects where only `read` is granted from the backend for staff (e.g. analytics-only sections).
  */
-const READ_ONLY_SUBJECTS = new Set<AdminSubject>([ADMIN_SUBJECTS.dashboard]);
+const READ_ONLY_SUBJECTS = new Set<AdminSubject>([
+  ADMIN_SUBJECTS.dashboard,
+  ADMIN_SUBJECTS.shuttle_audit,
+]);
 
 export function defineAdminAbility(user: AuthUser | null): AppAbility {
   const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
