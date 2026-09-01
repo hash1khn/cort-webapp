@@ -23,6 +23,8 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
     { value: 'shuttle.trip.resource_override_set', label: 'Trip crew override set' },
     { value: 'shuttle.trip.resource_override_cleared', label: 'Trip crew override cleared' },
     { value: 'shuttle.trip.status_changed', label: 'Trip status changed' },
+    { value: 'shuttle.trip.force_ended', label: 'Trip force-ended' },
+    { value: 'shuttle.trip.completed', label: 'Trip completed' },
     { value: 'shuttle.trip.deleted', label: 'Trip deleted' },
     { value: 'shuttle.trip.daily_generated', label: 'Daily trips generated' },
     { value: 'shuttle.trip.daily_regenerated', label: 'Daily trips regenerated' },
